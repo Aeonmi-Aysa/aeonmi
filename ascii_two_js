@@ -1,0 +1,4 @@
+let zero = "|0⟩";
+let one = "|1⟩";
+console.log(zero);
+console.log(one);

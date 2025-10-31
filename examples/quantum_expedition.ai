@@ -1,0 +1,119 @@
+// Aeonmi Quantum Expedition
+// Interactive-style console application showcasing Aeonmi.ai syntax
+// Demonstrates classical logic, quantum primitives, loops, and structured data
+
+log("=== Aeonmi Quantum Expedition ===");
+let version = "1.0";
+log("Version", version);
+
+function headline(title) {
+    log("\n---", title, "---");
+}
+
+function list_options(options) {
+    headline("Mission Route");
+    let index = 0;
+    for option in options {
+        log("  [", index, "] ", option);
+        index = index + 1;
+    }
+}
+
+function run_shor_module() {
+    headline("Shor's Factoring Vault");
+    let composite = 21;
+    log("Target composite:", composite);
+    let factors = [3, 7];
+    log("Suggested factors:");
+    for factor in factors {
+        log("  ->", factor);
+    }
+    log("Quantum period finding engaged... Completed.");
+    return 2;
+}
+
+function run_grover_module() {
+    headline("Grover Search Lab");
+    let search_space = 16;
+    let marked_item = 11;
+    log("Search space:", search_space, "items");
+    log("Marked item predicted:", marked_item);
+    let iterations = 0;
+    while iterations < 3 {
+        log("  Amplifying amplitude (iteration", iterations, ")");
+        iterations = iterations + 1;
+    }
+    log("Amplitude amplification complete.");
+    return 3;
+}
+
+function run_teleportation_module() {
+    headline("Quantum Teleportation Bay");
+    qubit alice_qubit;
+    qubit bob_qubit;
+    qubit message_qubit;
+
+    superpose(alice_qubit);
+    entangle(alice_qubit, bob_qubit);
+    superpose(message_qubit);
+    log("Entanglement established. Performing Bell measurement.");
+
+    let alice_bit = measure(alice_qubit);
+    let message_bit = measure(message_qubit);
+    log("Alice measurement:", alice_bit);
+    log("Message measurement:", message_bit);
+
+    if alice_bit == 1 {
+        log("Applying X correction on Bob's qubit.");
+        𓀁(bob_qubit);
+    }
+    if message_bit == 1 {
+        log("Applying Z correction on Bob's qubit.");
+        𓀃(bob_qubit);
+    }
+
+    let bob_result = measure(bob_qubit);
+    log("Bob's reconstructed state:", bob_result);
+    return 4;
+}
+
+function synchronize_mission(score) {
+    headline("Quantum Synchronization");
+    let pulses = 0;
+    while pulses < score {
+        log("  Synchronizing pulse", pulses + 1);
+        pulses = pulses + 1;
+    }
+    log("Synchronization complete.");
+}
+
+let mission_modules = [
+    "Shor's Factoring Vault",
+    "Grover Search Lab",
+    "Quantum Teleportation Bay"
+];
+
+list_options(mission_modules);
+
+// Autopilot chooses an itinerary to keep the demo deterministic.
+let autopilot_choice = mission_modules[1];
+log("\nAutopilot selected:", autopilot_choice);
+
+let mission_score = 0;
+
+if autopilot_choice == mission_modules[0] {
+    mission_score = mission_score + run_shor_module();
+} else if autopilot_choice == mission_modules[1] {
+    mission_score = mission_score + run_grover_module();
+    // After Grover, visit teleportation automatically to show quantum primitives.
+    mission_score = mission_score + run_teleportation_module();
+} else {
+    mission_score = mission_score + run_teleportation_module();
+}
+
+synchronize_mission(mission_score);
+
+headline("Mission Summary");
+log("Final mission score:", mission_score);
+log("Module count visited:", 2);
+log("Aeonmi Quantum Expedition complete. Ready for real input when connected to Mother AI.");

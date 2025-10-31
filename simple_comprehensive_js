@@ -1,0 +1,16 @@
+let zero_state = "|0⟩";
+let one_state = "|1⟩";
+let plus_state = "|+⟩";
+let minus_state = "|-⟩";
+console.log(zero_state);
+console.log(one_state);
+console.log(plus_state);
+console.log(minus_state);
+let qbit_a = "|0⟩"; // Classical quantum variable
+let qbit_b = "|1⟩"; // Superposition quantum variable
+let qbit_c = "|+⟩"; // Tensor product quantum variable
+let qbit_d = "|-⟩"; // Quantum approximation variable
+console.log(qbit_a);
+console.log(qbit_b);
+console.log(qbit_c);
+console.log(qbit_d);

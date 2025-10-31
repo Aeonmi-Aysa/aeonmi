@@ -1,0 +1,3 @@
+// Simple quantum state test
+let test = |0⟩
+log(test)

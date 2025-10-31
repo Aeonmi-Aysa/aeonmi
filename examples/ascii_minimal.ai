@@ -1,0 +1,2 @@
+// Test with explicit ASCII bracket
+let test = |0>;

@@ -1,0 +1,20 @@
+// Simple comprehensive quantum test
+let zero_state = |0⟩;
+let one_state = |1⟩;
+let plus_state = |+⟩;
+let minus_state = |-⟩;
+
+log(zero_state);
+log(one_state);
+log(plus_state);
+log(minus_state);
+
+𓀀 qbit_a = |0⟩;
+𓀁 qbit_b = |1⟩;
+𓀂 qbit_c = |+⟩;
+𓀃 qbit_d = |-⟩;
+
+log(qbit_a);
+log(qbit_b);
+log(qbit_c);
+log(qbit_d);

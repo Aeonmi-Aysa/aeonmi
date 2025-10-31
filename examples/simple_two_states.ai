@@ -1,0 +1,5 @@
+// Simple two-state test with proper Unicode
+let zero = |0⟩;
+let one = |1⟩;
+log(zero);
+log(one);

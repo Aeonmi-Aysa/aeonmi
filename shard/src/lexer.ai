@@ -1,0 +1,464 @@
+// SHARD Quantum-Aware Lexer
+// Tokenizes both classical AEONMI and quantum syntax
+// Written in hybrid AEONMI syntax
+
+import { Token, TokenKind, Position } from "./token";
+
+// === QUANTUM-AWARE LEXER ===
+quantum lexer HybridLexer {
+    source: String;
+    position: usize = 0;
+    line: usize = 1;
+    column: usize = 1;
+    quantum_mode: bool = false;
+    
+    constructor(source: String) {
+        this.source = source;
+    }
+    
+    // Main tokenization entry point
+    function tokenize() -> TokenStream {
+        log("🔍 Starting quantum-aware lexical analysis...");
+        
+        let tokens: Token[] = [];
+        
+        while !this.is_at_end() {
+            // Check for quantum syntax mode transitions
+            this.detect_quantum_mode_changes();
+            
+            // Skip whitespace
+            this.skip_whitespace();
+            
+            if this.is_at_end() break;
+            
+            // Tokenize next element
+            let token = this.next_token();
+            
+            if token.kind != TokenKind::Whitespace {
+                tokens.push(token);
+            }
+        }
+        
+        // Add EOF token
+        tokens.push(Token::new(
+            TokenKind::EOF,
+            "",
+            Position::new(this.line, this.column)
+        ));
+        
+        log(f"🔍 Lexical analysis complete: {tokens.len()} tokens");
+        return TokenStream::new(tokens);
+    }
+    
+    // Detect quantum syntax regions
+    function detect_quantum_mode_changes() {
+        let remaining = this.source[this.position..];
+        
+        // Enter quantum mode
+        if remaining.starts_with("quantum") {
+            this.quantum_mode = true;
+            log("🔮 Entering quantum syntax mode");
+        }
+        
+        // Quantum state literals |ψ⟩
+        if remaining.starts_with("|") && remaining.contains("⟩") {
+            this.quantum_mode = true;
+        }
+        
+        // Exit quantum mode at block end
+        if this.quantum_mode && remaining.starts_with("}") {
+            this.quantum_mode = false;
+            log("📜 Exiting quantum syntax mode");
+        }
+    }
+    
+    // Tokenize next element
+    function next_token() -> Token {
+        let start_pos = Position::new(this.line, this.column);
+        let ch = this.current_char();
+        
+        // Quantum-specific tokens
+        if this.quantum_mode {
+            if let Some(quantum_token) = this.try_quantum_token() {
+                return quantum_token;
+            }
+        }
+        
+        // Classical tokens
+        match ch {
+            // Identifiers and keywords
+            c if c.is_alphabetic() || c == '_' => {
+                return this.identifier_or_keyword(start_pos);
+            },
+            
+            // Numbers
+            c if c.is_numeric() => {
+                return this.number(start_pos);
+            },
+            
+            // Strings
+            '"' => return this.string_literal(start_pos),
+            '\'' => return this.char_literal(start_pos),
+            
+            // Operators and punctuation
+            '+' => return this.plus_or_assign(start_pos),
+            '-' => return this.minus_or_assign(start_pos),
+            '*' => return this.multiply_or_assign(start_pos),
+            '/' => return this.divide_or_comment(start_pos),
+            '=' => return this.equals_or_assign(start_pos),
+            '!' => return this.not_or_not_equals(start_pos),
+            '<' => return this.less_than_or_assign(start_pos),
+            '>' => return this.greater_than_or_assign(start_pos),
+            '&' => return this.ampersand_or_and(start_pos),
+            '|' => return this.pipe_or_or(start_pos),
+            '^' => return this.caret(start_pos),
+            '%' => return this.percent(start_pos),
+            
+            // Delimiters
+            '(' => return this.single_char_token(TokenKind::LeftParen, start_pos),
+            ')' => return this.single_char_token(TokenKind::RightParen, start_pos),
+            '[' => return this.single_char_token(TokenKind::LeftBracket, start_pos),
+            ']' => return this.single_char_token(TokenKind::RightBracket, start_pos),
+            '{' => return this.single_char_token(TokenKind::LeftBrace, start_pos),
+            '}' => return this.single_char_token(TokenKind::RightBrace, start_pos),
+            ',' => return this.single_char_token(TokenKind::Comma, start_pos),
+            ';' => return this.single_char_token(TokenKind::Semicolon, start_pos),
+            ':' => return this.colon_or_double_colon(start_pos),
+            '.' => return this.dot_or_range(start_pos),
+            
+            // Unknown character
+            _ => {
+                this.advance();
+                return Token::new(
+                    TokenKind::Unknown,
+                    ch.to_string(),
+                    start_pos
+                );
+            }
+        }
+    }
+    
+    // Try to tokenize quantum-specific syntax
+    function try_quantum_token() -> Option<Token> {
+        let start_pos = Position::new(this.line, this.column);
+        let remaining = this.source[this.position..];
+        
+        // Quantum state literals |0⟩, |1⟩, |+⟩, |-⟩, |ψ⟩
+        if remaining.starts_with("|") {
+            return Some(this.quantum_state_literal(start_pos));
+        }
+        
+        // Complex number literals (for quantum amplitudes)
+        if remaining.starts_with("(") && remaining.contains("i)") {
+            return Some(this.complex_number(start_pos));
+        }
+        
+        // Quantum gate operations
+        if let Some(gate) = this.try_quantum_gate() {
+            return Some(gate);
+        }
+        
+        // Greek letters for quantum variables
+        if let Some(greek) = this.try_greek_letter() {
+            return Some(greek);
+        }
+        
+        None
+    }
+    
+    // Quantum state literal: |ψ⟩ = α|0⟩ + β|1⟩
+    function quantum_state_literal(start_pos: Position) -> Token {
+        let start = this.position;
+        
+        // Consume opening |
+        this.advance(); // |
+        
+        // Consume state content until ⟩
+        while !this.is_at_end() && this.current_char() != '⟩' {
+            this.advance();
+        }
+        
+        if !this.is_at_end() {
+            this.advance(); // ⟩
+        }
+        
+        let value = self.source[start..self.position];
+        
+        Token::new(
+            TokenKind::QuantumState,
+            value,
+            start_pos
+        )
+    }
+    
+    // Complex number: (3.2 + 4.1i)
+    function complex_number(start_pos: Position) -> Token {
+        let start = this.position;
+        
+        // Consume until closing )
+        while !this.is_at_end() && this.current_char() != ')' {
+            this.advance();
+        }
+        
+        if !this.is_at_end() {
+            this.advance(); // )
+        }
+        
+        let value = self.source[start..self.position];
+        
+        Token::new(
+            TokenKind::ComplexNumber,
+            value,
+            start_pos
+        )
+    }
+    
+    // Try quantum gate operations
+    function try_quantum_gate() -> Option<Token> {
+        let start_pos = Position::new(this.line, this.column);
+        let remaining = self.source[self.position..];
+        
+        // Single-letter quantum gates
+        if remaining.starts_with("H(") || remaining.starts_with("H ") {
+            self.advance();
+            return Some(Token::new(TokenKind::QuantumGate, "H", start_pos));
+        }
+        
+        if remaining.starts_with("X(") || remaining.starts_with("X ") {
+            self.advance();
+            return Some(Token::new(TokenKind::QuantumGate, "X", start_pos));
+        }
+        
+        if remaining.starts_with("Y(") || remaining.starts_with("Y ") {
+            self.advance();
+            return Some(Token::new(TokenKind::QuantumGate, "Y", start_pos));
+        }
+        
+        if remaining.starts_with("Z(") || remaining.starts_with("Z ") {
+            self.advance();
+            return Some(Token::new(TokenKind::QuantumGate, "Z", start_pos));
+        }
+        
+        // Multi-letter quantum gates
+        if remaining.starts_with("CNOT") {
+            self.advance_n(4);
+            return Some(Token::new(TokenKind::QuantumGate, "CNOT", start_pos));
+        }
+        
+        if remaining.starts_with("Toffoli") {
+            self.advance_n(7);
+            return Some(Token::new(TokenKind::QuantumGate, "Toffoli", start_pos));
+        }
+        
+        if remaining.starts_with("SWAP") {
+            self.advance_n(4);
+            return Some(Token::new(TokenKind::QuantumGate, "SWAP", start_pos));
+        }
+        
+        None
+    }
+    
+    // Greek letters used in quantum mechanics
+    function try_greek_letter() -> Option<Token> {
+        let start_pos = Position::new(this.line, this.column);
+        let remaining = self.source[self.position..];
+        
+        // Common quantum Greek letters
+        let greek_letters = [
+            ("α", "alpha"),
+            ("β", "beta"), 
+            ("γ", "gamma"),
+            ("δ", "delta"),
+            ("ε", "epsilon"),
+            ("ζ", "zeta"),
+            ("η", "eta"),
+            ("θ", "theta"),
+            ("λ", "lambda"),
+            ("μ", "mu"),
+            ("ν", "nu"),
+            ("π", "pi"),
+            ("ρ", "rho"),
+            ("σ", "sigma"),
+            ("τ", "tau"),
+            ("φ", "phi"),
+            ("χ", "chi"),
+            ("ψ", "psi"),
+            ("ω", "omega"),
+        ];
+        
+        for (symbol, name) in greek_letters {
+            if remaining.starts_with(symbol) {
+                self.advance_n(symbol.len());
+                return Some(Token::new(
+                    TokenKind::GreekLetter,
+                    symbol,
+                    start_pos
+                ));
+            }
+        }
+        
+        None
+    }
+    
+    // Identifier or keyword
+    function identifier_or_keyword(start_pos: Position) -> Token {
+        let start = self.position;
+        
+        // First character is alphabetic or underscore
+        self.advance();
+        
+        // Subsequent characters can be alphanumeric or underscore
+        while !self.is_at_end() {
+            let ch = self.current_char();
+            if ch.is_alphanumeric() || ch == '_' {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        
+        let value = self.source[start..self.position];
+        let token_kind = self.keyword_or_identifier(value);
+        
+        Token::new(token_kind, value, start_pos)
+    }
+    
+    // Determine if identifier is a keyword
+    function keyword_or_identifier(text: &str) -> TokenKind {
+        match text {
+            // Quantum keywords
+            "quantum" => TokenKind::Quantum,
+            "qubit" => TokenKind::Qubit,
+            "measure" => TokenKind::Measure,
+            "circuit" => TokenKind::Circuit,
+            "gate" => TokenKind::Gate,
+            "superposition" => TokenKind::Superposition,
+            "entanglement" => TokenKind::Entanglement,
+            
+            // Classical keywords
+            "function" => TokenKind::Function,
+            "let" => TokenKind::Let,
+            "const" => TokenKind::Const,
+            "mut" => TokenKind::Mut,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
+            "for" => TokenKind::For,
+            "while" => TokenKind::While,
+            "return" => TokenKind::Return,
+            "break" => TokenKind::Break,
+            "continue" => TokenKind::Continue,
+            "match" => TokenKind::Match,
+            "enum" => TokenKind::Enum,
+            "struct" => TokenKind::Struct,
+            "class" => TokenKind::Class,
+            "impl" => TokenKind::Impl,
+            "trait" => TokenKind::Trait,
+            "import" => TokenKind::Import,
+            "export" => TokenKind::Export,
+            "async" => TokenKind::Async,
+            "await" => TokenKind::Await,
+            
+            // Types
+            "i32" => TokenKind::I32,
+            "i64" => TokenKind::I64,
+            "f32" => TokenKind::F32,
+            "f64" => TokenKind::F64,
+            "bool" => TokenKind::Bool,
+            "string" => TokenKind::String,
+            "usize" => TokenKind::Usize,
+            
+            // Literals
+            "true" => TokenKind::True,
+            "false" => TokenKind::False,
+            "null" => TokenKind::Null,
+            
+            _ => TokenKind::Identifier,
+        }
+    }
+    
+    // Utility functions
+    function current_char() -> char {
+        if self.is_at_end() {
+            '\0'
+        } else {
+            self.source.chars().nth(self.position).unwrap_or('\0')
+        }
+    }
+    
+    function is_at_end() -> bool {
+        self.position >= self.source.len()
+    }
+    
+    function advance() {
+        if !self.is_at_end() {
+            if self.current_char() == '\n' {
+                self.line += 1;
+                self.column = 1;
+            } else {
+                self.column += 1;
+            }
+            self.position += 1;
+        }
+    }
+    
+    function advance_n(n: usize) {
+        for _ in 0..n {
+            self.advance();
+        }
+    }
+    
+    function skip_whitespace() {
+        while !self.is_at_end() {
+            let ch = self.current_char();
+            if ch.is_whitespace() {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+    }
+    
+    function single_char_token(kind: TokenKind, pos: Position) -> Token {
+        let ch = self.current_char();
+        self.advance();
+        Token::new(kind, ch.to_string(), pos)
+    }
+}
+
+// Token stream for parser consumption
+quantum struct TokenStream {
+    tokens: Token[];
+    position: usize = 0;
+    
+    constructor(tokens: Token[]) {
+        this.tokens = tokens;
+    }
+    
+    function current() -> &Token {
+        if self.position < self.tokens.len() {
+            &self.tokens[self.position]
+        } else {
+            &self.tokens[self.tokens.len() - 1] // EOF
+        }
+    }
+    
+    function advance() -> &Token {
+        let current = self.current();
+        if self.position < self.tokens.len() - 1 {
+            self.position += 1;
+        }
+        current
+    }
+    
+    function peek() -> &Token {
+        if self.position + 1 < self.tokens.len() {
+            &self.tokens[self.position + 1]
+        } else {
+            &self.tokens[self.tokens.len() - 1] // EOF
+        }
+    }
+    
+    function is_at_end() -> bool {
+        self.current().kind == TokenKind::EOF
+    }
+}

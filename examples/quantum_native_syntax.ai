@@ -1,0 +1,62 @@
+∴ AEONMI Quantum-Native Syntax Example
+∵ This demonstrates the unique AEONMI programming paradigm
+
+∴ Quantum variable declarations
+⟨quantum_state⟩ ∈ |0⟩ + |1⟩              ∴ Superposition binding
+⟨classical_var⟩ ← 42                      ∴ Classical binding  
+⟨tensor_data⟩ ⊗ [1, 2, 3]                 ∴ Tensor array
+⟨approx_value⟩ ≈ 3.14159                  ∴ Approximate binding
+
+∴ Quantum functions
+◯ classical_add⟨a, b⟩ → ⟨result⟩ {
+    ⟨result⟩ ← ⟨a⟩ + ⟨b⟩
+}
+
+⊙ quantum_superpose⟨q⟩ {
+    𓀀⟨q⟩                                  ∴ Hadamard gate
+}
+
+🧠 neural_process⟨input⟩ → ⟨output⟩ {
+    ⟨hidden⟩ ← 𝒩⟨input⟩
+    ⟨output⟩ ← ⟨hidden⟩
+}
+
+∴ Probability-based control flow
+⊖ ⟨quantum_state⟩ ≈ 0.7 ⇒ {
+    ∴ 70% probability branch
+    log("Quantum measurement: |0⟩")
+} ⊕ {
+    ∴ 30% probability branch  
+    log("Quantum measurement: |1⟩")
+}
+
+∴ Quantum loop with decoherence
+⟨counter⟩ ← 0
+⟲ ⟨counter⟩ ⪰ 5 ⇒ {
+    ⟨counter⟩ ← ⟨counter⟩ + 1
+    𓀀⟨quantum_state⟩
+}
+
+∴ Quantum try-catch with error probability
+⚡ {
+    ⟨risky_result⟩ ← quantum_operation⟨quantum_state⟩
+} ⚠️ ⟨error⟩ ≈ 0.1 ⇒ {
+    log("Quantum decoherence detected!")
+} ✓ {
+    log("Quantum operation successful!")
+}
+
+∴ Multi-dimensional quantum arrays
+⟨qmatrix⟩ ∇ [2×3×4]
+⟨qmatrix⟩⟦0, 1, 2⟧ ← |+⟩
+
+∴ AI learning block
+🧠 learn {
+    ⟨training_data⟩ ⊗ quantum_dataset
+    ⟨model⟩ ← gradient_descent⟨training_data⟩
+}
+
+∴ Time-bounded quantum operations
+⏰ duration⟨500ms⟩ ⇒ {
+    ⟨coherent_state⟩ ∈ maintain_coherence⟨quantum_state⟩
+}

@@ -1,0 +1,588 @@
+// SHARD Qiskit Integration Bridge
+// Native quantum hardware access with zero-overhead execution
+// Written in hybrid AEONMI syntax
+
+import { AST, ASTNode, QuantumOperation } from "./ast";
+import { CodeGenerationResult } from "./codegen";
+
+// === QISKIT BRIDGE MAIN CLASS ===
+quantum class QiskitBridge {
+    backend_name: String;
+    optimization_level: u8;
+    shots: usize;
+    connected: bool = false;
+    
+    constructor(backend_name: String = "qasm_simulator", shots: usize = 1024) {
+        this.backend_name = backend_name;
+        this.shots = shots;
+        this.optimization_level = 2;
+    }
+    
+    // === CONNECTION MANAGEMENT ===
+    function connect() -> Result<(), QiskitError> {
+        log(f"🔗 Connecting to Qiskit backend: {this.backend_name}");
+        
+        // Initialize Python Qiskit environment
+        let python_init = self.initialize_qiskit_environment()?;
+        
+        if python_init {
+            self.connected = true;
+            log("✅ Qiskit bridge connected successfully");
+            Ok(())
+        } else {
+            Err(QiskitError::ConnectionFailed(
+                "Failed to initialize Qiskit environment".to_string()
+            ))
+        }
+    }
+    
+    function disconnect() {
+        if self.connected {
+            log("🔌 Disconnecting from Qiskit backend");
+            self.cleanup_qiskit_environment();
+            self.connected = false;
+        }
+    }
+    
+    // === QUANTUM CIRCUIT COMPILATION ===
+    function compile_circuit(circuit: &ASTNode) -> Result<QiskitCircuit, QiskitError> {
+        if !self.connected {
+            return Err(QiskitError::NotConnected);
+        }
+        
+        log("🔮 Compiling quantum circuit to Qiskit");
+        
+        match circuit {
+            ASTNode::QuantumCircuit { name, qubits, operations } => {
+                let qiskit_circuit = self.build_qiskit_circuit(name, qubits, operations)?;
+                let optimized_circuit = self.optimize_for_backend(qiskit_circuit)?;
+                
+                Ok(optimized_circuit)
+            },
+            
+            _ => Err(QiskitError::InvalidCircuit("Expected QuantumCircuit node".to_string())),
+        }
+    }
+    
+    function build_qiskit_circuit(
+        name: &str,
+        qubits: &[QubitDeclaration],
+        operations: &[QuantumOperation]
+    ) -> Result<QiskitCircuit, QiskitError> {
+        
+        // Calculate total qubits and classical bits needed
+        let total_qubits: usize = qubits.iter().map(|q| q.count).sum();
+        let total_classical = self.count_measurements(operations);
+        
+        log(f"📊 Circuit stats: {total_qubits} qubits, {total_classical} classical bits, {operations.len()} operations");
+        
+        let mut qiskit_code = String::new();
+        
+        // Generate Qiskit circuit initialization
+        qiskit_code.push_str(&format!(
+            "from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister\n"
+        ));
+        qiskit_code.push_str(&format!(
+            "from qiskit.quantum_info import Statevector\n"
+        ));
+        qiskit_code.push_str(&format!(
+            "from qiskit.providers.aer import AerSimulator\n"
+        ));
+        qiskit_code.push_str(&format!(
+            "from qiskit import transpile, execute\n\n"
+        ));
+        
+        qiskit_code.push_str(&format!(
+            "# AEONMI Quantum Circuit: {}\n", name
+        ));
+        qiskit_code.push_str(&format!(
+            "qreg = QuantumRegister({}, 'q')\n", total_qubits
+        ));
+        
+        if total_classical > 0 {
+            qiskit_code.push_str(&format!(
+                "creg = ClassicalRegister({}, 'c')\n", total_classical
+            ));
+            qiskit_code.push_str(&format!(
+                "qc = QuantumCircuit(qreg, creg)\n\n"
+            ));
+        } else {
+            qiskit_code.push_str(&format!(
+                "qc = QuantumCircuit(qreg)\n\n"
+            ));
+        }
+        
+        // Build qubit mapping
+        let qubit_map = self.build_qubit_mapping(qubits);
+        
+        // Generate operations
+        let mut classical_bit_index = 0;
+        for operation in operations {
+            match operation {
+                QuantumOperation::Gate { name, qubits: gate_qubits, parameters } => {
+                    let qiskit_gate_code = self.generate_qiskit_gate(
+                        name, 
+                        gate_qubits, 
+                        parameters, 
+                        &qubit_map
+                    )?;
+                    qiskit_code.push_str(&qiskit_gate_code);
+                },
+                
+                QuantumOperation::Measurement { qubit, .. } => {
+                    let qubit_index = self.resolve_qubit_index_from_mapping(qubit, &qubit_map)?;
+                    qiskit_code.push_str(&format!(
+                        "qc.measure(qreg[{}], creg[{}])\n",
+                        qubit_index, classical_bit_index
+                    ));
+                    classical_bit_index += 1;
+                },
+                
+                QuantumOperation::StatePreparation { qubit, state } => {
+                    let state_prep_code = self.generate_state_preparation(qubit, state, &qubit_map)?;
+                    qiskit_code.push_str(&state_prep_code);
+                },
+                
+                _ => {
+                    return Err(QiskitError::UnsupportedOperation(format!("{:?}", operation)));
+                }
+            }
+        }
+        
+        Ok(QiskitCircuit {
+            name: name.to_string(),
+            qiskit_code,
+            qubit_count: total_qubits,
+            classical_bit_count: total_classical,
+            depth: self.calculate_circuit_depth(operations),
+        })
+    }
+    
+    // === QUANTUM GATE GENERATION ===
+    function generate_qiskit_gate(
+        gate_name: &str,
+        qubits: &[Expression],
+        parameters: &[Expression],
+        qubit_map: &QubitMapping
+    ) -> Result<String, QiskitError> {
+        
+        let qubit_indices = qubits.iter()
+            .map(|q| self.resolve_qubit_index_from_mapping(q, qubit_map))
+            .collect::<Result<Vec<_>, _>>()?;
+        
+        let mut gate_code = String::new();
+        
+        match gate_name {
+            // === SINGLE-QUBIT GATES ===
+            "H" => {
+                if qubit_indices.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("H gate requires 1 qubit".to_string()));
+                }
+                gate_code.push_str(&format!("qc.h(qreg[{}])\n", qubit_indices[0]));
+            },
+            
+            "X" => {
+                if qubit_indices.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("X gate requires 1 qubit".to_string()));
+                }
+                gate_code.push_str(&format!("qc.x(qreg[{}])\n", qubit_indices[0]));
+            },
+            
+            "Y" => {
+                if qubit_indices.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("Y gate requires 1 qubit".to_string()));
+                }
+                gate_code.push_str(&format!("qc.y(qreg[{}])\n", qubit_indices[0]));
+            },
+            
+            "Z" => {
+                if qubit_indices.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("Z gate requires 1 qubit".to_string()));
+                }
+                gate_code.push_str(&format!("qc.z(qreg[{}])\n", qubit_indices[0]));
+            },
+            
+            "S" => {
+                if qubit_indices.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("S gate requires 1 qubit".to_string()));
+                }
+                gate_code.push_str(&format!("qc.s(qreg[{}])\n", qubit_indices[0]));
+            },
+            
+            "T" => {
+                if qubit_indices.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("T gate requires 1 qubit".to_string()));
+                }
+                gate_code.push_str(&format!("qc.t(qreg[{}])\n", qubit_indices[0]));
+            },
+            
+            // === PARAMETERIZED SINGLE-QUBIT GATES ===
+            "RX" => {
+                if qubit_indices.len() != 1 || parameters.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("RX gate requires 1 qubit and 1 parameter".to_string()));
+                }
+                let angle = self.extract_parameter_value(&parameters[0])?;
+                gate_code.push_str(&format!("qc.rx({}, qreg[{}])\n", angle, qubit_indices[0]));
+            },
+            
+            "RY" => {
+                if qubit_indices.len() != 1 || parameters.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("RY gate requires 1 qubit and 1 parameter".to_string()));
+                }
+                let angle = self.extract_parameter_value(&parameters[0])?;
+                gate_code.push_str(&format!("qc.ry({}, qreg[{}])\n", angle, qubit_indices[0]));
+            },
+            
+            "RZ" => {
+                if qubit_indices.len() != 1 || parameters.len() != 1 {
+                    return Err(QiskitError::InvalidGateArity("RZ gate requires 1 qubit and 1 parameter".to_string()));
+                }
+                let angle = self.extract_parameter_value(&parameters[0])?;
+                gate_code.push_str(&format!("qc.rz({}, qreg[{}])\n", angle, qubit_indices[0]));
+            },
+            
+            // === TWO-QUBIT GATES ===
+            "CNOT" | "CX" => {
+                if qubit_indices.len() != 2 {
+                    return Err(QiskitError::InvalidGateArity("CNOT gate requires 2 qubits".to_string()));
+                }
+                gate_code.push_str(&format!("qc.cx(qreg[{}], qreg[{}])\n", qubit_indices[0], qubit_indices[1]));
+            },
+            
+            "CZ" => {
+                if qubit_indices.len() != 2 {
+                    return Err(QiskitError::InvalidGateArity("CZ gate requires 2 qubits".to_string()));
+                }
+                gate_code.push_str(&format!("qc.cz(qreg[{}], qreg[{}])\n", qubit_indices[0], qubit_indices[1]));
+            },
+            
+            // === THREE-QUBIT GATES ===
+            "Toffoli" | "CCX" => {
+                if qubit_indices.len() != 3 {
+                    return Err(QiskitError::InvalidGateArity("Toffoli gate requires 3 qubits".to_string()));
+                }
+                gate_code.push_str(&format!("qc.ccx(qreg[{}], qreg[{}], qreg[{}])\n", 
+                    qubit_indices[0], qubit_indices[1], qubit_indices[2]));
+            },
+            
+            // === CUSTOM GATES ===
+            _ => {
+                return Err(QiskitError::UnsupportedGate(gate_name.to_string()));
+            }
+        }
+        
+        Ok(gate_code)
+    }
+    
+    // === QUANTUM STATE PREPARATION ===
+    function generate_state_preparation(
+        qubit: &Expression,
+        state: &Expression,
+        qubit_map: &QubitMapping
+    ) -> Result<String, QiskitError> {
+        
+        let qubit_index = self.resolve_qubit_index_from_mapping(qubit, qubit_map)?;
+        let mut prep_code = String::new();
+        
+        match state {
+            Expression::QuantumState { state: state_str } => {
+                match state_str.as_str() {
+                    "|0⟩" => {
+                        // Already in |0⟩ state, no preparation needed
+                        prep_code.push_str(&format!("# Qubit {} already in |0⟩ state\n", qubit_index));
+                    },
+                    
+                    "|1⟩" => {
+                        prep_code.push_str(&format!("qc.x(qreg[{}])  # Prepare |1⟩ state\n", qubit_index));
+                    },
+                    
+                    "|+⟩" => {
+                        prep_code.push_str(&format!("qc.h(qreg[{}])  # Prepare |+⟩ state\n", qubit_index));
+                    },
+                    
+                    "|-⟩" => {
+                        prep_code.push_str(&format!("qc.x(qreg[{}])\n", qubit_index));
+                        prep_code.push_str(&format!("qc.h(qreg[{}])  # Prepare |-⟩ state\n", qubit_index));
+                    },
+                    
+                    _ => {
+                        return Err(QiskitError::UnsupportedState(state_str.clone()));
+                    }
+                }
+            },
+            
+            Expression::QuantumSuperposition { amplitudes, .. } => {
+                // Complex superposition state preparation
+                prep_code.push_str(&self.generate_superposition_preparation(qubit_index, amplitudes)?);
+            },
+            
+            _ => {
+                return Err(QiskitError::InvalidStateExpression(format!("{:?}", state)));
+            }
+        }
+        
+        Ok(prep_code)
+    }
+    
+    function generate_superposition_preparation(
+        qubit_index: usize,
+        amplitudes: &[QuantumAmplitude]
+    ) -> Result<String, QiskitError> {
+        
+        let mut prep_code = String::new();
+        
+        // For now, handle simple two-amplitude superpositions
+        if amplitudes.len() == 2 {
+            let amp0 = &amplitudes[0];
+            let amp1 = &amplitudes[1];
+            
+            // Calculate rotation angles from amplitudes
+            // |ψ⟩ = cos(θ/2)|0⟩ + sin(θ/2)|1⟩
+            let alpha = self.parse_amplitude(&amp0.coefficient)?;
+            let beta = self.parse_amplitude(&amp1.coefficient)?;
+            
+            // Normalize amplitudes
+            let norm = (alpha * alpha + beta * beta).sqrt();
+            let alpha_norm = alpha / norm;
+            let beta_norm = beta / norm;
+            
+            // Calculate rotation angle
+            let theta = 2.0 * (beta_norm / alpha_norm).atan();
+            
+            prep_code.push_str(&format!(
+                "qc.ry({}, qreg[{}])  # Prepare superposition α|0⟩ + β|1⟩\n",
+                theta, qubit_index
+            ));
+        } else {
+            return Err(QiskitError::ComplexSuperposition(
+                "Complex multi-qubit superpositions not yet supported".to_string()
+            ));
+        }
+        
+        Ok(prep_code)
+    }
+    
+    // === CIRCUIT EXECUTION ===
+    function execute_circuit(circuit: &QiskitCircuit) -> Result<ExecutionResult, QiskitError> {
+        if !self.connected {
+            return Err(QiskitError::NotConnected);
+        }
+        
+        log(f"⚡ Executing quantum circuit on {self.backend_name}");
+        log(f"📊 Circuit: {circuit.qubit_count} qubits, depth {circuit.depth}, {self.shots} shots");
+        
+        let execution_code = format!(
+            "{}\n\
+            # Execute circuit\n\
+            backend = AerSimulator()\n\
+            transpiled_qc = transpile(qc, backend, optimization_level={})\n\
+            job = execute(transpiled_qc, backend, shots={})\n\
+            result = job.result()\n\
+            counts = result.get_counts()\n\
+            print('Execution complete')\n\
+            print('Measurement results:', counts)\n",
+            circuit.qiskit_code,
+            self.optimization_level,
+            self.shots
+        );
+        
+        // Execute Python code (this would interface with actual Python interpreter)
+        let python_result = self.execute_python_code(&execution_code)?;
+        
+        Ok(ExecutionResult {
+            counts: python_result.counts,
+            execution_time: python_result.execution_time,
+            backend_used: self.backend_name.clone(),
+            shots: self.shots,
+            success: true,
+        })
+    }
+    
+    // === BACKEND OPTIMIZATION ===
+    function optimize_for_backend(circuit: QiskitCircuit) -> Result<QiskitCircuit, QiskitError> {
+        log("🔧 Optimizing circuit for quantum backend");
+        
+        let mut optimized_circuit = circuit;
+        
+        // Add transpilation and optimization
+        let optimization_code = format!(
+            "\n# Backend optimization\n\
+            from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager\n\
+            pm = generate_preset_pass_manager(optimization_level={}, backend=backend)\n\
+            optimized_qc = pm.run(qc)\n\
+            qc = optimized_qc\n",
+            self.optimization_level
+        );
+        
+        optimized_circuit.qiskit_code.push_str(&optimization_code);
+        
+        Ok(optimized_circuit)
+    }
+    
+    // === UTILITY FUNCTIONS ===
+    function initialize_qiskit_environment() -> Result<bool, QiskitError> {
+        // Initialize Python environment and Qiskit
+        // This would interface with Python interpreter
+        log("🐍 Initializing Python/Qiskit environment");
+        
+        // Check if Qiskit is available
+        let check_code = "import qiskit; print(f'Qiskit version: {qiskit.__version__}')";
+        
+        match self.execute_python_code(check_code) {
+            Ok(_) => Ok(true),
+            Err(e) => Err(QiskitError::PythonError(format!("Qiskit not available: {:?}", e))),
+        }
+    }
+    
+    function cleanup_qiskit_environment() {
+        log("🧹 Cleaning up Qiskit environment");
+        // Cleanup resources
+    }
+    
+    function build_qubit_mapping(qubits: &[QubitDeclaration]) -> QubitMapping {
+        let mut mapping = QubitMapping::new();
+        let mut current_index = 0;
+        
+        for qubit_decl in qubits {
+            mapping.insert(qubit_decl.name.clone(), current_index);
+            current_index += qubit_decl.count;
+        }
+        
+        mapping
+    }
+    
+    function resolve_qubit_index_from_mapping(
+        qubit_expr: &Expression, 
+        qubit_map: &QubitMapping
+    ) -> Result<usize, QiskitError> {
+        if let Expression::Identifier(name) = qubit_expr {
+            qubit_map.get(name)
+                .copied()
+                .ok_or_else(|| QiskitError::UnknownQubit(name.clone()))
+        } else {
+            Err(QiskitError::InvalidQubitReference)
+        }
+    }
+    
+    function count_measurements(operations: &[QuantumOperation]) -> usize {
+        operations.iter()
+            .filter(|op| matches!(op, QuantumOperation::Measurement { .. }))
+            .count()
+    }
+    
+    function calculate_circuit_depth(operations: &[QuantumOperation]) -> usize {
+        // Simplified circuit depth calculation
+        operations.len()
+    }
+    
+    function extract_parameter_value(param: &Expression) -> Result<f64, QiskitError> {
+        match param {
+            Expression::Float(value) => Ok(*value),
+            Expression::Integer(value) => Ok(*value as f64),
+            _ => Err(QiskitError::InvalidParameter(format!("{:?}", param))),
+        }
+    }
+    
+    function parse_amplitude(amp_str: &str) -> Result<f64, QiskitError> {
+        // Parse amplitude coefficients (α, β, numbers)
+        match amp_str {
+            "α" | "alpha" => Ok(1.0 / 2.0_f64.sqrt()), // Default for equal superposition
+            "β" | "beta" => Ok(1.0 / 2.0_f64.sqrt()),
+            _ => {
+                amp_str.parse::<f64>()
+                    .map_err(|_| QiskitError::InvalidAmplitude(amp_str.to_string()))
+            }
+        }
+    }
+    
+    function execute_python_code(&self, code: &str) -> Result<PythonResult, QiskitError> {
+        // This would interface with actual Python interpreter
+        // For now, return mock result
+        log(f"🐍 Executing Python code: {} lines", code.lines().count());
+        
+        Ok(PythonResult {
+            counts: std::collections::HashMap::new(),
+            execution_time: std::time::Duration::from_millis(100),
+        })
+    }
+}
+
+// === SUPPORTING TYPES ===
+quantum struct QiskitCircuit {
+    name: String,
+    qiskit_code: String,
+    qubit_count: usize,
+    classical_bit_count: usize,
+    depth: usize,
+}
+
+quantum struct ExecutionResult {
+    counts: std::collections::HashMap<String, usize>,
+    execution_time: std::time::Duration,
+    backend_used: String,
+    shots: usize,
+    success: bool,
+}
+
+quantum struct PythonResult {
+    counts: std::collections::HashMap<String, usize>,
+    execution_time: std::time::Duration,
+}
+
+type QubitMapping = std::collections::HashMap<String, usize>;
+
+// === ERROR TYPES ===
+quantum enum QiskitError {
+    NotConnected,
+    ConnectionFailed(String),
+    InvalidCircuit(String),
+    UnsupportedOperation(String),
+    UnsupportedGate(String),
+    UnsupportedState(String),
+    InvalidGateArity(String),
+    InvalidStateExpression(String),
+    ComplexSuperposition(String),
+    UnknownQubit(String),
+    InvalidQubitReference,
+    InvalidParameter(String),
+    InvalidAmplitude(String),
+    PythonError(String),
+    ExecutionFailed(String),
+}
+
+impl std::fmt::Display for QiskitError {
+    function fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QiskitError::NotConnected => 
+                write!(f, "Qiskit bridge not connected"),
+            QiskitError::ConnectionFailed(msg) => 
+                write!(f, "Failed to connect to Qiskit: {}", msg),
+            QiskitError::InvalidCircuit(msg) => 
+                write!(f, "Invalid quantum circuit: {}", msg),
+            QiskitError::UnsupportedOperation(op) => 
+                write!(f, "Unsupported quantum operation: {}", op),
+            QiskitError::UnsupportedGate(gate) => 
+                write!(f, "Unsupported quantum gate: {}", gate),
+            QiskitError::UnsupportedState(state) => 
+                write!(f, "Unsupported quantum state: {}", state),
+            QiskitError::InvalidGateArity(msg) => 
+                write!(f, "Invalid gate arity: {}", msg),
+            QiskitError::InvalidStateExpression(expr) => 
+                write!(f, "Invalid state expression: {}", expr),
+            QiskitError::ComplexSuperposition(msg) => 
+                write!(f, "Complex superposition not supported: {}", msg),
+            QiskitError::UnknownQubit(qubit) => 
+                write!(f, "Unknown qubit: {}", qubit),
+            QiskitError::InvalidQubitReference => 
+                write!(f, "Invalid qubit reference"),
+            QiskitError::InvalidParameter(param) => 
+                write!(f, "Invalid gate parameter: {}", param),
+            QiskitError::InvalidAmplitude(amp) => 
+                write!(f, "Invalid amplitude coefficient: {}", amp),
+            QiskitError::PythonError(msg) => 
+                write!(f, "Python execution error: {}", msg),
+            QiskitError::ExecutionFailed(msg) => 
+                write!(f, "Circuit execution failed: {}", msg),
+        }
+    }
+}

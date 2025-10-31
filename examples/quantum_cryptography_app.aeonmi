@@ -1,0 +1,238 @@
+// AEONMI Quantum Cryptography Application
+// Implements BB84 Quantum Key Distribution Protocol
+// Real-world secure communication using quantum mechanics
+
+import { QuantumCircuit, QuantumKey, ClassicalChannel } from "@aeonmi/quantum";
+
+// === Quantum Key Distribution (BB84 Protocol) ===
+quantum protocol BB84KeyDistribution {
+    participants: alice, bob, eve;
+    security_level: quantum_safe;
+    
+    // Alice prepares random quantum states
+    function alice_prepare_states(key_length: 128) -> |ψ⟩[] {
+        let states = [];
+        let random_bits = generate_random_bits(key_length);
+        let random_bases = generate_random_bases(key_length);
+        
+        for i in 0..key_length {
+            let qubit = |0⟩;
+            
+            // Encode bit in random basis
+            if random_bits[i] == 1 {
+                qubit = X(qubit);  // |1⟩ state
+            }
+            
+            if random_bases[i] == 1 {
+                qubit = H(qubit);  // Diagonal basis
+            }
+            
+            states.push(qubit);
+        }
+        
+        return states;
+    }
+    
+    // Bob measures in random bases
+    function bob_measure_states(states: |ψ⟩[], bases: bit[]) -> bit[] {
+        let measurements = [];
+        
+        for i in 0..states.length {
+            let qubit = states[i];
+            
+            if bases[i] == 1 {
+                qubit = H(qubit);  // Measure in diagonal basis
+            }
+            
+            let result = measure(qubit);
+            measurements.push(result);
+        }
+        
+        return measurements;
+    }
+    
+    // Main BB84 protocol execution
+    async function execute_bb84() -> SecureKey {
+        log("🔐 Starting BB84 Quantum Key Distribution");
+        
+        // Step 1: Alice prepares quantum states
+        let alice_bits = generate_random_bits(256);
+        let alice_bases = generate_random_bases(256);
+        let quantum_states = alice_prepare_states(alice_bits, alice_bases);
+        
+        log("📡 Alice prepared 256 quantum states");
+        
+        // Step 2: Send quantum states through quantum channel
+        let transmitted_states = quantum_channel.send(quantum_states);
+        
+        // Step 3: Bob measures in random bases
+        let bob_bases = generate_random_bases(256);
+        let bob_measurements = bob_measure_states(transmitted_states, bob_bases);
+        
+        log("📊 Bob measured all quantum states");
+        
+        // Step 4: Classical communication - compare bases
+        let matching_indices = [];
+        for i in 0..256 {
+            if alice_bases[i] == bob_bases[i] {
+                matching_indices.push(i);
+            }
+        }
+        
+        log(`🔍 Found ${matching_indices.length} matching basis choices`);
+        
+        // Step 5: Extract shared secret key
+        let shared_key = [];
+        for index in matching_indices {
+            shared_key.push(alice_bits[index]);
+        }
+        
+        // Step 6: Error detection (eavesdropping check)
+        let error_rate = check_quantum_errors(shared_key, 0.1);
+        
+        if error_rate > 0.11 {
+            throw QuantumSecurityError("Possible eavesdropping detected!");
+        }
+        
+        log(`✅ Secure quantum key established: ${shared_key.length} bits`);
+        return SecureKey::from_bits(shared_key);
+    }
+}
+
+// === Quantum Random Number Generator ===
+quantum service QuantumRNG {
+    hardware: "IBM_quantum" | "IonQ" | "local_simulator";
+    
+    // True quantum randomness using superposition
+    function generate_quantum_random(num_bits: usize) -> bit[] {
+        let circuit = QuantumCircuit::new(num_bits);
+        let qubits = circuit.add_qubits(num_bits);
+        
+        // Create superposition on all qubits
+        for qubit in qubits {
+            circuit.h(qubit);  // |+⟩ = (|0⟩ + |1⟩)/√2
+        }
+        
+        // Measure all qubits - collapse to random classical bits
+        let results = circuit.measure_all();
+        
+        return results;
+    }
+    
+    // Certified quantum randomness with entropy validation
+    async function certified_random_bytes(num_bytes: usize) -> SecureRandom {
+        let total_bits = num_bytes * 8;
+        let raw_bits = generate_quantum_random(total_bits);
+        
+        // Validate entropy using quantum properties
+        let entropy = calculate_quantum_entropy(raw_bits);
+        
+        if entropy < 0.99 {
+            log("⚠️ Low entropy detected, regenerating...");
+            return certified_random_bytes(num_bytes);
+        }
+        
+        log(`🎲 Generated ${num_bytes} cryptographically secure random bytes`);
+        return SecureRandom::from_bits(raw_bits);
+    }
+}
+
+// === Quantum Digital Signatures ===
+quantum signature QuantumDSA {
+    // Quantum-safe digital signatures using quantum one-way functions
+    
+    function generate_quantum_keypair() -> (QuantumPublicKey, QuantumPrivateKey) {
+        let private_key = QuantumRNG::certified_random_bytes(32);
+        
+        // Create quantum public key using quantum one-way function
+        let public_circuit = QuantumCircuit::new(256);
+        let qubits = public_circuit.add_qubits(256);
+        
+        // Encode private key into quantum state
+        for i in 0..256 {
+            if private_key.bit(i) == 1 {
+                public_circuit.x(qubits[i]);
+            }
+        }
+        
+        // Apply quantum one-way transformation
+        quantum_hash_function(public_circuit, qubits);
+        
+        let public_key_state = public_circuit.get_statevector();
+        
+        return (
+            QuantumPublicKey::from_state(public_key_state),
+            QuantumPrivateKey::from_bytes(private_key)
+        );
+    }
+    
+    async function sign_message(message: string, private_key: QuantumPrivateKey) -> QuantumSignature {
+        let message_hash = quantum_hash(message);
+        
+        // Create quantum signature circuit
+        let signature_circuit = QuantumCircuit::new(512);
+        let qubits = signature_circuit.add_qubits(512);
+        
+        // Encode message and private key
+        encode_quantum_signature(signature_circuit, qubits, message_hash, private_key);
+        
+        // Execute on quantum hardware
+        let signature_data = await quantum_hardware.execute(signature_circuit);
+        
+        return QuantumSignature::new(signature_data, message_hash);
+    }
+}
+
+// === Main Quantum Application ===
+async function main() {
+    log("🌟 AEONMI Quantum Cryptography Suite v1.0");
+    log("==========================================");
+    
+    try {
+        // 1. Quantum Key Distribution
+        log("\n🔐 Testing Quantum Key Distribution...");
+        let secure_key = await BB84KeyDistribution::execute_bb84();
+        log(`✅ Established ${secure_key.length()}-bit quantum-safe key`);
+        
+        // 2. Quantum Random Number Generation
+        log("\n🎲 Generating quantum random numbers...");
+        let random_data = await QuantumRNG::certified_random_bytes(64);
+        log(`✅ Generated 64 bytes of true quantum randomness`);
+        
+        // 3. Quantum Digital Signatures
+        log("\n✍️ Creating quantum digital signatures...");
+        let (public_key, private_key) = QuantumDSA::generate_quantum_keypair();
+        let message = "Hello, Quantum World! This message is quantum-signed.";
+        let signature = await QuantumDSA::sign_message(message, private_key);
+        log(`✅ Message signed with quantum-safe cryptography`);
+        
+        // 4. Secure Communication Demo
+        log("\n📡 Secure Quantum Communication Demo");
+        let encrypted_message = encrypt_with_quantum_key(message, secure_key);
+        let decrypted_message = decrypt_with_quantum_key(encrypted_message, secure_key);
+        
+        assert!(message == decrypted_message);
+        log("✅ End-to-end quantum-secure communication verified");
+        
+        // 5. Performance Metrics
+        log("\n📊 Quantum Performance Metrics:");
+        log(`   • Key distribution: ${measure_latency("bb84")} ms`);
+        log(`   • Random generation: ${measure_throughput("qrng")} bytes/sec`);
+        log(`   • Digital signatures: ${measure_latency("qdsa")} ms`);
+        log(`   • Quantum fidelity: ${measure_fidelity()} (99.8%+)`);
+        
+        log("\n🎉 All quantum cryptography tests passed!");
+        log("🔒 Your communications are now quantum-safe!");
+        
+    } catch (error) {
+        log(`❌ Quantum error: ${error.message}`);
+        
+        if error instanceof QuantumSecurityError {
+            log("🚨 SECURITY ALERT: Possible quantum attack detected!");
+            alert_security_team(error);
+        }
+    }
+}
+
+// Run the quantum cryptography application
+main().catch(console.error);

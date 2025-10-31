@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEONMI Quantum IDE</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e6e6fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "sidebar editor quantum"
+                "terminal terminal quantum";
+            grid-template-rows: 60px 1fr 200px;
+            grid-template-columns: 250px 1fr 350px;
+            height: 100vh;
+            gap: 2px;
+        }
+
+        .header {
+            grid-area: header;
+            background: linear-gradient(90deg, #2d1b69 0%, #11998e 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00f5ff, #ff00ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 20px;
+        }
+
+        .menu {
+            display: flex;
+            gap: 20px;
+        }
+
+        .menu-item {
+            padding: 8px 16px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e6e6fa;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: rgba(26, 26, 46, 0.8);
+            border-right: 1px solid #444;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: #00f5ff;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        .file-tree, .quantum-ops {
+            margin-bottom: 30px;
+        }
+
+        .file-item, .op-item {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover, .op-item:hover {
+            background: rgba(0, 245, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .editor {
+            grid-area: editor;
+            background: rgba(15, 15, 30, 0.9);
+            border: 1px solid #444;
+            position: relative;
+        }
+
+        .editor-header {
+            background: rgba(42, 42, 84, 0.8);
+            padding: 10px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-content {
+            height: calc(100% - 50px);
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .quantum-panel {
+            grid-area: quantum;
+            background: rgba(22, 33, 62, 0.9);
+            border-left: 1px solid #444;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .quantum-panel h3 {
+            color: #ff00ff;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .quantum-circuit {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #666;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .qubit-line {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            height: 30px;
+        }
+
+        .qubit-label {
+            width: 30px;
+            font-weight: bold;
+            color: #00f5ff;
+        }
+
+        .circuit-line {
+            flex: 1;
+            height: 2px;
+            background: #666;
+            position: relative;
+            margin: 0 10px;
+        }
+
+        .gate {
+            position: absolute;
+            top: -15px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .gate:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+        }
+
+        .state-vector {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #666;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .amplitude {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .terminal {
+            grid-area: terminal;
+            background: rgba(0, 0, 0, 0.8);
+            border-top: 1px solid #444;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: 'Monaco', monospace;
+            font-size: 13px;
+        }
+
+        .terminal-header {
+            color: #00f5ff;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-content {
+            color: #e6e6fa;
+            white-space: pre-wrap;
+        }
+
+        .quantum-operators {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quantum-op {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .quantum-op:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .hardware-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #666;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .device-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .device-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .device-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+
+        .device-status.busy {
+            background: #FF9800;
+        }
+
+        .device-status.offline {
+            background: #F44336;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .executing {
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Hieroglyphic operators styling */
+        .hieroglyphic {
+            font-size: 18px;
+            color: #ffeb3b;
+            text-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">⟨AEONMI⟩ Quantum IDE</div>
+            <div class="menu">
+                <button class="menu-item" onclick="newFile()">New File</button>
+                <button class="menu-item" onclick="runCode()">Run ▶</button>
+                <button class="menu-item" onclick="debugCode()">Debug 🐛</button>
+                <button class="menu-item" onclick="showQuantumPanel()">Quantum 🔬</button>
+                <button class="menu-item" onclick="showHardware()">Hardware 🖥️</button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="file-tree">
+                <h3>📁 Project Explorer</h3>
+                <div class="file-item">📄 quantum_demo.ai</div>
+                <div class="file-item">📄 algorithms.ai</div>
+                <div class="file-item">📄 hardware_test.ai</div>
+                <div class="file-item">📄 bell_state.ai</div>
+            </div>
+
+            <div class="quantum-ops">
+                <h3>⚛️ Quantum Operators</h3>
+                <div class="op-item hieroglyphic" onclick="insertOperator('𓀀')">𓀀 Quantum Bind</div>
+                <div class="op-item hieroglyphic" onclick="insertOperator('𓀁')">𓀁 Quantum Tensor</div>
+                <div class="op-item hieroglyphic" onclick="insertOperator('𓀂')">𓀂 Quantum Loop</div>
+                <div class="op-item hieroglyphic" onclick="insertOperator('⟨⟩')">⟨⟩ Quantum Brackets</div>
+                <div class="op-item hieroglyphic" onclick="insertOperator('⟦⟧')">⟦⟧ Block Brackets</div>
+                <div class="op-item hieroglyphic" onclick="insertOperator('⦅⦆')">⦅⦆ Condition Flow</div>
+            </div>
+        </div>
+
+        <!-- Editor -->
+        <div class="editor">
+            <div class="editor-header">
+                <span>📝 quantum_demo.ai</span>
+                <div>
+                    <span>🌐 AEONMI v0.2.0</span>
+                    <span style="margin-left: 20px;">⚡ Quantum Ready</span>
+                </div>
+            </div>
+            <div class="editor-content" id="editor">
+                <div style="color: #6c757d;"># AEONMI Quantum Programming Example</div>
+                <div style="color: #6c757d;"># Demonstrating quantum-native syntax</div>
+                <div style="margin-top: 10px;"></div>
+                <div><span style="color: #ff6b6b;">⟦</span> Quantum Bell State Creation <span style="color: #ff6b6b;">⟧</span></div>
+                <div style="margin-top: 10px;"></div>
+                <div><span style="color: #4ecdc4; font-weight: bold;">𓀀</span> qubit1 = <span style="color: #ffeb3b;">⟨q1⟩</span></div>
+                <div><span style="color: #4ecdc4; font-weight: bold;">𓀀</span> qubit2 = <span style="color: #ffeb3b;">⟨q2⟩</span></div>
+                <div style="margin-top: 10px;"></div>
+                <div><span style="color: #6c757d;"># Apply Hadamard gate</span></div>
+                <div><span style="color: #ff9f43;">superpose</span>(qubit1)</div>
+                <div style="margin-top: 10px;"></div>
+                <div><span style="color: #6c757d;"># Create entanglement</span></div>
+                <div><span style="color: #ff9f43;">entangle</span>(qubit1, qubit2)</div>
+                <div style="margin-top: 10px;"></div>
+                <div><span style="color: #6c757d;"># Measure results</span></div>
+                <div><span style="color: #4ecdc4; font-weight: bold;">𓀀</span> result1 = <span style="color: #ff9f43;">measure</span>(qubit1)</div>
+                <div><span style="color: #4ecdc4; font-weight: bold;">𓀀</span> result2 = <span style="color: #ff9f43;">measure</span>(qubit2)</div>
+                <div style="margin-top: 10px;"></div>
+                <div><span style="color: #ff9f43;">print</span>(<span style="color: #a8e6cf;">"Bell state results:"</span>, result1, result2)</div>
+            </div>
+        </div>
+
+        <!-- Quantum Panel -->
+        <div class="quantum-panel">
+            <h3>🔬 Quantum Visualization</h3>
+            
+            <div class="quantum-circuit">
+                <h4>Circuit Diagram</h4>
+                <div class="qubit-line">
+                    <div class="qubit-label">|q₀⟩</div>
+                    <div class="circuit-line">
+                        <div class="gate" style="left: 20%;">H</div>
+                        <div class="gate" style="left: 60%;">●</div>
+                    </div>
+                </div>
+                <div class="qubit-line">
+                    <div class="qubit-label">|q₁⟩</div>
+                    <div class="circuit-line">
+                        <div class="gate" style="left: 60%;">⊕</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-vector">
+                <h4>State Vector</h4>
+                <div class="amplitude">
+                    <span>|00⟩</span>
+                    <span>0.707 + 0i</span>
+                </div>
+                <div class="amplitude">
+                    <span>|01⟩</span>
+                    <span>0.000 + 0i</span>
+                </div>
+                <div class="amplitude">
+                    <span>|10⟩</span>
+                    <span>0.000 + 0i</span>
+                </div>
+                <div class="amplitude">
+                    <span>|11⟩</span>
+                    <span>0.707 + 0i</span>
+                </div>
+            </div>
+
+            <div class="quantum-operators">
+                <button class="quantum-op" onclick="applyGate('H')">H</button>
+                <button class="quantum-op" onclick="applyGate('X')">X</button>
+                <button class="quantum-op" onclick="applyGate('Y')">Y</button>
+                <button class="quantum-op" onclick="applyGate('Z')">Z</button>
+                <button class="quantum-op" onclick="applyGate('CNOT')">CNOT</button>
+                <button class="quantum-op" onclick="applyGate('M')">📏</button>
+            </div>
+
+            <div class="hardware-panel">
+                <h4>Hardware Status</h4>
+                <div class="device-item">
+                    <span>IBM Brisbane</span>
+                    <div class="device-status"></div>
+                </div>
+                <div class="device-item">
+                    <span>IonQ Harmony</span>
+                    <div class="device-status busy"></div>
+                </div>
+                <div class="device-item">
+                    <span>Local Simulator</span>
+                    <div class="device-status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal -->
+        <div class="terminal">
+            <div class="terminal-header">
+                <span>💻 AEONMI Quantum Terminal</span>
+                <div>
+                    <button onclick="clearTerminal()" style="background: none; border: none; color: #00f5ff; cursor: pointer;">Clear</button>
+                </div>
+            </div>
+            <div class="terminal-content" id="terminal">
+AEONMI Quantum IDE v0.2.0 - Ready for quantum computing!
+Quantum simulator initialized with 30 qubits
+Hardware integration: 3 devices available
+
+> Running quantum_demo.ai...
+⟦ Quantum Bell State Creation ⟧
+Qubit q1 created in |0⟩ state
+Qubit q2 created in |0⟩ state
+Applying superposition to q1...
+Creating entanglement between q1 and q2...
+Bell state results: |00⟩: 51%, |11⟩: 49%
+Quantum execution completed successfully!
+
+> _
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // GUI JavaScript functionality
+        function newFile() {
+            console.log('Creating new file...');
+            document.getElementById('terminal').innerHTML += '\n> New file created: untitled.ai';
+        }
+
+        function runCode() {
+            console.log('Running AEONMI code...');
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML += '\n> Executing quantum circuit...';
+            
+            // Simulate quantum execution
+            setTimeout(() => {
+                terminal.innerHTML += '\nQuantum state |ψ⟩ = 0.707|00⟩ + 0.707|11⟩';
+                terminal.innerHTML += '\nMeasurement results: 50.2% |00⟩, 49.8% |11⟩';
+                terminal.innerHTML += '\nExecution completed in 0.023 seconds';
+                terminal.innerHTML += '\n> _';
+                terminal.scrollTop = terminal.scrollHeight;
+            }, 1500);
+        }
+
+        function debugCode() {
+            console.log('Starting debug mode...');
+            document.getElementById('terminal').innerHTML += '\n> Debug mode activated - stepping through quantum gates...';
+        }
+
+        function showQuantumPanel() {
+            console.log('Showing quantum visualization...');
+            document.querySelector('.quantum-panel').style.display = 'block';
+        }
+
+        function showHardware() {
+            console.log('Showing hardware panel...');
+            document.getElementById('terminal').innerHTML += '\n> Connecting to quantum hardware providers...';
+        }
+
+        function insertOperator(op) {
+            console.log('Inserting operator:', op);
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML += `\n> Inserted quantum operator: ${op}`;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function applyGate(gate) {
+            console.log('Applying gate:', gate);
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML += `\n> Applied ${gate} gate to quantum circuit`;
+            
+            // Animate gate application
+            const gates = document.querySelectorAll('.gate');
+            gates.forEach(g => g.classList.add('executing'));
+            
+            setTimeout(() => {
+                gates.forEach(g => g.classList.remove('executing'));
+                terminal.innerHTML += `\n> State vector updated`;
+                terminal.scrollTop = terminal.scrollHeight;
+            }, 1000);
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal').innerHTML = 'AEONMI Quantum IDE v0.2.0 - Ready for quantum computing!\n> _';
+        }
+
+        // Initialize IDE
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AEONMI Quantum IDE initialized');
+            
+            // Simulate periodic hardware status updates
+            setInterval(() => {
+                const statuses = document.querySelectorAll('.device-status');
+                statuses.forEach(status => {
+                    if (Math.random() < 0.1) { // 10% chance to change status
+                        const classes = ['', 'busy', 'offline'];
+                        const currentClass = status.className.split(' ')[1] || '';
+                        const newClass = classes[Math.floor(Math.random() * classes.length)];
+                        status.className = `device-status ${newClass}`;
+                    }
+                });
+            }, 5000);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                runCode();
+            }
+            if (e.key === 'F5') {
+                e.preventDefault();
+                runCode();
+            }
+            if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+                e.preventDefault();
+                // Command palette would open here
+                console.log('Command palette triggered');
+            }
+        });
+    </script>
+</body>
+</html>
