@@ -16,28 +16,41 @@ fn gather(source: &str) -> Vec<(String, Severity)> {
 
 #[test]
 fn arithmetic_type_error() {
-    let src = r#"\nlet a = 1;\nlet b = "s";\nlet c = a - b;\n"#; // minus between number and string -> error
+    let src = r#"
+let a = 1;
+let b = "s";
+let c = a - b;
+"#; // minus between number and string -> error
     let diags = gather(src);
     assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Error) && m.contains("Arithmetic operands must be numbers")), "expected arithmetic type error, got: {:?}", diags);
 }
 
 #[test]
 fn plus_string_number_warning() {
-    let src = r#"\nlet a = 1;\nlet b = "s";\nlet c = a + b;\n"#; // implicit coercion warning
+    let src = r#"
+let a = 1;
+let b = "s";
+let c = a + b;
+"#; // implicit coercion warning
     let diags = gather(src);
     assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Warning) && m.contains("Implicit number/string coercion")), "expected coercion warning, got: {:?}", diags);
 }
 
 #[test]
 fn unused_function_warning() {
-    let src = r#"\nfn foo() { return 1; }\n"#; // no call -> warning
+    let src = r#"
+fn foo() { return 1; }
+"#; // no call -> warning
     let diags = gather(src);
     assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Warning) && m.contains("Unused function 'foo'")), "expected unused function warning, got: {:?}", diags);
 }
 
 #[test]
 fn used_function_no_warning() {
-    let src = r#"\nfn foo() { return 1; }\nlet x = foo();\n"#; // called -> no unused warning
+    let src = r#"
+fn foo() { return 1; }
+let x = foo();
+"#; // called -> no unused warning
     let diags = gather(src);
     assert!(!diags.iter().any(|(m,_s)| m.contains("Unused function 'foo'")), "did not expect unused function warning, got: {:?}", diags);
 }

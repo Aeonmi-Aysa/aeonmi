@@ -12,6 +12,66 @@ use aeonmi_project::core::quantum_extract::{extract_circuit, circuit_to_json, ci
 use aeonmi_project::core::ast::ASTNode;
 use aeonmi_project::core::incremental::{snapshot_call_graph_metrics, VAR_DEPS, FUNCTION_METRICS, get_deep_propagation, SAVINGS_METRICS};
 
+fn expr_contains_identifier(node: &ASTNode) -> bool {
+    match node {
+        ASTNode::Identifier(_) | ASTNode::IdentifierSpanned { .. } => true,
+        ASTNode::BinaryExpr { left, right, .. } | ASTNode::QuantumBinaryExpr { left, right, .. } => {
+            expr_contains_identifier(left) || expr_contains_identifier(right)
+        }
+        ASTNode::UnaryExpr { expr, .. } | ASTNode::Return(expr) | ASTNode::Log(expr) => expr_contains_identifier(expr),
+        ASTNode::Assignment { value, .. }
+        | ASTNode::VariableDecl { value, .. }
+        | ASTNode::QuantumVariableDecl { value, .. } => {
+            expr_contains_identifier(value)
+        }
+        ASTNode::Call { callee, args } => expr_contains_identifier(callee) || args.iter().any(expr_contains_identifier),
+        ASTNode::QuantumOp { qubits, .. } => qubits.iter().any(expr_contains_identifier),
+        ASTNode::HieroglyphicOp { args, .. } => args.iter().any(expr_contains_identifier),
+        ASTNode::QuantumArray { elements, .. } => elements.iter().any(expr_contains_identifier),
+        ASTNode::QuantumIndexAccess { array, index, .. } => {
+            expr_contains_identifier(array) || expr_contains_identifier(index)
+        }
+        ASTNode::ProbabilityBranch { condition, then_branch, else_branch, .. } => {
+            expr_contains_identifier(condition)
+                || expr_contains_identifier(then_branch)
+                || else_branch.as_ref().map(|b| expr_contains_identifier(b.as_ref())).unwrap_or(false)
+        }
+        ASTNode::QuantumLoop { condition, body, .. } | ASTNode::While { condition, body } => {
+            expr_contains_identifier(condition) || expr_contains_identifier(body)
+        }
+        ASTNode::If { condition, then_branch, else_branch } => {
+            expr_contains_identifier(condition)
+                || expr_contains_identifier(then_branch)
+                || else_branch.as_ref().map(|b| expr_contains_identifier(b.as_ref())).unwrap_or(false)
+        }
+        ASTNode::For { init, condition, increment, body } => {
+            init.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
+                || condition.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
+                || increment.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
+                || expr_contains_identifier(body)
+        }
+        ASTNode::SuperpositionSwitch { value, cases } => {
+            expr_contains_identifier(value)
+                || cases.iter().any(|c| c.body.iter().any(expr_contains_identifier))
+        }
+        ASTNode::QuantumFunction { body, .. }
+        | ASTNode::Function { body, .. }
+        | ASTNode::TimeBlock { body, .. }
+        | ASTNode::AILearningBlock { body, .. } => body.iter().any(expr_contains_identifier),
+        ASTNode::QuantumTryCatch { attempt_body, catch_body, success_body, .. } => {
+            attempt_body.iter().any(expr_contains_identifier)
+                || catch_body.as_ref().map(|b| b.iter().any(expr_contains_identifier)).unwrap_or(false)
+                || success_body.as_ref().map(|b| b.iter().any(expr_contains_identifier)).unwrap_or(false)
+        }
+        ASTNode::Program(items) | ASTNode::Block(items) => items.iter().any(expr_contains_identifier),
+        ASTNode::QuantumState { .. }
+        | ASTNode::NumberLiteral(_)
+        | ASTNode::StringLiteral(_)
+        | ASTNode::BooleanLiteral(_)
+        | ASTNode::Error(_) => false,
+    }
+}
+
 #[tauri::command]
 pub fn aeonmi_compile_ai(input: String, out: Option<String>) -> Result<String, String> {
     let output = out.unwrap_or_else(|| "output.ai".into());
@@ -194,8 +254,27 @@ pub fn aeonmi_types(source: String) -> Result<String, String> {
                     let mut var_writes: std::collections::HashMap<String, std::collections::HashSet<usize>> = std::collections::HashMap::new();
                     fn walk(idx: usize, n: &N, reads: &mut std::collections::HashMap<String, std::collections::HashSet<usize>>, writes: &mut std::collections::HashMap<String, std::collections::HashSet<usize>>) {
                         match n {
-                            N::Assignment { name, value, .. } => { writes.entry(name.clone()).or_default().insert(idx); walk(idx, value, reads, writes); },
-                            N::VariableDecl { name, value, .. } => { writes.entry(name.clone()).or_default().insert(idx); walk(idx, value, reads, writes); },
+                            N::Assignment { name, value, .. } => {
+                                writes.entry(name.clone()).or_default().insert(idx);
+                                if expr_contains_identifier(value) {
+                                    reads.entry(name.clone()).or_default().insert(idx);
+                                }
+                                walk(idx, value, reads, writes);
+                            },
+                            N::VariableDecl { name, value, .. } => {
+                                writes.entry(name.clone()).or_default().insert(idx);
+                                if expr_contains_identifier(value) {
+                                    reads.entry(name.clone()).or_default().insert(idx);
+                                }
+                                walk(idx, value, reads, writes);
+                            },
+                            N::QuantumVariableDecl { name, value, .. } => {
+                                writes.entry(name.clone()).or_default().insert(idx);
+                                if expr_contains_identifier(value) {
+                                    reads.entry(name.clone()).or_default().insert(idx);
+                                }
+                                walk(idx, value, reads, writes);
+                            },
                             N::Identifier(name) | N::IdentifierSpanned { name, .. } => { reads.entry(name.clone()).or_default().insert(idx); },
                             N::Function { body, .. } => { for c in body { walk(idx, c, reads, writes); } },
                             N::Block(b) => { for c in b { walk(idx, c, reads, writes); } },
@@ -285,8 +364,27 @@ pub fn aeonmi_types(source: String) -> Result<String, String> {
         let mut var_writes: std::collections::HashMap<String, std::collections::HashSet<usize>> = std::collections::HashMap::new();
         fn walk(idx: usize, n: &N, reads: &mut std::collections::HashMap<String, std::collections::HashSet<usize>>, writes: &mut std::collections::HashMap<String, std::collections::HashSet<usize>>) {
             match n {
-                N::Assignment { name, value, .. } => { writes.entry(name.clone()).or_default().insert(idx); walk(idx, value, reads, writes); },
-                N::VariableDecl { name, value, .. } => { writes.entry(name.clone()).or_default().insert(idx); walk(idx, value, reads, writes); },
+                N::Assignment { name, value, .. } => {
+                    writes.entry(name.clone()).or_default().insert(idx);
+                    if expr_contains_identifier(value) {
+                        reads.entry(name.clone()).or_default().insert(idx);
+                    }
+                    walk(idx, value, reads, writes);
+                },
+                N::VariableDecl { name, value, .. } => {
+                    writes.entry(name.clone()).or_default().insert(idx);
+                    if expr_contains_identifier(value) {
+                        reads.entry(name.clone()).or_default().insert(idx);
+                    }
+                    walk(idx, value, reads, writes);
+                },
+                N::QuantumVariableDecl { name, value, .. } => {
+                    writes.entry(name.clone()).or_default().insert(idx);
+                    if expr_contains_identifier(value) {
+                        reads.entry(name.clone()).or_default().insert(idx);
+                    }
+                    walk(idx, value, reads, writes);
+                },
                 N::Identifier(name) | N::IdentifierSpanned { name, .. } => { reads.entry(name.clone()).or_default().insert(idx); },
                 N::Function { body, .. } => { for c in body { walk(idx, c, reads, writes); } },
                 N::Block(b) => { for c in b { walk(idx, c, reads, writes); } },

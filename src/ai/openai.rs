@@ -58,6 +58,10 @@ impl AiProvider for OpenAi {
             .ok_or_else(|| anyhow!("empty response"))?;
         Ok(content)
     }
+
+    fn chat_stream(&self, prompt: &str, cb: &mut dyn FnMut(&str)) -> Result<()> {
+        self.stream_chat(prompt, cb)
+    }
 }
 
 impl OpenAi {
@@ -97,8 +101,4 @@ impl OpenAi {
         }
         Ok(())
     }
-}
-
-impl super::AiProvider for OpenAi {
-    fn chat_stream(&self, prompt: &str, cb: &mut dyn FnMut(&str)) -> Result<()> { self.stream_chat(prompt, cb) }
 }

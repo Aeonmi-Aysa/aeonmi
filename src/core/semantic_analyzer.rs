@@ -156,10 +156,11 @@ impl SemanticAnalyzer {
                     self.declare(name, Some(*line), Some(*column));
                     // Mark parameters immediately as used? Keep as unused to surface warnings if not referenced.
                 }
-                let mut saw_return = false;
+                let mut saw_direct_return = false;
+                let mut any_return = false;
                 let mut return_types: Vec<ValueType> = Vec::new();
                 for it in body {
-                    if saw_return {
+                    if saw_direct_return {
                         // unreachable code warning
                         if capture {
                             // approximate span: use start location if available via pattern matching
@@ -174,17 +175,14 @@ impl SemanticAnalyzer {
                         self.visit(it, capture);
                         continue;
                     }
-                    if let ASTNode::Return(expr) = it { 
-                        saw_return = true; 
-                        let ty = self.expr_type(expr);
-                        return_types.push(ty);
-                    }
+                    if matches!(it, ASTNode::Return(_)) { saw_direct_return = true; }
+                    if self.extract_return_types(it, &mut return_types) { any_return = true; }
                     self.visit(it, capture);
                 }
                 self.end_scope();
-                if saw_return {
-                    // Path consistency heuristic: if last stmt not a Return warn missing terminal return.
-                    if !matches!(body.last(), Some(ASTNode::Return(_))) {
+                if any_return {
+                    let guarantees_return = body.last().map(|stmt| self.statement_guarantees_return(stmt)).unwrap_or(false);
+                    if !guarantees_return {
                         if capture { self.diags.push(SemanticDiagnostic { message: format!("Not all code paths return a value in function '{name}'"), line: *line, column: *column, len: name.len().max(1), severity: Severity::Warning }); }
                     }
                     // Return type consistency (ignore Unknown)
@@ -360,6 +358,53 @@ impl SemanticAnalyzer {
             TK::Minus | TK::Star | TK::Slash => { if lt != Number || rt != Number { if lt != Unknown && rt != Unknown { self.push_type_error("Arithmetic operands must be numbers", capture); } } }
             TK::LessThan | TK::LessEqual | TK::GreaterThan | TK::GreaterEqual => { if lt != Number || rt != Number { if lt != Unknown && rt != Unknown { self.push_type_error("Comparison operands must be numbers", capture); } } }
             _ => {}
+        }
+    }
+
+    fn extract_return_types(&mut self, node: &ASTNode, out: &mut Vec<ValueType>) -> bool {
+        match node {
+            ASTNode::Return(expr) => {
+                out.push(self.expr_type(expr));
+                true
+            }
+            ASTNode::Block(stmts) => {
+                let mut any = false;
+                for stmt in stmts {
+                    if self.extract_return_types(stmt, out) { any = true; }
+                }
+                any
+            }
+            ASTNode::If { then_branch, else_branch, .. } => {
+                let mut any = self.extract_return_types(then_branch, out);
+                if let Some(e) = else_branch { if self.extract_return_types(e, out) { any = true; } }
+                any
+            }
+            ASTNode::While { body, .. } => self.extract_return_types(body, out),
+            ASTNode::For { body, .. } => self.extract_return_types(body, out),
+            ASTNode::Program(items) => {
+                let mut any = false;
+                for stmt in items {
+                    if self.extract_return_types(stmt, out) { any = true; }
+                }
+                any
+            }
+            ASTNode::Function { .. } => false,
+            _ => false,
+        }
+    }
+
+    fn statement_guarantees_return(&mut self, node: &ASTNode) -> bool {
+        match node {
+            ASTNode::Return(_) => true,
+            ASTNode::Block(stmts) => stmts.last().map(|s| self.statement_guarantees_return(s)).unwrap_or(false),
+            ASTNode::If { then_branch, else_branch, .. } => {
+                if let Some(e) = else_branch {
+                    self.statement_guarantees_return(then_branch) && self.statement_guarantees_return(e)
+                } else {
+                    false
+                }
+            }
+            _ => false,
         }
     }
 

@@ -10,21 +10,21 @@ fn top_level_lets_execute() {
     let file_path = dir.path().join("mini.ai");
     std::fs::write(&file_path, program).unwrap();
 
-    // Resolve binary path: tests set CARGO_BIN_EXE_<name> per cargo naming; fallback to target/debug/Aeonmi.exe
-    let exe = std::env::var("CARGO_BIN_EXE_Aeonmi").ok()
+    // Resolve binary path: tests set CARGO_BIN_EXE_<name> per cargo naming; fallback to target/debug/aeonmi_shard.exe
+    let exe = std::env::var("CARGO_BIN_EXE_aeonmi_shard").ok()
         .map(PathBuf::from)
         .or_else(|| {
-            let p = PathBuf::from("target").join("debug").join(if cfg!(windows) {"Aeonmi.exe"} else {"Aeonmi"});
+            let p = PathBuf::from("target").join("debug").join(if cfg!(windows) {"aeonmi_shard.exe"} else {"aeonmi_shard"});
             if p.exists() { Some(p) } else { None }
         })
-        .expect("Aeonmi binary path not found");
+        .expect("aeonmi_shard binary path not found");
     let output = Command::new(&exe)
         .arg("run")
         .arg(&file_path)
         .arg("--native")
         .env("AEONMI_NATIVE", "1")
         .output()
-        .expect("failed to run Aeonmi binary");
+        .expect("failed to run aeonmi_shard binary");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("10"), "stdout missing first value: {stdout}");

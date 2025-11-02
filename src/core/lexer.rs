@@ -729,7 +729,7 @@ impl Lexer {
         // distinguish declarations and control flow correctly.
         match ident.as_str() {
             "let" => Token::new(TokenKind::Let, String::from("let"), line, col),
-            "function" => Token::new(TokenKind::Function, String::from("function"), line, col),
+            "function" | "fn" => Token::new(TokenKind::Function, ident.clone(), line, col),
             "return" => Token::new(TokenKind::Return, String::from("return"), line, col),
             "log" => Token::new(TokenKind::Log, String::from("log"), line, col),
             "qubit" => Token::new(TokenKind::Qubit, String::from("qubit"), line, col),

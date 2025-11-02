@@ -221,8 +221,11 @@ impl Parser {
             _ => return Err(self.err_here("Expected hieroglyphic symbol")),
         };
         
-        // Check if this is a quantum variable declaration (𓀀, 𓀁, etc.)
-        if is_quantum_variable_symbol(&symbol) {
+        // Check if this is a quantum variable declaration (𓀀, 𓀁, etc.).
+        let treat_as_quantum_variable = is_quantum_variable_symbol(&symbol)
+            && matches!(self.peek().kind.clone(), TokenKind::Identifier(_));
+
+        if treat_as_quantum_variable {
             // Parse as quantum variable declaration: 𓀀 name = value;
             let line = symbol_token.line;
             let column = symbol_token.column;

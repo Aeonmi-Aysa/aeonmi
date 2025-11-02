@@ -247,9 +247,9 @@ impl CodeGenerator {
                 let params_str = param_names.join(", ");
                 let body_js = body.iter().map(|stmt| self.emit_js(stmt)).collect::<String>();
                 let quantum_marker = match func_type {
-                    crate::core::ast::QuantumFunctionType::Quantum => "// ⊙ Quantum Function",
-                    crate::core::ast::QuantumFunctionType::Classical => "// ◯ Classical Function",
-                    crate::core::ast::QuantumFunctionType::AINeural => "// 🧠 AI Neural Function",
+                    crate::core::ast::QuantumFunctionType::Quantum => "/* ⊙ Quantum Function */",
+                    crate::core::ast::QuantumFunctionType::Classical => "/* ◯ Classical Function */",
+                    crate::core::ast::QuantumFunctionType::AINeural => "/* 🧠 AI Neural Function */",
                 };
                 format!("function {}({}) {{ {}\n{}}}\n", name, params_str, quantum_marker, body_js)
             }
@@ -286,7 +286,7 @@ impl CodeGenerator {
                 let cases_js = cases.iter().map(|case| {
                     format!("// Superposition case: {} -> quantum state handling", case.pattern)
                 }).collect::<Vec<_>>().join("\n");
-                format!("__quantum.superpositionSwitch({}) {{\n{}\n}}\n", value_js, cases_js)
+                format!("// ◇ Superposition Switch\n__quantum.superpositionSwitch({}) {{\n{}\n}}\n", value_js, cases_js)
             }
             ASTNode::QuantumTryCatch { attempt_body, error_probability, catch_body, success_body: _ } => {
                 let attempt_js = attempt_body.iter().map(|stmt| self.emit_js(stmt)).collect::<String>();

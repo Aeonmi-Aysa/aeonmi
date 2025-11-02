@@ -1,8 +1,3 @@
-/// AEONMI Quantum Circuit Builder DSL
-/// Provides high-level quantum circuit construction with gate operations,
-/// circuit visualization, and hardware compilation pipeline
-
-use crate::core::ast::ASTNode;
 use crate::core::hardware_integration::{QuantumCircuit as HwCircuit, QuantumGate as HwGate};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;

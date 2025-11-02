@@ -109,16 +109,18 @@ pub fn set_history_cap(n: usize) { if n>=8 && n<=256 { if let Ok(mut sm)=SAVINGS
 
 #[allow(dead_code)]
 pub fn record_function_infer(idx: usize, dur: u128) {
-    if let Ok(mut m) = FUNCTION_METRICS.lock() {
-        let entry = m.entry(idx).or_insert_with(FunctionInferenceMetric::default);
-        entry.total_ns += dur; entry.runs += 1; entry.last_ns = dur;
+    let mut m = match FUNCTION_METRICS.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let entry = m.entry(idx).or_insert_with(FunctionInferenceMetric::default);
+    entry.total_ns += dur; entry.runs += 1; entry.last_ns = dur;
     entry.last_run_epoch_ms = current_epoch_ms();
     let alpha = EMA_ALPHA_RUNTIME.load(Ordering::Relaxed) as u128;
     if entry.runs == 1 { entry.ema_ns = dur; } else { entry.ema_ns = (entry.ema_ns * (100 - alpha) + dur * alpha) / 100; }
     let cap = WINDOW_CAP_RUNTIME.load(Ordering::Relaxed);
     if entry.window.len()==cap { entry.window.pop_front(); }
     entry.window.push_back(dur);
-    }
 }
 
 pub fn set_deep_propagation(v: bool) { DEEP_PROPAGATION.store(v, Ordering::Relaxed); }
@@ -192,7 +194,9 @@ pub fn persist_metrics() {
         }
     }
     if CALL_GRAPH_METRICS.lock().is_ok() { // cheap check; build JSON anyway
-        let json = build_metrics_json();
+    let json = build_metrics_json();
+    #[cfg(test)]
+    eprintln!("persist_metrics json: {}", serde_json::to_string(&json).unwrap_or_default());
     let path = metrics_file_path();
     if let Err(e) = std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap_or_default()) { eprintln!("persist_metrics write error: {e}"); }
     }
@@ -202,6 +206,8 @@ pub fn persist_metrics() {
 pub fn force_persist_metrics() {
     if CALL_GRAPH_METRICS.lock().is_ok() {
         let json = build_metrics_json();
+        #[cfg(test)]
+        eprintln!("force_persist_metrics json: {}", serde_json::to_string(&json).unwrap_or_default());
     let path = metrics_file_path();
     if let Err(e) = std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap_or_default()) { eprintln!("force_persist_metrics write error: {e}"); }
     }
@@ -230,18 +236,51 @@ pub fn compute_transitive_callers(changed: usize, rev: &Vec<Vec<usize>>, deep: b
 pub fn load_metrics() {
     let path = metrics_file_path();
     if let Ok(data) = std::fs::read_to_string(path) {
+        #[cfg(test)]
+        eprintln!("load_metrics data: {}", data);
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&data) {
-            if let Some(mo) = val.get("metrics") { if let Ok(mut m) = CALL_GRAPH_METRICS.lock() {
+            if let Some(mo) = val.get("metrics") {
+                let mut m = match CALL_GRAPH_METRICS.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
                 m.functions = mo.get("functions").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                 m.edges = mo.get("edges").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                 m.reinfer_events = mo.get("reinfer_events").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                 m.variable_edges = mo.get("variable_edges").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-            }}
-            if let Some(fr) = val.get("varReads") { if let Ok(mut vd)=VAR_DEPS.lock() { if let Some(obj)=fr.as_object() { for (k, arr) in obj { let mut set: HashSet<usize> = HashSet::new(); if let Some(a)=arr.as_array() { for v in a { if let Some(s)=v.as_str() { if let Ok(idx)=s.parse::<usize>() { set.insert(idx); } } } } vd.reads.insert(k.clone(), set); } } } }
-            if let Some(fw) = val.get("varWrites") { if let Ok(mut vd)=VAR_DEPS.lock() { if let Some(obj)=fw.as_object() { for (k, arr) in obj { let mut set: HashSet<usize> = HashSet::new(); if let Some(a)=arr.as_array() { for v in a { if let Some(s)=v.as_str() { if let Ok(idx)=s.parse::<usize>() { set.insert(idx); } } } } vd.writes.insert(k.clone(), set); } } } }
-                if let Some(fm) = val.get("functionMetrics") { if let Ok(mut map)=FUNCTION_METRICS.lock() { if let Some(obj)=fm.as_object() { for (k,v) in obj { if let Ok(idx)=k.parse::<usize>() { let mut metric=FunctionInferenceMetric::default(); metric.runs=v.get("runs").and_then(|x| x.as_u64()).unwrap_or(0); metric.total_ns=v.get("total_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; metric.last_ns=v.get("last_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; metric.ema_ns=v.get("ema_ns").and_then(|x| x.as_u64()).unwrap_or(metric.last_ns as u64) as u128; map.insert(idx, metric); } } } } }
+            }
+            if let Some(fr) = val.get("varReads") {
+                let mut vd = match VAR_DEPS.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                if let Some(obj)=fr.as_object() { for (k, arr) in obj { let mut set: HashSet<usize> = HashSet::new(); if let Some(a)=arr.as_array() { for v in a { if let Some(s)=v.as_str() { if let Ok(idx)=s.parse::<usize>() { set.insert(idx); } } } } vd.reads.insert(k.clone(), set); } }
+            }
+            if let Some(fw) = val.get("varWrites") {
+                let mut vd = match VAR_DEPS.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                if let Some(obj)=fw.as_object() { for (k, arr) in obj { let mut set: HashSet<usize> = HashSet::new(); if let Some(a)=arr.as_array() { for v in a { if let Some(s)=v.as_str() { if let Ok(idx)=s.parse::<usize>() { set.insert(idx); } } } } vd.writes.insert(k.clone(), set); } }
+            }
+            if let Some(fm) = val.get("functionMetrics") {
+                let mut map = match FUNCTION_METRICS.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                if let Some(obj)=fm.as_object() { for (k,v) in obj { if let Ok(idx)=k.parse::<usize>() { let mut metric=FunctionInferenceMetric::default(); metric.runs=v.get("runs").and_then(|x| x.as_u64()).unwrap_or(0); metric.total_ns=v.get("total_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; metric.last_ns=v.get("last_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; metric.ema_ns=v.get("ema_ns").and_then(|x| x.as_u64()).unwrap_or(metric.last_ns as u64) as u128; map.insert(idx, metric); } } }
+            }
             if let Some(dp)=val.get("deepPropagation") { if let Some(b)=dp.as_bool() { set_deep_propagation(b); } }
-            if let Some(sv)=val.get("savings") { if let Ok(mut sm)=SAVINGS_METRICS.lock() { sm.cumulative_savings_ns = sv.get("cumulative_savings_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; sm.cumulative_partial_ns = sv.get("cumulative_partial_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; sm.cumulative_estimated_full_ns = sv.get("cumulative_estimated_full_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; if let Some(arr)=sv.get("recent_samples").and_then(|x| x.as_array()) { for s in arr { let p = s.get("partial_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; let e = s.get("estimated_full_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; if p>0 && e>0 { sm.push_sample(p,e); } } } } }
+            if let Some(sv)=val.get("savings") {
+                let mut sm = match SAVINGS_METRICS.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                sm.cumulative_savings_ns = sv.get("cumulative_savings_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128;
+                sm.cumulative_partial_ns = sv.get("cumulative_partial_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128;
+                sm.cumulative_estimated_full_ns = sv.get("cumulative_estimated_full_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128;
+                if let Some(arr)=sv.get("recent_samples").and_then(|x| x.as_array()) { for s in arr { let p = s.get("partial_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; let e = s.get("estimated_full_ns").and_then(|x| x.as_u64()).unwrap_or(0) as u128; if p>0 && e>0 { sm.push_sample(p,e); } } }
+            }
         }
     }
 }
@@ -251,10 +290,34 @@ pub fn reset_metrics_session() { if let Ok(mut m)=CALL_GRAPH_METRICS.lock() { m.
 
 #[allow(dead_code)]
 pub fn reset_metrics_full() {
-    if let Ok(mut cg)=CALL_GRAPH_METRICS.lock() { *cg = CallGraphMetrics::default(); }
-    if let Ok(mut vd)=VAR_DEPS.lock() { *vd = VarDeps::default(); }
-    if let Ok(mut fm)=FUNCTION_METRICS.lock() { fm.clear(); }
-    if let Ok(mut sm)=SAVINGS_METRICS.lock() { *sm = SavingsMetrics::default(); }
+    {
+        let mut cg = match CALL_GRAPH_METRICS.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        *cg = CallGraphMetrics::default();
+    }
+    {
+        let mut vd = match VAR_DEPS.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        *vd = VarDeps::default();
+    }
+    {
+        let mut fm = match FUNCTION_METRICS.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        fm.clear();
+    }
+    {
+        let mut sm = match SAVINGS_METRICS.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        *sm = SavingsMetrics::default();
+    }
     persist_metrics();
 }
 
@@ -262,7 +325,11 @@ pub fn reset_runtime_metrics_config() { set_ema_alpha(20); set_window_capacity(1
 
 #[allow(dead_code)]
 pub fn record_reinfer_event(count: usize) {
-    if let Ok(mut m) = CALL_GRAPH_METRICS.lock() { m.reinfer_events += count; }
+    let mut m = match CALL_GRAPH_METRICS.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    m.reinfer_events += count;
 }
 
 #[allow(dead_code)]
@@ -275,10 +342,86 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
     let mut var_reads: HashMap<String, HashSet<usize>> = HashMap::new();
     let mut var_writes: HashMap<String, HashSet<usize>> = HashMap::new();
     use crate::core::ast::ASTNode as N;
+    fn expr_contains_identifier(n: &N) -> bool {
+        match n {
+            N::Identifier(_) | N::IdentifierSpanned { .. } => true,
+            N::BinaryExpr { left, right, .. } | N::QuantumBinaryExpr { left, right, .. } => {
+                expr_contains_identifier(left) || expr_contains_identifier(right)
+            }
+            N::UnaryExpr { expr, .. } | N::Return(expr) | N::Log(expr) => expr_contains_identifier(expr),
+            N::Assignment { value, .. }
+            | N::VariableDecl { value, .. }
+            | N::QuantumVariableDecl { value, .. } => expr_contains_identifier(value),
+            N::Call { callee, args } => expr_contains_identifier(callee) || args.iter().any(expr_contains_identifier),
+            N::QuantumOp { qubits, .. } => qubits.iter().any(expr_contains_identifier),
+            N::HieroglyphicOp { args, .. } => args.iter().any(expr_contains_identifier),
+            N::QuantumArray { elements, .. } => elements.iter().any(expr_contains_identifier),
+            N::QuantumIndexAccess { array, index, .. } => {
+                expr_contains_identifier(array) || expr_contains_identifier(index)
+            }
+            N::ProbabilityBranch { condition, then_branch, else_branch, .. } => {
+                expr_contains_identifier(condition)
+                    || expr_contains_identifier(then_branch)
+                    || else_branch.as_ref().map(|b| expr_contains_identifier(b.as_ref())).unwrap_or(false)
+            }
+            N::QuantumLoop { condition, body, .. } | N::While { condition, body } => {
+                expr_contains_identifier(condition) || expr_contains_identifier(body)
+            }
+            N::If { condition, then_branch, else_branch } => {
+                expr_contains_identifier(condition)
+                    || expr_contains_identifier(then_branch)
+                    || else_branch.as_ref().map(|b| expr_contains_identifier(b.as_ref())).unwrap_or(false)
+            }
+            N::For { init, condition, increment, body } => {
+                init.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
+                    || condition.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
+                    || increment.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
+                    || expr_contains_identifier(body)
+            }
+            N::SuperpositionSwitch { value, cases } => {
+                expr_contains_identifier(value)
+                    || cases.iter().any(|c| c.body.iter().any(expr_contains_identifier))
+            }
+            N::QuantumFunction { body, .. }
+            | N::Function { body, .. }
+            | N::TimeBlock { body, .. }
+            | N::AILearningBlock { body, .. } => body.iter().any(expr_contains_identifier),
+            N::QuantumTryCatch { attempt_body, catch_body, success_body, .. } => {
+                attempt_body.iter().any(expr_contains_identifier)
+                    || catch_body.as_ref().map(|b| b.iter().any(expr_contains_identifier)).unwrap_or(false)
+                    || success_body.as_ref().map(|b| b.iter().any(expr_contains_identifier)).unwrap_or(false)
+            }
+            N::Program(items) | N::Block(items) => items.iter().any(expr_contains_identifier),
+            N::QuantumState { .. }
+            | N::NumberLiteral(_)
+            | N::StringLiteral(_)
+            | N::BooleanLiteral(_)
+            | N::Error(_) => false,
+        }
+    }
     fn walk(idx: usize, n: &N, reads: &mut HashMap<String, HashSet<usize>>, writes: &mut HashMap<String, HashSet<usize>>) {
         match n {
-            N::Assignment { name, value, .. } => { writes.entry(name.clone()).or_default().insert(idx); walk(idx, value, reads, writes); },
-            N::VariableDecl { name, value, .. } => { writes.entry(name.clone()).or_default().insert(idx); walk(idx, value, reads, writes); },
+            N::Assignment { name, value, .. } => {
+                writes.entry(name.clone()).or_default().insert(idx);
+                if expr_contains_identifier(value) {
+                    reads.entry(name.clone()).or_default().insert(idx);
+                }
+                walk(idx, value, reads, writes);
+            },
+            N::VariableDecl { name, value, .. } => {
+                writes.entry(name.clone()).or_default().insert(idx);
+                if expr_contains_identifier(value) {
+                    reads.entry(name.clone()).or_default().insert(idx);
+                }
+                walk(idx, value, reads, writes);
+            },
+            N::QuantumVariableDecl { name, value, .. } => {
+                writes.entry(name.clone()).or_default().insert(idx);
+                if expr_contains_identifier(value) {
+                    reads.entry(name.clone()).or_default().insert(idx);
+                }
+                walk(idx, value, reads, writes);
+            },
             N::Identifier(name) | N::IdentifierSpanned { name, .. } => { reads.entry(name.clone()).or_default().insert(idx); },
             N::Function { body, .. } => { for c in body { walk(idx, c, reads, writes); } },
             N::Block(b) => { for c in b { walk(idx, c, reads, writes); } },

@@ -5,7 +5,7 @@ edition = "2021"
 license-file = "LICENSE"
 publish = false
 autobins = false
-default-run = "Aeonmi"
+default-run = "aeonmi_shard"
 description = "AEONMI Quantum Computing Ecosystem with AI Consciousness"
 authors = ["AEONMI Team"]
 
@@ -14,13 +14,13 @@ path = "src/lib.rs"
 
 # Main unified executable with all components
 [[bin]]
-name = "Aeonmi"
+name = "aeonmi_shard"
 path = "src/main.rs"
 
 # Mother AI standalone executable
 [[bin]]
 name = "MotherAI"
-path = "mother_ai/main.ai"
+path = "mother_ai/main.rs"
 
 # Legacy binary name for tests (expects CARGO_BIN_EXE_aeonmi_project)
 [[bin]]

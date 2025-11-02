@@ -213,10 +213,10 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                     usage("run <file.ai> [--native] [--out FILE]");
                     continue;
                 }
-                let input = PathBuf::from(&parts[0]);
+                let mut input: Option<PathBuf> = None;
                 let mut out: Option<PathBuf> = None;
                 let mut native = false;
-                let mut j = 1;
+                let mut j = 0;
                 while j < parts.len() {
                     match parts[j].as_str() {
                         "--out" if j + 1 < parts.len() => {
@@ -227,15 +227,22 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                             native = true;
                             j += 1;
                         }
-                        _ => {
+                        token => {
+                            if input.is_none() {
+                                input = Some(PathBuf::from(token));
+                            }
                             j += 1;
                         }
                     }
                 }
+                let Some(input_path) = input else {
+                    usage("run <file.ai> [--native] [--out FILE]");
+                    continue;
+                };
                 let res = if native {
-                    commands::run::run_native(&input, pretty, skip_sema)
+                    commands::run::run_native(&input_path, pretty, skip_sema)
                 } else {
-                    commands::run::main_with_opts(input, out, pretty, skip_sema)
+                    commands::run::main_with_opts(input_path, out, pretty, skip_sema)
                 };
                 if let Err(e) = res {
                     eprintln!("{} {}", "err:".red().bold(), e);

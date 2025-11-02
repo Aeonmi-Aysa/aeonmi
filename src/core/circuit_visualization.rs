@@ -1,9 +1,7 @@
 /// AEONMI Quantum Circuit Visualization
 /// Provides ASCII art circuit diagrams, LaTeX output, and interactive visualization
 
-use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType, QubitId};
-use std::collections::HashMap;
-use std::fmt;
+use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType};
 
 /// Circuit visualization configuration
 #[derive(Debug, Clone)]
