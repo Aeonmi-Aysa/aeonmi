@@ -11,9 +11,10 @@
 //! 5. Quantum / glyph op arity validation.
 
 use crate::core::ast::{ASTNode, FunctionParam};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SemanticDiagnostic {
     pub message: String,
     pub line: usize,
@@ -23,23 +24,40 @@ pub struct SemanticDiagnostic {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Severity { Error, Warning }
+pub enum Severity {
+    Error,
+    Warning,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum ValueType { Number, String, Bool, Unknown }
+enum ValueType {
+    Number,
+    String,
+    Bool,
+    Unknown,
+}
 
-impl Default for ValueType { fn default() -> Self { ValueType::Unknown } }
+impl Default for ValueType {
+    fn default() -> Self {
+        ValueType::Unknown
+    }
+}
 
 #[derive(Default)]
-struct VarInfo { line: usize, column: usize, used: bool, ty: ValueType }
+struct VarInfo {
+    line: usize,
+    column: usize,
+    used: bool,
+    ty: ValueType,
+}
 
 pub struct SemanticAnalyzer {
     scopes: Vec<HashSet<String>>,
     var_meta: Vec<std::collections::HashMap<String, VarInfo>>, // parallel stack with metadata
     functions: HashMap<String, (usize, usize)>, // track function declarations (line,column) for duplicate detection
     used_functions: HashSet<String>,            // function call sites
-    errors: Vec<String>,            // legacy string list for existing callers
-    diags: Vec<SemanticDiagnostic>, // unified diagnostics (errors + warnings)
+    errors: Vec<String>,                        // legacy string list for existing callers
+    diags: Vec<SemanticDiagnostic>,             // unified diagnostics (errors + warnings)
 }
 
 impl SemanticAnalyzer {
@@ -58,7 +76,11 @@ impl SemanticAnalyzer {
         self.visit(ast, false);
         self.post_pass();
         self.flush_unused_warnings();
-        if self.errors.is_empty() { Ok(()) } else { Err(self.errors.join("\n")) }
+        if self.errors.is_empty() {
+            Ok(())
+        } else {
+            Err(self.errors.join("\n"))
+        }
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -73,10 +95,17 @@ impl SemanticAnalyzer {
         // Placeholder for future multi-pass checks (e.g., unused function detection)
         // Currently detects functions never referenced (simple heuristic: name never marked used as identifier)
         // This is conservative and may false-positive for indirect calls.
-        for (name,(line,column)) in self.functions.clone() { // clone to avoid borrow issues
+        for (name, (line, column)) in self.functions.clone() {
+            // clone to avoid borrow issues
             // skip if any scope recorded it as used identifier
-        if !self.used_functions.contains(&name) {
-                self.diags.push(SemanticDiagnostic { message: format!("Unused function '{name}'"), line, column, len: name.len().max(1), severity: Severity::Warning });
+            if !self.used_functions.contains(&name) {
+                self.diags.push(SemanticDiagnostic {
+                    message: format!("Unused function '{name}'"),
+                    line,
+                    column,
+                    len: name.len().max(1),
+                    severity: Severity::Warning,
+                });
             }
         }
     }
@@ -94,7 +123,13 @@ impl SemanticAnalyzer {
             for (name, info) in map.into_iter() {
                 if !info.used {
                     let msg = format!("Unused variable '{}'", name);
-                    self.diags.push(SemanticDiagnostic { message: msg, line: info.line, column: info.column, len: name.len().max(1), severity: Severity::Warning });
+                    self.diags.push(SemanticDiagnostic {
+                        message: msg,
+                        line: info.line,
+                        column: info.column,
+                        len: name.len().max(1),
+                        severity: Severity::Warning,
+                    });
                 }
             }
         }
@@ -107,14 +142,36 @@ impl SemanticAnalyzer {
             let msg = format!("Redeclaration of '{}'", name);
             self.errors.push(msg.clone());
             if let (Some(l), Some(c)) = (line, column) {
-                self.diags.push(SemanticDiagnostic { message: msg, line: l, column: c, len: name.len().max(1), severity: Severity::Error });
+                self.diags.push(SemanticDiagnostic {
+                    message: msg,
+                    line: l,
+                    column: c,
+                    len: name.len().max(1),
+                    severity: Severity::Error,
+                });
             }
         } else {
             scope.insert(name.to_string());
             if let (Some(l), Some(c)) = (line, column) {
-                meta.insert(name.to_string(), VarInfo { line: l, column: c, used: false, ty: ValueType::Unknown });
+                meta.insert(
+                    name.to_string(),
+                    VarInfo {
+                        line: l,
+                        column: c,
+                        used: false,
+                        ty: ValueType::Unknown,
+                    },
+                );
             } else {
-                meta.insert(name.to_string(), VarInfo { line: 0, column: 0, used: false, ty: ValueType::Unknown });
+                meta.insert(
+                    name.to_string(),
+                    VarInfo {
+                        line: 0,
+                        column: 0,
+                        used: false,
+                        ty: ValueType::Unknown,
+                    },
+                );
             }
         }
     }
@@ -142,12 +199,27 @@ impl SemanticAnalyzer {
                 }
                 self.end_scope();
             }
-            ASTNode::Function { name, line, column, params, body } => {
+            ASTNode::Function {
+                name,
+                line,
+                column,
+                params,
+                body,
+            } => {
                 // duplicate function detection
                 if let Some((prev_l, prev_c)) = self.functions.get(name) {
-                    let msg = format!("Duplicate function '{name}' (previous at {prev_l}:{prev_c})");
+                    let msg =
+                        format!("Duplicate function '{name}' (previous at {prev_l}:{prev_c})");
                     self.errors.push(msg.clone());
-                    if capture { self.diags.push(SemanticDiagnostic { message: msg, line: *line, column: *column, len: name.len().max(1), severity: Severity::Error }); }
+                    if capture {
+                        self.diags.push(SemanticDiagnostic {
+                            message: msg,
+                            line: *line,
+                            column: *column,
+                            len: name.len().max(1),
+                            severity: Severity::Error,
+                        });
+                    }
                 } else {
                     self.functions.insert(name.clone(), (*line, *column));
                 }
@@ -164,48 +236,101 @@ impl SemanticAnalyzer {
                         // unreachable code warning
                         if capture {
                             // approximate span: use start location if available via pattern matching
-                            let (l,c) = match it { ASTNode::VariableDecl { line, column, .. } => (*line,*column),
-                                                   ASTNode::Assignment { line, column, .. } => (*line,*column),
-                                                   ASTNode::Function { line, column, .. } => (*line,*column),
-                                                   ASTNode::IdentifierSpanned { line, column, .. } => (*line,*column),
-                                                   _ => (0,0) };
-                            self.diags.push(SemanticDiagnostic { message: "Unreachable code after return".into(), line: l, column: c, len: 1, severity: Severity::Warning });
+                            let (l, c) = match it {
+                                ASTNode::VariableDecl { line, column, .. } => (*line, *column),
+                                ASTNode::Assignment { line, column, .. } => (*line, *column),
+                                ASTNode::Function { line, column, .. } => (*line, *column),
+                                ASTNode::IdentifierSpanned { line, column, .. } => (*line, *column),
+                                _ => (0, 0),
+                            };
+                            self.diags.push(SemanticDiagnostic {
+                                message: "Unreachable code after return".into(),
+                                line: l,
+                                column: c,
+                                len: 1,
+                                severity: Severity::Warning,
+                            });
                         }
                         // still traverse in case of further symbol usage (optionally skip)
                         self.visit(it, capture);
                         continue;
                     }
-                    if matches!(it, ASTNode::Return(_)) { saw_direct_return = true; }
-                    if self.extract_return_types(it, &mut return_types) { any_return = true; }
+                    if matches!(it, ASTNode::Return(_)) {
+                        saw_direct_return = true;
+                    }
+                    if self.extract_return_types(it, &mut return_types) {
+                        any_return = true;
+                    }
                     self.visit(it, capture);
                 }
                 self.end_scope();
                 if any_return {
-                    let guarantees_return = body.last().map(|stmt| self.statement_guarantees_return(stmt)).unwrap_or(false);
+                    let guarantees_return = body
+                        .last()
+                        .map(|stmt| self.statement_guarantees_return(stmt))
+                        .unwrap_or(false);
                     if !guarantees_return {
-                        if capture { self.diags.push(SemanticDiagnostic { message: format!("Not all code paths return a value in function '{name}'"), line: *line, column: *column, len: name.len().max(1), severity: Severity::Warning }); }
+                        if capture {
+                            self.diags.push(SemanticDiagnostic {
+                                message: format!(
+                                    "Not all code paths return a value in function '{name}'"
+                                ),
+                                line: *line,
+                                column: *column,
+                                len: name.len().max(1),
+                                severity: Severity::Warning,
+                            });
+                        }
                     }
                     // Return type consistency (ignore Unknown)
-                    let mut distinct: Vec<ValueType> = return_types.iter().copied().filter(|t| *t != ValueType::Unknown).collect();
-                    distinct.sort_by(|a,b| (*a as u8).cmp(&(*b as u8)));
+                    let mut distinct: Vec<ValueType> = return_types
+                        .iter()
+                        .copied()
+                        .filter(|t| *t != ValueType::Unknown)
+                        .collect();
+                    distinct.sort_by(|a, b| (*a as u8).cmp(&(*b as u8)));
                     distinct.dedup();
                     if distinct.len() > 1 {
-                        if capture { self.diags.push(SemanticDiagnostic { message: format!("Inconsistent return types in function '{name}'"), line: *line, column: *column, len: name.len().max(1), severity: Severity::Warning }); }
+                        if capture {
+                            self.diags.push(SemanticDiagnostic {
+                                message: format!("Inconsistent return types in function '{name}'"),
+                                line: *line,
+                                column: *column,
+                                len: name.len().max(1),
+                                severity: Severity::Warning,
+                            });
+                        }
                     }
                 }
             }
-            ASTNode::VariableDecl { name, value, line, column } => {
+            ASTNode::VariableDecl {
+                name,
+                value,
+                line,
+                column,
+            } => {
                 self.visit(value, capture);
                 self.declare(name, Some(*line), Some(*column));
                 let ty = self.expr_type(value);
                 self.set_var_type(name, ty);
             }
-            ASTNode::Assignment { name, value, line, column } => {
+            ASTNode::Assignment {
+                name,
+                value,
+                line,
+                column,
+            } => {
                 if !self.is_declared(name) {
                     let msg = format!("Assignment to undeclared variable '{}'", name);
                     self.errors.push(msg.clone());
                     if capture {
-                        self.diags.push(SemanticDiagnostic { message: msg, line: *line, column: *column, len: name.len().max(1), severity: Severity::Error });
+                        self.diags.push(SemanticDiagnostic {
+                            message: msg,
+                            line: *line,
+                            column: *column,
+                            len: name.len().max(1),
+                            severity: Severity::Error,
+                        });
                     }
                 }
                 // write counts as a use
@@ -255,10 +380,23 @@ impl SemanticAnalyzer {
                 self.visit(right, capture);
                 self.check_binary(op, left, right, capture);
             }
+            ASTNode::ArrayLiteral(elements) => {
+                for element in elements {
+                    self.visit(element, capture);
+                }
+            }
+            ASTNode::IndexExpr { array, index } => {
+                self.visit(array, capture);
+                self.visit(index, capture);
+            }
             ASTNode::UnaryExpr { expr, .. } => self.visit(expr, capture),
             ASTNode::Call { callee, args } => {
-                if let ASTNode::Identifier(n) = &**callee { self.used_functions.insert(n.clone()); }
-                if let ASTNode::IdentifierSpanned { name, .. } = &**callee { self.used_functions.insert(name.clone()); }
+                if let ASTNode::Identifier(n) = &**callee {
+                    self.used_functions.insert(n.clone());
+                }
+                if let ASTNode::IdentifierSpanned { name, .. } = &**callee {
+                    self.used_functions.insert(name.clone());
+                }
                 self.visit(callee, capture);
                 for a in args {
                     self.visit(a, capture);
@@ -266,8 +404,12 @@ impl SemanticAnalyzer {
             }
 
             // literals / identifiers / quantum/glyph / error
-            ASTNode::Identifier(name) => { self.mark_used(name); }
-            ASTNode::IdentifierSpanned { name, .. } => { self.mark_used(name); }
+            ASTNode::Identifier(name) => {
+                self.mark_used(name);
+            }
+            ASTNode::IdentifierSpanned { name, .. } => {
+                self.mark_used(name);
+            }
             ASTNode::NumberLiteral(_)
             | ASTNode::StringLiteral(_)
             | ASTNode::BooleanLiteral(_)
@@ -281,12 +423,22 @@ impl SemanticAnalyzer {
                     crate::core::token::TokenKind::Entangle => (2, "entangle"),
                     crate::core::token::TokenKind::Measure => (1, "measure"),
                     crate::core::token::TokenKind::Dod => (1, "dod"),
-                    _ => (0, "unknown")
+                    _ => (0, "unknown"),
                 };
                 if qlen < min {
-                    let msg = format!("Quantum op '{kind_name}' expects >= {min} qubit(s) but got {qlen}");
+                    let msg = format!(
+                        "Quantum op '{kind_name}' expects >= {min} qubit(s) but got {qlen}"
+                    );
                     self.errors.push(msg.clone());
-                    if capture { self.diags.push(SemanticDiagnostic { message: msg, line: 0, column: 0, len: 1, severity: Severity::Error }); }
+                    if capture {
+                        self.diags.push(SemanticDiagnostic {
+                            message: msg,
+                            line: 0,
+                            column: 0,
+                            len: 1,
+                            severity: Severity::Error,
+                        });
+                    }
                 }
             }
             // Temporary wildcard for quantum AST nodes
@@ -298,19 +450,27 @@ impl SemanticAnalyzer {
 
     fn mark_used(&mut self, name: &str) {
         for map in self.var_meta.iter_mut().rev() {
-            if let Some(v) = map.get_mut(name) { v.used = true; return; }
+            if let Some(v) = map.get_mut(name) {
+                v.used = true;
+                return;
+            }
         }
     }
 
     fn set_var_type(&mut self, name: &str, ty: ValueType) {
         for map in self.var_meta.iter_mut().rev() {
-            if let Some(v) = map.get_mut(name) { v.ty = ty; return; }
+            if let Some(v) = map.get_mut(name) {
+                v.ty = ty;
+                return;
+            }
         }
     }
 
     fn get_var_type(&self, name: &str) -> ValueType {
         for map in self.var_meta.iter().rev() {
-            if let Some(v) = map.get(name) { return v.ty; }
+            if let Some(v) = map.get(name) {
+                return v.ty;
+            }
         }
         ValueType::Unknown
     }
@@ -324,39 +484,95 @@ impl SemanticAnalyzer {
             ASTNode::Identifier(n) => self.get_var_type(n),
             ASTNode::IdentifierSpanned { name, .. } => self.get_var_type(name),
             ASTNode::BinaryExpr { op, left, right } => {
-                let lt = self.expr_type(left); let rt = self.expr_type(right);
+                let lt = self.expr_type(left);
+                let rt = self.expr_type(right);
                 match op {
                     crate::core::token::TokenKind::Plus => {
-                        if lt == String || rt == String { String } else if lt == Number && rt == Number { Number } else { Unknown }
+                        if lt == String || rt == String {
+                            String
+                        } else if lt == Number && rt == Number {
+                            Number
+                        } else {
+                            Unknown
+                        }
                     }
-                    crate::core::token::TokenKind::Minus | crate::core::token::TokenKind::Star | crate::core::token::TokenKind::Slash => {
-                        if lt == Number && rt == Number { Number } else { Unknown }
+                    crate::core::token::TokenKind::Minus
+                    | crate::core::token::TokenKind::Star
+                    | crate::core::token::TokenKind::Slash => {
+                        if lt == Number && rt == Number {
+                            Number
+                        } else {
+                            Unknown
+                        }
                     }
-                    crate::core::token::TokenKind::DoubleEquals | crate::core::token::TokenKind::NotEquals | crate::core::token::TokenKind::LessThan | crate::core::token::TokenKind::LessEqual | crate::core::token::TokenKind::GreaterThan | crate::core::token::TokenKind::GreaterEqual => Bool,
-                    _ => Unknown
+                    crate::core::token::TokenKind::DoubleEquals
+                    | crate::core::token::TokenKind::NotEquals
+                    | crate::core::token::TokenKind::LessThan
+                    | crate::core::token::TokenKind::LessEqual
+                    | crate::core::token::TokenKind::GreaterThan
+                    | crate::core::token::TokenKind::GreaterEqual => Bool,
+                    _ => Unknown,
                 }
             }
             ASTNode::UnaryExpr { op: _, expr } => self.expr_type(expr),
             ASTNode::Call { .. } => Unknown,
+            ASTNode::ArrayLiteral(_) => Unknown,
+            ASTNode::IndexExpr { .. } => Unknown,
             _ => Unknown,
         }
     }
 
-    fn check_binary(&mut self, op: &crate::core::token::TokenKind, left: &ASTNode, right: &ASTNode, capture: bool) {
-        use crate::core::token::TokenKind as TK; use ValueType::*;
-        let lt = self.expr_type(left); let rt = self.expr_type(right);
+    fn check_binary(
+        &mut self,
+        op: &crate::core::token::TokenKind,
+        left: &ASTNode,
+        right: &ASTNode,
+        capture: bool,
+    ) {
+        use crate::core::token::TokenKind as TK;
+        use ValueType::*;
+        let lt = self.expr_type(left);
+        let rt = self.expr_type(right);
         match op {
             TK::Plus => {
                 // Be permissive with Unknown types (parameters / unresolved) to avoid false positives.
-                if lt == Number && rt == Number { return; }
-                if lt == String && rt == String { return; }
-                if lt == Unknown || rt == Unknown { return; }
+                if lt == Number && rt == Number {
+                    return;
+                }
+                if lt == String && rt == String {
+                    return;
+                }
+                if lt == Unknown || rt == Unknown {
+                    return;
+                }
                 if (lt == String && rt == Number) || (lt == Number && rt == String) {
-                    if capture { self.diags.push(SemanticDiagnostic { message: "Implicit number/string coercion in '+'".into(), line: 0, column: 0, len: 1, severity: Severity::Warning }); }
-                } else { self.push_type_error("Invalid operands for '+'", capture); }
+                    if capture {
+                        self.diags.push(SemanticDiagnostic {
+                            message: "Implicit number/string coercion in '+'".into(),
+                            line: 0,
+                            column: 0,
+                            len: 1,
+                            severity: Severity::Warning,
+                        });
+                    }
+                } else {
+                    self.push_type_error("Invalid operands for '+'", capture);
+                }
             }
-            TK::Minus | TK::Star | TK::Slash => { if lt != Number || rt != Number { if lt != Unknown && rt != Unknown { self.push_type_error("Arithmetic operands must be numbers", capture); } } }
-            TK::LessThan | TK::LessEqual | TK::GreaterThan | TK::GreaterEqual => { if lt != Number || rt != Number { if lt != Unknown && rt != Unknown { self.push_type_error("Comparison operands must be numbers", capture); } } }
+            TK::Minus | TK::Star | TK::Slash => {
+                if lt != Number || rt != Number {
+                    if lt != Unknown && rt != Unknown {
+                        self.push_type_error("Arithmetic operands must be numbers", capture);
+                    }
+                }
+            }
+            TK::LessThan | TK::LessEqual | TK::GreaterThan | TK::GreaterEqual => {
+                if lt != Number || rt != Number {
+                    if lt != Unknown && rt != Unknown {
+                        self.push_type_error("Comparison operands must be numbers", capture);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -370,13 +586,23 @@ impl SemanticAnalyzer {
             ASTNode::Block(stmts) => {
                 let mut any = false;
                 for stmt in stmts {
-                    if self.extract_return_types(stmt, out) { any = true; }
+                    if self.extract_return_types(stmt, out) {
+                        any = true;
+                    }
                 }
                 any
             }
-            ASTNode::If { then_branch, else_branch, .. } => {
+            ASTNode::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
                 let mut any = self.extract_return_types(then_branch, out);
-                if let Some(e) = else_branch { if self.extract_return_types(e, out) { any = true; } }
+                if let Some(e) = else_branch {
+                    if self.extract_return_types(e, out) {
+                        any = true;
+                    }
+                }
                 any
             }
             ASTNode::While { body, .. } => self.extract_return_types(body, out),
@@ -384,7 +610,9 @@ impl SemanticAnalyzer {
             ASTNode::Program(items) => {
                 let mut any = false;
                 for stmt in items {
-                    if self.extract_return_types(stmt, out) { any = true; }
+                    if self.extract_return_types(stmt, out) {
+                        any = true;
+                    }
                 }
                 any
             }
@@ -396,10 +624,18 @@ impl SemanticAnalyzer {
     fn statement_guarantees_return(&mut self, node: &ASTNode) -> bool {
         match node {
             ASTNode::Return(_) => true,
-            ASTNode::Block(stmts) => stmts.last().map(|s| self.statement_guarantees_return(s)).unwrap_or(false),
-            ASTNode::If { then_branch, else_branch, .. } => {
+            ASTNode::Block(stmts) => stmts
+                .last()
+                .map(|s| self.statement_guarantees_return(s))
+                .unwrap_or(false),
+            ASTNode::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
                 if let Some(e) = else_branch {
-                    self.statement_guarantees_return(then_branch) && self.statement_guarantees_return(e)
+                    self.statement_guarantees_return(then_branch)
+                        && self.statement_guarantees_return(e)
                 } else {
                     false
                 }
@@ -410,7 +646,15 @@ impl SemanticAnalyzer {
 
     fn push_type_error(&mut self, msg: &str, capture: bool) {
         self.errors.push(msg.to_string());
-        if capture { self.diags.push(SemanticDiagnostic { message: msg.to_string(), line: 0, column: 0, len: 1, severity: Severity::Error }); }
+        if capture {
+            self.diags.push(SemanticDiagnostic {
+                message: msg.to_string(),
+                line: 0,
+                column: 0,
+                len: 1,
+                severity: Severity::Error,
+            });
+        }
     }
 
     fn flush_unused_warnings(&mut self) {
@@ -422,7 +666,13 @@ impl SemanticAnalyzer {
                 for (name, info) in global.iter() {
                     if !info.used {
                         let msg = format!("Unused variable '{}'", name);
-                        self.diags.push(SemanticDiagnostic { message: msg, line: info.line, column: info.column, len: name.len().max(1), severity: Severity::Warning });
+                        self.diags.push(SemanticDiagnostic {
+                            message: msg,
+                            line: info.line,
+                            column: info.column,
+                            len: name.len().max(1),
+                            severity: Severity::Warning,
+                        });
                     }
                 }
             }
@@ -467,24 +717,48 @@ mod tests {
 
     #[test]
     fn unreachable_after_return_warns() {
-        let ast = ASTNode::Program(vec![
-            ASTNode::new_function("f", vec![], vec![
+        let ast = ASTNode::Program(vec![ASTNode::new_function(
+            "f",
+            vec![],
+            vec![
                 ASTNode::new_return(ASTNode::NumberLiteral(1.0)),
                 ASTNode::new_variable_decl("z", ASTNode::NumberLiteral(2.0)),
-            ]),
-        ]);
+            ],
+        )]);
         let mut a = SemanticAnalyzer::new();
         let diags = a.analyze_with_spans(&ast);
-        assert!(diags.iter().any(|d| d.message.contains("Unreachable code after return")));
+        assert!(diags
+            .iter()
+            .any(|d| d.message.contains("Unreachable code after return")));
     }
 
     #[test]
     fn unused_variable_warning() {
-        let ast = ASTNode::Program(vec![
-            ASTNode::new_variable_decl("unused", ASTNode::NumberLiteral(0.0)),
-        ]);
+        let ast = ASTNode::Program(vec![ASTNode::new_variable_decl(
+            "unused",
+            ASTNode::NumberLiteral(0.0),
+        )]);
         let mut a = SemanticAnalyzer::new();
         let diags = a.analyze_with_spans(&ast);
-        assert!(diags.iter().any(|d| d.message.contains("Unused variable 'unused'")));
+        assert!(diags
+            .iter()
+            .any(|d| d.message.contains("Unused variable 'unused'")));
+    }
+
+    #[test]
+    fn semantic_diagnostic_fields_are_readable() {
+        let diag = SemanticDiagnostic {
+            message: "example".to_string(),
+            line: 3,
+            column: 7,
+            len: 2,
+            severity: Severity::Warning,
+        };
+
+        assert_eq!(diag.message, "example");
+        assert_eq!(diag.line, 3);
+        assert_eq!(diag.column, 7);
+        assert_eq!(diag.len, 2);
+        assert!(matches!(diag.severity, Severity::Warning));
     }
 }

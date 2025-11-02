@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+
+use serde::{Deserialize, Serialize};
 // src/core/token.rs
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -7,7 +10,7 @@ pub enum TokenKind {
     StringLiteral(String),
     BooleanLiteral(bool),
     QubitLiteral(String),
-    
+
     // Traditional operators (legacy compatibility)
     Plus,         // +
     Minus,        // -
@@ -24,36 +27,38 @@ pub enum TokenKind {
     Pipe,         // |
     AndAnd,       // &&
     OrOr,         // ||
-    
+
     // AEONMI Quantum-Native Operators
-    QuantumBind,       // ←
-    QuantumIn,         // ∈
-    QuantumTensor,     // ⊗
-    QuantumApprox,     // ≈
-    QuantumXor,        // ⊕
-    QuantumOr,         // ⊖
-    QuantumNot,        // ⊄
-    QuantumGradient,   // ∇
-    QuantumGeq,        // ⪰
-    QuantumLeq,        // ⪯
-    QuantumImplies,    // ⇒
-    QuantumLoop,       // ⟲
-    QuantumModulo,     // ◊
-    
+    QuantumBind,     // ←
+    QuantumIn,       // ∈
+    QuantumTensor,   // ⊗
+    QuantumApprox,   // ≈
+    QuantumXor,      // ⊕
+    QuantumOr,       // ⊖
+    QuantumNot,      // ⊄
+    QuantumGradient, // ∇
+    QuantumGeq,      // ⪰
+    QuantumLeq,      // ⪯
+    QuantumImplies,  // ⇒
+    QuantumLoop,     // ⟲
+    QuantumModulo,   // ◊
+
     // Delimiters for quantum syntax
     QuantumBracketOpen,  // ⟨
     QuantumBracketClose, // ⟩
     QuantumIndexOpen,    // ⟦
     QuantumIndexClose,   // ⟧
-    
+
     // Delimiters
-    OpenParen,    // (
-    CloseParen,   // )
-    OpenBrace,    // {
-    CloseBrace,   // }
-    Comma,        // ,
-    Semicolon,    // ;
-    
+    OpenParen,  // (
+    CloseParen, // )
+    OpenBrace,  // {
+    CloseBrace, // }
+    OpenBracket, // [
+    CloseBracket, // ]
+    Comma,      // ,
+    Semicolon,  // ;
+
     // Traditional keywords (legacy compatibility)
     Function,
     Let,
@@ -65,35 +70,35 @@ pub enum TokenKind {
     Return,
     Log,
     Qubit,
-    
+
     // AEONMI Quantum-Native Keywords
-    ClassicalFunc,     // ◯
-    QuantumFunc,       // ⊙
-    AIFunc,            // 🧠
-    Learn,             // learn block
-    Attempt,           // ⚡ (quantum try)
-    Warning,           // ⚠️ (quantum catch)
-    Success,           // ✓ (quantum success)
-    TimeBlock,         // ⏰/⏱️
-    
+    ClassicalFunc, // ◯
+    QuantumFunc,   // ⊙
+    AIFunc,        // 🧠
+    Learn,         // learn block
+    Attempt,       // ⚡ (quantum try)
+    Warning,       // ⚠️ (quantum catch)
+    Success,       // ✓ (quantum success)
+    TimeBlock,     // ⏰/⏱️
+
     // State and measurement keywords
-    QuantumState,      // quantum state literals like |0⟩, |1⟩, |+⟩
+    QuantumState,       // quantum state literals like |0⟩, |1⟩, |+⟩
     SuperpositionState, // superposition expressions
-    
+
     // Comments (for parsing structured comments)
-    QuantumComment,    // ∴ (therefore)
-    BecauseComment,    // ∵ (because)
-    NoteComment,       // ※ (note)
-    
+    QuantumComment, // ∴ (therefore)
+    BecauseComment, // ∵ (because)
+    NoteComment,    // ※ (note)
+
     // Quantum operations
     Superpose,
     Entangle,
     Measure,
     Dod,
-    
+
     // Hieroglyphic operations
     HieroglyphicOp(String),
-    
+
     // Special
     EOF,
 }
@@ -126,7 +131,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::StringLiteral(_) => "string",
             TokenKind::BooleanLiteral(_) => "boolean",
             TokenKind::QubitLiteral(_) => "qubit",
-            
+
             // Traditional operators
             TokenKind::Plus => "+",
             TokenKind::Minus => "-",
@@ -143,7 +148,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Pipe => "|",
             TokenKind::AndAnd => "&&",
             TokenKind::OrOr => "||",
-            
+
             // Quantum operators
             TokenKind::QuantumBind => "←",
             TokenKind::QuantumIn => "∈",
@@ -158,21 +163,23 @@ impl std::fmt::Display for TokenKind {
             TokenKind::QuantumImplies => "⇒",
             TokenKind::QuantumLoop => "⟲",
             TokenKind::QuantumModulo => "◊",
-            
+
             // Quantum delimiters
             TokenKind::QuantumBracketOpen => "⟨",
             TokenKind::QuantumBracketClose => "⟩",
             TokenKind::QuantumIndexOpen => "⟦",
             TokenKind::QuantumIndexClose => "⟧",
-            
+
             // Traditional delimiters
             TokenKind::OpenParen => "(",
             TokenKind::CloseParen => ")",
             TokenKind::OpenBrace => "{",
             TokenKind::CloseBrace => "}",
+            TokenKind::OpenBracket => "[",
+            TokenKind::CloseBracket => "]",
             TokenKind::Comma => ",",
             TokenKind::Semicolon => ";",
-            
+
             // Traditional keywords
             TokenKind::Function => "function",
             TokenKind::Let => "let",
@@ -184,7 +191,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Return => "return",
             TokenKind::Log => "log",
             TokenKind::Qubit => "qubit",
-            
+
             // Quantum-native keywords
             TokenKind::ClassicalFunc => "◯",
             TokenKind::QuantumFunc => "⊙",
@@ -199,7 +206,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::QuantumComment => "∴",
             TokenKind::BecauseComment => "∵",
             TokenKind::NoteComment => "※",
-            
+
             // Quantum operations
             TokenKind::Superpose => "superpose",
             TokenKind::Entangle => "entangle",
@@ -216,12 +223,22 @@ impl std::fmt::Display for TokenKind {
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            TokenKind::Identifier(name) => write!(f, "Identifier('{}') @{}:{}", name, self.line, self.column),
-            TokenKind::NumberLiteral(v) => write!(f, "Number({}) @{}:{}", v, self.line, self.column),
-            TokenKind::StringLiteral(s) => write!(f, "String(\"{}\") @{}:{}", s, self.line, self.column),
-            TokenKind::BooleanLiteral(b) => write!(f, "Boolean({}) @{}:{}", b, self.line, self.column),
+            TokenKind::Identifier(name) => {
+                write!(f, "Identifier('{}') @{}:{}", name, self.line, self.column)
+            }
+            TokenKind::NumberLiteral(v) => {
+                write!(f, "Number({}) @{}:{}", v, self.line, self.column)
+            }
+            TokenKind::StringLiteral(s) => {
+                write!(f, "String(\"{}\") @{}:{}", s, self.line, self.column)
+            }
+            TokenKind::BooleanLiteral(b) => {
+                write!(f, "Boolean({}) @{}:{}", b, self.line, self.column)
+            }
             TokenKind::QubitLiteral(q) => write!(f, "Qubit({}) @{}:{}", q, self.line, self.column),
-            TokenKind::HieroglyphicOp(sym) => write!(f, "Hieroglyphic('{}') @{}:{}", sym, self.line, self.column),
+            TokenKind::HieroglyphicOp(sym) => {
+                write!(f, "Hieroglyphic('{}') @{}:{}", sym, self.line, self.column)
+            }
             other => write!(f, "{} @{}:{}", other, self.line, self.column),
         }
     }

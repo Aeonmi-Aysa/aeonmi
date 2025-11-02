@@ -177,8 +177,11 @@ pub struct Lexer {
 impl Lexer {
     /// New with explicit AI access flag.
     pub fn new(input: &str, ai_access_authorized: bool) -> Self {
-    let options = LexerOptions { ai_access_authorized, ..Default::default() };
-    Self::with_options(input, options)
+        let options = LexerOptions {
+            ai_access_authorized,
+            ..Default::default()
+        };
+        Self::with_options(input, options)
     }
 
     /// Back-compat convenience: single-argument constructor (authorized=false)
@@ -247,7 +250,7 @@ impl Lexer {
     fn peek_char(&self) -> Option<char> {
         self.chars.clone().next().map(|(_, c)| c)
     }
-    
+
     // Lookahead function to check if we can find a quantum closing bracket within reasonable range
     fn has_quantum_closing_bracket_ahead(&self, max_lookahead: usize) -> bool {
         let mut chars = self.chars.clone();
@@ -272,7 +275,12 @@ impl Lexer {
                 Some((_, ch)) => ch,
                 None => {
                     let (line, col) = self.pos();
-                    return Ok(Some(Token::new(TokenKind::EOF, String::from(""), line, col)));
+                    return Ok(Some(Token::new(
+                        TokenKind::EOF,
+                        String::from(""),
+                        line,
+                        col,
+                    )));
                 }
             };
 
@@ -311,43 +319,43 @@ impl Lexer {
                 '≠' => Some(TokenKind::NotEquals),
                 '＝' => Some(TokenKind::DoubleEquals),
                 '≔' => Some(TokenKind::ColonEquals), // map ≔ to :=
-                
+
                 // AEONMI Quantum-Native Operators
-                '←' => Some(TokenKind::QuantumBind),        // quantum bind
-                '∈' => Some(TokenKind::QuantumIn),          // quantum membership/superposition
-                '⊗' => Some(TokenKind::QuantumTensor),      // tensor product
-                '≈' => Some(TokenKind::QuantumApprox),      // quantum approximation
-                '⊕' => Some(TokenKind::QuantumXor),         // quantum XOR
-                '⊖' => Some(TokenKind::QuantumOr),          // quantum OR
-                '⊄' => Some(TokenKind::QuantumNot),         // quantum NOT
-                '∇' => Some(TokenKind::QuantumGradient),    // quantum gradient
-                '⪰' => Some(TokenKind::QuantumGeq),         // quantum >=
-                '⪯' => Some(TokenKind::QuantumLeq),         // quantum <=
-                '⇒' => Some(TokenKind::QuantumImplies),     // quantum implies
-                '⟲' => Some(TokenKind::QuantumLoop),        // quantum loop
-                '◊' => Some(TokenKind::QuantumModulo),      // quantum modulo
-                
+                '←' => Some(TokenKind::QuantumBind), // quantum bind
+                '∈' => Some(TokenKind::QuantumIn),   // quantum membership/superposition
+                '⊗' => Some(TokenKind::QuantumTensor), // tensor product
+                '≈' => Some(TokenKind::QuantumApprox), // quantum approximation
+                '⊕' => Some(TokenKind::QuantumXor),  // quantum XOR
+                '⊖' => Some(TokenKind::QuantumOr),   // quantum OR
+                '⊄' => Some(TokenKind::QuantumNot),  // quantum NOT
+                '∇' => Some(TokenKind::QuantumGradient), // quantum gradient
+                '⪰' => Some(TokenKind::QuantumGeq),  // quantum >=
+                '⪯' => Some(TokenKind::QuantumLeq),  // quantum <=
+                '⇒' => Some(TokenKind::QuantumImplies), // quantum implies
+                '⟲' => Some(TokenKind::QuantumLoop), // quantum loop
+                '◊' => Some(TokenKind::QuantumModulo), // quantum modulo
+
                 // Quantum delimiters
                 '⟨' => Some(TokenKind::QuantumBracketOpen),
                 '⟩' => Some(TokenKind::QuantumBracketClose),
                 '⟦' => Some(TokenKind::QuantumIndexOpen),
                 '⟧' => Some(TokenKind::QuantumIndexClose),
-                
+
                 // Quantum function markers
                 '◯' => Some(TokenKind::ClassicalFunc),
                 '⊙' => Some(TokenKind::QuantumFunc),
-                
+
                 // Quantum comments
-                '∴' => Some(TokenKind::QuantumComment),     // therefore
-                '∵' => Some(TokenKind::BecauseComment),     // because  
-                '※' => Some(TokenKind::NoteComment),        // note
-                
+                '∴' => Some(TokenKind::QuantumComment), // therefore
+                '∵' => Some(TokenKind::BecauseComment), // because
+                '※' => Some(TokenKind::NoteComment),    // note
+
                 // Control flow
-                '⚡' => Some(TokenKind::Attempt),           // quantum try
-                '⚠' => Some(TokenKind::Warning),           // quantum catch
-                '✓' => Some(TokenKind::Success),           // quantum success
-                '⏰' | '⏱' => Some(TokenKind::TimeBlock),   // time block
-                
+                '⚡' => Some(TokenKind::Attempt), // quantum try
+                '⚠' => Some(TokenKind::Warning),  // quantum catch
+                '✓' => Some(TokenKind::Success),  // quantum success
+                '⏰' | '⏱' => Some(TokenKind::TimeBlock), // time block
+
                 _ => None,
             } {
                 let (line, col) = self.pos();
@@ -355,7 +363,9 @@ impl Lexer {
                 let token = Token::new(tok_kind, ch.to_string(), line, col);
                 {
                     let view = self.view();
-                    for plugin in self.plugins.iter_mut() { plugin.after_token(view, &token); }
+                    for plugin in self.plugins.iter_mut() {
+                        plugin.after_token(view, &token);
+                    }
                 }
                 return Ok(Some(token));
             }
@@ -389,19 +399,23 @@ impl Lexer {
                 // QubitLiteral; if it never closes, signal InvalidQubitLiteral.
                 // Otherwise fall back to the plain Pipe token.
                 let (line, col) = self.pos();
-                
+
                 // Check if next character looks like quantum state content
                 let has_qubit_start = match self.peek_char() {
-                    Some(next) if is_identifier_start(next)
-                        || next.is_ascii_digit()
-                        || is_numeric_glyph(next)
-                        || next == '>'
-                        || next == '⟩'
-                        || next == '+'
-                        || next == '-' => true,
+                    Some(next)
+                        if is_identifier_start(next)
+                            || next.is_ascii_digit()
+                            || is_numeric_glyph(next)
+                            || next == '>'
+                            || next == '⟩'
+                            || next == '+'
+                            || next == '-' =>
+                    {
+                        true
+                    }
                     _ => false,
                 };
-                
+
                 // Always try quantum literal if it looks like quantum content
                 if has_qubit_start {
                     // Attempt to lex as a qubit literal (may error)
@@ -412,7 +426,12 @@ impl Lexer {
                 } else {
                     // Plain pipe operator
                     self.advance_char();
-                    Ok(Some(Token::new(TokenKind::Pipe, String::from("|"), line, col)))
+                    Ok(Some(Token::new(
+                        TokenKind::Pipe,
+                        String::from("|"),
+                        line,
+                        col,
+                    )))
                 }
             } else if let Some(tok) = self.match_single_char_token(ch) {
                 let (line, col) = self.pos();
@@ -557,7 +576,12 @@ impl Lexer {
             content.zeroize();
             return Err(LexerError::UnterminatedComment(line, col));
         }
-        Ok(Token::new(TokenKind::StringLiteral(content), String::new(), line, col))
+        Ok(Token::new(
+            TokenKind::StringLiteral(content),
+            String::new(),
+            line,
+            col,
+        ))
     }
     fn lex_number(&mut self) -> Result<Option<Token>, LexerError> {
         if self.options.allow_mixed_numerals {
@@ -609,7 +633,12 @@ impl Lexer {
             .chars()
             .filter_map(glyph_to_digit)
             .fold(0.0, |acc, d| acc * 10.0 + d as f64);
-        Ok(Token::new(TokenKind::NumberLiteral(value), glyph_str.clone(), line, col))
+        Ok(Token::new(
+            TokenKind::NumberLiteral(value),
+            glyph_str.clone(),
+            line,
+            col,
+        ))
     }
     fn lex_number_mixed(&mut self) -> Result<Token, LexerError> {
         let (line, col) = self.pos();
@@ -652,7 +681,12 @@ impl Lexer {
                 match ch {
                     '"' => {
                         self.advance_char();
-                        return Ok(Token::new(TokenKind::StringLiteral(content.clone()), content, line, col));
+                        return Ok(Token::new(
+                            TokenKind::StringLiteral(content.clone()),
+                            content,
+                            line,
+                            col,
+                        ));
                     }
                     '\\' => {
                         escape = true;
@@ -742,8 +776,18 @@ impl Lexer {
             "for" => Token::new(TokenKind::For, String::from("for"), line, col),
             "while" => Token::new(TokenKind::While, String::from("while"), line, col),
             "in" => Token::new(TokenKind::In, String::from("in"), line, col),
-            "true" => Token::new(TokenKind::BooleanLiteral(true), String::from("true"), line, col),
-            "false" => Token::new(TokenKind::BooleanLiteral(false), String::from("false"), line, col),
+            "true" => Token::new(
+                TokenKind::BooleanLiteral(true),
+                String::from("true"),
+                line,
+                col,
+            ),
+            "false" => Token::new(
+                TokenKind::BooleanLiteral(false),
+                String::from("false"),
+                line,
+                col,
+            ),
             _ => Token::new(TokenKind::Identifier(ident.clone()), ident, line, col),
         }
     }
@@ -760,7 +804,12 @@ impl Lexer {
                 self.advance_char();
                 // Always format with proper quantum bracket for consistency
                 let literal = format!("|{}⟩", content);
-                return Ok(Token::new(TokenKind::QubitLiteral(literal.clone()), literal, line, col));
+                return Ok(Token::new(
+                    TokenKind::QubitLiteral(literal.clone()),
+                    literal,
+                    line,
+                    col,
+                ));
             }
             // Accept identifier parts or numeric glyphs or common qubit symbols
             if is_identifier_part(ch) || is_numeric_glyph(ch) || ch == '+' || ch == '-' {
@@ -800,6 +849,8 @@ impl Lexer {
             ')' => Some(TokenKind::CloseParen),
             '{' => Some(TokenKind::OpenBrace),
             '}' => Some(TokenKind::CloseBrace),
+            '[' => Some(TokenKind::OpenBracket),
+            ']' => Some(TokenKind::CloseBracket),
             '<' => Some(TokenKind::LessThan),
             '>' => Some(TokenKind::GreaterThan),
             '|' => Some(TokenKind::Pipe), // single '|' retained for qubit or pipe future, '||' handled above
@@ -843,6 +894,6 @@ fn is_hieroglyphic(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    
+
     // Add your tests here!
 }

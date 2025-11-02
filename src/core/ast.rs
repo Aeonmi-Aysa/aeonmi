@@ -65,10 +65,20 @@ pub enum ASTNode {
     },
     #[allow(dead_code)]
     Identifier(String),
-    IdentifierSpanned { name: String, line: usize, column: usize, len: usize },
+    IdentifierSpanned {
+        name: String,
+        line: usize,
+        column: usize,
+        len: usize,
+    },
     NumberLiteral(f64),
     StringLiteral(String),
     BooleanLiteral(bool),
+    ArrayLiteral(Vec<ASTNode>),
+    IndexExpr {
+        array: Box<ASTNode>,
+        index: Box<ASTNode>,
+    },
     // Quantum & Hieroglyphic
     QuantumOp {
         op: TokenKind,
@@ -78,7 +88,7 @@ pub enum ASTNode {
         symbol: String,
         args: Vec<ASTNode>,
     },
-    
+
     // AEONMI Quantum-Native Constructs
     QuantumArray {
         elements: Vec<ASTNode>,
@@ -144,7 +154,7 @@ pub enum ASTNode {
         catch_body: Option<Vec<ASTNode>>,
         success_body: Option<Vec<ASTNode>>,
     },
-    
+
     // Special
     #[allow(dead_code)]
     Error(String),
@@ -159,22 +169,22 @@ pub struct FunctionParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuantumBindingType {
-    Classical,      // ⟨x⟩ ← value
-    Superposition,  // ⟨x⟩ ∈ |0⟩ + |1⟩
-    Tensor,         // ⟨x⟩ ⊗ value
-    Approximation,  // ⟨x⟩ ≈ value
+    Classical,     // ⟨x⟩ ← value
+    Superposition, // ⟨x⟩ ∈ |0⟩ + |1⟩
+    Tensor,        // ⟨x⟩ ⊗ value
+    Approximation, // ⟨x⟩ ≈ value
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuantumFunctionType {
-    Classical,      // ◯
-    Quantum,        // ⊙
-    AINeural,       // 🧠
+    Classical, // ◯
+    Quantum,   // ⊙
+    AINeural,  // 🧠
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuperpositionCase {
-    pub pattern: String,     // |0⟩, |1⟩, |+⟩, or "*" for wildcard
+    pub pattern: String, // |0⟩, |1⟩, |+⟩, or "*" for wildcard
     pub body: Vec<ASTNode>,
 }
 
@@ -186,21 +196,50 @@ impl ASTNode {
             name: name.to_string(),
             line: 0,
             column: 0,
-            params: params.into_iter().map(|p| FunctionParam { name: p.to_string(), line: 0, column: 0 }).collect(),
+            params: params
+                .into_iter()
+                .map(|p| FunctionParam {
+                    name: p.to_string(),
+                    line: 0,
+                    column: 0,
+                })
+                .collect(),
             body,
         }
     }
-    pub fn new_function_at(name: &str, line: usize, column: usize, params: Vec<FunctionParam>, body: Vec<ASTNode>) -> Self {
-        Self::Function { name: name.to_string(), line, column, params, body }
+    pub fn new_function_at(
+        name: &str,
+        line: usize,
+        column: usize,
+        params: Vec<FunctionParam>,
+        body: Vec<ASTNode>,
+    ) -> Self {
+        Self::Function {
+            name: name.to_string(),
+            line,
+            column,
+            params,
+            body,
+        }
     }
     #[allow(dead_code)]
     pub fn new_variable_decl(name: &str, value: ASTNode) -> Self {
-        Self::VariableDecl { name: name.to_string(), value: Box::new(value), line: 0, column: 0 }
+        Self::VariableDecl {
+            name: name.to_string(),
+            value: Box::new(value),
+            line: 0,
+            column: 0,
+        }
     }
     pub fn new_variable_decl_at(name: &str, value: ASTNode, line: usize, column: usize) -> Self {
-        Self::VariableDecl { name: name.to_string(), value: Box::new(value), line, column }
+        Self::VariableDecl {
+            name: name.to_string(),
+            value: Box::new(value),
+            line,
+            column,
+        }
     }
-    
+
     // AEONMI Quantum-Native Constructors
     pub fn new_quantum_array(elements: Vec<ASTNode>, is_superposition: bool) -> Self {
         Self::QuantumArray {
@@ -209,7 +248,7 @@ impl ASTNode {
             is_superposition,
         }
     }
-    
+
     pub fn new_quantum_array_multidim(elements: Vec<ASTNode>, dimensions: Vec<usize>) -> Self {
         Self::QuantumArray {
             elements,
@@ -217,8 +256,25 @@ impl ASTNode {
             is_superposition: false,
         }
     }
-    
-    pub fn new_quantum_variable_decl(name: &str, binding_type: QuantumBindingType, value: ASTNode, line: usize, column: usize) -> Self {
+
+    pub fn new_array_literal(elements: Vec<ASTNode>) -> Self {
+        Self::ArrayLiteral(elements)
+    }
+
+    pub fn new_index_expr(array: ASTNode, index: ASTNode) -> Self {
+        Self::IndexExpr {
+            array: Box::new(array),
+            index: Box::new(index),
+        }
+    }
+
+    pub fn new_quantum_variable_decl(
+        name: &str,
+        binding_type: QuantumBindingType,
+        value: ASTNode,
+        line: usize,
+        column: usize,
+    ) -> Self {
         Self::QuantumVariableDecl {
             name: name.to_string(),
             binding_type,
@@ -227,23 +283,29 @@ impl ASTNode {
             column,
         }
     }
-    
+
     /// Create a quantum variable declaration from hieroglyphic symbol
-    pub fn new_quantum_variable_decl_from_symbol(name: &str, value: ASTNode, symbol: &str, line: usize, column: usize) -> Self {
+    pub fn new_quantum_variable_decl_from_symbol(
+        name: &str,
+        value: ASTNode,
+        symbol: &str,
+        line: usize,
+        column: usize,
+    ) -> Self {
         let binding_type = match symbol {
-            "𓀀" => QuantumBindingType::Classical,      // Basic quantum variable
-            "𓀁" => QuantumBindingType::Superposition,  // Superposition state
-            "𓀂" => QuantumBindingType::Tensor,         // Tensor product
-            "𓀃" => QuantumBindingType::Approximation,  // Quantum approximation
-            "𓀄" => QuantumBindingType::Classical,      // Alternative classical
-            "𓀅" => QuantumBindingType::Superposition,  // Alternative superposition
-            "𓀆" => QuantumBindingType::Tensor,         // Alternative tensor
-            "𓀇" => QuantumBindingType::Approximation,  // Alternative approximation
-            "𓀈" => QuantumBindingType::Classical,      // Extended classical
-            "𓀉" => QuantumBindingType::Superposition,  // Extended superposition
-            _ => QuantumBindingType::Classical,         // Default fallback
+            "𓀀" => QuantumBindingType::Classical, // Basic quantum variable
+            "𓀁" => QuantumBindingType::Superposition, // Superposition state
+            "𓀂" => QuantumBindingType::Tensor,    // Tensor product
+            "𓀃" => QuantumBindingType::Approximation, // Quantum approximation
+            "𓀄" => QuantumBindingType::Classical, // Alternative classical
+            "𓀅" => QuantumBindingType::Superposition, // Alternative superposition
+            "𓀆" => QuantumBindingType::Tensor,    // Alternative tensor
+            "𓀇" => QuantumBindingType::Approximation, // Alternative approximation
+            "𓀈" => QuantumBindingType::Classical, // Extended classical
+            "𓀉" => QuantumBindingType::Superposition, // Extended superposition
+            _ => QuantumBindingType::Classical,   // Default fallback
         };
-        
+
         Self::QuantumVariableDecl {
             name: name.to_string(),
             binding_type,
@@ -252,7 +314,7 @@ impl ASTNode {
             column,
         }
     }
-    
+
     pub fn new_quantum_binary_expr(op: TokenKind, left: ASTNode, right: ASTNode) -> Self {
         Self::QuantumBinaryExpr {
             op,
@@ -260,8 +322,13 @@ impl ASTNode {
             right: Box::new(right),
         }
     }
-    
-    pub fn new_probability_branch(condition: ASTNode, probability: Option<f64>, then_branch: ASTNode, else_branch: Option<ASTNode>) -> Self {
+
+    pub fn new_probability_branch(
+        condition: ASTNode,
+        probability: Option<f64>,
+        then_branch: ASTNode,
+        else_branch: Option<ASTNode>,
+    ) -> Self {
         Self::ProbabilityBranch {
             condition: Box::new(condition),
             probability,
@@ -269,8 +336,15 @@ impl ASTNode {
             else_branch: else_branch.map(Box::new),
         }
     }
-    
-    pub fn new_quantum_function(func_type: QuantumFunctionType, name: &str, params: Vec<FunctionParam>, body: Vec<ASTNode>, line: usize, column: usize) -> Self {
+
+    pub fn new_quantum_function(
+        func_type: QuantumFunctionType,
+        name: &str,
+        params: Vec<FunctionParam>,
+        body: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    ) -> Self {
         Self::QuantumFunction {
             func_type,
             name: name.to_string(),
@@ -280,14 +354,14 @@ impl ASTNode {
             column,
         }
     }
-    
+
     pub fn new_quantum_state(state: &str, amplitude: Option<f64>) -> Self {
         Self::QuantumState {
             state: state.to_string(),
             amplitude,
         }
     }
-    
+
     pub fn new_quantum_index_access(array: ASTNode, index: ASTNode, is_quantum: bool) -> Self {
         Self::QuantumIndexAccess {
             array: Box::new(array),
@@ -297,10 +371,20 @@ impl ASTNode {
     }
     #[allow(dead_code)]
     pub fn new_assignment(name: &str, value: ASTNode) -> Self {
-        Self::Assignment { name: name.to_string(), value: Box::new(value), line: 0, column: 0 }
+        Self::Assignment {
+            name: name.to_string(),
+            value: Box::new(value),
+            line: 0,
+            column: 0,
+        }
     }
     pub fn new_assignment_at(name: &str, value: ASTNode, line: usize, column: usize) -> Self {
-        Self::Assignment { name: name.to_string(), value: Box::new(value), line, column }
+        Self::Assignment {
+            name: name.to_string(),
+            value: Box::new(value),
+            line,
+            column,
+        }
     }
     pub fn new_call(callee: ASTNode, args: Vec<ASTNode>) -> Self {
         Self::Call {
@@ -321,7 +405,14 @@ impl ASTNode {
             expr: Box::new(expr),
         }
     }
-    pub fn new_identifier_spanned(name: &str, line: usize, column: usize, len: usize) -> Self { Self::IdentifierSpanned { name: name.into(), line, column, len } }
+    pub fn new_identifier_spanned(name: &str, line: usize, column: usize, len: usize) -> Self {
+        Self::IdentifierSpanned {
+            name: name.into(),
+            line,
+            column,
+            len,
+        }
+    }
     pub fn new_if(cond: ASTNode, then_branch: ASTNode, else_branch: Option<ASTNode>) -> Self {
         Self::If {
             condition: Box::new(cond),
@@ -393,7 +484,8 @@ mod tests {
 
     #[test]
     fn test_quantum_op_node() {
-        let qop = ASTNode::new_quantum_op(TokenKind::Superpose, vec![ASTNode::Identifier("q1".into())]);
+        let qop =
+            ASTNode::new_quantum_op(TokenKind::Superpose, vec![ASTNode::Identifier("q1".into())]);
         if let ASTNode::QuantumOp { op, qubits } = qop {
             assert_eq!(op, TokenKind::Superpose);
             assert_eq!(qubits[0], ASTNode::Identifier("q1".into()));
@@ -409,11 +501,11 @@ mod tests {
             vec![ASTNode::NumberLiteral(1.0)],
         );
         let asn = ASTNode::new_assignment("x", call);
-    let ASTNode::Assignment { name, value, .. } = asn else {
+        let ASTNode::Assignment { name, value, .. } = asn else {
             panic!("Expected Assignment")
         };
         assert_eq!(name, "x");
-    let ASTNode::Call { callee, args } = *value else {
+        let ASTNode::Call { callee, args } = *value else {
             panic!("Expected Call")
         };
         assert_eq!(*callee, ASTNode::Identifier("f".into()));

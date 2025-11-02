@@ -184,7 +184,9 @@ impl CodeGenerator {
             | ASTNode::IdentifierSpanned { .. }
             | ASTNode::NumberLiteral(_)
             | ASTNode::StringLiteral(_)
-            | ASTNode::BooleanLiteral(_) => format!("{};\n", self.emit_expr_js(node)),
+            | ASTNode::BooleanLiteral(_)
+            | ASTNode::ArrayLiteral(_)
+            | ASTNode::IndexExpr { .. } => format!("{};\n", self.emit_expr_js(node)),
             ASTNode::QuantumOp { op, qubits } => {
                 let opname = match op {
                     TokenKind::Superpose => "superpose",
@@ -200,13 +202,26 @@ impl CodeGenerator {
                     .join(", ");
                 format!("{}({});\n", opname, args)
             }
-            ASTNode::QuantumVariableDecl { name, binding_type, value, .. } => {
+            ASTNode::QuantumVariableDecl {
+                name,
+                binding_type,
+                value,
+                ..
+            } => {
                 let js_value = self.emit_expr_js(value);
                 let binding_comment = match binding_type {
-                    crate::core::ast::QuantumBindingType::Classical => "// Classical quantum variable",
-                    crate::core::ast::QuantumBindingType::Superposition => "// Superposition quantum variable", 
-                    crate::core::ast::QuantumBindingType::Tensor => "// Tensor product quantum variable",
-                    crate::core::ast::QuantumBindingType::Approximation => "// Quantum approximation variable",
+                    crate::core::ast::QuantumBindingType::Classical => {
+                        "// Classical quantum variable"
+                    }
+                    crate::core::ast::QuantumBindingType::Superposition => {
+                        "// Superposition quantum variable"
+                    }
+                    crate::core::ast::QuantumBindingType::Tensor => {
+                        "// Tensor product quantum variable"
+                    }
+                    crate::core::ast::QuantumBindingType::Approximation => {
+                        "// Quantum approximation variable"
+                    }
                 };
                 format!("let {} = {}; {}\n", name, js_value, binding_comment)
             }
@@ -219,7 +234,7 @@ impl CodeGenerator {
                 format!("__glyph('{}', {});\n", symbol, a)
             }
             ASTNode::Error(msg) => format!("/* ERROR NODE: {} */\n", msg),
-            
+
             // Quantum AST Nodes Implementation
             ASTNode::QuantumBinaryExpr { op, left, right } => {
                 let left_js = self.emit_expr_js(left);
@@ -233,7 +248,11 @@ impl CodeGenerator {
                 };
                 format!("__quantum.{}({}, {});\n", quantum_op, left_js, right_js)
             }
-            ASTNode::QuantumIndexAccess { array, index, is_quantum_index } => {
+            ASTNode::QuantumIndexAccess {
+                array,
+                index,
+                is_quantum_index,
+            } => {
                 let array_js = self.emit_expr_js(array);
                 let index_js = self.emit_expr_js(index);
                 if *is_quantum_index {
@@ -242,18 +261,39 @@ impl CodeGenerator {
                     format!("{}[{}]\n", array_js, index_js)
                 }
             }
-            ASTNode::QuantumFunction { func_type, name, params, body, .. } => {
+            ASTNode::QuantumFunction {
+                func_type,
+                name,
+                params,
+                body,
+                ..
+            } => {
                 let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                 let params_str = param_names.join(", ");
-                let body_js = body.iter().map(|stmt| self.emit_js(stmt)).collect::<String>();
+                let body_js = body
+                    .iter()
+                    .map(|stmt| self.emit_js(stmt))
+                    .collect::<String>();
                 let quantum_marker = match func_type {
                     crate::core::ast::QuantumFunctionType::Quantum => "/* ⊙ Quantum Function */",
-                    crate::core::ast::QuantumFunctionType::Classical => "/* ◯ Classical Function */",
-                    crate::core::ast::QuantumFunctionType::AINeural => "/* 🧠 AI Neural Function */",
+                    crate::core::ast::QuantumFunctionType::Classical => {
+                        "/* ◯ Classical Function */"
+                    }
+                    crate::core::ast::QuantumFunctionType::AINeural => {
+                        "/* 🧠 AI Neural Function */"
+                    }
                 };
-                format!("function {}({}) {{ {}\n{}}}\n", name, params_str, quantum_marker, body_js)
+                format!(
+                    "function {}({}) {{ {}\n{}}}\n",
+                    name, params_str, quantum_marker, body_js
+                )
             }
-            ASTNode::ProbabilityBranch { condition, probability, then_branch, else_branch } => {
+            ASTNode::ProbabilityBranch {
+                condition,
+                probability,
+                then_branch,
+                else_branch,
+            } => {
                 let condition_js = self.emit_expr_js(condition);
                 let then_js = self.emit_js(then_branch);
                 let prob_comment = if let Some(p) = probability {
@@ -263,14 +303,22 @@ impl CodeGenerator {
                 };
                 if let Some(else_stmt) = else_branch {
                     let else_js = self.emit_js(else_stmt);
-                    format!("if (__quantum.evaluate({})) {{ {}\n{}\n}} else {{ {}\n{}\n}}\n", 
-                           condition_js, prob_comment, then_js, prob_comment, else_js)
+                    format!(
+                        "if (__quantum.evaluate({})) {{ {}\n{}\n}} else {{ {}\n{}\n}}\n",
+                        condition_js, prob_comment, then_js, prob_comment, else_js
+                    )
                 } else {
-                    format!("if (__quantum.evaluate({})) {{ {}\n{}\n}}\n", 
-                           condition_js, prob_comment, then_js)
+                    format!(
+                        "if (__quantum.evaluate({})) {{ {}\n{}\n}}\n",
+                        condition_js, prob_comment, then_js
+                    )
                 }
             }
-            ASTNode::QuantumLoop { condition, body, decoherence_threshold } => {
+            ASTNode::QuantumLoop {
+                condition,
+                body,
+                decoherence_threshold,
+            } => {
                 let condition_js = self.emit_expr_js(condition);
                 let body_js = self.emit_js(body);
                 let decoherence_comment = if let Some(threshold) = decoherence_threshold {
@@ -278,32 +326,61 @@ impl CodeGenerator {
                 } else {
                     "// Quantum loop with decoherence protection".to_string()
                 };
-                format!("while (__quantum.evaluateLoop({})) {{ {}\n{}\n}}\n", 
-                       condition_js, decoherence_comment, body_js)
+                format!(
+                    "while (__quantum.evaluateLoop({})) {{ {}\n{}\n}}\n",
+                    condition_js, decoherence_comment, body_js
+                )
             }
             ASTNode::SuperpositionSwitch { value, cases } => {
                 let value_js = self.emit_expr_js(value);
-                let cases_js = cases.iter().map(|case| {
-                    format!("// Superposition case: {} -> quantum state handling", case.pattern)
-                }).collect::<Vec<_>>().join("\n");
-                format!("// ◇ Superposition Switch\n__quantum.superpositionSwitch({}) {{\n{}\n}}\n", value_js, cases_js)
+                let cases_js = cases
+                    .iter()
+                    .map(|case| {
+                        format!(
+                            "// Superposition case: {} -> quantum state handling",
+                            case.pattern
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                format!(
+                    "// ◇ Superposition Switch\n__quantum.superpositionSwitch({}) {{\n{}\n}}\n",
+                    value_js, cases_js
+                )
             }
-            ASTNode::QuantumTryCatch { attempt_body, error_probability, catch_body, success_body: _ } => {
-                let attempt_js = attempt_body.iter().map(|stmt| self.emit_js(stmt)).collect::<String>();
+            ASTNode::QuantumTryCatch {
+                attempt_body,
+                error_probability,
+                catch_body,
+                success_body: _,
+            } => {
+                let attempt_js = attempt_body
+                    .iter()
+                    .map(|stmt| self.emit_js(stmt))
+                    .collect::<String>();
                 let prob_comment = if let Some(p) = error_probability {
                     format!("// Error probability: {:.2}%", p * 100.0)
                 } else {
                     "// Quantum error correction".to_string()
                 };
                 let catch_js = if let Some(catch_stmts) = catch_body {
-                    catch_stmts.iter().map(|stmt| self.emit_js(stmt)).collect::<String>()
+                    catch_stmts
+                        .iter()
+                        .map(|stmt| self.emit_js(stmt))
+                        .collect::<String>()
                 } else {
                     "// Default quantum error handling\n".to_string()
                 };
-                format!("try {{ {}\n{}\n}} catch (quantum_error) {{ {}\n{}\n}}\n", 
-                       prob_comment, attempt_js, prob_comment, catch_js)
+                format!(
+                    "try {{ {}\n{}\n}} catch (quantum_error) {{ {}\n{}\n}}\n",
+                    prob_comment, attempt_js, prob_comment, catch_js
+                )
             }
-            ASTNode::AILearningBlock { data_binding, model_binding, body } => {
+            ASTNode::AILearningBlock {
+                data_binding,
+                model_binding,
+                body,
+            } => {
                 let data_comment = if let Some(data) = data_binding {
                     format!("// Data binding: {}", data)
                 } else {
@@ -314,13 +391,24 @@ impl CodeGenerator {
                 } else {
                     "// No model binding specified".to_string()
                 };
-                let body_js = body.iter().map(|stmt| self.emit_js(stmt)).collect::<String>();
-                format!("// AI Learning Block\n{}\n{}\n__quantum.aiLearningBlock(() => {{\n{}\n}});\n",
-                       data_comment, model_comment, body_js)
+                let body_js = body
+                    .iter()
+                    .map(|stmt| self.emit_js(stmt))
+                    .collect::<String>();
+                format!(
+                    "// AI Learning Block\n{}\n{}\n__quantum.aiLearningBlock(() => {{\n{}\n}});\n",
+                    data_comment, model_comment, body_js
+                )
             }
             ASTNode::TimeBlock { duration, body } => {
-                let duration_js = duration.as_ref().map(|d| self.emit_expr_js(d)).unwrap_or("auto".to_string());
-                let body_js = body.iter().map(|stmt| self.emit_js(stmt)).collect::<String>();
+                let duration_js = duration
+                    .as_ref()
+                    .map(|d| self.emit_expr_js(d))
+                    .unwrap_or("auto".to_string());
+                let body_js = body
+                    .iter()
+                    .map(|stmt| self.emit_js(stmt))
+                    .collect::<String>();
                 format!("__time.block({}) {{ {}\n}}\n", duration_js, body_js)
             }
             // Keep existing wildcard for any remaining unimplemented nodes
@@ -368,6 +456,17 @@ impl CodeGenerator {
             ASTNode::Assignment { name, value, .. } => {
                 format!("{} = {}", name, self.emit_expr_js(value))
             }
+            ASTNode::ArrayLiteral(elements) => {
+                let contents = elements
+                    .iter()
+                    .map(|el| self.emit_expr_js(el))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("[{}]", contents)
+            }
+            ASTNode::IndexExpr { array, index } => {
+                format!("{}[{}]", self.emit_expr_js(array), self.emit_expr_js(index))
+            }
             ASTNode::QuantumOp { op, qubits } => {
                 let opname = match op {
                     TokenKind::Superpose => "superpose",
@@ -411,7 +510,11 @@ impl CodeGenerator {
                 };
                 format!("__quantum.{}({}, {})", quantum_op, left_js, right_js)
             }
-            ASTNode::QuantumIndexAccess { array, index, is_quantum_index } => {
+            ASTNode::QuantumIndexAccess {
+                array,
+                index,
+                is_quantum_index,
+            } => {
                 let array_js = self.emit_expr_js(array);
                 let index_js = self.emit_expr_js(index);
                 if *is_quantum_index {

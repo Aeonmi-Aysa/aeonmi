@@ -59,7 +59,13 @@ fn write_module(dst: &mut String, m: &Module) {
     });
     for im in imports {
         if let Some(alias) = im.alias {
-            writeln!(dst, "import {} as {};", escape_sym(&im.path), escape_sym(&alias)).unwrap();
+            writeln!(
+                dst,
+                "import {} as {};",
+                escape_sym(&im.path),
+                escape_sym(&alias)
+            )
+            .unwrap();
         } else {
             writeln!(dst, "import {};", escape_sym(&im.path)).unwrap();
         }
@@ -148,7 +154,11 @@ fn write_stmt(dst: &mut String, s: &Stmt, indent: usize) {
             write_expr(dst, e, indent);
             dst.push_str(";\n");
         }
-        If { cond, then_block, else_block } => {
+        If {
+            cond,
+            then_block,
+            else_block,
+        } => {
             indent_spaces(dst, indent);
             dst.push_str("if (");
             write_expr(dst, cond, indent);
@@ -264,6 +274,12 @@ fn write_expr(dst: &mut String, e: &Expr, indent: usize) {
                 }
                 write_expr(dst, it, indent);
             }
+            dst.push(']');
+        }
+        Expr::Index { target, index } => {
+            write_expr(dst, target, indent);
+            dst.push('[');
+            write_expr(dst, index, indent);
             dst.push(']');
         }
         Expr::Object(fields) => {

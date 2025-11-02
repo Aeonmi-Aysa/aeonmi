@@ -117,6 +117,10 @@ pub enum Expr {
         expr: Box<Expr>,
     },
     Array(Vec<Expr>),
+    Index {
+        target: Box<Expr>,
+        index: Box<Expr>,
+    },
     Object(Vec<(String, Expr)>), // simple map/object
 }
 

@@ -2,10 +2,12 @@
 //! Supports: literals, quantum arrays/objects, let/assign, if/while/for, fn calls/returns,
 //! binary/unary ops, quantum operations, and built-ins: print, log, time_ms, rand, len.
 
-use crate::core::ir::*;
-use crate::core::quantum_simulator::QuantumSimulator;
-use crate::core::quantum_algorithms::{QuantumAlgorithms, DeutschJozsaOracle};
+#![allow(dead_code)]
+
 use crate::core::hardware_integration::{HardwareManager, QuantumCircuit};
+use crate::core::ir::*;
+use crate::core::quantum_algorithms::{DeutschJozsaOracle, QuantumAlgorithms};
+use crate::core::quantum_simulator::QuantumSimulator;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
@@ -21,11 +23,11 @@ pub enum Value {
     Object(HashMap<String, Value>),
     Function(Function), // user-defined
     Builtin(Builtin),
-    
+
     // AEONMI Quantum-Native Values
-    QuantumArray(Vec<Value>, bool), // elements, is_superposition
+    QuantumArray(Vec<Value>, bool),    // elements, is_superposition
     QuantumState(String, Option<f64>), // state, amplitude
-    QubitReference(String), // reference to qubit in simulator
+    QubitReference(String),            // reference to qubit in simulator
 }
 
 #[derive(Clone)]
@@ -167,7 +169,7 @@ impl Interpreter {
                 f: builtin_len,
             }),
         );
-        
+
         // Add quantum built-ins
         env.define(
             "superpose".into(),
@@ -193,7 +195,7 @@ impl Interpreter {
                 f: builtin_entangle,
             }),
         );
-        
+
         // Add quantum algorithm built-ins
         env.define(
             "grovers_search".into(),
@@ -243,7 +245,7 @@ impl Interpreter {
                 f: builtin_quantum_teleportation,
             }),
         );
-        
+
         // Add hardware integration built-ins
         env.define(
             "list_devices".into(),
@@ -277,8 +279,8 @@ impl Interpreter {
                 f: builtin_job_results,
             }),
         );
-        
-        Self { 
+
+        Self {
             env,
             quantum_sim: QuantumSimulator::new(),
             quantum_alg: QuantumAlgorithms::new(),
@@ -572,6 +574,64 @@ impl Interpreter {
                 }
                 Value::Array(out)
             }
+            Index { target, index } => {
+                let target_val = self.eval_expr(target)?;
+                let index_val = self.eval_expr(index)?;
+                match target_val {
+                    Value::Array(items) => {
+                        let idx = match index_val {
+                            Value::Number(n) if n.fract() == 0.0 => n as usize,
+                            Value::Number(_) => {
+                                return Err(err("Array index must be an integer".into()))
+                            }
+                            other => {
+                                return Err(err(format!(
+                                    "Array index must be a number, got {:?}",
+                                    other
+                                )))
+                            }
+                        };
+                        items.get(idx)
+                            .cloned()
+                            .ok_or_else(|| err(format!("Index {} out of bounds", idx)))?
+                    }
+                    Value::Object(map) => {
+                        let key = match index_val {
+                            Value::String(s) => s,
+                            Value::Number(n) if n.fract() == 0.0 => n.to_string(),
+                            other => {
+                                return Err(err(format!(
+                                    "Object index must be string or integer-like, got {:?}",
+                                    other
+                                )))
+                            }
+                        };
+                        map.get(&key)
+                            .cloned()
+                            .unwrap_or(Value::Null)
+                    }
+                    Value::String(s) => {
+                        let idx = match index_val {
+                            Value::Number(n) if n.fract() == 0.0 => n as usize,
+                            _ => {
+                                return Err(err(
+                                    "String index must be an integer number".into()
+                                ))
+                            }
+                        };
+                        s.chars()
+                            .nth(idx)
+                            .map(|c| Value::String(c.to_string()))
+                            .unwrap_or(Value::Null)
+                    }
+                    other => {
+                        return Err(err(format!(
+                            "Indexing not supported on value {:?}",
+                            other
+                        )))
+                    }
+                }
+            }
             Object(kvs) => {
                 let mut map = HashMap::with_capacity(kvs.len());
                 for (k, v) in kvs {
@@ -616,7 +676,7 @@ impl Interpreter {
             Value::Array(a) => !a.is_empty(),
             Value::Object(o) => !o.is_empty(),
             Value::Function(_) | Value::Builtin(_) => true,
-            
+
             // Quantum values
             Value::QuantumArray(a, _) => !a.is_empty(),
             Value::QuantumState(state, _) => !state.is_empty(),
@@ -801,19 +861,17 @@ fn display(v: &Value) -> String {
         }
         Value::Function(_) => "<fn>".to_string(),
         Value::Builtin(b) => format!("<builtin:{}>", b.name),
-        
+
         // Quantum values
         Value::QuantumArray(a, is_superposition) => {
             let parts: Vec<String> = a.iter().map(display).collect();
             let prefix = if *is_superposition { "⊗" } else { "" };
             format!("{}[{}]", prefix, parts.join(", "))
         }
-        Value::QuantumState(state, amplitude) => {
-            match amplitude {
-                Some(amp) => format!("{}*{}", state, amp),
-                None => state.clone(),
-            }
-        }
+        Value::QuantumState(state, amplitude) => match amplitude {
+            Some(amp) => format!("{}*{}", state, amp),
+            None => state.clone(),
+        },
         Value::QubitReference(name) => format!("⟨{}⟩", name),
     }
 }
@@ -824,10 +882,12 @@ fn builtin_superpose(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value
     if args.len() != 1 {
         return Err(err("superpose expects 1 argument".into()));
     }
-    
+
     match &args[0] {
         Value::QubitReference(qubit_name) => {
-            interp.quantum_sim.superpose(qubit_name)
+            interp
+                .quantum_sim
+                .superpose(qubit_name)
                 .map_err(|e| err(format!("Quantum error: {}", e)))?;
             Ok(Value::Null)
         }
@@ -836,7 +896,9 @@ fn builtin_superpose(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value
             if !interp.quantum_sim.qubits.contains_key(qubit_name) {
                 interp.quantum_sim.create_qubit(qubit_name.clone());
             }
-            interp.quantum_sim.superpose(qubit_name)
+            interp
+                .quantum_sim
+                .superpose(qubit_name)
                 .map_err(|e| err(format!("Quantum error: {}", e)))?;
             Ok(Value::QubitReference(qubit_name.clone()))
         }
@@ -848,15 +910,19 @@ fn builtin_measure(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, 
     if args.len() != 1 {
         return Err(err("measure expects 1 argument".into()));
     }
-    
+
     match &args[0] {
         Value::QubitReference(qubit_name) => {
-            let result = interp.quantum_sim.measure(qubit_name)
+            let result = interp
+                .quantum_sim
+                .measure(qubit_name)
                 .map_err(|e| err(format!("Quantum error: {}", e)))?;
             Ok(Value::Number(result as f64))
         }
         Value::String(qubit_name) => {
-            let result = interp.quantum_sim.measure(qubit_name)
+            let result = interp
+                .quantum_sim
+                .measure(qubit_name)
                 .map_err(|e| err(format!("Quantum error: {}", e)))?;
             Ok(Value::Number(result as f64))
         }
@@ -868,19 +934,19 @@ fn builtin_entangle(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value,
     if args.len() != 2 {
         return Err(err("entangle expects 2 arguments".into()));
     }
-    
+
     let qubit1_name = match &args[0] {
         Value::QubitReference(name) => name.clone(),
         Value::String(name) => name.clone(),
         _ => return Err(err("entangle expects qubit references or names".into())),
     };
-    
+
     let qubit2_name = match &args[1] {
         Value::QubitReference(name) => name.clone(),
         Value::String(name) => name.clone(),
         _ => return Err(err("entangle expects qubit references or names".into())),
     };
-    
+
     // Create qubits if they don't exist
     if !interp.quantum_sim.qubits.contains_key(&qubit1_name) {
         interp.quantum_sim.create_qubit(qubit1_name.clone());
@@ -888,35 +954,47 @@ fn builtin_entangle(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value,
     if !interp.quantum_sim.qubits.contains_key(&qubit2_name) {
         interp.quantum_sim.create_qubit(qubit2_name.clone());
     }
-    
-    interp.quantum_sim.entangle(&qubit1_name, &qubit2_name)
+
+    interp
+        .quantum_sim
+        .entangle(&qubit1_name, &qubit2_name)
         .map_err(|e| err(format!("Quantum error: {}", e)))?;
-    
+
     Ok(Value::Null)
 }
 
 // AEONMI Quantum Algorithm Built-in Functions
 
-fn builtin_grovers_search(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+fn builtin_grovers_search(
+    interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
-        return Err(err("grovers_search expects 2 arguments: database_size, marked_item".into()));
+        return Err(err(
+            "grovers_search expects 2 arguments: database_size, marked_item".into(),
+        ));
     }
-    
+
     let database_size = match &args[0] {
         Value::Number(n) => *n as usize,
         _ => return Err(err("Database size must be a number".into())),
     };
-    
+
     let marked_item = match &args[1] {
         Value::Number(n) => *n as usize,
         _ => return Err(err("Marked item must be a number".into())),
     };
-    
+
     if marked_item >= database_size {
-        return Err(err("Marked item index must be less than database size".into()));
+        return Err(err(
+            "Marked item index must be less than database size".into()
+        ));
     }
-    
-    match interp.quantum_alg.grovers_search(database_size, marked_item) {
+
+    match interp
+        .quantum_alg
+        .grovers_search(database_size, marked_item)
+    {
         Ok(result) => Ok(Value::Number(result as f64)),
         Err(e) => Err(err(format!("Grover's search failed: {}", e))),
     }
@@ -924,9 +1002,11 @@ fn builtin_grovers_search(interp: &mut Interpreter, args: Vec<Value>) -> Result<
 
 fn builtin_qft(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(err("quantum_fourier_transform expects 1 argument: array of qubit names".into()));
+        return Err(err(
+            "quantum_fourier_transform expects 1 argument: array of qubit names".into(),
+        ));
     }
-    
+
     let qubit_names = match &args[0] {
         Value::Array(arr) => {
             let mut names = Vec::new();
@@ -938,10 +1018,10 @@ fn builtin_qft(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, Runt
                 }
             }
             names
-        },
+        }
         _ => return Err(err("QFT expects an array of qubit names".into())),
     };
-    
+
     match interp.quantum_alg.quantum_fourier_transform(&qubit_names) {
         Ok(_) => Ok(Value::Null),
         Err(e) => Err(err(format!("QFT failed: {}", e))),
@@ -950,49 +1030,63 @@ fn builtin_qft(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, Runt
 
 fn builtin_shors(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(err("shors_factoring expects 1 argument: number to factor".into()));
+        return Err(err(
+            "shors_factoring expects 1 argument: number to factor".into()
+        ));
     }
-    
+
     let n = match &args[0] {
         Value::Number(num) => *num as usize,
         _ => return Err(err("Number to factor must be a number".into())),
     };
-    
+
     match interp.quantum_alg.shors_factoring(n) {
         Ok((factor1, factor2)) => {
             let result = vec![Value::Number(factor1 as f64), Value::Number(factor2 as f64)];
             Ok(Value::Array(result))
-        },
+        }
         Err(e) => Err(err(format!("Shor's factoring failed: {}", e))),
     }
 }
 
-fn builtin_deutsch_jozsa(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+fn builtin_deutsch_jozsa(
+    interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(err("deutsch_jozsa expects 1 argument: oracle type".into()));
     }
-    
+
     let oracle_type = match &args[0] {
         Value::String(s) => match s.as_str() {
             "constant0" => DeutschJozsaOracle::Constant0,
             "constant1" => DeutschJozsaOracle::Constant1,
             "balanced" => DeutschJozsaOracle::BalancedXor,
-            _ => return Err(err("Oracle type must be 'constant0', 'constant1', or 'balanced'".into())),
+            _ => {
+                return Err(err(
+                    "Oracle type must be 'constant0', 'constant1', or 'balanced'".into(),
+                ))
+            }
         },
         _ => return Err(err("Oracle type must be a string".into())),
     };
-    
+
     match interp.quantum_alg.deutsch_jozsa(oracle_type) {
         Ok(is_balanced) => Ok(Value::Bool(is_balanced)),
         Err(e) => Err(err(format!("Deutsch-Jozsa failed: {}", e))),
     }
 }
 
-fn builtin_bernstein_vazirani(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+fn builtin_bernstein_vazirani(
+    interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(err("bernstein_vazirani expects 1 argument: hidden bit string".into()));
+        return Err(err(
+            "bernstein_vazirani expects 1 argument: hidden bit string".into(),
+        ));
     }
-    
+
     let hidden_string = match &args[0] {
         Value::Array(arr) => {
             let mut bits = Vec::new();
@@ -1000,37 +1094,48 @@ fn builtin_bernstein_vazirani(interp: &mut Interpreter, args: Vec<Value>) -> Res
                 match val {
                     Value::Bool(b) => bits.push(*b),
                     Value::Number(n) => bits.push(*n != 0.0),
-                    _ => return Err(err("Hidden string must be array of booleans or numbers".into())),
+                    _ => {
+                        return Err(err(
+                            "Hidden string must be array of booleans or numbers".into()
+                        ))
+                    }
                 }
             }
             bits
-        },
-        Value::String(s) => {
-            s.chars().map(|c| c == '1').collect()
-        },
+        }
+        Value::String(s) => s.chars().map(|c| c == '1').collect(),
         _ => return Err(err("Hidden string must be array or string".into())),
     };
-    
+
     match interp.quantum_alg.bernstein_vazirani(&hidden_string) {
         Ok(result) => {
             let result_values: Vec<Value> = result.into_iter().map(|b| Value::Bool(b)).collect();
             Ok(Value::Array(result_values))
-        },
+        }
         Err(e) => Err(err(format!("Bernstein-Vazirani failed: {}", e))),
     }
 }
 
-fn builtin_quantum_teleportation(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+fn builtin_quantum_teleportation(
+    interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(err("quantum_teleportation expects 1 argument: quantum state to teleport".into()));
+        return Err(err(
+            "quantum_teleportation expects 1 argument: quantum state to teleport".into(),
+        ));
     }
-    
+
     let state = match &args[0] {
         Value::String(s) => s.clone(),
         Value::QuantumState(state, _) => state.clone(),
-        _ => return Err(err("State to teleport must be a quantum state string".into())),
+        _ => {
+            return Err(err(
+                "State to teleport must be a quantum state string".into()
+            ))
+        }
     };
-    
+
     match interp.quantum_alg.quantum_teleportation(&state) {
         Ok(result_state) => Ok(Value::String(result_state)),
         Err(e) => Err(err(format!("Quantum teleportation failed: {}", e))),
@@ -1043,39 +1148,50 @@ fn builtin_list_devices(interp: &mut Interpreter, args: Vec<Value>) -> Result<Va
     if !args.is_empty() {
         return Err(err("list_devices expects no arguments".into()));
     }
-    
+
     let devices = interp.hardware_mgr.list_devices();
-    let device_list: Vec<Value> = devices.into_iter().map(|device| {
-        let mut device_info = std::collections::HashMap::new();
-        device_info.insert("name".to_string(), Value::String(device.name.clone()));
-        device_info.insert("provider".to_string(), Value::String(device.provider.to_string()));
-        device_info.insert("qubits".to_string(), Value::Number(device.qubits as f64));
-        device_info.insert("available".to_string(), Value::Bool(device.is_available));
-        device_info.insert("queue_length".to_string(), Value::Number(device.queue_length as f64));
-        Value::Object(device_info)
-    }).collect();
-    
+    let device_list: Vec<Value> = devices
+        .into_iter()
+        .map(|device| {
+            let mut device_info = std::collections::HashMap::new();
+            device_info.insert("name".to_string(), Value::String(device.name.clone()));
+            device_info.insert(
+                "provider".to_string(),
+                Value::String(device.provider.to_string()),
+            );
+            device_info.insert("qubits".to_string(), Value::Number(device.qubits as f64));
+            device_info.insert("available".to_string(), Value::Bool(device.is_available));
+            device_info.insert(
+                "queue_length".to_string(),
+                Value::Number(device.queue_length as f64),
+            );
+            Value::Object(device_info)
+        })
+        .collect();
+
     Ok(Value::Array(device_list))
 }
 
 fn builtin_submit_job(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
-        return Err(err("submit_job expects 3 arguments: device_name, circuit_gates, shots".into()));
+        return Err(err(
+            "submit_job expects 3 arguments: device_name, circuit_gates, shots".into(),
+        ));
     }
-    
+
     let device_name = match &args[0] {
         Value::String(name) => name.clone(),
         _ => return Err(err("Device name must be a string".into())),
     };
-    
+
     let shots = match &args[2] {
         Value::Number(n) => *n as usize,
         _ => return Err(err("Shots must be a number".into())),
     };
-    
+
     // Parse circuit gates from array or object
     let mut circuit = QuantumCircuit::new(2); // Default 2 qubits for now
-    
+
     match &args[1] {
         Value::Array(gates) => {
             for gate in gates {
@@ -1086,7 +1202,7 @@ fn builtin_submit_job(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
                         if parts.is_empty() {
                             continue;
                         }
-                        
+
                         match parts[0] {
                             "h" if parts.len() == 2 => {
                                 if let Ok(qubit) = parts[1].parse::<usize>() {
@@ -1099,7 +1215,9 @@ fn builtin_submit_job(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
                                 }
                             }
                             "cx" if parts.len() == 3 => {
-                                if let (Ok(control), Ok(target)) = (parts[1].parse::<usize>(), parts[2].parse::<usize>()) {
+                                if let (Ok(control), Ok(target)) =
+                                    (parts[1].parse::<usize>(), parts[2].parse::<usize>())
+                                {
                                     circuit.cx(control, target);
                                 }
                             }
@@ -1112,9 +1230,9 @@ fn builtin_submit_job(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
         }
         _ => return Err(err("Circuit gates must be an array of gate strings".into())),
     }
-    
+
     circuit.measure_all();
-    
+
     match interp.hardware_mgr.submit_job(&device_name, circuit, shots) {
         Ok(job_id) => Ok(Value::String(job_id)),
         Err(e) => Err(err(format!("Job submission failed: {}", e))),
@@ -1125,12 +1243,12 @@ fn builtin_job_status(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
     if args.len() != 1 {
         return Err(err("job_status expects 1 argument: job_id".into()));
     }
-    
+
     let job_id = match &args[0] {
         Value::String(id) => id.clone(),
         _ => return Err(err("Job ID must be a string".into())),
     };
-    
+
     match interp.hardware_mgr.get_job_status(&job_id) {
         Some(status) => {
             let status_str = match status {
@@ -1150,33 +1268,45 @@ fn builtin_job_results(interp: &mut Interpreter, args: Vec<Value>) -> Result<Val
     if args.len() != 1 {
         return Err(err("job_results expects 1 argument: job_id".into()));
     }
-    
+
     let job_id = match &args[0] {
         Value::String(id) => id.clone(),
         _ => return Err(err("Job ID must be a string".into())),
     };
-    
+
     match interp.hardware_mgr.get_job_results(&job_id) {
         Some(results) => {
             let mut result_obj = std::collections::HashMap::new();
-            
+
             // Convert counts to AEONMI value format
-            let counts: std::collections::HashMap<String, Value> = results.counts.iter()
+            let counts: std::collections::HashMap<String, Value> = results
+                .counts
+                .iter()
                 .map(|(k, v)| (k.clone(), Value::Number(*v as f64)))
                 .collect();
             result_obj.insert("counts".to_string(), Value::Object(counts));
-            
-            // Convert probabilities to AEONMI value format  
-            let probabilities: std::collections::HashMap<String, Value> = results.probabilities.iter()
+
+            // Convert probabilities to AEONMI value format
+            let probabilities: std::collections::HashMap<String, Value> = results
+                .probabilities
+                .iter()
                 .map(|(k, v)| (k.clone(), Value::Number(*v)))
                 .collect();
             result_obj.insert("probabilities".to_string(), Value::Object(probabilities));
-            
-            result_obj.insert("execution_time".to_string(), Value::Number(results.execution_time));
-            result_obj.insert("shots".to_string(), Value::Number(results.raw_data.len() as f64));
-            
+
+            result_obj.insert(
+                "execution_time".to_string(),
+                Value::Number(results.execution_time),
+            );
+            result_obj.insert(
+                "shots".to_string(),
+                Value::Number(results.raw_data.len() as f64),
+            );
+
             Ok(Value::Object(result_obj))
         }
-        None => Err(err("Job results not available (job may not be completed)".into())),
+        None => Err(err(
+            "Job results not available (job may not be completed)".into()
+        )),
     }
 }
