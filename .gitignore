@@ -48,7 +48,8 @@ clippy_add.log
 warnings.txt
 __tracked_files.txt
 
-### Files with problematic names (syntax errors)
+### Files with problematic names (syntax errors - these were accidentally created files)
+# Note: Some of these were actual filenames that got created, not git commands
 !
 (usize
 bool
@@ -57,7 +58,7 @@ ParserError
 Err(ParserError
 Err(self.err_here(Invalid assignment target))
 run_titan(file
-h origin HEADmain (replace main with your target branch)
+# This next line was an actual filename: "h origin HEADmain (replace main with your target branch)"
 
 # If you want to keep any of the above, remove the entry.
 
