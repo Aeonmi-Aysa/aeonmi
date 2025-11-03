@@ -39,6 +39,26 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
                     body: Block { stmts },
                 }));
             }
+            ASTNode::VariableDecl { name, value, .. } => {
+                let expr = lower_expr_ast(&value)?;
+                decls.push(Decl::Let(LetDecl {
+                    name,
+                    value: Some(expr),
+                }));
+            }
+            ASTNode::QuantumVariableDecl {
+                name,
+                binding_type,
+                value,
+                ..
+            } => {
+                let expr = lower_expr_ast(&value)?;
+                decls.push(Decl::QuantumLet(QuantumLetDecl {
+                    name,
+                    binding: map_binding(binding_type),
+                    value: Some(expr),
+                }));
+            }
             // All other top-level items go into main function
             other => {
                 let stmt = lower_stmt_ast(&other)?;
@@ -64,8 +84,24 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
     m.imports.sort_by(|a, b| {
         (a.path.as_str(), a.alias.as_deref()).cmp(&(b.path.as_str(), b.alias.as_deref()))
     });
-    m.decls.sort_by(|a, b| a.name().cmp(b.name()));
+    m.decls.sort_by(|a, b| {
+        let kind_order = decl_kind_rank(a).cmp(&decl_kind_rank(b));
+        if kind_order == std::cmp::Ordering::Equal {
+            a.name().cmp(b.name())
+        } else {
+            kind_order
+        }
+    });
     Ok(m)
+}
+
+fn decl_kind_rank(decl: &Decl) -> u8 {
+    match decl {
+        Decl::Const(_) => 0,
+        Decl::Let(_) => 1,
+        Decl::QuantumLet(_) => 1,
+        Decl::Fn(_) => 2,
+    }
 }
 
 fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
@@ -94,9 +130,9 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
         | A::Identifier(_)
         | A::NumberLiteral(_)
         | A::StringLiteral(_)
-    | A::BooleanLiteral(_)
-    | A::ArrayLiteral(_)
-    | A::IndexExpr { .. } => Stmt::Expr(lower_expr_ast(n)?),
+        | A::BooleanLiteral(_)
+        | A::ArrayLiteral(_)
+        | A::IndexExpr { .. } => Stmt::Expr(lower_expr_ast(n)?),
 
         A::If {
             condition,
@@ -144,17 +180,11 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             value,
             ..
         } => {
-            let quantum_type_comment = match binding_type {
-                crate::core::ast::QuantumBindingType::Classical => "Quantum:Classical",
-                crate::core::ast::QuantumBindingType::Superposition => "Quantum:Superposition",
-                crate::core::ast::QuantumBindingType::Tensor => "Quantum:Tensor",
-                crate::core::ast::QuantumBindingType::Approximation => "Quantum:Approximation",
-            };
-
-            // For .ai output, we need special quantum variable syntax
-            Stmt::Let {
-                name: format!("{} /* {} */", name, quantum_type_comment),
-                value: Some(lower_expr_ast(value)?),
+            let binding = map_binding(binding_type.clone());
+            Stmt::QuantumLet {
+                name: name.clone(),
+                binding,
+                value: lower_expr_ast(value)?,
             }
         }
 
@@ -258,28 +288,16 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             probability,
             then_branch,
             else_branch,
-        } => {
-            let condition_expr = lower_expr_ast(condition)?;
-            let then_block = lower_block_ast(then_branch)?;
-            let else_block = if let Some(else_br) = else_branch {
+        } => Stmt::ProbabilityBranch {
+            condition: lower_expr_ast(condition)?,
+            probability: *probability,
+            then_block: lower_block_ast(then_branch)?,
+            else_block: if let Some(else_br) = else_branch {
                 Some(lower_block_ast(else_br)?)
             } else {
                 None
-            };
-
-            // Add probability annotation as comment
-            let _prob_comment = if let Some(p) = probability {
-                format!("/* Probability: {:.2}% */", p * 100.0)
-            } else {
-                "/* Quantum probability */".to_string()
-            };
-
-            Stmt::If {
-                cond: condition_expr,
-                then_block,
-                else_block,
-            }
-        }
+            },
+        },
         A::QuantumLoop {
             condition,
             body,
@@ -337,7 +355,8 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             model_binding: _,
             body,
         } => {
-            let _lowered_body: Result<Vec<Stmt>, String> = body.iter().map(lower_stmt_ast).collect();
+            let _lowered_body: Result<Vec<Stmt>, String> =
+                body.iter().map(lower_stmt_ast).collect();
             Stmt::Expr(Expr::Call {
                 callee: Box::new(Expr::Ident("__ai_learning_block".to_string())),
                 args: vec![Expr::Object(vec![])], // Placeholder for AI block content
@@ -349,7 +368,8 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             } else {
                 Expr::Lit(Lit::String("auto".to_string()))
             };
-            let _lowered_body: Result<Vec<Stmt>, String> = body.iter().map(lower_stmt_ast).collect();
+            let _lowered_body: Result<Vec<Stmt>, String> =
+                body.iter().map(lower_stmt_ast).collect();
             Stmt::Expr(Expr::Call {
                 callee: Box::new(Expr::Ident("__time_block".to_string())),
                 args: vec![duration_expr],
@@ -392,19 +412,11 @@ fn lower_stmt_init_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             binding_type,
             value,
             ..
-        } => {
-            let quantum_type_comment = match binding_type {
-                crate::core::ast::QuantumBindingType::Classical => "Quantum:Classical",
-                crate::core::ast::QuantumBindingType::Superposition => "Quantum:Superposition",
-                crate::core::ast::QuantumBindingType::Tensor => "Quantum:Tensor",
-                crate::core::ast::QuantumBindingType::Approximation => "Quantum:Approximation",
-            };
-
-            Stmt::Let {
-                name: format!("{} /* {} */", name, quantum_type_comment),
-                value: Some(lower_expr_ast(value)?),
-            }
-        }
+        } => Stmt::QuantumLet {
+            name: name.clone(),
+            binding: map_binding(binding_type.clone()),
+            value: lower_expr_ast(value)?,
+        },
 
         A::Assignment { name, value, .. } => Stmt::Assign {
             target: Expr::Ident(name.clone()),
@@ -471,14 +483,10 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
             },
         },
 
-        A::QuantumState { state, amplitude } => {
-            if let Some(amp) = amplitude {
-                // For .ai output, include amplitude information
-                Expr::Lit(Lit::String(format!("{} /* amplitude: {} */", state, amp)))
-            } else {
-                Expr::Lit(Lit::String(state.clone()))
-            }
-        }
+        A::QuantumState { state, amplitude } => Expr::QuantumState {
+            label: state.clone(),
+            amplitude: *amplitude,
+        },
 
         A::IdentifierSpanned { name, .. } => Expr::Ident(name.clone()),
 
@@ -488,6 +496,17 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
                 .map(|el| lower_expr_ast(el))
                 .collect::<Result<Vec<_>, _>>()?,
         ),
+        A::QuantumArray {
+            elements,
+            dimensions: _,
+            is_superposition,
+        } => Expr::QuantumArray {
+            elements: elements
+                .iter()
+                .map(|el| lower_expr_ast(el))
+                .collect::<Result<Vec<_>, _>>()?,
+            is_superposition: *is_superposition,
+        },
         A::IndexExpr { array, index } => Expr::Index {
             target: Box::new(lower_expr_ast(array)?),
             index: Box::new(lower_expr_ast(index)?),
@@ -547,6 +566,18 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
     })
 }
 
+fn map_binding(binding: crate::core::ast::QuantumBindingType) -> crate::core::ir::QuantumBinding {
+    use crate::core::ast::QuantumBindingType as Src;
+    use crate::core::ir::QuantumBinding as Dest;
+
+    match binding {
+        Src::Classical => Dest::Classical,
+        Src::Superposition => Dest::Superposition,
+        Src::Tensor => Dest::Tensor,
+        Src::Approximation => Dest::Approximation,
+    }
+}
+
 // =======================
 // Operator mapping
 // =======================
@@ -603,6 +634,7 @@ fn map_binop_token(tok: &TokenKind) -> BinOp {
         TokenKind::Minus => Sub,
         TokenKind::Star => Mul,
         TokenKind::Slash => Div,
+        TokenKind::Percent => Mod,
         TokenKind::DoubleEquals => Eq,
         TokenKind::NotEquals => Ne,
         TokenKind::LessThan => Lt,
@@ -631,9 +663,8 @@ fn map_quantum_op(
 ) -> Result<(String, Vec<Expr>), String> {
     let fname = match tok {
         TokenKind::Superpose => "superpose",
-        TokenKind::Entangle => "entangle",
+        TokenKind::Entangle | TokenKind::Dod => "entangle",
         TokenKind::Measure => "measure",
-        TokenKind::Dod => "dod",
         _ => "qop",
     }
     .to_string();

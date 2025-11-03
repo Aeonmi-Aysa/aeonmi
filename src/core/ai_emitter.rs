@@ -92,6 +92,20 @@ fn write_module(dst: &mut String, m: &Module) {
                 }
                 dst.push_str(";\n");
             }
+            Decl::QuantumLet(q) => {
+                let symbol = match q.binding {
+                    crate::core::ir::QuantumBinding::Classical => "←",
+                    crate::core::ir::QuantumBinding::Superposition => "∈",
+                    crate::core::ir::QuantumBinding::Tensor => "⊗",
+                    crate::core::ir::QuantumBinding::Approximation => "≈",
+                };
+                write!(dst, "⟨{}⟩ {}", escape_sym(&q.name), symbol).unwrap();
+                if let Some(v) = &q.value {
+                    dst.push(' ');
+                    write_expr(dst, v, 0);
+                }
+                dst.push_str(";\n");
+            }
             Decl::Fn(f) => {
                 write!(dst, "fn {}(", escape_sym(&f.name)).unwrap();
                 for (pi, p) in f.params.iter().enumerate() {
@@ -178,6 +192,45 @@ fn write_stmt(dst: &mut String, s: &Stmt, indent: usize) {
             dst.push_str(") ");
             write_block(dst, body, indent);
             dst.push('\n');
+        }
+        Stmt::QuantumLet {
+            name,
+            binding,
+            value,
+        } => {
+            indent_spaces(dst, indent);
+            let symbol = match binding {
+                crate::core::ir::QuantumBinding::Classical => "←",
+                crate::core::ir::QuantumBinding::Superposition => "∈",
+                crate::core::ir::QuantumBinding::Tensor => "⊗",
+                crate::core::ir::QuantumBinding::Approximation => "≈",
+            };
+            write!(dst, "⟨{}⟩ {} ", escape_sym(name), symbol).unwrap();
+            write_expr(dst, value, indent);
+            dst.push_str(";\n");
+        }
+        Stmt::ProbabilityBranch {
+            condition,
+            probability,
+            then_block,
+            else_block,
+        } => {
+            indent_spaces(dst, indent);
+            dst.push_str("⊖ ");
+            write_expr(dst, condition, indent);
+            if let Some(p) = probability {
+                dst.push_str(" ≈ ");
+                dst.push_str(&format!("{:.3}", p));
+            }
+            dst.push_str(" ⇒ ");
+            write_block(dst, then_block, indent);
+            dst.push('\n');
+            if let Some(else_blk) = else_block {
+                indent_spaces(dst, indent);
+                dst.push_str("⊕ ");
+                write_block(dst, else_blk, indent);
+                dst.push('\n');
+            }
         }
         _ => { /* extend as needed */ }
     }
@@ -273,6 +326,29 @@ fn write_expr(dst: &mut String, e: &Expr, indent: usize) {
                     dst.push_str(", ");
                 }
                 write_expr(dst, it, indent);
+            }
+            dst.push(']');
+        }
+        Expr::QuantumState { label, amplitude } => {
+            if let Some(amp) = amplitude {
+                dst.push_str(&format!("{}*{}", label, amp));
+            } else {
+                dst.push_str(label);
+            }
+        }
+        Expr::QuantumArray {
+            elements,
+            is_superposition,
+        } => {
+            if *is_superposition {
+                dst.push_str("⊗");
+            }
+            dst.push('[');
+            for (i, el) in elements.iter().enumerate() {
+                if i > 0 {
+                    dst.push_str(", ");
+                }
+                write_expr(dst, el, indent);
             }
             dst.push(']');
         }

@@ -32,6 +32,7 @@ pub struct Import {
 pub enum Decl {
     Const(ConstDecl),
     Let(LetDecl),
+    QuantumLet(QuantumLetDecl),
     Fn(FnDecl),
 }
 
@@ -40,6 +41,7 @@ impl Decl {
         match self {
             Decl::Const(c) => &c.name,
             Decl::Let(l) => &l.name,
+            Decl::QuantumLet(q) => &q.name,
             Decl::Fn(f) => &f.name,
         }
     }
@@ -55,6 +57,13 @@ pub struct ConstDecl {
 pub struct LetDecl {
     pub name: String,
     pub value: Option<Expr>, // `let x;` or `let x = expr;`
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct QuantumLetDecl {
+    pub name: String,
+    pub binding: QuantumBinding,
+    pub value: Option<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,6 +106,17 @@ pub enum Stmt {
         target: Expr, // Identifier or Index/Member in a future extension
         value: Expr,
     },
+    QuantumLet {
+        name: String,
+        binding: QuantumBinding,
+        value: Expr,
+    },
+    ProbabilityBranch {
+        condition: Expr,
+        probability: Option<f64>,
+        then_block: Block,
+        else_block: Option<Block>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -122,6 +142,14 @@ pub enum Expr {
         index: Box<Expr>,
     },
     Object(Vec<(String, Expr)>), // simple map/object
+    QuantumState {
+        label: String,
+        amplitude: Option<f64>,
+    },
+    QuantumArray {
+        elements: Vec<Expr>,
+        is_superposition: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -153,6 +181,14 @@ pub enum BinOp {
 pub enum UnOp {
     Neg,
     Not,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuantumBinding {
+    Classical,
+    Superposition,
+    Tensor,
+    Approximation,
 }
 
 impl fmt::Display for BinOp {

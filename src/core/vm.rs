@@ -7,7 +7,7 @@
 use crate::core::hardware_integration::{HardwareManager, QuantumCircuit};
 use crate::core::ir::*;
 use crate::core::quantum_algorithms::{DeutschJozsaOracle, QuantumAlgorithms};
-use crate::core::quantum_simulator::QuantumSimulator;
+use crate::core::quantum_simulator::{Complex, QuantumSimulator};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
@@ -86,6 +86,31 @@ impl Env {
         self.frames.last_mut().unwrap().insert(k, v);
     }
 
+    pub fn define_global(&mut self, k: String, v: Value) {
+        if let Some(global) = self.frames.first_mut() {
+            global.insert(k, v);
+        } else {
+            self.define(k, v);
+        }
+    }
+
+    pub fn extend_global<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (String, Value)>,
+    {
+        if let Some(global) = self.frames.first_mut() {
+            for (k, v) in iter {
+                global.insert(k, v);
+            }
+        } else {
+            let mut frame = HashMap::new();
+            for (k, v) in iter {
+                frame.insert(k, v);
+            }
+            self.frames.push(frame);
+        }
+    }
+
     pub fn assign(&mut self, k: &str, v: Value) -> bool {
         for frame in self.frames.iter_mut().rev() {
             if frame.contains_key(k) {
@@ -103,6 +128,17 @@ impl Env {
             }
         }
         None
+    }
+
+    pub fn merge_from_prefix(&mut self, other: &Env) {
+        let len = self.frames.len().min(other.frames.len());
+        for idx in 0..len {
+            let src = &other.frames[idx];
+            let dest = &mut self.frames[idx];
+            for (k, v) in src {
+                dest.insert(k.clone(), v.clone());
+            }
+        }
     }
 }
 
@@ -193,6 +229,60 @@ impl Interpreter {
                 name: "entangle",
                 arity: 2,
                 f: builtin_entangle,
+            }),
+        );
+
+        env.define(
+            "is_entangled".into(),
+            Value::Builtin(Builtin {
+                name: "is_entangled",
+                arity: 2,
+                f: builtin_is_entangled,
+            }),
+        );
+
+        env.define(
+            "apply_matrix".into(),
+            Value::Builtin(Builtin {
+                name: "apply_matrix",
+                arity: 2,
+                f: builtin_apply_matrix,
+            }),
+        );
+
+        env.define(
+            "__quantum_index".into(),
+            Value::Builtin(Builtin {
+                name: "__quantum_index",
+                arity: 2,
+                f: builtin_quantum_index_internal,
+            }),
+        );
+
+        env.define(
+            "__quantum_protect_loop".into(),
+            Value::Builtin(Builtin {
+                name: "__quantum_protect_loop",
+                arity: 1,
+                f: builtin_quantum_protect_loop_internal,
+            }),
+        );
+
+        env.define(
+            "__quantum_try_catch".into(),
+            Value::Builtin(Builtin {
+                name: "__quantum_try_catch",
+                arity: 3,
+                f: builtin_quantum_try_catch_internal,
+            }),
+        );
+
+        env.define(
+            "__quantum_probability_branch".into(),
+            Value::Builtin(Builtin {
+                name: "__quantum_probability_branch",
+                arity: usize::MAX,
+                f: builtin_quantum_probability_branch_internal,
             }),
         );
 
@@ -299,12 +389,21 @@ impl Interpreter {
                     self.env.define(c.name.clone(), v);
                 }
                 Decl::Let(l) => {
-                    let v = if let Some(e) = &l.value {
+                    let value = if let Some(e) = &l.value {
                         self.eval_expr(e)?
                     } else {
                         Value::Null
                     };
-                    self.env.define(l.name.clone(), v);
+                    self.env.define(l.name.clone(), value);
+                }
+                Decl::QuantumLet(q) => {
+                    let evaluated = if let Some(expr) = &q.value {
+                        self.eval_expr(expr)?
+                    } else {
+                        Value::Null
+                    };
+                    let bound = self.initialize_quantum_binding(&q.name, q.binding, evaluated)?;
+                    self.env.define_global(q.name.clone(), bound);
                 }
                 Decl::Fn(f) => {
                     debug_log!("vm: load fn '{}'", f.name);
@@ -357,7 +456,7 @@ impl Interpreter {
                     )));
                 }
                 // New scope with closure base
-                let saved = self.env.clone();
+                let mut saved = self.env.clone();
                 self.env = fun.env.clone();
                 self.env.push();
                 for (p, v) in fun.params.iter().zip(args.into_iter()) {
@@ -365,14 +464,23 @@ impl Interpreter {
                 }
                 // Execute - don't create another scope in exec_block for function bodies
                 let ret = self.exec_function_block(&fun.body);
+                let mut post_call_env = self.env.clone();
+                let extra_frame = if post_call_env.frames.len() > fun.env.frames.len() {
+                    post_call_env.frames.pop()
+                } else {
+                    None
+                };
+                saved.merge_from_prefix(&post_call_env);
+                if let Some(frame) = extra_frame {
+                    saved.extend_global(frame.into_iter());
+                }
                 // Restore
-                let out = match ret {
+                self.env = saved;
+                match ret {
                     ControlFlow::Ok => Ok(Value::Null),
                     ControlFlow::Return(v) => Ok(v.unwrap_or(Value::Null)),
                     ControlFlow::Err(e) => Err(e),
-                };
-                self.env = saved;
-                out
+                }
             }
             other => Err(err(format!("callee is not callable: {:?}", other))),
         }
@@ -407,16 +515,13 @@ impl Interpreter {
         ControlFlow::Ok
     }
 
-    fn exec_stmt(&mut self, s: &Stmt) -> ControlFlow {
+    fn exec_stmt(&mut self, stmt: &Stmt) -> ControlFlow {
         use Stmt::*;
-        match s {
-            Expr(e) => {
-                if let Err(e) = self.eval_expr(e) {
-                    return ControlFlow::Err(e);
-                }
-                ControlFlow::Ok
-            }
-            Return(None) => ControlFlow::Return(None),
+        match stmt {
+            Expr(expr) => match self.eval_expr(expr) {
+                Ok(_) => ControlFlow::Ok,
+                Err(e) => ControlFlow::Err(e),
+            },
             Return(Some(e)) => {
                 let v = match self.eval_expr(e) {
                     Ok(v) => v,
@@ -424,6 +529,7 @@ impl Interpreter {
                 };
                 ControlFlow::Return(Some(v))
             }
+            Return(None) => ControlFlow::Return(None),
             If {
                 cond,
                 then_block,
@@ -503,8 +609,65 @@ impl Interpreter {
                 self.env.define(name.clone(), v);
                 ControlFlow::Ok
             }
+            QuantumLet {
+                name,
+                binding,
+                value,
+            } => {
+                let evaluated = match self.eval_expr(value) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Err(e),
+                };
+                match self.initialize_quantum_binding(name, *binding, evaluated) {
+                    Ok(bound) => {
+                        self.env.define_global(name.clone(), bound);
+                        ControlFlow::Ok
+                    }
+                    Err(e) => ControlFlow::Err(e),
+                }
+            }
+            ProbabilityBranch {
+                condition,
+                probability,
+                then_block,
+                else_block,
+            } => {
+                let condition_value = match self.eval_expr(condition) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Err(e),
+                };
+
+                let mut weight = match probability {
+                    Some(p) => *p,
+                    None => match self.value_to_probability(condition_value) {
+                        Ok(p) => p,
+                        Err(e) => return ControlFlow::Err(e),
+                    },
+                };
+
+                if !weight.is_finite() {
+                    return ControlFlow::Err(err("Probability must be finite".into()));
+                }
+                if weight.is_nan() {
+                    weight = 0.0;
+                }
+                if weight < 0.0 {
+                    weight = 0.0;
+                }
+                if weight > 1.0 {
+                    weight = 1.0;
+                }
+
+                let roll = lcg_unit();
+                if roll < weight {
+                    self.exec_block(then_block)
+                } else if let Some(else_blk) = else_block {
+                    self.exec_block(else_blk)
+                } else {
+                    ControlFlow::Ok
+                }
+            }
             Assign { target, value } => {
-                // Only Ident target in v0
                 if let crate::core::ir::Expr::Ident(name) = target {
                     let v = match self.eval_expr(value) {
                         Ok(v) => v,
@@ -532,6 +695,17 @@ impl Interpreter {
                 crate::core::ir::Lit::Number(n) => Value::Number(*n),
                 crate::core::ir::Lit::String(s) => Value::String(s.clone()),
             },
+            QuantumState { label, amplitude } => Value::QuantumState(label.clone(), *amplitude),
+            QuantumArray {
+                elements,
+                is_superposition,
+            } => {
+                let mut values = Vec::with_capacity(elements.len());
+                for el in elements {
+                    values.push(self.eval_expr(el)?);
+                }
+                Value::QuantumArray(values, *is_superposition)
+            }
             Ident(s) => {
                 debug_log!("vm: lookup '{}'", s);
                 let result = self
@@ -591,9 +765,20 @@ impl Interpreter {
                                 )))
                             }
                         };
-                        items.get(idx)
+                        items
+                            .get(idx)
                             .cloned()
                             .ok_or_else(|| err(format!("Index {} out of bounds", idx)))?
+                    }
+                    Value::QuantumArray(items, _) => {
+                        let idx = match index_val {
+                            Value::Number(n) if n >= 0.0 && n.fract() == 0.0 => n as usize,
+                            _ => return Err(err("Index must be a non-negative integer".into())),
+                        };
+                        items
+                            .get(idx)
+                            .cloned()
+                            .ok_or_else(|| err(format!("Quantum index {} out of bounds", idx)))?
                     }
                     Value::Object(map) => {
                         let key = match index_val {
@@ -606,18 +791,12 @@ impl Interpreter {
                                 )))
                             }
                         };
-                        map.get(&key)
-                            .cloned()
-                            .unwrap_or(Value::Null)
+                        map.get(&key).cloned().unwrap_or(Value::Null)
                     }
                     Value::String(s) => {
                         let idx = match index_val {
                             Value::Number(n) if n.fract() == 0.0 => n as usize,
-                            _ => {
-                                return Err(err(
-                                    "String index must be an integer number".into()
-                                ))
-                            }
+                            _ => return Err(err("String index must be an integer number".into())),
                         };
                         s.chars()
                             .nth(idx)
@@ -625,10 +804,7 @@ impl Interpreter {
                             .unwrap_or(Value::Null)
                     }
                     other => {
-                        return Err(err(format!(
-                            "Indexing not supported on value {:?}",
-                            other
-                        )))
+                        return Err(err(format!("Indexing not supported on value {:?}", other)))
                     }
                 }
             }
@@ -650,6 +826,37 @@ impl Interpreter {
                 (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
                 (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, display(&b)))),
                 (a, Value::String(b)) => Ok(Value::String(format!("{}{}", display(&a), b))),
+                (Value::QuantumState(label_a, amp_a), Value::QuantumState(label_b, amp_b)) => {
+                    Ok(Value::QuantumArray(
+                        vec![
+                            Value::QuantumState(label_a, amp_a),
+                            Value::QuantumState(label_b, amp_b),
+                        ],
+                        true,
+                    ))
+                }
+                (Value::QuantumArray(mut items, _), Value::QuantumState(label, amp)) => {
+                    items.push(Value::QuantumState(label, amp));
+                    Ok(Value::QuantumArray(items, true))
+                }
+                (Value::QuantumState(label, amp), Value::QuantumArray(mut items, _)) => {
+                    let mut new_items = vec![Value::QuantumState(label, amp)];
+                    new_items.append(&mut items);
+                    Ok(Value::QuantumArray(new_items, true))
+                }
+                (
+                    Value::QuantumArray(mut left, left_super),
+                    Value::QuantumArray(mut right, right_super),
+                ) => {
+                    let mut result = Vec::with_capacity(left.len() + right.len());
+                    result.append(&mut left);
+                    result.append(&mut right);
+                    let has_multi = result.len() > 1;
+                    Ok(Value::QuantumArray(
+                        result,
+                        left_super || right_super || has_multi,
+                    ))
+                }
                 (a, b) => Err(err(format!("`+` on incompatible types: {:?}, {:?}", a, b))),
             },
             Sub => num2(l, r, |a, b| a - b),
@@ -665,6 +872,149 @@ impl Interpreter {
             And => Ok(Value::Bool(self.truthy(&l) && self.truthy(&r))),
             Or => Ok(Value::Bool(self.truthy(&l) || self.truthy(&r))),
         }
+    }
+
+    fn initialize_quantum_binding(
+        &mut self,
+        name: &str,
+        binding: QuantumBinding,
+        value: Value,
+    ) -> Result<Value, RuntimeError> {
+        use QuantumBinding::*;
+        match binding {
+            Classical => self.prepare_single_qubit(name, value, false),
+            Superposition => self.prepare_single_qubit(name, value, true),
+            Approximation => self.prepare_single_qubit(name, value, true),
+            Tensor => self.prepare_tensor(name, value),
+        }
+    }
+
+    fn prepare_single_qubit(
+        &mut self,
+        name: &str,
+        value: Value,
+        allow_superposition: bool,
+    ) -> Result<Value, RuntimeError> {
+        match value {
+            Value::QuantumState(label, amplitude) => {
+                self.quantum_sim.create_qubit(name.to_string());
+                self.quantum_sim
+                    .prepare_named_state(name, &label, amplitude)
+                    .map_err(|e| err(format!("Quantum state error: {}", e)))?;
+                Ok(Value::QubitReference(name.to_string()))
+            }
+            Value::QuantumArray(elements, is_superposition) => {
+                if !allow_superposition && (is_superposition || elements.len() > 1) {
+                    return Err(err(format!(
+                        "Quantum binding `{}` expects classical state but received superposition",
+                        name
+                    )));
+                }
+                let components = collect_state_components(elements)?;
+                self.quantum_sim.create_qubit(name.to_string());
+                self.quantum_sim
+                    .prepare_state_from_components(name, &components)
+                    .map_err(|e| err(format!("Quantum state error: {}", e)))?;
+                Ok(Value::QubitReference(name.to_string()))
+            }
+            Value::Array(elements) => {
+                let is_superposition = allow_superposition && elements.len() > 1;
+                self.prepare_single_qubit(
+                    name,
+                    Value::QuantumArray(elements, is_superposition),
+                    allow_superposition,
+                )
+            }
+            Value::String(label) if label.trim().starts_with('|') => self.prepare_single_qubit(
+                name,
+                Value::QuantumState(label, None),
+                allow_superposition,
+            ),
+            Value::QubitReference(existing) => {
+                if existing == name {
+                    if !self.quantum_sim.qubits.contains_key(&existing) {
+                        self.quantum_sim.create_qubit(existing.clone());
+                    }
+                    Ok(Value::QubitReference(existing))
+                } else {
+                    Err(err(format!(
+                        "Cannot alias existing qubit `{}` into `{}` in this revision",
+                        existing, name
+                    )))
+                }
+            }
+            other => Err(err(format!(
+                "Invalid quantum initializer for `{}`: {:?}",
+                name, other
+            ))),
+        }
+    }
+
+    fn prepare_tensor(&mut self, name: &str, value: Value) -> Result<Value, RuntimeError> {
+        match value {
+            Value::QuantumArray(elements, is_superposition) => {
+                let mut refs = Vec::with_capacity(elements.len());
+                let mut aggregated_super = is_superposition;
+                for (idx, element) in elements.into_iter().enumerate() {
+                    let element_super = match &element {
+                        Value::QuantumArray(inner, flag) => *flag || inner.len() > 1,
+                        Value::Array(inner) => inner.len() > 1,
+                        _ => false,
+                    };
+                    aggregated_super |= element_super;
+                    let element_name = format!("{}[{}]", name, idx);
+                    let reference = self.prepare_single_qubit(&element_name, element, true)?;
+                    refs.push(reference);
+                }
+                Ok(Value::QuantumArray(refs, aggregated_super))
+            }
+            Value::Array(elements) => {
+                self.prepare_tensor(name, Value::QuantumArray(elements, false))
+            }
+            other => Err(err(format!(
+                "Tensor binding `{}` requires quantum array literal, got {:?}",
+                name, other
+            ))),
+        }
+    }
+
+    fn value_to_probability(&self, value: Value) -> Result<f64, RuntimeError> {
+        match value {
+            Value::Number(n) => Ok(n.clamp(0.0, 1.0)),
+            Value::Bool(b) => Ok(if b { 1.0 } else { 0.0 }),
+            Value::QuantumState(label, amplitude) => {
+                let components = vec![(label, amplitude)];
+                self.components_probability(&components)
+            }
+            Value::QuantumArray(elements, _) => {
+                let components = collect_state_components(elements)?;
+                self.components_probability(&components)
+            }
+            Value::Array(elements) => {
+                let components = collect_state_components(elements)?;
+                self.components_probability(&components)
+            }
+            Value::QubitReference(name) => {
+                let zero_prob = self
+                    .quantum_sim
+                    .get_zero_probability(&name)
+                    .map_err(|e| err(format!("Quantum probability error: {}", e)))?;
+                Ok((1.0 - zero_prob).clamp(0.0, 1.0))
+            }
+            other => Err(err(format!(
+                "Cannot derive probability from value {:?}",
+                other
+            ))),
+        }
+    }
+
+    fn components_probability(
+        &self,
+        components: &[(String, Option<f64>)],
+    ) -> Result<f64, RuntimeError> {
+        self.quantum_sim
+            .probability_from_components(components)
+            .map_err(|e| err(format!("Quantum probability error: {}", e)))
     }
 
     fn truthy(&self, v: &Value) -> bool {
@@ -723,6 +1073,32 @@ fn cmp2(l: Value, r: Value, f: fn(f64, f64) -> bool) -> Result<Value, RuntimeErr
     }
 }
 
+fn collect_state_components(values: Vec<Value>) -> Result<Vec<(String, Option<f64>)>, RuntimeError> {
+    let mut components = Vec::new();
+    for value in values {
+        match value {
+            Value::QuantumState(label, amplitude) => components.push((label, amplitude)),
+            Value::String(s) if s.trim().starts_with('|') => components.push((s, None)),
+            Value::QuantumArray(inner, _) => components.extend(collect_state_components(inner)?),
+            Value::Array(inner) => components.extend(collect_state_components(inner)?),
+            other => {
+                return Err(err(format!(
+                    "Expected quantum state component, got {:?}",
+                    other
+                )));
+            }
+        }
+    }
+
+    if components.is_empty() {
+        return Err(err(
+            "Quantum state definition requires at least one component".into(),
+        ));
+    }
+
+    Ok(components)
+}
+
 fn eq_val(a: &Value, b: &Value) -> bool {
     use Value::*;
     match (a, b) {
@@ -759,6 +1135,15 @@ fn eq_val(a: &Value, b: &Value) -> bool {
         // Functions/builtins: not comparable for now
         (Function(_), Function(_)) => false,
         (Builtin(_), Builtin(_)) => false,
+
+        (QuantumArray(x, xs), QuantumArray(y, ys)) => {
+            if xs != ys || x.len() != y.len() {
+                return false;
+            }
+            x.iter().zip(y.iter()).all(|(lx, ry)| eq_val(lx, ry))
+        }
+        (QuantumState(ax, ay), QuantumState(bx, by)) => ax == bx && ay == by,
+        (QubitReference(aq), QubitReference(bq)) => aq == bq,
 
         _ => false,
     }
@@ -810,6 +1195,12 @@ fn lcg_next() -> u64 {
     x
 }
 
+fn lcg_unit() -> f64 {
+    let x = lcg_next();
+    let mantissa = x >> 11; // keep 53 bits for double precision
+    (mantissa as f64) / ((1u64 << 53) as f64)
+}
+
 fn builtin_rand(_i: &mut Interpreter, _args: Vec<Value>) -> Result<Value, RuntimeError> {
     let x = lcg_next();
     Ok(Value::Number(((x >> 8) as f64) / (u32::MAX as f64)))
@@ -827,6 +1218,7 @@ fn builtin_len(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeE
         Value::String(s) => Ok(Value::Number(s.chars().count() as f64)),
         Value::Array(items) => Ok(Value::Number(items.len() as f64)),
         Value::Object(map) => Ok(Value::Number(map.len() as f64)),
+        Value::QuantumArray(items, _) => Ok(Value::Number(items.len() as f64)),
         Value::Null => Ok(Value::Number(0.0)),
         other => Err(err(format!("len unsupported for value: {:?}", other))),
     }
@@ -961,6 +1353,180 @@ fn builtin_entangle(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value,
         .map_err(|e| err(format!("Quantum error: {}", e)))?;
 
     Ok(Value::Null)
+}
+
+fn builtin_is_entangled(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("is_entangled expects 2 arguments".into()));
+    }
+
+    let name_a = match &args[0] {
+        Value::QubitReference(name) => name.clone(),
+        Value::String(name) => name.clone(),
+        _ => return Err(err("is_entangled expects qubit references or names".into())),
+    };
+
+    let name_b = match &args[1] {
+        Value::QubitReference(name) => name.clone(),
+        Value::String(name) => name.clone(),
+        _ => return Err(err("is_entangled expects qubit references or names".into())),
+    };
+
+    let entangled = interp
+        .quantum_sim
+        .entangled_systems
+        .iter()
+        .any(|group| group.contains(&name_a) && group.contains(&name_b));
+
+    Ok(Value::Bool(entangled))
+}
+
+fn builtin_apply_matrix(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("apply_matrix expects 2 arguments".into()));
+    }
+
+    let qubit_name = match &args[0] {
+        Value::QubitReference(name) => name.clone(),
+        Value::String(name) => name.clone(),
+        _ => return Err(err("apply_matrix expects a qubit reference or name".into())),
+    };
+
+    let matrix = match &args[1] {
+        Value::Array(rows) if rows.len() == 2 => {
+            let mut parsed = [[0.0_f64; 2]; 2];
+            for (row_idx, row_val) in rows.iter().enumerate() {
+                match row_val {
+                    Value::Array(cols) if cols.len() == 2 => {
+                        for (col_idx, col_val) in cols.iter().enumerate() {
+                            parsed[row_idx][col_idx] = match col_val {
+                                Value::Number(n) => *n,
+                                _ => {
+                                    return Err(err(
+                                        "apply_matrix expects numeric entries in matrix".into(),
+                                    ))
+                                }
+                            };
+                        }
+                    }
+                    _ => return Err(err("apply_matrix expects a 2x2 numeric matrix".into())),
+                }
+            }
+            parsed
+        }
+        _ => return Err(err("apply_matrix expects a 2x2 numeric matrix".into())),
+    };
+
+    if !interp.quantum_sim.qubits.contains_key(&qubit_name) {
+        interp.quantum_sim.create_qubit(qubit_name.clone());
+    }
+
+    if let Some(state) = interp.quantum_sim.qubits.get_mut(&qubit_name) {
+        if state.amplitudes.len() < 2 {
+            state.amplitudes.resize(2, Complex::new(0.0, 0.0));
+            state.num_qubits = 1;
+        }
+
+        let amp0 = state.amplitudes[0];
+        let amp1 = state.amplitudes[1];
+
+        let a = Complex::new(matrix[0][0], 0.0);
+        let b = Complex::new(matrix[0][1], 0.0);
+        let c = Complex::new(matrix[1][0], 0.0);
+        let d = Complex::new(matrix[1][1], 0.0);
+
+        state.amplitudes[0] = a * amp0 + b * amp1;
+        state.amplitudes[1] = c * amp0 + d * amp1;
+        state.normalize();
+    }
+
+    Ok(Value::Null)
+}
+
+fn builtin_quantum_index_internal(
+    _interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("__quantum_index expects 2 arguments".into()));
+    }
+
+    let mut iter = args.into_iter();
+    let container = iter.next().unwrap();
+    let index = iter.next().unwrap();
+
+    let idx = match index {
+        Value::Number(n) if n >= 0.0 && n.fract() == 0.0 => n as usize,
+        _ => return Err(err("Index must be a non-negative integer".into())),
+    };
+
+    match container {
+        Value::QuantumArray(items, _) => items
+            .get(idx)
+            .cloned()
+            .ok_or_else(|| err("Quantum index out of bounds".into())),
+        Value::Array(items) => items
+            .get(idx)
+            .cloned()
+            .ok_or_else(|| err("Index out of bounds".into())),
+        _ => Err(err(
+            "__quantum_index expects an array or quantum array as the first argument".into(),
+        )),
+    }
+}
+
+fn builtin_quantum_protect_loop_internal(
+    _interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("__quantum_protect_loop expects 1 argument".into()));
+    }
+    Ok(args.into_iter().next().unwrap())
+}
+
+fn builtin_quantum_try_catch_internal(
+    _interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
+    if args.len() != 3 {
+        return Err(err("__quantum_try_catch expects 3 arguments".into()));
+    }
+    Ok(Value::Bool(true))
+}
+
+fn builtin_quantum_probability_branch_internal(
+    interp: &mut Interpreter,
+    args: Vec<Value>,
+) -> Result<Value, RuntimeError> {
+    if args.is_empty() {
+        return Err(err(
+            "__quantum_probability_branch expects at least 1 argument".into(),
+        ));
+    }
+
+    let mut iter = args.into_iter();
+    let condition = iter.next().unwrap();
+    let probability = iter.next().and_then(|v| match v {
+        Value::Number(n) => Some(n.clamp(0.0, 1.0)),
+        _ => None,
+    });
+
+    if let Some(p) = probability {
+        let random = (lcg_next() as f64) / (u64::MAX as f64);
+        return Ok(Value::Bool(random < p));
+    }
+
+    match condition {
+        Value::QubitReference(name) => {
+            let measured = interp
+                .quantum_sim
+                .measure(&name)
+                .map_err(|e| err(format!("Quantum error: {}", e)))?;
+            Ok(Value::Bool(measured != 0))
+        }
+        other => Ok(Value::Bool(interp.truthy(&other))),
+    }
 }
 
 // AEONMI Quantum Algorithm Built-in Functions

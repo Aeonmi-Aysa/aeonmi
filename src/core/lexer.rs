@@ -334,6 +334,7 @@ impl Lexer {
                 '⇒' => Some(TokenKind::QuantumImplies), // quantum implies
                 '⟲' => Some(TokenKind::QuantumLoop), // quantum loop
                 '◊' => Some(TokenKind::QuantumModulo), // quantum modulo
+                '𓁁' => Some(TokenKind::Entangle),    // entangle alias
 
                 // Quantum delimiters
                 '⟨' => Some(TokenKind::QuantumBracketOpen),
@@ -842,6 +843,7 @@ impl Lexer {
             '-' => Some(TokenKind::Minus),
             '*' => Some(TokenKind::Star),
             '/' => Some(TokenKind::Slash),
+            '%' => Some(TokenKind::Percent),
             '=' => Some(TokenKind::Equals),
             ';' => Some(TokenKind::Semicolon),
             ',' => Some(TokenKind::Comma),
