@@ -8,6 +8,14 @@ use std::{
 use rand::Rng;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
+#[derive(Clone, Debug)]
+enum PersonalityType {
+    Adaptive,
+    Professional,
+    Friendly,
+    Technical,
+}
+
 #[derive(Clone)]
 struct MotherAI {
     decision_engine: DecisionEngine,
@@ -15,12 +23,13 @@ struct MotherAI {
     personality: PersonalityMatrix,
     coordinator: SystemCoordinator,
     config: MotherAIConfig,
+    boot_time: Instant,
 }
 
 impl MotherAI {
     fn new(config: MotherAIConfig) -> Result<Self, MotherAIError> {
         let decision_engine = DecisionEngine::default();
-        let memory_system = MemorySystem::default();
+        let memory_system = MemorySystem::with_mode(config.auto_optimize);
         let personality = PersonalityMatrix::from(config.personality_type.clone());
         let coordinator = SystemCoordinator::default();
 
@@ -30,6 +39,7 @@ impl MotherAI {
             personality,
             coordinator,
             config,
+            boot_time: Instant::now(),
         })
     }
 
@@ -43,6 +53,26 @@ impl MotherAI {
 
     fn disconnected_components(&self) -> Vec<String> {
         self.coordinator.disconnected_components()
+    }
+
+    fn uptime(&self) -> Duration {
+        self.boot_time.elapsed()
+    }
+
+    fn personality_profile(&self) -> &PersonalityType {
+        self.personality.current()
+    }
+
+    fn status_report(&self) -> MotherAIStatus {
+        MotherAIStatus {
+            backend: self.config.quantum_backend.clone(),
+            coherence: self.measure_quantum_coherence(),
+            memory_usage: self.memory_usage(),
+            disconnected_components: self.disconnected_components(),
+            uptime: self.uptime(),
+            personality: self.personality_profile().clone(),
+            auto_optimize: self.config.auto_optimize,
+        }
     }
 }
 
@@ -66,11 +96,16 @@ struct MemorySystem {
 
 impl Default for MemorySystem {
     fn default() -> Self {
-        Self { baseline: 0.45 }
+        Self::with_mode(true)
     }
 }
 
 impl MemorySystem {
+    fn with_mode(auto_optimize: bool) -> Self {
+        let baseline = if auto_optimize { 0.42 } else { 0.5 };
+        Self { baseline }
+    }
+
     fn is_functional(&self) -> bool {
         true
     }
@@ -93,6 +128,10 @@ impl PersonalityMatrix {
 
     fn is_stable(&self) -> bool {
         true
+    }
+
+    fn current(&self) -> &PersonalityType {
+        &self.personality
     }
 }
 
@@ -178,7 +217,20 @@ impl NaturalLanguageInterface {
     fn respond(&self, input: &str) {
         match input.to_lowercase().as_str() {
             "status" => {
-                println!("Mother AI is online with backend {}.", self.config.quantum_backend);
+                let status = self.mother_ai.status_report();
+                println!("Mother AI Status:");
+                println!("  Backend: {}", status.backend);
+                println!("  Uptime: {:.1}s", status.uptime.as_secs_f32());
+                println!("  Quantum Coherence: {:.2}", status.coherence);
+                println!("  Memory Usage: {:.0}%", status.memory_usage * 100.0);
+                println!("  Personality: {:?}", status.personality);
+                if !status.disconnected_components.is_empty() {
+                    println!("  Disconnected: {:?}", status.disconnected_components);
+                }
+                println!(
+                    "  Auto Optimize: {}",
+                    if status.auto_optimize { "enabled" } else { "disabled" }
+                );
             }
             "capabilities" => MotherAILauncher::show_capabilities(),
             "config" => {
@@ -187,6 +239,16 @@ impl NaturalLanguageInterface {
                     if self.config.voice_enabled { "on" } else { "off" },
                     if self.config.holographic_mode { "on" } else { "off" },
                     self.config.personality_type
+                );
+                println!("Quantum backend: {}", self.config.quantum_backend);
+                println!("Max memory usage: {:.0}%", self.config.max_memory_usage * 100.0);
+                println!(
+                    "Auto optimize: {}",
+                    if self.config.auto_optimize { "enabled" } else { "disabled" }
+                );
+                println!(
+                    "Debug mode: {}",
+                    if self.config.debug_mode { "enabled" } else { "disabled" }
                 );
             }
             _ => println!("I heard '{}'. This interactive demo is a placeholder for full Mother AI capabilities.", input),
@@ -219,20 +281,15 @@ impl Default for MotherAIConfig {
     }
 }
 
-#[derive(Clone, Debug)]
-enum PersonalityType {
-    Adaptive,
-    Professional,
-    Friendly,
-    Technical,
-}
-
 #[derive(Default)]
 struct SystemHealthStatus {
     critical_issues: usize,
     warnings: usize,
     performance_score: f64,
     uptime: Duration,
+    coherence: f64,
+    memory_usage: f64,
+    disconnected_components: Vec<String>,
 }
 
 impl SystemHealthStatus {
@@ -241,7 +298,18 @@ impl SystemHealthStatus {
     }
 }
 
+struct MotherAIStatus {
+    backend: String,
+    coherence: f64,
+    memory_usage: f64,
+    disconnected_components: Vec<String>,
+    uptime: Duration,
+    personality: PersonalityType,
+    auto_optimize: bool,
+}
+
 #[derive(Debug)]
+#[allow(dead_code)]
 enum MotherAIError {
     QuantumInitializationFailed,
     MemorySystemFailed,
@@ -367,6 +435,25 @@ impl MotherAILauncher {
                 interval.tick().await;
 
                 let status = Self::check_system_health(&mother_ai);
+                if mother_ai.config.debug_mode {
+                    log(format!(
+                        "📊 Health check | uptime {:.0}s | coherence {:.2} | memory {:.0}% | score {:.2}",
+                        status.uptime.as_secs_f32(),
+                        status.coherence,
+                        status.memory_usage * 100.0,
+                        status.performance_score
+                    ));
+                    log(format!(
+                        "    Personality {:?}",
+                        &mother_ai.config.personality_type
+                    ));
+                    if !status.disconnected_components.is_empty() {
+                        log(format!(
+                            "    Disconnected {:?}",
+                            status.disconnected_components
+                        ));
+                    }
+                }
                 if status.critical_issues > 0 {
                     log(format!(
                         "🚨 Critical system issues detected: {}",
@@ -376,6 +463,12 @@ impl MotherAILauncher {
 
                 if status.warnings > 0 {
                     log(format!("⚠ System warnings: {}", status.warnings));
+                }
+                if !status.disconnected_components.is_empty() {
+                    log(format!(
+                        "🔌 Disconnected components detected: {:?}",
+                        status.disconnected_components
+                    ));
                 }
             }
         });
@@ -401,6 +494,13 @@ impl MotherAILauncher {
 
         let disconnected = mother_ai.disconnected_components();
         status.warnings += disconnected.len();
+        status.performance_score =
+            ((coherence).clamp(0.0, 1.0) + (1.0 - memory_usage).clamp(0.0, 1.0)) / 2.0;
+        status.performance_score = status.performance_score.clamp(0.0, 1.0);
+        status.uptime = mother_ai.uptime();
+        status.coherence = coherence;
+        status.memory_usage = memory_usage;
+        status.disconnected_components = disconnected;
 
         status
     }
@@ -429,6 +529,16 @@ impl MotherAILauncher {
         println!("  capabilities  List major features");
         println!("  config     Show active configuration");
         println!("  goodbye    Exit the session");
+        println!("");
+        println!("CLI flags:");
+        println!("  --no-voice            Disable voice responses");
+        println!("  --holographic         Enable holographic interface");
+        println!("  --debug               Enable verbose diagnostics");
+        println!("  --quantum-backend xyz Select backend");
+        println!("  --personality kind    Set personality profile");
+        println!("  --max-memory pct      Cap memory usage");
+        println!("  --auto-optimize       Force enable optimizer");
+        println!("  --no-auto-optimize    Disable auto optimization");
         println!("");
     }
 
@@ -495,10 +605,7 @@ impl MotherAILauncher {
                     if idx + 1 < args.len() {
                         config.quantum_backend = args[idx + 1].clone();
                         idx += 1;
-                        log(format!(
-                            "Quantum backend set to {}",
-                            config.quantum_backend
-                        ));
+                        log(format!("Quantum backend set to {}", config.quantum_backend));
                     }
                 }
                 "--personality" => {
@@ -510,11 +617,30 @@ impl MotherAILauncher {
                             _ => PersonalityType::Adaptive,
                         };
                         idx += 1;
-                        log(format!(
-                            "Personality set to {:?}",
-                            config.personality_type
-                        ));
+                        log(format!("Personality set to {:?}", config.personality_type));
                     }
+                }
+                "--max-memory" => {
+                    if idx + 1 < args.len() {
+                        if let Ok(value) = args[idx + 1].parse::<f64>() {
+                            config.max_memory_usage = (value / 100.0).clamp(0.1, 0.95);
+                            log(format!(
+                                "Max memory usage set to {:.0}%",
+                                config.max_memory_usage * 100.0
+                            ));
+                        } else {
+                            log("Invalid max-memory value; expected percentage");
+                        }
+                        idx += 1;
+                    }
+                }
+                "--auto-optimize" => {
+                    config.auto_optimize = true;
+                    log("Automatic optimization enabled");
+                }
+                "--no-auto-optimize" => {
+                    config.auto_optimize = false;
+                    log("Automatic optimization disabled");
                 }
                 "--help" => {
                     Self::show_usage();

@@ -391,7 +391,7 @@ impl Parser {
 
     fn parse_factor(&mut self) -> Result<ASTNode, ParserError> {
         let mut expr = self.parse_unary()?;
-        while self.match_token(&[TokenKind::Star, TokenKind::Slash]) {
+        while self.match_token(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent]) {
             let op = self.previous().kind.clone();
             let right = self.parse_unary()?;
             expr = ASTNode::new_binary_expr(op, expr, right);
@@ -433,7 +433,10 @@ impl Parser {
                     });
                 }
                 let index_expr = self.parse_expression()?;
-                self.consume(TokenKind::CloseBracket, "Expected ']' after index expression")?;
+                self.consume(
+                    TokenKind::CloseBracket,
+                    "Expected ']' after index expression",
+                )?;
                 expr = ASTNode::new_index_expr(expr, index_expr);
             } else {
                 break;
@@ -553,6 +556,7 @@ impl Parser {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_quantum_state(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::Pipe, "Expected '|'")?;
 

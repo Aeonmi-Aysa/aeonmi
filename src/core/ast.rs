@@ -249,6 +249,7 @@ impl ASTNode {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new_quantum_array_multidim(elements: Vec<ASTNode>, dimensions: Vec<usize>) -> Self {
         Self::QuantumArray {
             elements,

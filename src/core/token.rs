@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use serde::{Deserialize, Serialize};
 // src/core/token.rs
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -16,6 +15,7 @@ pub enum TokenKind {
     Minus,        // -
     Star,         // *
     Slash,        // /
+    Percent,      // %
     Equals,       // =
     DoubleEquals, // ==
     NotEquals,    // !=
@@ -50,14 +50,14 @@ pub enum TokenKind {
     QuantumIndexClose,   // ⟧
 
     // Delimiters
-    OpenParen,  // (
-    CloseParen, // )
-    OpenBrace,  // {
-    CloseBrace, // }
-    OpenBracket, // [
+    OpenParen,    // (
+    CloseParen,   // )
+    OpenBrace,    // {
+    CloseBrace,   // }
+    OpenBracket,  // [
     CloseBracket, // ]
-    Comma,      // ,
-    Semicolon,  // ;
+    Comma,        // ,
+    Semicolon,    // ;
 
     // Traditional keywords (legacy compatibility)
     Function,
@@ -137,6 +137,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Minus => "-",
             TokenKind::Star => "*",
             TokenKind::Slash => "/",
+            TokenKind::Percent => "%",
             TokenKind::Equals => "=",
             TokenKind::DoubleEquals => "==",
             TokenKind::NotEquals => "!=",

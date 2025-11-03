@@ -214,6 +214,7 @@ pub fn record_savings(partial_ns: u128, estimated_full_ns: u128) {
 /// Back-compat wrapper (tests expect this name). Records a partial inference duration and
 /// the estimated full duration. Ignores samples where either is zero or estimated is less
 /// than partial (invalid / inverted measurement).
+#[allow(dead_code)]
 pub fn record_partial_savings(partial_ns: u128, estimated_full_ns: u128) {
     if partial_ns == 0 || estimated_full_ns == 0 || estimated_full_ns < partial_ns {
         return;
@@ -278,6 +279,7 @@ fn metrics_file_path() -> std::path::PathBuf {
     }
     base.join("aeonmi_metrics.json")
 }
+#[allow(dead_code)]
 const METRICS_FILE: &str = "aeonmi_metrics.json"; // kept for legacy; actual path computed dynamically
 const METRICS_VERSION: u32 = 6; // bumped for rolling window & history
 
@@ -1080,6 +1082,7 @@ pub fn dirty_region(source: &str) -> DirtyInfo {
     compute_dirty_info(source)
 }
 
+#[allow(dead_code)]
 pub fn debug_snapshot() -> serde_json::Value {
     let fm = FUNCTION_METRICS.lock().unwrap().clone();
     let sm = SAVINGS_METRICS.lock().unwrap().clone();
