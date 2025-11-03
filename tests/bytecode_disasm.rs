@@ -15,15 +15,18 @@ fn compile_disasm(src: &str) -> String {
 #[test]
 fn disassembler_basic_layout() {
     let out = compile_disasm("fn add(a,b){ return a+b; } return add(1,2);");
-    assert!(out.contains("== constants"), "missing constants header");
-    assert!(out.contains("fn#0 add"), "missing function signature");
     assert!(
-        out.lines().any(|l| l.contains("LOAD_CONST")),
-        "expected at least one LOAD_CONST"
+        out.contains("== Bytecode Disassembly =="),
+        "missing disassembly header"
+    );
+    assert!(out.contains("Constants:"), "missing constants section");
+    assert!(out.contains("Functions:"), "missing functions section");
+    assert!(
+        out.lines().any(|l| l.contains("Call")),
+        "expected Call opcode"
     );
     assert!(
-        out.lines().any(|l| l.contains("CALL")),
-        "expected CALL opcode"
+        out.lines().any(|l| l.contains("Return")),
+        "expected Return opcode"
     );
-    assert!(out.trim().ends_with("RETURN"), "expected final RETURN");
 }

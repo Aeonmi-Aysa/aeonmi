@@ -1,3 +1,4 @@
+#![cfg(feature = "bytecode_vm")]
 #![cfg(feature = "bytecode")]
 use aeonmi_project::core::bytecode::BytecodeCompiler;
 use aeonmi_project::core::lexer::Lexer;

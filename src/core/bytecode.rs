@@ -1,12 +1,27 @@
-//! Simple bytecode IR (feature: bytecode)
-//! Stack-based. Operands push values; instructions operate on stack.
-//! Initial subset: literals, load/store local, arithmetic, comparison, jumps, call, return.
+use std::collections::HashMap;
 
+use crate::core::ast::ASTNode;
+use crate::core::token::TokenKind;
+
+/// An entry in the constant pool for the bytecode chunk.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Constant {
+    Number(f64),
+    String(String),
+    Bool(bool),
+    Null,
+}
+
+/// All opcodes emitted by the bytecode compiler. The VM backend will
+/// interpret these instructions in a subsequent change.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OpCode {
-    LoadConst(u16), // constants[idx]
-    LoadLocal(u16), // locals[idx]
+    LoadConst(u16),
+    Pop,
+    LoadLocal(u16),
     StoreLocal(u16),
+    LoadGlobal(u16),
+    StoreGlobal(u16),
     Add,
     Sub,
     Mul,
@@ -17,53 +32,23 @@ pub enum OpCode {
     Le,
     Gt,
     Ge,
-    And,
-    Or,
-    Pop,
-    Nop,
-    Jump(u32),        // absolute pc
-    JumpIfFalse(u32), // absolute pc
-    Call(u16, u8),    // function index, arg count (placeholder)
+    Jump(i16),
+    JumpIfFalse(i16),
+    JumpIfTrue(i16),
+    Call(u16, u8),
     Return,
+    Print(u8),
+    Len,
+    TimeMs,
+    Rand,
+    Superpose,
+    Entangle,
+    Measure,
 }
 
-#[derive(Debug, Default)]
-pub struct Chunk {
-    pub code: Vec<OpCode>,
-    pub constants: Vec<Constant>,
-    pub functions: Vec<FunctionInfo>,
-    pub opt_stats: OptimizationStats,
-}
-
-#[derive(Debug, Clone)]
-pub enum Constant {
-    Number(f64),
-    String(String),
-    Bool(bool),
-    Null,
-}
-
-#[derive(Debug, Clone)]
-pub struct FunctionInfo {
-    pub name: String,
-    pub start: usize,
-    pub arity: u8,
-    pub locals: u16,
-}
-
-impl Chunk {
-    pub fn add_const(&mut self, c: Constant) -> u16 {
-        let idx = self.constants.len();
-        self.constants.push(c);
-        idx as u16
-    }
-    pub fn emit(&mut self, op: OpCode) {
-        self.code.push(op);
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct OptimizationStats {
+/// Basic optimization statistics gathered while compiling.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct OptStats {
     pub const_folds: u32,
     pub chain_folds: u32,
     pub dce_if: u32,
@@ -72,207 +57,299 @@ pub struct OptimizationStats {
     pub pops_eliminated: u32,
 }
 
-use crate::core::ast::ASTNode;
-use crate::core::token::TokenKind;
+/// Metadata describing a compiled function.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionInfo {
+    pub start: usize,
+    pub locals: u16,
+    pub name: String,
+}
 
+/// Aggregated bytecode result for a compilation unit.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Chunk {
+    pub code: Vec<OpCode>,
+    pub constants: Vec<Constant>,
+    pub functions: Vec<FunctionInfo>,
+    pub opt_stats: OptStats,
+}
+
+impl Chunk {
+    pub fn new() -> Self {
+        Self {
+            code: Vec::new(),
+            constants: Vec::new(),
+            functions: Vec::new(),
+            opt_stats: OptStats::default(),
+        }
+    }
+}
+
+/// Bytecode compiler that lowers AST nodes into `Chunk` instructions.
 pub struct BytecodeCompiler {
     chunk: Chunk,
-    locals: Vec<String>,                         // current function locals
-    functions: Vec<(String, usize, usize, u16)>, // temp table: name, start, arity, max locals
-    current_function: Option<String>,
-    local_max: u16,
+    global_index: HashMap<String, u16>,
+    func_index: HashMap<String, u16>,
+    local_map: HashMap<String, u16>,
+    next_local_slot: u16,
+    scope_stack: Vec<Vec<String>>,
+}
+
+impl Default for BytecodeCompiler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BytecodeCompiler {
     pub fn new() -> Self {
         Self {
-            chunk: Chunk {
-                code: Vec::new(),
-                constants: Vec::new(),
-                functions: Vec::new(),
-                opt_stats: OptimizationStats::default(),
-            },
-            locals: Vec::new(),
-            functions: Vec::new(),
-            current_function: None,
-            local_max: 0,
+            chunk: Chunk::new(),
+            global_index: HashMap::new(),
+            func_index: HashMap::new(),
+            local_map: HashMap::new(),
+            next_local_slot: 0,
+            scope_stack: Vec::new(),
         }
     }
+
+    /// Compile the provided AST and return a filled `Chunk`.
     pub fn compile(mut self, ast: &ASTNode) -> Chunk {
-        self.visit(ast);
-        self.run_peephole();
-        for (n, s, a, l) in self.functions {
-            self.chunk.functions.push(FunctionInfo {
-                name: n,
-                start: s,
-                arity: a as u8,
-                locals: l,
-            });
+        let items = match ast {
+            ASTNode::Program(items) => items.clone(),
+            other => vec![other.clone()],
+        };
+
+        // Forward declare functions so calls resolve regardless of order.
+        for item in &items {
+            if let ASTNode::Function { name, .. } = item {
+                self.register_function(name.clone());
+            }
         }
+
+        for (idx, item) in items.iter().enumerate() {
+            let is_last = idx == items.len() - 1;
+            self.compile_stmt(item, is_last, true);
+        }
+
+        self.chunk.code.push(OpCode::Return);
         self.chunk
     }
 
-    fn local_index(&mut self, name: &str) -> u16 {
-        if let Some(pos) = self.locals.iter().position(|n| n == name) {
-            return pos as u16;
+    fn register_function(&mut self, name: String) -> u16 {
+        if let Some(&idx) = self.func_index.get(&name) {
+            return idx;
         }
-        self.locals.push(name.to_string());
-        let idx = (self.locals.len() - 1) as u16;
-        if idx + 1 > self.local_max {
-            self.local_max = idx + 1;
-        }
+        let idx = self.chunk.functions.len() as u16;
+        self.chunk.functions.push(FunctionInfo {
+            start: 0,
+            locals: 0,
+            name: name.clone(),
+        });
+        self.func_index.insert(name, idx);
         idx
     }
 
-    fn visit(&mut self, n: &ASTNode) {
-        match n {
+    fn enter_scope(&mut self) {
+        self.scope_stack.push(Vec::new());
+    }
+
+    fn exit_scope(&mut self) {
+        if let Some(vars) = self.scope_stack.pop() {
+            for name in vars {
+                self.local_map.remove(&name);
+            }
+        }
+    }
+
+    fn add_constant(&mut self, value: Constant) -> u16 {
+        if let Some((idx, _)) = self
+            .chunk
+            .constants
+            .iter()
+            .enumerate()
+            .find(|(_, existing)| **existing == value)
+        {
+            idx as u16
+        } else {
+            let idx = self.chunk.constants.len() as u16;
+            self.chunk.constants.push(value);
+            idx
+        }
+    }
+
+    fn add_global(&mut self, name: String) -> u16 {
+        if let Some(&idx) = self.global_index.get(&name) {
+            idx
+        } else {
+            let idx = self.global_index.len() as u16;
+            self.global_index.insert(name, idx);
+            idx
+        }
+    }
+
+    fn add_local(&mut self, name: String) -> u16 {
+        let slot = self.next_local_slot;
+        self.next_local_slot += 1;
+        self.local_map.insert(name.clone(), slot);
+        if let Some(scope) = self.scope_stack.last_mut() {
+            scope.push(name);
+        }
+        slot
+    }
+
+    fn compile_stmt(&mut self, node: &ASTNode, _is_last: bool, top_level: bool) {
+        match node {
             ASTNode::Program(items) => {
-                for it in items {
-                    self.visit(it);
+                for (idx, item) in items.iter().enumerate() {
+                    let is_last = idx == items.len() - 1;
+                    self.compile_stmt(item, is_last, top_level);
                 }
             }
-            ASTNode::Function {
-                name, params, body, ..
-            } => {
-                // Forward declare so recursive calls inside body resolve.
-                let start = self.chunk.code.len();
-                let fn_index = self.functions.len();
-                self.functions.push((name.clone(), start, params.len(), 0)); // locals filled later
-                let prev_fn = self.current_function.replace(name.clone());
-                self.locals.clear();
-                self.local_max = 0;
-                for p in params {
-                    self.locals.push(p.name.clone());
-                    self.local_max = self.local_max.max(self.locals.len() as u16);
+            ASTNode::Block(items) => {
+                self.enter_scope();
+                for item in items {
+                    self.compile_stmt(item, false, top_level);
+                    if !matches!(item, ASTNode::Function { .. }) {
+                        self.chunk.code.push(OpCode::Pop);
+                    }
                 }
-                for stmt in body {
-                    self.visit(stmt);
-                }
-                // If function didn't end with explicit return, push Null and return implicitly.
-                if !matches!(self.chunk.code.last(), Some(OpCode::Return)) {
-                    let null_idx = self.null_const();
-                    self.chunk.emit(OpCode::LoadConst(null_idx));
-                    self.chunk.emit(OpCode::Return);
-                }
-                // Patch locals count for this function
-                if let Some(entry) = self.functions.get_mut(fn_index) {
-                    entry.3 = self.local_max;
-                }
-                self.current_function = prev_fn;
-                self.locals.clear();
-                self.local_max = 0;
+                self.exit_scope();
             }
             ASTNode::VariableDecl { name, value, .. } => {
-                self.visit(value);
-                let idx = self.local_index(name);
-                self.chunk.emit(OpCode::StoreLocal(idx));
-                // Clean value from stack; declarations as statements shouldn't leak.
-                self.chunk.emit(OpCode::Pop);
+                let const_val = self.compile_expr(value.as_ref());
+                if top_level {
+                    let idx = self.add_global(name.clone());
+                    if let Some(c) = const_val {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                    self.chunk.code.push(OpCode::StoreGlobal(idx));
+                } else {
+                    let slot = if let Some(&slot) = self.local_map.get(name) {
+                        slot
+                    } else {
+                        self.add_local(name.clone())
+                    };
+                    if let Some(c) = const_val {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                    self.chunk.code.push(OpCode::StoreLocal(slot));
+                }
+                self.chunk.code.push(OpCode::Pop);
             }
             ASTNode::Assignment { name, value, .. } => {
-                self.visit(value);
-                let idx = self.local_index(name);
-                self.chunk.emit(OpCode::StoreLocal(idx));
-                // Treat assignment as statement for now; discard value.
-                self.chunk.emit(OpCode::Pop);
-            }
-            ASTNode::NumberLiteral(v) => {
-                let c = self.chunk.add_const(Constant::Number(*v));
-                self.chunk.emit(OpCode::LoadConst(c));
-            }
-            ASTNode::StringLiteral(s) => {
-                let c = self.chunk.add_const(Constant::String(s.clone()));
-                self.chunk.emit(OpCode::LoadConst(c));
-            }
-            ASTNode::BooleanLiteral(b) => {
-                let c = self.chunk.add_const(Constant::Bool(*b));
-                self.chunk.emit(OpCode::LoadConst(c));
-            }
-            ASTNode::Identifier(name) => {
-                let idx = self.local_index(name);
-                self.chunk.emit(OpCode::LoadLocal(idx));
-            }
-            ASTNode::IdentifierSpanned { name, .. } => {
-                let idx = self.local_index(name);
-                self.chunk.emit(OpCode::LoadLocal(idx));
-            }
-            ASTNode::BinaryExpr { .. } => {
-                self.emit_binary_or_fold(n);
-            }
-            ASTNode::Return(expr) => {
-                self.visit(expr);
-                self.chunk.emit(OpCode::Return);
+                let const_val = self.compile_expr(value.as_ref());
+                if let Some(&slot) = self.local_map.get(name) {
+                    if let Some(c) = const_val {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                    self.chunk.code.push(OpCode::StoreLocal(slot));
+                } else {
+                    let idx = self.add_global(name.clone());
+                    if let Some(c) = const_val {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                    self.chunk.code.push(OpCode::StoreGlobal(idx));
+                }
+                self.chunk.code.push(OpCode::Pop);
             }
             ASTNode::Log(expr) => {
-                self.visit(expr);
-                self.chunk.emit(OpCode::Pop);
-            } // discard for now
-            ASTNode::Block(items) => {
-                for it in items {
-                    self.visit(it);
+                let const_val = self.compile_expr(expr.as_ref());
+                if let Some(c) = const_val {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
                 }
+                self.chunk.code.push(OpCode::Print(1));
+                self.chunk.code.push(OpCode::Pop);
+            }
+            ASTNode::Return(expr) => {
+                if let Some(c) = self.compile_expr(expr.as_ref()) {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+                self.chunk.code.push(OpCode::Return);
             }
             ASTNode::If {
                 condition,
                 then_branch,
                 else_branch,
             } => {
-                if let Some(Constant::Bool(b)) = self.fold_const(condition) {
-                    // DCE
-                    self.chunk.opt_stats.dce_if += 1;
-                    if b {
-                        self.visit(then_branch);
-                    } else if let Some(e) = else_branch {
-                        self.visit(e);
+                let saved_len = self.chunk.code.len();
+                let const_eval = self.compile_expr(condition.as_ref());
+                self.chunk.code.truncate(saved_len);
+
+                if let Some(Constant::Bool(c)) = const_eval {
+                    if c {
+                        self.chunk.opt_stats.dce_if += 1;
+                        self.compile_stmt(then_branch.as_ref(), false, top_level);
+                    } else {
+                        self.chunk.opt_stats.dce_if += 1;
+                        if let Some(else_branch) = else_branch {
+                            self.compile_stmt(else_branch.as_ref(), false, top_level);
+                        }
                     }
                     return;
                 }
-                // condition
-                self.visit(condition);
-                // emit JumpIfFalse placeholder
-                let cond_jump_pos = self.chunk.code.len();
-                self.chunk.emit(OpCode::JumpIfFalse(0));
-                // then branch
-                self.visit(then_branch);
-                // if else present, emit jump over else
-                if let Some(e) = else_branch {
-                    let after_then_jump = self.chunk.code.len();
-                    self.chunk.emit(OpCode::Jump(0));
-                    // patch JumpIfFalse to start of else
-                    let else_start = self.chunk.code.len() as u32;
-                    if let OpCode::JumpIfFalse(ref mut target) = self.chunk.code[cond_jump_pos] {
-                        *target = else_start;
-                    }
-                    // else body
-                    self.visit(e);
-                    // patch jump after then to after else
-                    let after_else = self.chunk.code.len() as u32;
-                    if let OpCode::Jump(ref mut t) = self.chunk.code[after_then_jump] {
-                        *t = after_else;
-                    }
-                } else {
-                    // no else: patch JumpIfFalse to next instruction
-                    let after_then = self.chunk.code.len() as u32;
-                    if let OpCode::JumpIfFalse(ref mut target) = self.chunk.code[cond_jump_pos] {
-                        *target = after_then;
-                    }
+
+                let cond_const = self.compile_expr(condition.as_ref());
+                if let Some(c) = cond_const {
+                    let truthy = self.is_truthy(&c);
+                    let ci = self.add_constant(Constant::Bool(truthy));
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+
+                let jump_to_else = self.chunk.code.len();
+                self.chunk.code.push(OpCode::JumpIfFalse(0));
+                self.chunk.code.push(OpCode::Pop);
+                self.compile_stmt(then_branch.as_ref(), false, top_level);
+                let jump_to_end = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Jump(0));
+                let else_index = self.chunk.code.len();
+                if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_else] {
+                    *off = else_index as i16 - (jump_to_else as i16 + 1);
+                }
+                self.chunk.code.push(OpCode::Pop);
+                if let Some(else_branch) = else_branch {
+                    self.compile_stmt(else_branch.as_ref(), false, top_level);
+                }
+                let end_index = self.chunk.code.len();
+                if let OpCode::Jump(ref mut off) = self.chunk.code[jump_to_end] {
+                    *off = end_index as i16 - (jump_to_end as i16 + 1);
                 }
             }
             ASTNode::While { condition, body } => {
-                if let Some(Constant::Bool(false)) = self.fold_const(condition) {
+                let saved_len = self.chunk.code.len();
+                let const_eval = self.compile_expr(condition.as_ref());
+                self.chunk.code.truncate(saved_len);
+
+                if let Some(Constant::Bool(false)) = const_eval {
                     self.chunk.opt_stats.dce_while += 1;
                     return;
                 }
-                let loop_start = self.chunk.code.len() as u32;
-                self.visit(condition);
-                let jump_if_false_pos = self.chunk.code.len();
-                self.chunk.emit(OpCode::JumpIfFalse(0));
-                self.visit(body);
-                // jump back to loop start
-                self.chunk.emit(OpCode::Jump(loop_start));
-                let after_loop = self.chunk.code.len() as u32;
-                if let OpCode::JumpIfFalse(ref mut target) = self.chunk.code[jump_if_false_pos] {
-                    *target = after_loop;
+
+                let loop_start = self.chunk.code.len();
+                let cond_const = self.compile_expr(condition.as_ref());
+                if let Some(c) = cond_const {
+                    let truthy = self.is_truthy(&c);
+                    let ci = self.add_constant(Constant::Bool(truthy));
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+                let jump_to_end = self.chunk.code.len();
+                self.chunk.code.push(OpCode::JumpIfFalse(0));
+                self.chunk.code.push(OpCode::Pop);
+                self.enter_scope();
+                self.compile_stmt(body.as_ref(), false, top_level);
+                self.exit_scope();
+                let back_offset = loop_start as i16 - (self.chunk.code.len() as i16 + 1);
+                self.chunk.code.push(OpCode::Jump(back_offset));
+                let end_index = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Pop);
+                if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_end] {
+                    *off = end_index as i16 - (jump_to_end as i16 + 1);
                 }
             }
             ASTNode::For {
@@ -281,393 +358,540 @@ impl BytecodeCompiler {
                 increment,
                 body,
             } => {
-                // init
-                if let Some(i) = init {
-                    self.visit(i);
+                self.enter_scope();
+                if let Some(init) = init {
+                    self.compile_stmt(init.as_ref(), false, top_level);
+                    self.chunk.code.push(OpCode::Pop);
                 }
-                let loop_start = self.chunk.code.len() as u32;
-                // condition
-                let cond_is_false = if let Some(c) = condition {
-                    if let Some(Constant::Bool(false)) = self.fold_const(c) {
-                        true
-                    } else {
-                        false
+                let loop_start = self.chunk.code.len();
+                if let Some(cond) = condition {
+                    let saved_len = self.chunk.code.len();
+                    let const_eval = self.compile_expr(cond.as_ref());
+                    self.chunk.code.truncate(saved_len);
+
+                    if let Some(Constant::Bool(false)) = const_eval {
+                        self.chunk.opt_stats.dce_for += 1;
+                        self.exit_scope();
+                        return;
+                    }
+                    if let Some(c) = self.compile_expr(cond.as_ref()) {
+                        let truthy = self.is_truthy(&c);
+                        let ci = self.add_constant(Constant::Bool(truthy));
+                        self.chunk.code.push(OpCode::LoadConst(ci));
                     }
                 } else {
-                    false
-                };
-                if cond_is_false {
-                    self.chunk.opt_stats.dce_for += 1;
-                    return;
+                    let ci = self.add_constant(Constant::Bool(true));
+                    self.chunk.code.push(OpCode::LoadConst(ci));
                 }
-                if let Some(c) = condition {
-                    self.visit(c);
+                let jump_to_end = self.chunk.code.len();
+                self.chunk.code.push(OpCode::JumpIfFalse(0));
+                self.chunk.code.push(OpCode::Pop);
+                self.compile_stmt(body.as_ref(), false, top_level);
+                if let Some(incr) = increment {
+                    self.compile_expr(incr.as_ref());
+                    self.chunk.code.push(OpCode::Pop);
+                }
+                let back_offset = loop_start as i16 - (self.chunk.code.len() as i16 + 1);
+                self.chunk.code.push(OpCode::Jump(back_offset));
+                let end_index = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Pop);
+                if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_end] {
+                    *off = end_index as i16 - (jump_to_end as i16 + 1);
+                }
+                self.exit_scope();
+            }
+            ASTNode::Function {
+                name, params, body, ..
+            } => {
+                let skip_jump_idx = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Jump(0));
+
+                let f_idx = if let Some(&idx) = self.func_index.get(name) {
+                    idx
                 } else {
-                    // implicit true
-                    let true_idx = self.chunk.add_const(Constant::Bool(true));
-                    self.chunk.emit(OpCode::LoadConst(true_idx));
+                    self.register_function(name.clone())
+                };
+
+                let saved_local = std::mem::take(&mut self.local_map);
+                let saved_slot = self.next_local_slot;
+                let saved_scope = std::mem::take(&mut self.scope_stack);
+
+                self.enter_scope();
+                self.next_local_slot = 0;
+                for param in params {
+                    self.add_local(param.name.clone());
                 }
-                let jump_if_false_pos = self.chunk.code.len();
-                self.chunk.emit(OpCode::JumpIfFalse(0));
-                // body
-                self.visit(body);
-                // increment
-                if let Some(inc) = increment {
-                    self.visit(inc);
-                    self.chunk.emit(OpCode::Pop);
+
+                let func_start = self.chunk.code.len();
+                for stmt in body {
+                    self.compile_stmt(stmt, false, false);
                 }
-                // jump back
-                self.chunk.emit(OpCode::Jump(loop_start));
-                let after_for = self.chunk.code.len() as u32;
-                if let OpCode::JumpIfFalse(ref mut target) = self.chunk.code[jump_if_false_pos] {
-                    *target = after_for;
+                let null_idx = self.add_constant(Constant::Null);
+                self.chunk.code.push(OpCode::LoadConst(null_idx));
+                self.chunk.code.push(OpCode::Return);
+
+                let locals = self.next_local_slot.max(1);
+                if let Some(info) = self.chunk.functions.get_mut(f_idx as usize) {
+                    info.start = func_start;
+                    info.locals = locals;
+                    info.name = name.clone();
+                }
+
+                self.scope_stack = saved_scope;
+                self.local_map = saved_local;
+                self.next_local_slot = saved_slot;
+
+                let after_func = self.chunk.code.len();
+                if let OpCode::Jump(ref mut offset) = self.chunk.code[skip_jump_idx] {
+                    *offset = after_func as i16 - (skip_jump_idx as i16 + 1);
                 }
             }
             ASTNode::Call { callee, args } => {
-                if let ASTNode::Identifier(name) = &**callee {
-                    if let Some((idx, _start, arity, _locs)) = self
-                        .functions
-                        .iter()
-                        .enumerate()
-                        .find_map(|(i, (n, s, a, l))| {
-                            if n == name {
-                                Some((i, *s, *a, *l))
-                            } else {
-                                None
+                if let Some(func_name) = self.extract_ident(callee.as_ref()) {
+                    if let Some(&idx) = self.func_index.get(&func_name) {
+                        for arg in args {
+                            if let Some(c) = self.compile_expr(arg) {
+                                let ci = self.add_constant(c);
+                                self.chunk.code.push(OpCode::LoadConst(ci));
                             }
-                        })
-                    {
-                        for a in args {
-                            self.visit(a);
                         }
-                        self.chunk.emit(OpCode::Call(idx as u16, arity as u8));
+                        self.chunk.code.push(OpCode::Call(idx, args.len() as u8));
+                        return;
+                    }
+                    match func_name.as_str() {
+                        "log" | "print" => {
+                            for arg in args {
+                                if let Some(c) = self.compile_expr(arg) {
+                                    let ci = self.add_constant(c);
+                                    self.chunk.code.push(OpCode::LoadConst(ci));
+                                }
+                            }
+                            self.chunk.code.push(OpCode::Print(args.len() as u8));
+                            self.chunk.code.push(OpCode::Pop);
+                            return;
+                        }
+                        "len" => {
+                            if let Some(arg) = args.first() {
+                                if let Some(c) = self.compile_expr(arg) {
+                                    let ci = self.add_constant(c);
+                                    self.chunk.code.push(OpCode::LoadConst(ci));
+                                }
+                                self.chunk.code.push(OpCode::Len);
+                            }
+                            return;
+                        }
+                        "time_ms" => {
+                            self.chunk.code.push(OpCode::TimeMs);
+                            return;
+                        }
+                        "rand" => {
+                            self.chunk.code.push(OpCode::Rand);
+                            return;
+                        }
+                        "superpose" => {
+                            for arg in args {
+                                if let Some(c) = self.compile_expr(arg) {
+                                    let ci = self.add_constant(c);
+                                    self.chunk.code.push(OpCode::LoadConst(ci));
+                                }
+                            }
+                            self.chunk.code.push(OpCode::Superpose);
+                            return;
+                        }
+                        "entangle" => {
+                            for arg in args {
+                                if let Some(c) = self.compile_expr(arg) {
+                                    let ci = self.add_constant(c);
+                                    self.chunk.code.push(OpCode::LoadConst(ci));
+                                }
+                            }
+                            self.chunk.code.push(OpCode::Entangle);
+                            return;
+                        }
+                        "measure" => {
+                            for arg in args {
+                                if let Some(c) = self.compile_expr(arg) {
+                                    let ci = self.add_constant(c);
+                                    self.chunk.code.push(OpCode::LoadConst(ci));
+                                }
+                            }
+                            self.chunk.code.push(OpCode::Measure);
+                            return;
+                        }
+                        _ => {}
                     }
                 }
+                if let Some(c) = self.compile_expr(callee.as_ref()) {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+                self.chunk.code.push(OpCode::Pop);
+                for arg in args {
+                    if let Some(c) = self.compile_expr(arg) {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                    self.chunk.code.push(OpCode::Pop);
+                }
+                let ci = self.add_constant(Constant::Null);
+                self.chunk.code.push(OpCode::LoadConst(ci));
             }
-            _ => { /* quantum ops not yet */ }
+            ASTNode::NumberLiteral(n) => {
+                let ci = self.add_constant(Constant::Number(*n));
+                self.chunk.code.push(OpCode::LoadConst(ci));
+            }
+            ASTNode::StringLiteral(s) => {
+                let ci = self.add_constant(Constant::String(s.clone()));
+                self.chunk.code.push(OpCode::LoadConst(ci));
+            }
+            ASTNode::BooleanLiteral(b) => {
+                let ci = self.add_constant(Constant::Bool(*b));
+                self.chunk.code.push(OpCode::LoadConst(ci));
+            }
+            ASTNode::Identifier(name) => {
+                self.load_identifier(name);
+            }
+            ASTNode::IdentifierSpanned { name, .. } => {
+                self.load_identifier(name);
+            }
+            ASTNode::BinaryExpr { .. } | ASTNode::UnaryExpr { .. } => {
+                let const_val = self.compile_expr(node);
+                if let Some(c) = const_val {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+            }
+            _ => {}
         }
     }
 
-    fn translate_bin(&mut self, op: &TokenKind) {
-        use TokenKind::*;
-        let bc = match op {
-            Plus => OpCode::Add,
-            Minus => OpCode::Sub,
-            Star => OpCode::Mul,
-            Slash => OpCode::Div,
-            DoubleEquals => OpCode::Eq,
-            NotEquals => OpCode::Ne,
-            LessThan => OpCode::Lt,
-            LessEqual => OpCode::Le,
-            GreaterThan => OpCode::Gt,
-            GreaterEqual => OpCode::Ge,
-            _ => OpCode::Pop,
-        };
-        self.chunk.emit(bc);
-    }
-    fn emit_binary_or_fold(&mut self, node: &ASTNode) {
-        if let Some(cst) = self.fold_const(node) {
-            self.chunk.opt_stats.const_folds += 1;
-            let idx = self.chunk.add_const(cst);
-            self.chunk.emit(OpCode::LoadConst(idx));
-            return;
-        }
-        if let ASTNode::BinaryExpr { op, left, right } = node {
-            use TokenKind::*;
-            match op {
-                AndAnd => {
-                    // short-circuit: evaluate left; if false -> skip right
-                    self.visit(left);
-                    let jump_pos = self.chunk.code.len();
-                    self.chunk.emit(OpCode::JumpIfFalse(0));
-                    // if left true, pop it and evaluate right, leaving right
-                    self.chunk.emit(OpCode::Pop);
-                    self.visit(right);
-                    let after = self.chunk.code.len() as u32;
-                    if let OpCode::JumpIfFalse(ref mut t) = self.chunk.code[jump_pos] {
-                        *t = after;
-                    }
-                }
-                OrOr => {
-                    // short-circuit: if left true skip right
-                    self.visit(left);
-                    let jump_pos = self.chunk.code.len();
-                    // JumpIfFalse goes over next pop/eval when false; we invert by adding Jump for true path
-                    self.chunk.emit(OpCode::JumpIfFalse(0));
-                    // left true: keep it, jump over evaluation of right
-                    let skip_right_jump = self.chunk.code.len();
-                    self.chunk.emit(OpCode::Jump(0));
-                    // patch JumpIfFalse target to evaluate right
-                    let right_start = self.chunk.code.len() as u32;
-                    if let OpCode::JumpIfFalse(ref mut t) = self.chunk.code[jump_pos] {
-                        *t = right_start;
-                    }
-                    // evaluate right (discard left first)
-                    self.chunk.emit(OpCode::Pop);
-                    self.visit(right);
-                    let after_right = self.chunk.code.len() as u32;
-                    if let OpCode::Jump(ref mut t) = self.chunk.code[skip_right_jump] {
-                        *t = after_right;
-                    }
-                }
-                _ => {
-                    self.visit(left);
-                    self.visit(right);
-                    self.translate_bin(op);
-                }
-            }
-        }
-    }
-
-    fn null_const(&mut self) -> u16 {
-        if let Some(idx) = self
-            .chunk
-            .constants
-            .iter()
-            .position(|c| matches!(c, Constant::Null))
-        {
-            idx as u16
+    fn load_identifier(&mut self, name: &str) {
+        if let Some(&slot) = self.local_map.get(name) {
+            self.chunk.code.push(OpCode::LoadLocal(slot));
         } else {
-            self.chunk.add_const(Constant::Null)
+            let idx = self.add_global(name.to_string());
+            self.chunk.code.push(OpCode::LoadGlobal(idx));
         }
     }
 
-    // Attempt to recursively fold a constant expression into a single Constant.
-    fn fold_const(&mut self, node: &ASTNode) -> Option<Constant> {
-        use TokenKind::*;
+    fn compile_expr(&mut self, node: &ASTNode) -> Option<Constant> {
         match node {
             ASTNode::NumberLiteral(n) => Some(Constant::Number(*n)),
             ASTNode::StringLiteral(s) => Some(Constant::String(s.clone())),
             ASTNode::BooleanLiteral(b) => Some(Constant::Bool(*b)),
+            ASTNode::Identifier(name) => {
+                self.load_identifier(name);
+                None
+            }
+            ASTNode::IdentifierSpanned { name, .. } => {
+                self.load_identifier(name);
+                None
+            }
             ASTNode::BinaryExpr { op, left, right } => {
-                // Associative chain folding for +, *, &&, ||
-                if matches!(op, Plus | Star | AndAnd | OrOr) {
-                    if let Some(folded) = self.fold_associative_chain(op, node) {
+                let op_str = match op {
+                    TokenKind::Plus => "+",
+                    TokenKind::Minus => "-",
+                    TokenKind::Star => "*",
+                    TokenKind::Slash => "/",
+                    TokenKind::DoubleEquals => "==",
+                    TokenKind::NotEquals => "!=",
+                    TokenKind::LessThan => "<",
+                    TokenKind::LessEqual => "<=",
+                    TokenKind::GreaterThan => ">",
+                    TokenKind::GreaterEqual => ">=",
+                    TokenKind::AndAnd => "&&",
+                    TokenKind::OrOr => "||",
+                    _ => "",
+                };
+
+                if op_str == "&&" || op_str == "||" {
+                    let left_const = self.compile_expr(left.as_ref());
+                    if let Some(c) = left_const.clone() {
+                        let left_truthy = self.is_truthy(&c);
+                        if op_str == "&&" {
+                            if !left_truthy {
+                                self.chunk.opt_stats.dce_if += 1;
+                                return Some(Constant::Bool(false));
+                            }
+                        } else if left_truthy {
+                            self.chunk.opt_stats.dce_if += 1;
+                            return Some(Constant::Bool(true));
+                        }
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+
+                    let jump_index = self.chunk.code.len();
+                    if op_str == "&&" {
+                        self.chunk.code.push(OpCode::JumpIfFalse(0));
+                    } else {
+                        self.chunk.code.push(OpCode::JumpIfTrue(0));
+                    }
+                    self.chunk.code.push(OpCode::Pop);
+
+                    let right_const = self.compile_expr(right.as_ref());
+                    if let Some(c) = right_const {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                    let end_index = self.chunk.code.len();
+                    match self.chunk.code.get_mut(jump_index) {
+                        Some(OpCode::JumpIfFalse(ref mut offset))
+                        | Some(OpCode::JumpIfTrue(ref mut offset)) => {
+                            *offset = end_index as i16 - (jump_index as i16 + 1);
+                        }
+                        _ => {}
+                    }
+                    return None;
+                }
+
+                let left_const = self.compile_expr(left.as_ref());
+                let right_const = self.compile_expr(right.as_ref());
+
+                if let (Some(lc), Some(rc)) = (&left_const, &right_const) {
+                    if let Some(folded) = self.fold_binary(op_str, lc, rc) {
+                        self.chunk.opt_stats.const_folds += 1;
+                        if matches!(left.as_ref(), ASTNode::BinaryExpr { .. }) {
+                            self.chunk.opt_stats.chain_folds += 1;
+                        }
+                        if matches!(right.as_ref(), ASTNode::BinaryExpr { .. }) {
+                            self.chunk.opt_stats.chain_folds += 1;
+                        }
                         return Some(folded);
                     }
                 }
-                let lc = self.fold_const(left)?;
-                let rc = self.fold_const(right)?;
-                match (op, lc, rc) {
-                    (Plus, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Number(a + b))
-                    }
-                    (Plus, Constant::Number(a), Constant::String(b)) => {
-                        Some(Constant::String(format!("{}{}", a, b)))
-                    }
-                    (Plus, Constant::String(a), Constant::Number(b)) => {
-                        Some(Constant::String(format!("{}{}", a, b)))
-                    }
-                    (Minus, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Number(a - b))
-                    }
-                    (Star, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Number(a * b))
-                    }
-                    (Slash, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Number(if b == 0.0 { 0.0 } else { a / b }))
-                    }
-                    (DoubleEquals, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Bool(a == b))
-                    }
-                    (NotEquals, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Bool(a != b))
-                    }
-                    (LessThan, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Bool(a < b))
-                    }
-                    (LessEqual, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Bool(a <= b))
-                    }
-                    (GreaterThan, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Bool(a > b))
-                    }
-                    (GreaterEqual, Constant::Number(a), Constant::Number(b)) => {
-                        Some(Constant::Bool(a >= b))
-                    }
-                    (AndAnd, Constant::Bool(a), Constant::Bool(b)) => Some(Constant::Bool(a && b)),
-                    (OrOr, Constant::Bool(a), Constant::Bool(b)) => Some(Constant::Bool(a || b)),
-                    // String concatenation
-                    (Plus, Constant::String(a), Constant::String(b)) => {
-                        Some(Constant::String(format!("{}{}", a, b)))
-                    }
-                    _ => None,
+
+                if let Some(c) = left_const {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
                 }
+                if let Some(c) = right_const {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+
+                match op_str {
+                    "+" => self.chunk.code.push(OpCode::Add),
+                    "-" => self.chunk.code.push(OpCode::Sub),
+                    "*" => self.chunk.code.push(OpCode::Mul),
+                    "/" => self.chunk.code.push(OpCode::Div),
+                    "==" => self.chunk.code.push(OpCode::Eq),
+                    "!=" => self.chunk.code.push(OpCode::Ne),
+                    "<" => self.chunk.code.push(OpCode::Lt),
+                    "<=" => self.chunk.code.push(OpCode::Le),
+                    ">" => self.chunk.code.push(OpCode::Gt),
+                    ">=" => self.chunk.code.push(OpCode::Ge),
+                    _ => {}
+                }
+
+                None
+            }
+            ASTNode::UnaryExpr { op, expr } => {
+                let op_str = match op {
+                    TokenKind::Minus => "-",
+                    TokenKind::QuantumNot => "!",
+                    _ => "",
+                };
+
+                let const_val = self.compile_expr(expr.as_ref());
+                if let Some(c) = const_val {
+                    return match (op_str, &c) {
+                        ("-", Constant::Number(n)) => Some(Constant::Number(-n)),
+                        ("!", Constant::Bool(b)) => Some(Constant::Bool(!b)),
+                        _ => Some(c),
+                    };
+                }
+
+                match op_str {
+                    "-" => {
+                        let ci = self.add_constant(Constant::Number(-1.0));
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                        self.chunk.code.push(OpCode::Mul);
+                    }
+                    "!" => {
+                        let ci = self.add_constant(Constant::Bool(false));
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                        self.chunk.code.push(OpCode::Eq);
+                    }
+                    _ => {}
+                }
+                None
+            }
+            ASTNode::Call { .. }
+            | ASTNode::Assignment { .. }
+            | ASTNode::VariableDecl { .. }
+            | ASTNode::Block(_)
+            | ASTNode::Program(_)
+            | ASTNode::If { .. }
+            | ASTNode::While { .. }
+            | ASTNode::For { .. }
+            | ASTNode::Function { .. }
+            | ASTNode::Log(_)
+            | ASTNode::Return(_) => {
+                self.compile_stmt(node, false, false);
+                None
             }
             _ => None,
         }
     }
 
-    fn fold_associative_chain(&mut self, op: &TokenKind, root: &ASTNode) -> Option<Constant> {
-        use TokenKind::*;
-        // Gather all operands in a flat vec
-        fn gather<'a>(node: &'a ASTNode, target: &TokenKind, out: &mut Vec<&'a ASTNode>) {
-            if let ASTNode::BinaryExpr { op, left, right } = node {
-                if op == target {
-                    gather(left, target, out);
-                    gather(right, target, out);
-                    return;
-                }
-            }
-            out.push(node);
-        }
-        let mut ops: Vec<&ASTNode> = Vec::new();
-        gather(root, op, &mut ops);
+    fn fold_binary(&self, op: &str, left: &Constant, right: &Constant) -> Option<Constant> {
+        use Constant::*;
         match op {
-            Plus => {
-                // Numbers only or strings only
-                if ops.is_empty() {
-                    return None;
-                }
-                let any_string = ops.iter().any(|n| matches!(n, ASTNode::StringLiteral(_)));
-                let all_numbers = ops.iter().all(|n| matches!(n, ASTNode::NumberLiteral(_)));
-                if all_numbers && !any_string {
-                    let mut sum = 0.0;
-                    for n in &ops {
-                        if let ASTNode::NumberLiteral(v) = *n {
-                            sum += v;
-                        }
-                    }
-                    if ops.len() > 2 {
-                        self.chunk.opt_stats.chain_folds += 1;
-                    }
-                    return Some(Constant::Number(sum));
-                }
-                if any_string
-                    && ops
-                        .iter()
-                        .all(|n| matches!(n, ASTNode::NumberLiteral(_) | ASTNode::StringLiteral(_)))
-                {
-                    let mut s = String::new();
-                    for n in &ops {
-                        match *n {
-                            ASTNode::NumberLiteral(v) => s.push_str(&v.to_string()),
-                            ASTNode::StringLiteral(ref st) => s.push_str(st),
-                            _ => return None,
-                        }
-                    }
-                    if ops.len() > 2 {
-                        self.chunk.opt_stats.chain_folds += 1;
-                    }
-                    return Some(Constant::String(s));
-                }
-                None
-            }
-            Star => {
-                if ops.is_empty() {
-                    return None;
-                }
-                if ops.iter().all(|n| matches!(n, ASTNode::NumberLiteral(_))) {
-                    let mut prod = 1.0;
-                    for n in &ops {
-                        if let ASTNode::NumberLiteral(v) = *n {
-                            prod *= v;
-                        }
-                    }
-                    if ops.len() > 2 {
-                        self.chunk.opt_stats.chain_folds += 1;
-                    }
-                    return Some(Constant::Number(prod));
-                }
-                None
-            }
-            AndAnd => {
-                if ops.iter().all(|n| matches!(n, ASTNode::BooleanLiteral(_))) {
-                    let res = ops.iter().all(|n| {
-                        if let ASTNode::BooleanLiteral(b) = *n {
-                            *b
-                        } else {
-                            false
-                        }
-                    });
-                    if ops.len() > 2 {
-                        self.chunk.opt_stats.chain_folds += 1;
-                    }
-                    return Some(Constant::Bool(res));
-                }
-                None
-            }
-            OrOr => {
-                if ops.iter().all(|n| matches!(n, ASTNode::BooleanLiteral(_))) {
-                    let res = ops.iter().any(|n| {
-                        if let ASTNode::BooleanLiteral(b) = *n {
-                            *b
-                        } else {
-                            false
-                        }
-                    });
-                    if ops.len() > 2 {
-                        self.chunk.opt_stats.chain_folds += 1;
-                    }
-                    return Some(Constant::Bool(res));
-                }
-                None
+            "+" => match (left, right) {
+                (Number(a), Number(b)) => Some(Number(a + b)),
+                (String(a), String(b)) => Some(String(format!("{}{}", a, b))),
+                (String(a), other) => Some(String(format!("{}{}", a, self.display_const(other)))),
+                (other, String(b)) => Some(String(format!("{}{}", self.display_const(other), b))),
+                _ => None,
+            },
+            "-" => match (left, right) {
+                (Number(a), Number(b)) => Some(Number(a - b)),
+                _ => None,
+            },
+            "*" => match (left, right) {
+                (Number(a), Number(b)) => Some(Number(a * b)),
+                _ => None,
+            },
+            "/" => match (left, right) {
+                (Number(a), Number(b)) => Some(Number(a / b)),
+                _ => None,
+            },
+            "==" | "!=" | "<" | "<=" | ">" | ">=" => {
+                Some(Constant::Bool(self.cmp_constants(left, right, op)))
             }
             _ => None,
         }
     }
 
-    fn run_peephole(&mut self) {
-        // Replace redundant Pop sequences (Pop Pop) with Pop + Nop so addresses stable
-        for i in 1..self.chunk.code.len() {
-            if matches!(self.chunk.code[i - 1], OpCode::Pop)
-                && matches!(self.chunk.code[i], OpCode::Pop)
-            {
-                self.chunk.code[i] = OpCode::Nop;
-                self.chunk.opt_stats.pops_eliminated += 1;
-            }
+    fn display_const(&self, c: &Constant) -> String {
+        match c {
+            Constant::Number(n) => n.to_string(),
+            Constant::String(s) => s.clone(),
+            Constant::Bool(b) => b.to_string(),
+            Constant::Null => "null".into(),
+        }
+    }
+
+    fn cmp_constants(&self, left: &Constant, right: &Constant, op: &str) -> bool {
+        use Constant::*;
+        match (left, right) {
+            (Number(a), Number(b)) => match op {
+                "==" => a == b,
+                "!=" => a != b,
+                "<" => a < b,
+                "<=" => a <= b,
+                ">" => a > b,
+                ">=" => a >= b,
+                _ => false,
+            },
+            (Bool(a), Bool(b)) => match op {
+                "==" => a == b,
+                "!=" => a != b,
+                "<" => (*a as i32) < (*b as i32),
+                "<=" => (*a as i32) <= (*b as i32),
+                ">" => (*a as i32) > (*b as i32),
+                ">=" => (*a as i32) >= (*b as i32),
+                _ => false,
+            },
+            (String(a), String(b)) => match op {
+                "==" => a == b,
+                "!=" => a != b,
+                "<" => a < b,
+                "<=" => a <= b,
+                ">" => a > b,
+                ">=" => a >= b,
+                _ => false,
+            },
+            _ => match op {
+                "==" => false,
+                "!=" => true,
+                _ => false,
+            },
+        }
+    }
+
+    fn is_truthy(&self, value: &Constant) -> bool {
+        match value {
+            Constant::Null => false,
+            Constant::Bool(b) => *b,
+            Constant::Number(n) => *n != 0.0,
+            Constant::String(s) => !s.is_empty(),
+        }
+    }
+
+    fn extract_ident(&self, node: &ASTNode) -> Option<String> {
+        match node {
+            ASTNode::Identifier(name) => Some(name.clone()),
+            ASTNode::IdentifierSpanned { name, .. } => Some(name.clone()),
+            _ => None,
         }
     }
 }
 
-// Simple textual disassembler (debug)
+/// Produce a debug disassembly of the chunk for compiler-oriented tests.
 pub fn disassemble(chunk: &Chunk) -> String {
-    use std::fmt::Write;
     let mut out = String::new();
-    writeln!(&mut out, "== constants ({} ) ==", chunk.constants.len()).ok();
-    for (i, c) in chunk.constants.iter().enumerate() {
-        match c {
-            Constant::Number(n) => writeln!(&mut out, "[{i}] num {n}").ok(),
-            Constant::String(s) => writeln!(&mut out, "[{i}] str \"{s}\"").ok(),
-            Constant::Bool(b) => writeln!(&mut out, "[{i}] bool {b}").ok(),
-            Constant::Null => writeln!(&mut out, "[{i}] null").ok(),
-        };
+    out.push_str("== Bytecode Disassembly ==\n");
+    for (i, instr) in chunk.code.iter().enumerate() {
+        out.push_str(&format!("{:04} {:?}\n", i, instr));
     }
-    writeln!(&mut out, "== functions ({} ) ==", chunk.functions.len()).ok();
-    for (i, f) in chunk.functions.iter().enumerate() {
-        writeln!(
-            &mut out,
-            "fn#{i} {} start={} arity={} locals={}",
-            f.name, f.start, f.arity, f.locals
-        )
-        .ok();
+    out.push_str("Constants:\n");
+    for (i, constant) in chunk.constants.iter().enumerate() {
+        out.push_str(&format!("  [{}] {:?}\n", i, constant));
     }
-    writeln!(&mut out, "== code ({} ops) ==", chunk.code.len()).ok();
-    for (i, op) in chunk.code.iter().enumerate() {
-        use OpCode::*;
-        match op {
-            LoadConst(c) => writeln!(&mut out, "{i:04} LOAD_CONST {c}").ok(),
-            LoadLocal(l) => writeln!(&mut out, "{i:04} LOAD_LOCAL {l}").ok(),
-            StoreLocal(l) => writeln!(&mut out, "{i:04} STORE_LOCAL {l}").ok(),
-            Add => writeln!(&mut out, "{i:04} ADD").ok(),
-            Sub => writeln!(&mut out, "{i:04} SUB").ok(),
-            Mul => writeln!(&mut out, "{i:04} MUL").ok(),
-            Div => writeln!(&mut out, "{i:04} DIV").ok(),
-            Eq => writeln!(&mut out, "{i:04} EQ").ok(),
-            Ne => writeln!(&mut out, "{i:04} NE").ok(),
-            Lt => writeln!(&mut out, "{i:04} LT").ok(),
-            Le => writeln!(&mut out, "{i:04} LE").ok(),
-            Gt => writeln!(&mut out, "{i:04} GT").ok(),
-            Ge => writeln!(&mut out, "{i:04} GE").ok(),
-            And => writeln!(&mut out, "{i:04} AND").ok(),
-            Or => writeln!(&mut out, "{i:04} OR").ok(),
-            Pop => writeln!(&mut out, "{i:04} POP").ok(),
-            Nop => writeln!(&mut out, "{i:04} NOP").ok(),
-            Jump(t) => writeln!(&mut out, "{i:04} JUMP {t}").ok(),
-            JumpIfFalse(t) => writeln!(&mut out, "{i:04} JUMP_IF_FALSE {t}").ok(),
-            Call(f, a) => writeln!(&mut out, "{i:04} CALL f={} argc={}", f, a).ok(),
-            Return => writeln!(&mut out, "{i:04} RETURN").ok(),
-        };
+    out.push_str("Functions:\n");
+    for (i, info) in chunk.functions.iter().enumerate() {
+        out.push_str(&format!(
+            "  [{}] start={} locals={} name={}\n",
+            i, info.start, info.locals, info.name
+        ));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::lexer::Lexer;
+    use crate::core::parser::Parser;
+
+    fn compile_source(src: &str) -> Chunk {
+        let mut lexer = Lexer::new(src, false);
+        let tokens = lexer.tokenize().expect("lexing failed");
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().expect("parse failed");
+        BytecodeCompiler::new().compile(&ast)
+    }
+
+    #[test]
+    fn arithmetic_const_folding() {
+        let chunk = compile_source("let x = 2 * (3 + 4);\n");
+        assert!(chunk.opt_stats.const_folds >= 1);
+        assert!(chunk.opt_stats.chain_folds >= 1);
+        let constants = chunk.constants;
+        assert!(constants
+            .iter()
+            .any(|c| matches!(c, Constant::Number(14.0))));
+    }
+
+    #[test]
+    fn dead_code_elimination_if() {
+        let chunk = compile_source("if (false) {\n  log(1);\n} else {\n  log(2);\n}\n");
+        assert!(chunk.opt_stats.dce_if >= 1);
+    }
+
+    #[test]
+    fn dead_code_elimination_while() {
+        let chunk = compile_source("while (false) { log(1); }\n");
+        assert!(chunk.opt_stats.dce_while >= 1);
+    }
+
+    #[test]
+    fn disassembly_lists_functions() {
+        let chunk = compile_source("function add(a, b) {\n  return a + b;\n}\nadd(1, 2);\n");
+        let text = disassemble(&chunk);
+        assert!(text.contains("add"));
+        assert!(text.contains("Call"));
+    }
 }

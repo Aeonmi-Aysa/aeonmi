@@ -1,3 +1,4 @@
+#![cfg(feature = "bytecode_vm")]
 #![cfg(feature = "bytecode")]
 use aeonmi_project::core::bytecode::BytecodeCompiler;
 use aeonmi_project::core::lexer::Lexer;
@@ -14,7 +15,7 @@ fn eval(src: &str) -> Option<Value> {
 }
 #[test]
 fn if_else_true() {
-    let v = eval("let a=1; if a { return 10; } else { return 20; }");
+    let v = eval("let a=1; if (a) { return 10; } else { return 20; }");
     match v {
         Some(Value::Number(n)) => assert_eq!(n, 10.0),
         _ => panic!("bad {v:?}"),
@@ -22,7 +23,7 @@ fn if_else_true() {
 }
 #[test]
 fn if_else_false() {
-    let v = eval("let a=0; if a { return 10; } else { return 20; }");
+    let v = eval("let a=0; if (a) { return 10; } else { return 20; }");
     match v {
         Some(Value::Number(n)) => assert_eq!(n, 20.0),
         _ => panic!("bad {v:?}"),

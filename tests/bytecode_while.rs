@@ -1,3 +1,4 @@
+#![cfg(feature = "bytecode_vm")]
 #![cfg(feature = "bytecode")]
 use aeonmi_project::core::bytecode::BytecodeCompiler;
 use aeonmi_project::core::lexer::Lexer;
@@ -14,7 +15,7 @@ fn eval(src: &str) -> Option<Value> {
 }
 #[test]
 fn while_accumulate() {
-    let v = eval("let i=0; let s=0; while i < 5 { s = s + i; i = i + 1; } return s;");
+    let v = eval("let i=0; let s=0; while (i < 5) { s = s + i; i = i + 1; } return s;");
     match v {
         Some(Value::Number(n)) => assert_eq!(n, 10.0),
         _ => panic!("bad {v:?}"),

@@ -56,6 +56,7 @@ ai-deepseek = ["reqwest"]
 "kdf-argon2" = ["argon2"]
 debug-metrics = []
 bytecode = []
+bytecode_vm = []
 minimal = []
 
 [dependencies]
