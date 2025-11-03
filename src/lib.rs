@@ -4,12 +4,14 @@
 pub mod cli;
 pub mod cli_vault;
 pub mod commands;
+pub mod compiler;
 pub mod config;
 pub mod core;
 pub mod encryption;
 pub mod integration; // Unified system integration layer
 pub mod io;
 pub mod quantum_ast_tests;
+pub mod runtime;
 pub mod shell;
 pub mod tui;
 pub mod vault; // Quantum AST integration tests

@@ -2,12 +2,14 @@ mod ai; // AI provider registry & implementations
 mod cli;
 mod cli_vault;
 mod commands;
+mod compiler;
 mod config; // resolve_config_path, etc.
 /// Aeonmi/QUBE main — unified quantum ecosystem with Mother AI consciousness
 mod core;
 mod encryption;
 mod integration; // Unified system integration layer
 mod io;
+mod runtime;
 mod shell;
 mod tui; // tui::editor // neon Shard shell
 mod vault;
