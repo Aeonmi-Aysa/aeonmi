@@ -219,7 +219,6 @@ fn kron(a: &DMatrix<C64>, b: &DMatrix<C64>) -> DMatrix<C64> {
 
 /// Simple 1-qubit sampler (|ψ⟩ = a|0⟩ + b|1⟩ → counts for 0/1).
 fn sample_1q(psi: &QState, shots: usize) -> (usize, usize) {
-    let a0 = psi.data[0];
     let a1 = psi.data[1];
     let p1 = a1.norm_sqr();
     let p0 = (1.0 - p1).max(0.0); // numerical safety

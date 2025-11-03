@@ -22,7 +22,11 @@ function f() {
     let ast = parse(code);
     let deps = compute_var_deps(&ast);
     // Expect function index 0 writes x and i; reads x/i inside conditions
-    assert!(deps.writes.get("x").map(|s| s.contains(&0)).unwrap_or(false));
+    assert!(deps
+        .writes
+        .get("x")
+        .map(|s| s.contains(&0))
+        .unwrap_or(false));
     assert!(deps.reads.get("x").map(|s| s.contains(&0)).unwrap_or(false));
 }
 

@@ -3,6 +3,8 @@
 //! classic shell today while leaving room for future
 //! Mother AI or Titan integrations.
 
+#![allow(dead_code)]
+
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -103,9 +105,7 @@ pub async fn initialize_aeonmi() -> anyhow::Result<AeonmiSystem> {
     AeonmiSystem::initialize(SystemConfig::default()).await
 }
 
-pub async fn initialize_aeonmi_with_config(
-    config: SystemConfig,
-) -> anyhow::Result<AeonmiSystem> {
+pub async fn initialize_aeonmi_with_config(config: SystemConfig) -> anyhow::Result<AeonmiSystem> {
     AeonmiSystem::initialize(config).await
 }
 
@@ -115,9 +115,7 @@ pub async fn start_unified() -> anyhow::Result<()> {
     system.run().await
 }
 
-pub async fn start_interactive_shell(
-    config: SystemConfig,
-) -> anyhow::Result<()> {
+pub async fn start_interactive_shell(config: SystemConfig) -> anyhow::Result<()> {
     let mut system = AeonmiSystem::new(config);
     system.mode = ExecutionMode::Shell;
     system.run().await

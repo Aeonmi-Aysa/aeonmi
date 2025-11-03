@@ -27,17 +27,104 @@ Aeonmi is an AI-native, quantum-conscious programming environment built as a "sh
 Build artifacts land in `target/`. Examples of `.ai` programs live under `examples/`.
 
 ## 3. Getting Started
-1. **Prerequisites**: Rust 1.75+, Cargo, (optional) Python 3.10 with `qiskit` + `qiskit-aer` for the bridge, Node.js if you plan to run the JS emitter, and feature-gated AI provider credentials.
+1. **Install prerequisites**
+    - Rust 1.75+, Cargo
+    - (Optional) Python 3.10+ with `pip install qiskit qiskit-aer`
+    - (Optional) Node.js 18+ if you plan to execute generated JS
+    - AI provider credentials (OpenAI, Copilot, etc.) for feature-gated usage
 2. **Clone**: `git clone https://github.com/DarthMetaCrypro/Aeonmi.git`
-3. **Build core Shard**: `cargo build --release`
-4. **Run CLI help**: `cargo run -- --help`
-5. **Launch Mother AI**: `cargo run --bin MotherAI`
-6. **Enable extras**:
-   - Quantum simulation: `cargo build --features quantum`
-   - Qiskit bridge: `cargo build --features qiskit`
-   - Mother + full suite: `cargo build --release --no-default-features --features full-suite`
+3. **Select the shard branch** (if needed): `git checkout Aeonmi_Shard`
+4. **Format & lint**: `cargo fmt`; `cargo clippy --all-targets`
+5. **Build core shard**: `cargo build --release`
+6. **Verify CLI installation**: `cargo run -- --help`
+7. **Launch Mother AI**: `cargo run --bin MotherAI`
+8. **Enable extras**:
+    - Quantum simulation only: `cargo build --features quantum`
+    - Qiskit bridge: `cargo build --features qiskit`
+    - AI + Quantum combo: `cargo build --features "ai-openai qiskit"`
+    - Full suite optimized: `cargo build --release --no-default-features --features full-suite`
 
-> Windows shortcut: `powershell -ExecutionPolicy Bypass -File .\build_windows.ps1 -Features "full-suite"`
+> Windows helpers: `.uild_windows.ps1 -Features "full-suite"` or `.uild_windows.ps1 -Features "ai-openai qiskit"`
+
+## 4. CLI Master Tutorial (Step-by-step)
+
+Follow these numbered phases in order. Each step assumes you run commands from the repo root.
+
+### Phase A – Environment Warm-up
+1. `cargo fmt` – keep the code clean.
+2. `cargo check --all-targets` – verify nothing is broken.
+3. Fix any warnings shown in the build output (rename unused vars with `_name`, remove dead code, etc.).
+4. Optional: `cargo clippy --all-targets -- -D warnings` to enforce zero warnings.
+
+### Phase B – Basic CLI Usage
+1. **Show commands**: `cargo run -- --help`
+2. **Compile & run an .ai file**: `cargo run -- run examples/getting_started.ai`
+3. **Emit JavaScript**: `cargo run -- exec examples/getting_started.ai --emit-js`
+4. **Inspect metrics**: `cargo run -- metrics snapshot`
+5. **Open REPL**: `cargo run -- repl`
+6. **Run native VM**: `cargo run -- native examples/getting_started.ai`
+7. **Generate docs**: `cargo run -- metrics schema`
+
+### Phase C – Mother AI Walkthrough
+1. Launch: `cargo run --bin MotherAI`
+2. Commands available inside the REPL:
+    - `help` – show options
+    - `status` – check backend info
+    - `capabilities` – print system abilities
+    - `config` – view current personality and flags
+    - `goodbye` – clean exit
+3. Add features at launch: `cargo run --bin MotherAI --features ai-openai`
+4. Mother AI health monitor logs appear every ~30s; watch for warnings.
+
+### Phase D – AI Providers & Key Store
+1. Enable provider features at build/run time, e.g. `cargo run --features ai-openai`.
+2. Store secrets securely: `cargo run -- key-store add openai`
+3. List stored providers: `cargo run -- key-store list`
+4. Remove a provider: `cargo run -- key-store remove openai`
+5. In Mother AI, use provider commands (e.g. ask questions) once credentials exist.
+
+### Phase E – Quantum & Qiskit Bridge
+1. Prepare Python env: `python -m venv .venv && .\.venv\Scripts\activate && pip install qiskit qiskit-aer`
+2. Build with feature flag: `cargo build --features "qiskit"`
+3. Run quantum CLI: `cargo run -- quantum simulate examples/quantum_demo.rs`
+4. Use Qiskit bridge: `cargo run -- quantum qiskit examples/quantum_demo.rs`
+5. For AI + Quantum combos: `cargo run --features "ai-openai qiskit" -- quantum qiskit ...`
+6. GUI (Tauri) parity: ensure `gui/tauri_bridge` is rebuilt after quantum changes.
+
+### Phase F – Metrics & Incremental Pipeline
+1. Record inference metrics with sample runs: `cargo run -- metrics flush`
+2. Inspect JSON: `cargo run -- metrics snapshot --json`
+3. Reset metrics: `cargo run -- metrics reset`
+4. Debug incremental state: `cargo test --test metrics_function -- --nocapture`
+5. GUI integration: update `gui/tauri_bridge/src/commands.rs` together with `src/core/incremental.rs`.
+
+### Phase G – Domain Quantum Vault
+1. Initialize vault: `cargo run -- vault init`
+2. Register a domain: `cargo run -- vault register --domain example.com`
+3. Rotate keys: `cargo run -- vault key-rotate`
+4. Export Merkle snapshot: `cargo run -- vault export-merkle`
+5. Run QUBE policy: `cargo run -- vault qube-run demo.qube`
+6. Delete or backup vault data located at `%APPDATA%\aeonmi\vault` (Windows) or `~/.aeonmi/vault` (Unix).
+
+### Phase H – Testing & CI
+1. Unit tests: `cargo test`
+2. Selected suites (examples):
+    - `cargo test --test metrics_function`
+    - `cargo test --test var_deps_edge`
+    - `cargo test --test quantum_circuit_integration`
+3. Watch build warnings during tests; resolve before release.
+4. Suggested CI commands:
+    - `cargo fmt -- --check`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo test --all`
+
+### Phase I – Release Build
+1. Produce optimized binaries: `cargo build --release --features "full-suite ai-openai qiskit"`
+2. Artifacts are located under `target/release/` (e.g. `aeonmi_shard.exe`, `MotherAI.exe`).
+3. Package docs & README for release notes. Ensure `docs/Shard_README.md` reflects final instructions.
+4. Tag release: `git tag -a v1.0.0 -m "Shard release"`; push tag: `git push --tags`
+
+## 5. Language Overview (Aeonmi Surface Syntax)
 
 ## 4. Language Overview (Aeonmi Surface Syntax)
 Aeonmi today ships a slim, production-ready surface language that compiles to the native VM or JavaScript. It favors deterministic control flow, explicit mutation, and simple diagnostics while staging richer quantum glyph syntax through QUBE.
@@ -61,11 +148,11 @@ while (i < 3) {
 **Available constructs**
 - `let` declarations with block scoping and reassignment
 - Control flow: `if`, `while`, and (via newer branches) `for`
-- Arithmetic `+ - * /`, comparisons, logical operators, string concatenation
+- Arithmetic `+ - * / %`, comparisons, logical operators, string concatenation
 - Built-ins: `log`, `print`, `rand`, `time_ms`, `len`
 - Optional function syntax (`fn`) depending on feature gates
 
-See `docs/Aeonmi_Language_Guide.md` for exhaustive tokens, troubleshooting, and roadmap items such as arrays, modulo, and structured types.
+See `docs/Aeonmi_Language_Guide.md` for exhaustive tokens, troubleshooting, and roadmap items such as arrays and structured types.
 
 ## 5. QUBE & Quantum Glyphs
 QUBE is Aeonmi’s hieroglyphic layer that introduces Unicode-driven quantum constructs, tensor expressions, and probability-aware control flow. The syntax is staged in `docs/AEONMI_UNIQUE_SYNTAX.md` and gradually wired into the parser.
@@ -137,19 +224,46 @@ Located in `src/ai/mod.rs`, the registry exposes a trait-based abstraction so Mo
 
 Environment flags such as `AEONMI_BYTECODE` and `AEONMI_NATIVE` tweak execution engines; metrics persist to `aeonmi_metrics.json` for cross-session analytics. See the root `README.md` for exhaustive command documentation.
 
-## 12. Extending the Shard
-1. **Add a new AI provider**: implement `AiProvider` in `src/ai/your_provider.rs`, gate it behind a feature, and register inside `AiRegistry::new()`.
-2. **Expose new Titan capabilities**: add modules under `src/core/titan/` and wire them through `pub mod` exports; use feature flags if the dependency surface is large.
+## 12. Start-to-Finish Completion Roadmap
+Follow this sequence to take the shard from the current baseline to a polished release.
+
+1. **Warm-up**
+    - Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo check --all-targets`
+    - Fix all warnings (unused vars/structs) so subsequent stages stay clean.
+2. **Language Core Enhancements**
+    - Implement remaining AST nodes (arrays, glyphs, for-loops) in lexer/parser.
+    - Expand semantic analyzer and diagnostics tests (`tests/semantic_*`).
+    - Document new syntax in `docs/Aeonmi_Language_Guide.md`.
+3. **Metrics & Incremental Polish**
+    - Refine `build_metrics_json` and `load_metrics` to ensure fresh data persists.
+    - Mirror logic in GUI commands; add regression tests (`tests/metrics_*`).
+4. **Quantum & Qiskit Integration**
+    - Finalize Titan `qiskit_bridge` APIs and CLI commands in `src/commands/quantum.rs`.
+    - Document Python environment setup and AI+Quantum demos.
+5. **Mother AI Experience**
+    - Connect AI providers to REPL commands, surface Titan metrics, add integration tests.
+    - Expand `docs/Shard_README.md` with a Mother AI usage tutorial.
+6. **Domain Quantum Vault**
+    - Ensure CLI flows (init, register, rotate, audit) are E2E tested.
+    - Update vault documentation with recovery/backups.
+7. **Tooling & Release**
+    - Prepare CI pipeline running fmt/clippy/tests.
+    - Build release binaries with required features and publish release notes.
+    - Tag and push final release.
+
+## 13. Extending the Shard
+1. **Add a new AI provider**: implement `AiProvider` in `src/ai/your_provider.rs`, gate it behind a feature, and register it inside `AiRegistry::new()`.
+2. **Expose new Titan capabilities**: add modules under `src/core/titan/` and wire them through `pub mod` exports; use feature flags for heavy dependencies.
 3. **Introduce glyph syntax**: extend the lexer/parser (`src/core/lexer.rs`, `src/core/parser.rs`), add semantic checks, and map to Titan operations.
 4. **Augment the vault**: update `DomainQuantumVault` methods and add corresponding CLI commands; ensure encryption helpers cover new payload types.
 5. **Surface features in Mother AI**: adjust `MotherAILauncher::run` to broadcast new subsystem metrics or commands.
 
-## 13. Connecting External AI Systems
+## 14. Connecting External AI Systems
 - Store API keys with `aeonmi key-store add <provider>` (encrypted via `src/core/api_keys.rs`).
 - Implement your provider `chat` method to call external APIs and return `String` outputs; streaming support is optional but recommended.
 - Hook custom providers into Mother AI by extending the registry or injecting them before `MotherAILauncher::run` starts conversation loops.
 
-## 14. Resources & Next Steps
+## 15. Resources & Next Steps
 - `docs/Aeonmi_Language_Guide.md` – deep dive into syntax and diagnostics
 - `docs/domain_quantum_vault.md` – vault architecture, simulations, and roadmap
 - `gui/plan.md` – cross-platform IDE plan grounded in Tauri + Monaco

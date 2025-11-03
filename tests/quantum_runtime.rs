@@ -123,7 +123,7 @@ fn probability_branch_uses_weighted_decision() {
     let vm = run_module_with_statements(stmts);
     let stored = vm.env.get("flag").expect("flag stored");
     match stored {
-    Value::Number(n) => assert_eq!(n, 2.0),
+        Value::Number(n) => assert_eq!(n, 2.0),
         other => panic!("expected number, got {:?}", other),
     }
 }

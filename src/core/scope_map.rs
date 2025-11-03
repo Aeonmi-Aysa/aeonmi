@@ -92,6 +92,34 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             stack.push(new_id);
             for p in params {
                 record(sm, &p.name, p.line, p.column, new_id, true);
+                if let Some(default) = &p.default {
+                    visit(default, sm, stack, new_id);
+                }
+            }
+            for st in body {
+                visit(st, sm, stack, new_id);
+            }
+            stack.pop();
+        }
+        FunctionExpr {
+            name,
+            line,
+            column,
+            params,
+            body,
+            ..
+        } => {
+            if let Some(n) = name {
+                record(sm, n, *line, *column, *stack.last().unwrap(), true);
+            }
+            let new_id = sm.parents.len();
+            sm.parents.push(Some(current));
+            stack.push(new_id);
+            for p in params {
+                record(sm, &p.name, p.line, p.column, new_id, true);
+                if let Some(default) = &p.default {
+                    visit(default, sm, stack, new_id);
+                }
             }
             for st in body {
                 visit(st, sm, stack, new_id);
@@ -157,9 +185,17 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
                 visit(e, sm, stack, current);
             }
         }
+        ObjectLiteral(fields) => {
+            for (_, value) in fields {
+                visit(value, sm, stack, current);
+            }
+        }
         IndexExpr { array, index } => {
             visit(array, sm, stack, current);
             visit(index, sm, stack, current);
+        }
+        FieldAccess { object, .. } => {
+            visit(object, sm, stack, current);
         }
         UnaryExpr { expr, .. } => visit(expr, sm, stack, current),
         Call { callee, args } => {
@@ -235,6 +271,9 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             stack.push(new_id);
             for p in params {
                 record(sm, &p.name, p.line, p.column, new_id, true);
+                if let Some(default) = &p.default {
+                    visit(default, sm, stack, new_id);
+                }
             }
             for st in body {
                 visit(st, sm, stack, new_id);

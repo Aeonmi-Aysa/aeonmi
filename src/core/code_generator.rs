@@ -114,7 +114,18 @@ impl CodeGenerator {
                     name,
                     params
                         .iter()
-                        .map(|p| p.name.clone())
+                        .map(|p| {
+                            let mut frag = String::new();
+                            if p.is_variadic {
+                                frag.push_str("...");
+                            }
+                            frag.push_str(&p.name);
+                            if let Some(default) = &p.default {
+                                frag.push_str(" = ");
+                                frag.push_str(&self.emit_expr_js(default));
+                            }
+                            frag
+                        })
                         .collect::<Vec<_>>()
                         .join(", ")
                 ));
@@ -453,6 +464,40 @@ impl CodeGenerator {
                     .join(", ");
                 format!("{}({})", c, a)
             }
+            ASTNode::FunctionExpr {
+                name, params, body, ..
+            } => {
+                let mut signature = String::new();
+                signature.push_str("function ");
+                if let Some(n) = name {
+                    signature.push_str(n);
+                }
+                signature.push('(');
+                signature.push_str(
+                    &params
+                        .iter()
+                        .map(|p| {
+                            let mut frag = String::new();
+                            if p.is_variadic {
+                                frag.push_str("...");
+                            }
+                            frag.push_str(&p.name);
+                            if let Some(default) = &p.default {
+                                frag.push_str(" = ");
+                                frag.push_str(&self.emit_expr_js(default));
+                            }
+                            frag
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
+                signature.push(')');
+                let body_js = body
+                    .iter()
+                    .map(|stmt| self.emit_js(stmt))
+                    .collect::<String>();
+                format!("({} {{ {} }})", signature, body_js)
+            }
             ASTNode::Assignment { name, value, .. } => {
                 format!("{} = {}", name, self.emit_expr_js(value))
             }
@@ -464,8 +509,30 @@ impl CodeGenerator {
                     .join(", ");
                 format!("[{}]", contents)
             }
+            ASTNode::ObjectLiteral(fields) => {
+                let entries = fields
+                    .iter()
+                    .map(|(k, v)| {
+                        let key = if k.chars().all(|c| c == '_' || c.is_ascii_alphanumeric()) {
+                            k.clone()
+                        } else {
+                            format!("\"{}\"", k)
+                        };
+                        format!("{}: {}", key, self.emit_expr_js(v))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{{{}}}", entries)
+            }
             ASTNode::IndexExpr { array, index } => {
                 format!("{}[{}]", self.emit_expr_js(array), self.emit_expr_js(index))
+            }
+            ASTNode::FieldAccess { object, field } => {
+                if field.chars().all(|c| c == '_' || c.is_ascii_alphanumeric()) {
+                    format!("{}.{}", self.emit_expr_js(object), field)
+                } else {
+                    format!("{}[\"{}\"]", self.emit_expr_js(object), field)
+                }
             }
             ASTNode::QuantumOp { op, qubits } => {
                 let opname = match op {
@@ -588,6 +655,7 @@ impl CodeGenerator {
             TokenKind::Minus => "-",
             TokenKind::Star => "*",
             TokenKind::Slash => "/",
+            TokenKind::Percent => "%",
             TokenKind::Equals => "=",
             TokenKind::DoubleEquals => "==",
             TokenKind::NotEquals => "!=",

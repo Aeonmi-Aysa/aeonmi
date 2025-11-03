@@ -13,8 +13,15 @@ fn cli_emits_opt_stats_json() {
         .arg("--opt-stats-json")
         .output()
         .expect("failed to run cli");
-    assert!(output.status.success(), "cli failed: stderr={}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "cli failed: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("const_folds"), "missing const_folds in json: {stdout}");
+    assert!(
+        stdout.contains("const_folds"),
+        "missing const_folds in json: {stdout}"
+    );
     assert!(stdout.contains("chain_folds"));
 }

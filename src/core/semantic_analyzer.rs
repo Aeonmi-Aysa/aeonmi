@@ -34,6 +34,10 @@ enum ValueType {
     Number,
     String,
     Bool,
+    Object,
+    Array,
+    Function,
+    Qubit,
     Unknown,
 }
 
@@ -224,8 +228,18 @@ impl SemanticAnalyzer {
                     self.functions.insert(name.clone(), (*line, *column));
                 }
                 self.begin_scope();
-                for FunctionParam { name, line, column } in params {
+                for FunctionParam {
+                    name,
+                    line,
+                    column,
+                    default,
+                    ..
+                } in params
+                {
                     self.declare(name, Some(*line), Some(*column));
+                    if let Some(def_expr) = default.as_deref() {
+                        self.visit(def_expr, capture);
+                    }
                     // Mark parameters immediately as used? Keep as unused to surface warnings if not referenced.
                 }
                 let mut saw_direct_return = false;
@@ -302,6 +316,35 @@ impl SemanticAnalyzer {
                         }
                     }
                 }
+            }
+            ASTNode::FunctionExpr {
+                name,
+                line,
+                column,
+                params,
+                body,
+            } => {
+                self.begin_scope();
+                if let Some(fname) = name {
+                    self.declare(fname, Some(*line), Some(*column));
+                }
+                for FunctionParam {
+                    name,
+                    line,
+                    column,
+                    default,
+                    ..
+                } in params
+                {
+                    self.declare(name, Some(*line), Some(*column));
+                    if let Some(def_expr) = default.as_deref() {
+                        self.visit(def_expr, capture);
+                    }
+                }
+                for stmt in body {
+                    self.visit(stmt, capture);
+                }
+                self.end_scope();
             }
             ASTNode::VariableDecl {
                 name,
@@ -385,9 +428,17 @@ impl SemanticAnalyzer {
                     self.visit(element, capture);
                 }
             }
+            ASTNode::ObjectLiteral(fields) => {
+                for (_, value) in fields {
+                    self.visit(value, capture);
+                }
+            }
             ASTNode::IndexExpr { array, index } => {
                 self.visit(array, capture);
                 self.visit(index, capture);
+            }
+            ASTNode::FieldAccess { object, .. } => {
+                self.visit(object, capture);
             }
             ASTNode::UnaryExpr { expr, .. } => self.visit(expr, capture),
             ASTNode::Call { callee, args } => {
@@ -498,7 +549,8 @@ impl SemanticAnalyzer {
                     }
                     crate::core::token::TokenKind::Minus
                     | crate::core::token::TokenKind::Star
-                    | crate::core::token::TokenKind::Slash => {
+                    | crate::core::token::TokenKind::Slash
+                    | crate::core::token::TokenKind::Percent => {
                         if lt == Number && rt == Number {
                             Number
                         } else {
@@ -516,8 +568,12 @@ impl SemanticAnalyzer {
             }
             ASTNode::UnaryExpr { op: _, expr } => self.expr_type(expr),
             ASTNode::Call { .. } => Unknown,
-            ASTNode::ArrayLiteral(_) => Unknown,
+            ASTNode::ArrayLiteral(_) => Array,
+            ASTNode::ObjectLiteral(_) => Object,
+            ASTNode::FunctionExpr { .. } => Function,
+            ASTNode::QuantumState { .. } | ASTNode::QuantumArray { .. } => Qubit,
             ASTNode::IndexExpr { .. } => Unknown,
+            ASTNode::FieldAccess { .. } => Unknown,
             _ => Unknown,
         }
     }
@@ -533,6 +589,18 @@ impl SemanticAnalyzer {
         use ValueType::*;
         let lt = self.expr_type(left);
         let rt = self.expr_type(right);
+        if matches!(
+            op,
+            TK::Plus | TK::Minus | TK::Star | TK::Slash | TK::Percent
+        ) {
+            if lt == Qubit || rt == Qubit {
+                self.push_type_error(
+                    "Qubit values cannot participate in arithmetic expressions",
+                    capture,
+                );
+                return;
+            }
+        }
         match op {
             TK::Plus => {
                 // Be permissive with Unknown types (parameters / unresolved) to avoid false positives.
@@ -559,7 +627,7 @@ impl SemanticAnalyzer {
                     self.push_type_error("Invalid operands for '+'", capture);
                 }
             }
-            TK::Minus | TK::Star | TK::Slash => {
+            TK::Minus | TK::Star | TK::Slash | TK::Percent => {
                 if lt != Number || rt != Number {
                     if lt != Unknown && rt != Unknown {
                         self.push_type_error("Arithmetic operands must be numbers", capture);

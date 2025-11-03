@@ -12,14 +12,14 @@ pub trait AiProvider: Send + Sync {
     }
 }
 
-#[cfg(feature = "ai-openai")]
-pub mod openai;
 #[cfg(feature = "ai-copilot")]
 pub mod copilot;
-#[cfg(feature = "ai-perplexity")]
-pub mod perplexity;
 #[cfg(feature = "ai-deepseek")]
 pub mod deepseek;
+#[cfg(feature = "ai-openai")]
+pub mod openai;
+#[cfg(feature = "ai-perplexity")]
+pub mod perplexity;
 
 pub struct AiRegistry {
     providers: Vec<Box<dyn AiProvider>>,
@@ -28,20 +28,39 @@ pub struct AiRegistry {
 impl AiRegistry {
     #[allow(unused_mut)]
     pub fn new() -> Self {
-        let mut r = Self { providers: Vec::new() };
+        let mut r = Self {
+            providers: Vec::new(),
+        };
         #[cfg(feature = "ai-openai")]
-        { r.providers.push(Box::new(openai::OpenAi::default())); }
+        {
+            r.providers.push(Box::new(openai::OpenAi::default()));
+        }
         #[cfg(feature = "ai-copilot")]
-        { r.providers.push(Box::new(copilot::Copilot::default())); }
+        {
+            r.providers.push(Box::new(copilot::Copilot::default()));
+        }
         #[cfg(feature = "ai-perplexity")]
-        { r.providers.push(Box::new(perplexity::Perplexity::default())); }
+        {
+            r.providers
+                .push(Box::new(perplexity::Perplexity::default()));
+        }
         #[cfg(feature = "ai-deepseek")]
-        { r.providers.push(Box::new(deepseek::DeepSeek::default())); }
-    r
+        {
+            r.providers.push(Box::new(deepseek::DeepSeek::default()));
+        }
+        r
     }
-    pub fn list(&self) -> Vec<&'static str> { self.providers.iter().map(|p| p.name()).collect() }
-    pub fn first(&self) -> Option<&Box<dyn AiProvider>> { self.providers.first() }
+    pub fn list(&self) -> Vec<&'static str> {
+        self.providers.iter().map(|p| p.name()).collect()
+    }
+    #[allow(dead_code)]
+    pub fn first(&self) -> Option<&Box<dyn AiProvider>> {
+        self.providers.first()
+    }
     pub fn get(&self, name: &str) -> Option<&dyn AiProvider> {
-        self.providers.iter().find(|p| p.name() == name).map(|b| b.as_ref())
+        self.providers
+            .iter()
+            .find(|p| p.name() == name)
+            .map(|b| b.as_ref())
     }
 }

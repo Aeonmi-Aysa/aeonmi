@@ -1,24 +1,33 @@
 use anyhow::Result;
-use std::path::PathBuf;
+use chrono::Local;
 use std::fs;
 use std::io::Write;
-use chrono::Local;
+use std::path::PathBuf;
 
 pub fn new_file(path: Option<PathBuf>) -> Result<()> {
     let target = path.unwrap_or_else(|| PathBuf::from("untitled.ai"));
     if target.exists() {
-        println!("new: '{}' already exists (leaving unchanged)", target.display());
+        println!(
+            "new: '{}' already exists (leaving unchanged)",
+            target.display()
+        );
         return Ok(());
     }
-    if let Some(parent) = target.parent() { if !parent.as_os_str().is_empty() { fs::create_dir_all(parent)?; } }
+    if let Some(parent) = target.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
     let now = Local::now().format("%Y-%m-%d %H:%M:%S");
-    let template = format!(r#"// Aeonmi source created {now}
+    let template = format!(
+        r#"// Aeonmi source created {now}
 let greeting = "Hello Aeonmi";
 function square(x) {{ return x * x; }}
 let total = 0;
 for let i = 0; i < 5; i = i + 1 {{ total = total + square(i); }}
 log(greeting, total);
-"#);
+"#
+    );
     let mut f = fs::File::create(&target)?;
     f.write_all(template.as_bytes())?;
     println!("new: created '{}'", target.display());
@@ -59,15 +68,23 @@ pub fn import(path: PathBuf) -> Result<()> {
 }
 
 pub fn export(path: PathBuf, format: Option<String>) -> Result<()> {
-    println!("export: '{}' as '{}' (placeholder)", path.display(), format.unwrap_or_else(|| "auto".into()));
+    println!(
+        "export: '{}' as '{}' (placeholder)",
+        path.display(),
+        format.unwrap_or_else(|| "auto".into())
+    );
     Ok(())
 }
 
 pub fn upload(path: PathBuf) -> Result<()> {
-    use std::fs;
     use std::env;
+    use std::fs;
 
-    let src = if path.is_absolute() { path } else { env::current_dir()?.join(path) };
+    let src = if path.is_absolute() {
+        path
+    } else {
+        env::current_dir()?.join(path)
+    };
     if !src.exists() {
         anyhow::bail!("upload failed: source '{}' does not exist", src.display());
     }
@@ -80,7 +97,10 @@ pub fn upload(path: PathBuf) -> Result<()> {
 
     if src.is_dir() {
         let options = fs_extra::dir::CopyOptions::new();
-        let to = uploads_dir.join(src.file_name().unwrap_or_else(|| std::ffi::OsStr::new("uploaded_dir")));
+        let to = uploads_dir.join(
+            src.file_name()
+                .unwrap_or_else(|| std::ffi::OsStr::new("uploaded_dir")),
+        );
         fs_extra::dir::copy(&src, &to, &options)?;
         println!("uploaded dir '{}' -> '{}'", src.display(), to.display());
         return Ok(());
@@ -97,13 +117,20 @@ pub fn upload(path: PathBuf) -> Result<()> {
 }
 
 pub fn download(path: PathBuf) -> Result<()> {
-    use std::fs;
     use std::env;
+    use std::fs;
 
     let repo_root = env::current_dir()?;
-    let src = if path.is_absolute() { path } else { repo_root.join(&path) };
+    let src = if path.is_absolute() {
+        path
+    } else {
+        repo_root.join(&path)
+    };
     if !src.exists() {
-        anyhow::bail!("download failed: source '{}' does not exist in workspace", src.display());
+        anyhow::bail!(
+            "download failed: source '{}' does not exist in workspace",
+            src.display()
+        );
     }
 
     let downloads_dir = repo_root.join("downloads");
@@ -113,7 +140,10 @@ pub fn download(path: PathBuf) -> Result<()> {
 
     if src.is_dir() {
         let options = fs_extra::dir::CopyOptions::new();
-        let to = downloads_dir.join(src.file_name().unwrap_or_else(|| std::ffi::OsStr::new("downloaded_dir")));
+        let to = downloads_dir.join(
+            src.file_name()
+                .unwrap_or_else(|| std::ffi::OsStr::new("downloaded_dir")),
+        );
         fs_extra::dir::copy(&src, &to, &options)?;
         println!("downloaded dir '{}' -> '{}'", src.display(), to.display());
         return Ok(());

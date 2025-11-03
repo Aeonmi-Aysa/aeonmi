@@ -61,8 +61,8 @@ impl QPolyMap {
 
     /// Load from TOML file.
     pub fn from_toml_file(path: &Path) -> Result<Self> {
-        let txt = fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let txt =
+            fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let cfg: QPolyConfig =
             toml::from_str(&txt).with_context(|| format!("parsing {}", path.display()))?;
 
@@ -115,12 +115,4 @@ impl Default for QPolyMap {
 /// ~/.aeonmi/qpoly.toml
 pub fn default_config_path() -> Option<PathBuf> {
     dirs_next::home_dir().map(|h| h.join(".aeonmi").join("qpoly.toml"))
-}
-
-pub fn ensure_parent_dir(path: &Path) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("creating {}", parent.display()))?;
-    }
-    Ok(())
 }

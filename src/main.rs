@@ -109,7 +109,9 @@ fn main() -> anyhow::Result<()> {
             let rt = tokio::runtime::Runtime::new()?;
 
             return rt.block_on(async {
-                use crate::integration::{SystemConfig, ExecutionMode, initialize_aeonmi_with_config};
+                use crate::integration::{
+                    initialize_aeonmi_with_config, ExecutionMode, SystemConfig,
+                };
 
                 let config = SystemConfig {
                     enable_mother_ai: cfg!(feature = "mother-ai"),
@@ -125,7 +127,7 @@ fn main() -> anyhow::Result<()> {
                 system.run().await
             });
         }
-        
+
         // Fall back to traditional shell if no advanced features are available
         #[cfg(not(any(feature = "mother-ai", feature = "titan-libraries")))]
         {

@@ -1,11 +1,6 @@
 #[cfg(test)]
 mod quantum_ast_integration_tests {
-    use crate::core::ast::{
-        ASTNode,
-        FunctionParam,
-        QuantumFunctionType,
-        SuperpositionCase,
-    };
+    use crate::core::ast::{ASTNode, FunctionParam, QuantumFunctionType, SuperpositionCase};
     use crate::core::code_generator::CodeGenerator;
     use crate::core::token::TokenKind;
 
@@ -37,22 +32,24 @@ mod quantum_ast_integration_tests {
         let quantum_func = ASTNode::QuantumFunction {
             func_type: QuantumFunctionType::Quantum,
             name: "test_quantum_func".to_string(),
-            params: vec![
-                FunctionParam {
-                    name: "qubit".to_string(),
-                    line: 0,
-                    column: 0,
-                },
-            ],
-            body: vec![
-                ASTNode::Return(Box::new(ASTNode::Identifier("qubit".to_string()))),
-            ],
+            params: vec![FunctionParam {
+                name: "qubit".to_string(),
+                line: 0,
+                column: 0,
+                default: None,
+                is_variadic: false,
+            }],
+            body: vec![ASTNode::Return(Box::new(ASTNode::Identifier(
+                "qubit".to_string(),
+            )))],
             line: 0,
             column: 0,
         };
 
         let mut generator = CodeGenerator::new();
-        let js_code = generator.generate(&quantum_func).expect("quantum func code");
+        let js_code = generator
+            .generate(&quantum_func)
+            .expect("quantum func code");
 
         assert!(js_code.contains("function"));
         assert!(js_code.contains("test_quantum_func"));
@@ -74,11 +71,13 @@ mod quantum_ast_integration_tests {
         };
 
         let mut generator = CodeGenerator::new();
-        let js_code = generator.generate(&quantum_loop).expect("quantum loop code");
+        let js_code = generator
+            .generate(&quantum_loop)
+            .expect("quantum loop code");
 
-    assert!(js_code.contains("__quantum.evaluateLoop"));
-    assert!(js_code.contains("Decoherence threshold"));
-    assert!(js_code.contains("state = qbit"));
+        assert!(js_code.contains("__quantum.evaluateLoop"));
+        assert!(js_code.contains("Decoherence threshold"));
+        assert!(js_code.contains("state = qbit"));
         println!("✅ QuantumLoop code generation test passed");
     }
 
@@ -102,11 +101,13 @@ mod quantum_ast_integration_tests {
         };
 
         let mut generator = CodeGenerator::new();
-        let js_code = generator.generate(&prob_branch).expect("probability branch code");
+        let js_code = generator
+            .generate(&prob_branch)
+            .expect("probability branch code");
 
-    assert!(js_code.contains("__quantum.evaluate(quantum_state)"));
-    assert!(js_code.contains("75.00%"));
-    assert!(js_code.contains("failure"));
+        assert!(js_code.contains("__quantum.evaluate(quantum_state)"));
+        assert!(js_code.contains("75.00%"));
+        assert!(js_code.contains("failure"));
         println!("✅ ProbabilityBranch code generation test passed");
     }
 
@@ -137,11 +138,13 @@ mod quantum_ast_integration_tests {
         };
 
         let mut generator = CodeGenerator::new();
-        let js_code = generator.generate(&superposition_switch).expect("superposition switch code");
+        let js_code = generator
+            .generate(&superposition_switch)
+            .expect("superposition switch code");
 
         assert!(js_code.contains("◇ Superposition Switch"));
         assert!(js_code.contains("__quantum.superpositionSwitch"));
-    assert!(js_code.contains("Superposition case: |0⟩"));
+        assert!(js_code.contains("Superposition case: |0⟩"));
         println!("✅ SuperpositionSwitch code generation test passed");
     }
 
@@ -150,18 +153,18 @@ mod quantum_ast_integration_tests {
         let ai_block = ASTNode::AILearningBlock {
             data_binding: Some("training_data".to_string()),
             model_binding: Some("neural_net".to_string()),
-            body: vec![
-                ASTNode::Assignment {
-                    name: "prediction".to_string(),
-                    value: Box::new(ASTNode::Identifier("processed_data".to_string())),
-                    line: 0,
-                    column: 0,
-                },
-            ],
+            body: vec![ASTNode::Assignment {
+                name: "prediction".to_string(),
+                value: Box::new(ASTNode::Identifier("processed_data".to_string())),
+                line: 0,
+                column: 0,
+            }],
         };
 
         let mut generator = CodeGenerator::new();
-        let js_code = generator.generate(&ai_block).expect("ai learning block code");
+        let js_code = generator
+            .generate(&ai_block)
+            .expect("ai learning block code");
 
         assert!(js_code.contains("AI Learning Block"));
         assert!(js_code.contains("training_data"));
@@ -174,28 +177,26 @@ mod quantum_ast_integration_tests {
     fn test_time_block_generation() {
         let time_block = ASTNode::TimeBlock {
             duration: Some(Box::new(ASTNode::NumberLiteral(1000.0))),
-            body: vec![
-                ASTNode::Assignment {
-                    name: "measurement".to_string(),
-                    value: Box::new(ASTNode::Identifier("quantum_state".to_string())),
-                    line: 0,
-                    column: 0,
-                },
-            ],
+            body: vec![ASTNode::Assignment {
+                name: "measurement".to_string(),
+                value: Box::new(ASTNode::Identifier("quantum_state".to_string())),
+                line: 0,
+                column: 0,
+            }],
         };
 
         let mut generator = CodeGenerator::new();
         let js_code = generator.generate(&time_block).expect("time block code");
 
-    assert!(js_code.contains("__time.block(1000)"));
-    assert!(js_code.contains("measurement = quantum_state"));
+        assert!(js_code.contains("__time.block(1000)"));
+        assert!(js_code.contains("measurement = quantum_state"));
         println!("✅ TimeBlock code generation test passed");
     }
 
     #[test]
     fn run_all_quantum_ast_tests() {
         println!("🚀 Running comprehensive quantum AST integration tests...\n");
-        
+
         test_quantum_binary_expr_generation();
         test_quantum_function_generation();
         test_quantum_loop_generation();
@@ -203,7 +204,7 @@ mod quantum_ast_integration_tests {
         test_superposition_switch_generation();
         test_ai_learning_block_generation();
         test_time_block_generation();
-        
+
         println!("\n🎉 All quantum AST integration tests passed!");
         println!("✅ AEONMI Full Quantum AST Support is working correctly!");
     }

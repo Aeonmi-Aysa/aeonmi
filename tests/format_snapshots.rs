@@ -1,8 +1,8 @@
 //! tests/format_snapshots.rs
 //! Snapshot tests for canonical .ai formatting.
 
-use aeonmi_project::core::formatter::format_ai;
 use aeonmi_project as _;
+use aeonmi_project::core::formatter::format_ai;
 use std::fs;
 use std::path::PathBuf;
 

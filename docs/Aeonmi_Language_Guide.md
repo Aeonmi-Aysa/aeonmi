@@ -15,7 +15,7 @@
 8. Control Flow
 9. Functions & Returns
 10. Built‑ins (Standard Runtime)
-11. Randomness Patterns w/out `%` or Arrays
+11. Randomness Patterns with `%`
 12. Emulating Collections Pre‑Arrays
 13. String Construction & Formatting
 14. Diagnostics & Error Patterns
@@ -58,14 +58,17 @@ Aeonmi.exe run --native demo.ai
 ## 3. Syntax Essentials
 | Category | Implemented | Notes |
 |----------|-------------|-------|
-| `let` variable decl | Yes | Immutable-to-mutable (reassign allowed). |
+| `let` variable decl | Yes | Classical binding; reassign with bare name. |
+| Quantum decl `⟨q⟩ ← |0⟩` | Yes | Allocates a qubit in the named basis state. |
+| Superposition `⟨ψ⟩ ∈ |0⟩ + |1⟩` | Yes | Initializes qubit with literal amplitudes. |
+| Tensor bind `⟨reg⟩ ⊗ [|0⟩, |1⟩]` | Yes | Creates quantum array of per-element qubits. |
 | Block `{ ... }` | Yes | New scope for locals. |
 | `if (cond) {}` / `else` | Yes | Parens required. |
 | `while (cond)` | Yes | Standard loop. |
 | Function decl | Partial | Depends on current branch: if unsupported, avoid `fn`. |
 | Return | If functions enabled | No implicit last-expression return yet. |
 | Arrays `[...]` | Planned | Use patterns (Sections 11–12). |
-| `%` modulo | Planned | Use division shrink (Section 11). |
+| `%` modulo | Yes | Native remainder; see Section 11 for bucket patterns. |
 | Comments | Yes | Line: `# ...` only. |
 
 ## 4. Lexical Elements
@@ -80,7 +83,9 @@ Current concrete runtime types in native VM:
 - Number (integer semantics; division truncates toward zero).
 - String.
 - Boolean (if implemented; else emulate with 0/1).
-- (Planned) Array, Record / Object, Qubit / Quantum States.
+- Qubit / Quantum state references (feature `quantum`).
+- Quantum arrays / tensors (feature `quantum`).
+- (Planned) Classical Array, Record / Object literals.
 
 ## 6. Variables & Scope
 `let` introduces a binding in the current block. Reassignment allowed without `let`:
@@ -98,7 +103,7 @@ log(x); # prints 5
 ## 7. Expressions & Operators
 | Group | Operators | Notes |
 |-------|-----------|-------|
-| Arithmetic | `+ - * /` | `/` truncates. No `%` yet. |
+| Arithmetic | `+ - * / %` | `/` truncates toward zero; `%` uses that quotient. |
 | Comparison | `== != < <= > >=` | Booleans / numeric truthiness. |
 | Logical | `! && ||` (if present) | If absent, nest `if`. |
 | Grouping | `( expr )` | Needed for precedence clarity. |
@@ -112,6 +117,14 @@ Pattern – fixed loop:
 let i = 0;
 while (i < 5) { ...; i = i + 1; }
 ```
+
+Quantum-aware control adds probabilistic branches and guarded loops:
+```ai
+⊖ true ≈ 0.5 ⇒ { log("Heads"); } ⊕ { log("Tails"); }
+⟲ measure(q) ⪰ 0.05 ⇒ { superpose(q); }
+⚡ { superpose(q); entangle(q, r); } ⚠️ ≈ 0.1 ⇒ { log("retry"); } ✓ { log("done"); }
+```
+Probabilistic branches sample the indicated probability when deciding the active block. Quantum loops reevaluate the condition each iteration (the decoherence threshold is currently advisory). The try/catch form executes the attempt block; catch/finally hooks are parsed and reserved for forthcoming error simulation.
 
 ## 9. Functions & Returns
 If available in your build:
@@ -129,23 +142,37 @@ If not yet implemented, keep logic inline or simulate with pattern dispatch usin
 | `rand()` | Pseudo random integer. |
 | `time_ms()` | Millisecond timestamp. |
 | `len(v)` | Length of strings, arrays, or objects (0 for null). |
-| (Quantum stubs) | Placeholder identifiers until feature enabled. |
+| `superpose(q)` | Apply Hadamard; creates qubit if missing. |
+| `entangle(a, b)` | Mark/apply two-qubit entanglement. |
+| `measure(q)` | Collapse qubit; returns `0` or `1`. |
+| `is_entangled(a, b)` | Boolean if qubits share entanglement set. |
+| `apply_matrix(q, [[a,b],[c,d]])` | Apply custom single-qubit gate. |
 
-## 11. Randomness Without `%`
+## 11. Randomness Patterns with `%`
+Modulo simplifies bucket selection. Combine `rand()` with `%` to produce bounded ranges without chained division.
+
 ```ai
-let r = rand();
-let r10 = (r / 10);
-let r100 = (r10 / 10);
-let pick = (r100 / 10); # bucket
-if (pick == 0) { log("A"); } else if (pick == 1) { log("B"); } else { log("C"); }
+let bucket = rand() % 10;   # values 0-9
+
+if (bucket < 3) {
+  log("Group Alpha");
+} else if (bucket < 6) {
+  log("Group Beta");
+} else {
+  log("Group Gamma");
+}
 ```
-Clamp technique:
+
+Need a fixed number of outcomes? Guard against legacy configs:
+
 ```ai
-if (pick > 4) { pick = 4; }
+let choices = 5;
+let pick = rand() % choices;
+if (pick >= choices) { pick = choices - 1; } # defensive for legacy builds
 ```
 
 ## 12. Emulating Collections
-Before arrays, encode via functions:
+Classical arrays remain planned; quantum tensors are separate (Section 19). Before arrays, encode via functions:
 ```ai
 fn show_fact(n) {
   if (n == 0) { log("Honey never spoils."); return; }
@@ -168,9 +195,10 @@ Common messages & meanings:
 | Message | Cause | Remedy |
 |---------|-------|--------|
 | `Lexing error: Unexpected character '['` | Arrays not implemented | Remove `[ ]` use pattern §12. |
-| `Lexing error: Unexpected character '%'` | Modulo not implemented | Section 11 pattern. |
+| `Lexing error: Unexpected character '%'` | Running an older build without modulo | Upgrade to the current shard or remove `%`. |
 | `Parsing error: Expected '(' after if` | Missing parentheses | Add `( )`. |
 | Runtime error: <msg> | Interpreter failure | Add `log()` around suspicious values. |
+| `Runtime error: Quantum error: ...` | Invalid qubit name, out-of-range matrix, etc. | Ensure qubit exists; normalize gate matrix; check tensor bounds. |
 
 Enable pretty: `--pretty-errors`.
 
@@ -212,12 +240,48 @@ log(n);
 ```
 
 ## 19. Quantum / Glyph (Preview)
-When built with `--features quantum` additional examples under `examples/` demonstrate teleportation, Grover search, and symbolic gate glyphs. Native interpreter may shadow them as stubs until full integration.
+Enable the shard with `--features quantum` to unlock qubit-aware syntax, glyphs, and Titan simulator backing. The constructs below now execute in the native VM; the JS backend treats them as no-ops unless stated.
+
+### 19.1 Declaring Qubits & States
+```ai
+⟨q0⟩ ← |0⟩;                 # basis state
+⟨q1⟩ ← |1⟩;
+⟨psi⟩ ∈ |0⟩ + |1⟩;          # literal superposition
+⟨approx⟩ ≈ |0⟩;              # advisory approximation binding
+```
+Bindings emit qubit references in the environment. Basis literals support `|0⟩`, `|1⟩`, `|+⟩`, `|-⟩`; concatenated expressions (with optional `/* amplitude: f64 */` comments) map to normalized superpositions.
+
+### 19.2 Tensor & Quantum Arrays
+```ai
+⟨reg⟩ ⊗ [|0⟩, |1⟩, |+⟩];
+log(measure(reg⟦2⟧));
+```
+Tensor binding allocates per-element qubits (`reg[0]`, `reg[1]`, ...) and stores them in `Value::QuantumArray`. Index with brackets or the quantum `⟦ idx ⟧` form; both respect bounds.
+
+### 19.3 Operations & Introspection
+```ai
+superpose(q0);                    # Hadamard
+entangle(q0, q1);                 # track entanglement set
+log(is_entangled(q0, q1));        # true if same register
+apply_matrix(psi, [[0.7071, 0.7071],[0.7071, -0.7071]]);
+let shot = measure(q1);           # collapses and returns 0/1
+```
+All operations target the Titan `QuantumSimulator`. `apply_matrix` accepts numeric literals or precomputed matrices (ensure normalization). Hooks exist for forwarding the captured circuit to external backends such as Qiskit via `gui/` integration.
+
+### 19.4 Control Flow Glyphs
+```ai
+⊖ true ≈ 0.5 ⇒ { log("Heads"); } ⊕ { log("Tails"); }
+⟲ measure(q0) ⪰ 0.02 ⇒ { superpose(q0); }
+⚡ { entangle(q0, q1); } ⚠️ ≈ 0.1 ⇒ { log("retry"); } ✓ { log("done"); }
+```
+Probabilistic branches sample the annotated probability. Loops reevaluate the condition each iteration; the decoherence threshold is monitored but currently advisory. The quantum try/catch syntax executes the attempt block and reserves recovery hooks for the forthcoming fault model.
+
+Examples under `examples/quantum_demo.rs` illustrate these primitives, including teleportation and Grover sketches.
 
 ## 20. Roadmap
 Upcoming priorities (subject to change):
 1. Array literals & indexing.
-2. `%` modulo and extended arithmetic.
+2. Bitwise operators and extended arithmetic helpers.
 3. Function enhancements (default args, recursion optimizations).
 4. Structured records / pattern matching prototypes.
 5. Optimized bytecode path alignment (if feature enabled).

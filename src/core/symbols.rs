@@ -1,4 +1,6 @@
 //! Symbol extraction for outline / navigation.
+#![allow(dead_code)]
+
 use crate::core::ast::{ASTNode, FunctionParam};
 use serde::Serialize;
 
@@ -13,8 +15,12 @@ pub struct SymbolInfo {
 }
 
 #[derive(Debug, Serialize, Clone)]
-#[serde(rename_all="lowercase")]
-pub enum SymbolKind { Function, Variable, Parameter }
+#[serde(rename_all = "lowercase")]
+pub enum SymbolKind {
+    Function,
+    Variable,
+    Parameter,
+}
 
 pub fn collect_symbols(ast: &ASTNode) -> Vec<SymbolInfo> {
     let mut out = Vec::new();
@@ -24,14 +30,54 @@ pub fn collect_symbols(ast: &ASTNode) -> Vec<SymbolInfo> {
 
 fn visit(node: &ASTNode, out: &mut Vec<SymbolInfo>) {
     match node {
-        ASTNode::Program(items) | ASTNode::Block(items) => { for it in items { visit(it, out); } }
-        ASTNode::Function { name, line, column, params, body } => {
-            out.push(SymbolInfo { kind: SymbolKind::Function, name: name.clone(), line: *line, column: *column, end_line: *line, end_column: *column + name.len().max(1), });
-            for FunctionParam { name, line, column } in params { out.push(SymbolInfo { kind: SymbolKind::Parameter, name: name.clone(), line: *line, column: *column, end_line: *line, end_column: *column + name.len().max(1) }); }
-            for st in body { visit(st, out); }
+        ASTNode::Program(items) | ASTNode::Block(items) => {
+            for it in items {
+                visit(it, out);
+            }
         }
-        ASTNode::VariableDecl { name, line, column, .. } => {
-            out.push(SymbolInfo { kind: SymbolKind::Variable, name: name.clone(), line: *line, column: *column, end_line: *line, end_column: *column + name.len().max(1) });
+        ASTNode::Function {
+            name,
+            line,
+            column,
+            params,
+            body,
+        } => {
+            out.push(SymbolInfo {
+                kind: SymbolKind::Function,
+                name: name.clone(),
+                line: *line,
+                column: *column,
+                end_line: *line,
+                end_column: *column + name.len().max(1),
+            });
+            for FunctionParam {
+                name, line, column, ..
+            } in params
+            {
+                out.push(SymbolInfo {
+                    kind: SymbolKind::Parameter,
+                    name: name.clone(),
+                    line: *line,
+                    column: *column,
+                    end_line: *line,
+                    end_column: *column + name.len().max(1),
+                });
+            }
+            for st in body {
+                visit(st, out);
+            }
+        }
+        ASTNode::VariableDecl {
+            name, line, column, ..
+        } => {
+            out.push(SymbolInfo {
+                kind: SymbolKind::Variable,
+                name: name.clone(),
+                line: *line,
+                column: *column,
+                end_line: *line,
+                end_column: *column + name.len().max(1),
+            });
         }
         ASTNode::Assignment { .. }
         | ASTNode::Return(_)
@@ -49,7 +95,7 @@ fn visit(node: &ASTNode, out: &mut Vec<SymbolInfo>) {
         | ASTNode::BooleanLiteral(_)
         | ASTNode::QuantumOp { .. }
         | ASTNode::HieroglyphicOp { .. }
-        | ASTNode::Error(_) => {},
+        | ASTNode::Error(_) => {}
         // Temporary wildcard for quantum AST nodes
         _ => {}
     }

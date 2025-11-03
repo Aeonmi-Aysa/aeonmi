@@ -1,7 +1,9 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-fn bin() -> String { env!("CARGO_BIN_EXE_aeonmi_project").to_string() }
+fn bin() -> String {
+    env!("CARGO_BIN_EXE_aeonmi_project").to_string()
+}
 
 #[test]
 fn shell_run_native_skips_js_emit() {
@@ -26,8 +28,18 @@ fn shell_run_native_skips_js_emit() {
     }
 
     let output = child.wait_with_output().expect("shell run");
-    assert!(output.status.success(), "shell exit status not success: stderr=\n{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "shell exit status not success: stderr=\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("10"), "expected native result in stdout: {stdout}");
-    assert!(!dir.path().join("aeonmi.run.js").exists(), "unexpected JS file emitted in shell native run mode");
+    assert!(
+        stdout.contains("10"),
+        "expected native result in stdout: {stdout}"
+    );
+    assert!(
+        !dir.path().join("aeonmi.run.js").exists(),
+        "unexpected JS file emitted in shell native run mode"
+    );
 }

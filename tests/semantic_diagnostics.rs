@@ -23,8 +23,18 @@ x = 3;
 z = 4;
 "#;
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Error) && m.contains("undeclared variable 'z'")), "expected undeclared variable z error: {diags:?}");
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Warning) && m.contains("Unused variable 'y'")), "expected unused variable y warning: {diags:?}");
+    assert!(
+        diags
+            .iter()
+            .any(|(m, s)| matches!(s, Severity::Error) && m.contains("undeclared variable 'z'")),
+        "expected undeclared variable z error: {diags:?}"
+    );
+    assert!(
+        diags
+            .iter()
+            .any(|(m, s)| matches!(s, Severity::Warning) && m.contains("Unused variable 'y'")),
+        "expected unused variable y warning: {diags:?}"
+    );
 }
 
 #[test]
@@ -34,7 +44,12 @@ let a = 1;
 let a = 2;
 "#;
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Error) && m.contains("Redeclaration of 'a'")), "expected redeclaration error: {diags:?}");
+    assert!(
+        diags
+            .iter()
+            .any(|(m, s)| matches!(s, Severity::Error) && m.contains("Redeclaration of 'a'")),
+        "expected redeclaration error: {diags:?}"
+    );
 }
 
 #[test]
@@ -44,7 +59,12 @@ fn foo() { return 1; }
 fn foo() { return 2; }
 "#;
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Error) && m.contains("Duplicate function 'foo'")), "expected duplicate function error: {diags:?}");
+    assert!(
+        diags
+            .iter()
+            .any(|(m, s)| matches!(s, Severity::Error) && m.contains("Duplicate function 'foo'")),
+        "expected duplicate function error: {diags:?}"
+    );
 }
 
 #[test]
@@ -53,5 +73,11 @@ fn unreachable_code_warning() {
 fn bar() { return 1; let z = 3; }
 "#;
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Warning) && m.contains("Unreachable code after return")), "expected unreachable code warning: {diags:?}");
+    assert!(
+        diags
+            .iter()
+            .any(|(m, s)| matches!(s, Severity::Warning)
+                && m.contains("Unreachable code after return")),
+        "expected unreachable code warning: {diags:?}"
+    );
 }

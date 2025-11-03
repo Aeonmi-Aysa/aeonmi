@@ -1,7 +1,7 @@
+use aeonmi_project::core::ast::ASTNode;
 use aeonmi_project::core::incremental::compute_var_deps;
 use aeonmi_project::core::lexer::Lexer;
 use aeonmi_project::core::parser::Parser as AeParser;
-use aeonmi_project::core::ast::ASTNode;
 
 fn parse(src: &str) -> ASTNode {
     let mut lex = Lexer::from_str(src);

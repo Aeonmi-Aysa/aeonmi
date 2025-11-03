@@ -24,6 +24,8 @@ pub enum TokenKind {
     GreaterThan,  // >
     GreaterEqual, // >=
     ColonEquals,  // :=
+    Colon,        // :
+    Dot,          // .
     Pipe,         // |
     AndAnd,       // &&
     OrOr,         // ||
@@ -146,6 +148,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::GreaterThan => ">",
             TokenKind::GreaterEqual => ">=",
             TokenKind::ColonEquals => ":=",
+            TokenKind::Colon => ":",
+            TokenKind::Dot => ".",
             TokenKind::Pipe => "|",
             TokenKind::AndAnd => "&&",
             TokenKind::OrOr => "||",

@@ -32,7 +32,8 @@ pub enum Value {
 
 #[derive(Clone)]
 pub struct Function {
-    pub params: Vec<String>,
+    pub name: Option<String>,
+    pub params: Vec<FnParam>,
     pub body: Block,
     pub env: Env, // closure (shallow copy at def time)
 }
@@ -40,7 +41,15 @@ pub struct Function {
 impl std::fmt::Debug for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Function")
-            .field("params", &self.params)
+            .field("name", &self.name)
+            .field(
+                "params",
+                &self
+                    .params
+                    .iter()
+                    .map(|p| (&p.name, p.is_variadic, p.default.is_some()))
+                    .collect::<Vec<_>>(),
+            )
             .field("body_len", &self.body.stmts.len())
             .finish()
     }
@@ -148,6 +157,10 @@ pub struct Interpreter {
     pub quantum_sim: QuantumSimulator, // Quantum simulator for quantum operations
     pub quantum_alg: QuantumAlgorithms, // Quantum algorithms library
     pub hardware_mgr: HardwareManager, // Real quantum hardware integration
+}
+
+struct FunctionContext<'a> {
+    name: Option<&'a str>,
 }
 
 #[derive(Debug)]
@@ -380,7 +393,23 @@ impl Interpreter {
 
     pub fn run_module(&mut self, m: &Module) -> Result<(), RuntimeError> {
         debug_log!("vm: run_module decls={} ", m.decls.len());
-        // Load top-level decls
+        // Load function declarations first so subsequent lets can call them.
+        let mut fn_decls: Vec<FnDecl> = Vec::new();
+        for d in &m.decls {
+            if let Decl::Fn(f) = d {
+                debug_log!("vm: preload fn '{}'", f.name);
+                fn_decls.push(f.clone());
+                let func = Value::Function(Function {
+                    name: Some(f.name.clone()),
+                    params: f.params.clone(),
+                    body: f.body.clone(),
+                    env: self.env.clone(),
+                });
+                self.env.define(f.name.clone(), func);
+            }
+        }
+
+        // Evaluate non-function declarations in original order.
         for d in &m.decls {
             debug_log!("vm: processing decl: {:?}", d);
             match d {
@@ -405,16 +434,22 @@ impl Interpreter {
                     let bound = self.initialize_quantum_binding(&q.name, q.binding, evaluated)?;
                     self.env.define_global(q.name.clone(), bound);
                 }
-                Decl::Fn(f) => {
-                    debug_log!("vm: load fn '{}'", f.name);
-                    let func = Value::Function(Function {
-                        params: f.params.clone(),
-                        body: f.body.clone(),
-                        env: self.env.clone(),
-                    });
-                    self.env.define(f.name.clone(), func);
+                Decl::Fn(_) => {
+                    // Already installed in pre-pass; final rebinding after this loop.
                 }
             }
+        }
+
+        // Refresh function closures now that globals are initialized.
+        for f in &fn_decls {
+            debug_log!("vm: finalize fn '{}'", f.name);
+            let func = Value::Function(Function {
+                name: Some(f.name.clone()),
+                params: f.params.clone(),
+                body: f.body.clone(),
+                env: self.env.clone(),
+            });
+            self.env.define(f.name.clone(), func);
         }
         // If there is a `main` fn with zero params, run it.
         if let Some(Value::Function(_)) = self.env.get("main") {
@@ -448,48 +483,95 @@ impl Interpreter {
                 (b.f)(self, args)
             }
             Value::Function(fun) => {
-                if fun.params.len() != args.len() {
-                    return Err(err(format!(
-                        "function expected {} args, got {}",
-                        fun.params.len(),
-                        args.len()
-                    )));
-                }
-                // New scope with closure base
-                let mut saved = self.env.clone();
-                self.env = fun.env.clone();
-                self.env.push();
-                for (p, v) in fun.params.iter().zip(args.into_iter()) {
-                    self.env.define(p.clone(), v);
-                }
-                // Execute - don't create another scope in exec_block for function bodies
-                let ret = self.exec_function_block(&fun.body);
-                let mut post_call_env = self.env.clone();
-                let extra_frame = if post_call_env.frames.len() > fun.env.frames.len() {
-                    post_call_env.frames.pop()
-                } else {
-                    None
-                };
-                saved.merge_from_prefix(&post_call_env);
-                if let Some(frame) = extra_frame {
-                    saved.extend_global(frame.into_iter());
-                }
-                // Restore
-                self.env = saved;
-                match ret {
-                    ControlFlow::Ok => Ok(Value::Null),
-                    ControlFlow::Return(v) => Ok(v.unwrap_or(Value::Null)),
-                    ControlFlow::Err(e) => Err(e),
+                let mut current_args = args;
+                let mut closure_env = fun.env.clone();
+                loop {
+                    let mut saved = self.env.clone();
+                    self.env = closure_env.clone();
+                    self.env.push();
+                    if let Some(name) = &fun.name {
+                        self.env.define(name.clone(), Value::Function(fun.clone()));
+                    }
+                    if let Err(e) = self.bind_function_args(&fun.params, &current_args) {
+                        self.env = saved;
+                        return Err(e);
+                    }
+                    let ctx = FunctionContext {
+                        name: fun.name.as_deref(),
+                    };
+                    let ret = self.exec_function_block(&fun.body, Some(&ctx));
+                    let mut post_call_env = self.env.clone();
+                    let extra_frame = if post_call_env.frames.len() > fun.env.frames.len() {
+                        post_call_env.frames.pop()
+                    } else {
+                        None
+                    };
+                    saved.merge_from_prefix(&post_call_env);
+                    if let Some(frame) = extra_frame {
+                        saved.extend_global(frame.into_iter());
+                    }
+                    self.env = saved;
+                    match ret {
+                        ControlFlow::Ok => return Ok(Value::Null),
+                        ControlFlow::Return(v) => {
+                            return Ok(v.unwrap_or(Value::Null));
+                        }
+                        ControlFlow::TailCall(new_args) => {
+                            current_args = new_args;
+                            closure_env = post_call_env;
+                            continue;
+                        }
+                        ControlFlow::Err(e) => return Err(e),
+                    }
                 }
             }
             other => Err(err(format!("callee is not callable: {:?}", other))),
         }
     }
 
-    fn exec_block(&mut self, b: &Block) -> ControlFlow {
+    fn bind_function_args(
+        &mut self,
+        params: &[FnParam],
+        args: &[Value],
+    ) -> Result<(), RuntimeError> {
+        let mut idx = 0usize;
+        let total_args = args.len();
+        let has_variadic = params.iter().any(|p| p.is_variadic);
+        for param in params {
+            if param.is_variadic {
+                let mut rest = Vec::new();
+                while idx < total_args {
+                    rest.push(args[idx].clone());
+                    idx += 1;
+                }
+                self.env.define(param.name.clone(), Value::Array(rest));
+            } else if idx < total_args {
+                self.env.define(param.name.clone(), args[idx].clone());
+                idx += 1;
+            } else if let Some(default_expr) = &param.default {
+                let value = self.eval_expr(default_expr)?;
+                self.env.define(param.name.clone(), value);
+            } else {
+                return Err(err(format!(
+                    "Missing argument `{}` for function call",
+                    param.name
+                )));
+            }
+        }
+        if idx < total_args && !has_variadic {
+            return Err(err(format!(
+                "Function expected at most {} argument(s) but received {}",
+                params.len(),
+                total_args
+            )));
+        }
+        Ok(())
+    }
+
+    fn exec_block(&mut self, b: &Block, ctx: Option<&FunctionContext>) -> ControlFlow {
         self.env.push();
         for s in &b.stmts {
-            match self.exec_stmt(s) {
+            match self.exec_stmt(s, ctx) {
                 ControlFlow::Ok => {}
                 other => {
                     self.env.pop();
@@ -501,11 +583,11 @@ impl Interpreter {
         ControlFlow::Ok
     }
 
-    fn exec_function_block(&mut self, b: &Block) -> ControlFlow {
+    fn exec_function_block(&mut self, b: &Block, ctx: Option<&FunctionContext>) -> ControlFlow {
         debug_log!("vm: exec_function_block");
         // Don't create an additional scope - function call already created one
         for s in &b.stmts {
-            match self.exec_stmt(s) {
+            match self.exec_stmt(s, ctx) {
                 ControlFlow::Ok => {}
                 other => {
                     return other;
@@ -515,22 +597,33 @@ impl Interpreter {
         ControlFlow::Ok
     }
 
-    fn exec_stmt(&mut self, stmt: &Stmt) -> ControlFlow {
-        use Stmt::*;
+    fn exec_stmt(&mut self, stmt: &Stmt, ctx: Option<&FunctionContext>) -> ControlFlow {
         match stmt {
-            Expr(expr) => match self.eval_expr(expr) {
+            Stmt::Expr(expr) => match self.eval_expr(expr) {
                 Ok(_) => ControlFlow::Ok,
                 Err(e) => ControlFlow::Err(e),
             },
-            Return(Some(e)) => {
+            Stmt::Return(Some(e)) => {
+                if let Some(fctx) = ctx {
+                    if let Expr::Call { callee, args } = e {
+                        if let Expr::Ident(name) = &**callee {
+                            if fctx.name == Some(name.as_str()) {
+                                match collect_vals(self, args) {
+                                    Ok(values) => return ControlFlow::TailCall(values),
+                                    Err(err) => return ControlFlow::Err(err),
+                                }
+                            }
+                        }
+                    }
+                }
                 let v = match self.eval_expr(e) {
                     Ok(v) => v,
                     Err(e) => return ControlFlow::Err(e),
                 };
                 ControlFlow::Return(Some(v))
             }
-            Return(None) => ControlFlow::Return(None),
-            If {
+            Stmt::Return(None) => ControlFlow::Return(None),
+            Stmt::If {
                 cond,
                 then_block,
                 else_block,
@@ -540,14 +633,14 @@ impl Interpreter {
                     Err(e) => return ControlFlow::Err(e),
                 };
                 if c {
-                    self.exec_block(then_block)
+                    self.exec_block(then_block, ctx)
                 } else if let Some(e) = else_block {
-                    self.exec_block(e)
+                    self.exec_block(e, ctx)
                 } else {
                     ControlFlow::Ok
                 }
             }
-            While { cond, body } => {
+            Stmt::While { cond, body } => {
                 loop {
                     let c = match self.eval_expr(cond) {
                         Ok(v) => self.truthy(&v),
@@ -556,21 +649,21 @@ impl Interpreter {
                     if !c {
                         break;
                     }
-                    match self.exec_block(body) {
+                    match self.exec_block(body, ctx) {
                         ControlFlow::Ok => {}
                         other => return other,
                     }
                 }
                 ControlFlow::Ok
             }
-            For {
+            Stmt::For {
                 init,
                 cond,
                 step,
                 body,
             } => {
                 if let Some(i) = init {
-                    if let ControlFlow::Err(e) = self.exec_stmt(i) {
+                    if let ControlFlow::Err(e) = self.exec_stmt(i, ctx) {
                         return ControlFlow::Err(e);
                     }
                 }
@@ -584,7 +677,7 @@ impl Interpreter {
                             break;
                         }
                     }
-                    match self.exec_block(body) {
+                    match self.exec_block(body, ctx) {
                         ControlFlow::Ok => {}
                         other => return other,
                     }
@@ -596,7 +689,7 @@ impl Interpreter {
                 }
                 ControlFlow::Ok
             }
-            Let { name, value } => {
+            Stmt::Let { name, value } => {
                 let v = if let Some(e) = value {
                     match self.eval_expr(e) {
                         Ok(v) => v,
@@ -609,7 +702,7 @@ impl Interpreter {
                 self.env.define(name.clone(), v);
                 ControlFlow::Ok
             }
-            QuantumLet {
+            Stmt::QuantumLet {
                 name,
                 binding,
                 value,
@@ -626,7 +719,7 @@ impl Interpreter {
                     Err(e) => ControlFlow::Err(e),
                 }
             }
-            ProbabilityBranch {
+            Stmt::ProbabilityBranch {
                 condition,
                 probability,
                 then_block,
@@ -660,15 +753,15 @@ impl Interpreter {
 
                 let roll = lcg_unit();
                 if roll < weight {
-                    self.exec_block(then_block)
+                    self.exec_block(then_block, ctx)
                 } else if let Some(else_blk) = else_block {
-                    self.exec_block(else_blk)
+                    self.exec_block(else_blk, ctx)
                 } else {
                     ControlFlow::Ok
                 }
             }
-            Assign { target, value } => {
-                if let crate::core::ir::Expr::Ident(name) = target {
+            Stmt::Assign { target, value } => {
+                if let Expr::Ident(name) = target {
                     let v = match self.eval_expr(value) {
                         Ok(v) => v,
                         Err(e) => return ControlFlow::Err(e),
@@ -726,6 +819,12 @@ impl Interpreter {
                     self.call_value(callee_v, argv)?
                 }
             }
+            Lambda { name, params, body } => Value::Function(Function {
+                name: name.clone(),
+                params: params.clone(),
+                body: body.clone(),
+                env: self.env.clone(),
+            }),
             Unary { op, expr } => {
                 let v = self.eval_expr(expr)?;
                 match op {
@@ -805,6 +904,35 @@ impl Interpreter {
                     }
                     other => {
                         return Err(err(format!("Indexing not supported on value {:?}", other)))
+                    }
+                }
+            }
+            Member { object, field } => {
+                let base = self.eval_expr(object)?;
+                match base {
+                    Value::Object(map) => map.get(field).cloned().unwrap_or(Value::Null),
+                    Value::Array(items) => {
+                        if let Ok(idx) = field.parse::<usize>() {
+                            items.get(idx).cloned().unwrap_or(Value::Null)
+                        } else {
+                            Value::Null
+                        }
+                    }
+                    Value::String(s) => {
+                        if let Ok(idx) = field.parse::<usize>() {
+                            s.chars()
+                                .nth(idx)
+                                .map(|c| Value::String(c.to_string()))
+                                .unwrap_or(Value::Null)
+                        } else {
+                            Value::Null
+                        }
+                    }
+                    other => {
+                        return Err(err(format!(
+                            "Property access not supported on value {:?}",
+                            other
+                        )));
                     }
                 }
             }
@@ -1038,6 +1166,7 @@ impl Interpreter {
 enum ControlFlow {
     Ok,
     Return(Option<Value>),
+    TailCall(Vec<Value>),
     Err(RuntimeError),
 }
 
@@ -1073,7 +1202,9 @@ fn cmp2(l: Value, r: Value, f: fn(f64, f64) -> bool) -> Result<Value, RuntimeErr
     }
 }
 
-fn collect_state_components(values: Vec<Value>) -> Result<Vec<(String, Option<f64>)>, RuntimeError> {
+fn collect_state_components(
+    values: Vec<Value>,
+) -> Result<Vec<(String, Option<f64>)>, RuntimeError> {
     let mut components = Vec::new();
     for value in values {
         match value {

@@ -9,5 +9,9 @@ fn arithmetic_type_check() {
     let ast = parser.parse().expect("parse");
     let mut ctx = TypeContext::new();
     ctx.infer_program(&ast);
-    assert!(ctx.diags.is_empty(), "Unexpected diagnostics: {:?}", ctx.diags);
+    assert!(
+        ctx.diags.is_empty(),
+        "Unexpected diagnostics: {:?}",
+        ctx.diags
+    );
 }

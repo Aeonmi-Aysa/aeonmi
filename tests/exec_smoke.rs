@@ -1,4 +1,6 @@
-use std::fs;use std::process::Command;use std::path::Path;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
 
 #[test]
 fn exec_ai_compiles_and_runs() {
@@ -11,7 +13,10 @@ fn exec_ai_compiles_and_runs() {
         .status()
         .expect("spawn exec ai");
     assert!(status.success(), "exec ai should succeed");
-    assert!(Path::new("__exec_tmp.js").exists(), "temp compiled js should exist");
+    assert!(
+        Path::new("__exec_tmp.js").exists(),
+        "temp compiled js should exist"
+    );
     let _ = fs::remove_file("__exec_tmp.js"); // Clean up
 }
 
@@ -40,7 +45,10 @@ fn native_run_env() {
         .output()
         .expect("failed to run native aeonmi");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("native: executing"), "stdout missing native execution marker: {stdout}");
+    assert!(
+        stdout.contains("native: executing"),
+        "stdout missing native execution marker: {stdout}"
+    );
 }
 
 #[test]
@@ -59,5 +67,8 @@ fn shard_native_run_command() {
     }
     let out = child.wait_with_output().expect("wait shard");
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("native: executing"), "stdout missing native execution marker in shard: {stdout}");
+    assert!(
+        stdout.contains("native: executing"),
+        "stdout missing native execution marker in shard: {stdout}"
+    );
 }

@@ -5,19 +5,15 @@ use super::compile::compile_pipeline;
 use crate::cli::EmitKind;
 
 // Native interpreter pieces
+use crate::core::diagnostics::{emit_json_error, print_error, Span};
 use crate::core::lexer::Lexer;
-use crate::core::parser::{Parser as AeParser, ParserError};
-use crate::core::lowering::lower_ast_to_ir;
-use crate::core::vm::Interpreter;
-use crate::core::diagnostics::{print_error, emit_json_error, Span};
 use crate::core::lexer::LexerError;
+use crate::core::lowering::lower_ast_to_ir;
+use crate::core::parser::{Parser as AeParser, ParserError};
+use crate::core::vm::Interpreter;
 
 /// Public native interpreter entry (no JS emission)
-pub fn run_native(
-    input: &PathBuf,
-    pretty: bool,
-    no_sema: bool,
-) -> anyhow::Result<()> {
+pub fn run_native(input: &PathBuf, pretty: bool, no_sema: bool) -> anyhow::Result<()> {
     let source = std::fs::read_to_string(input)?;
     // Lex
     let mut lexer = Lexer::from_str(&source);
@@ -55,7 +51,11 @@ pub fn run_native(
     let mut parser = AeParser::new(tokens.clone());
     let ast = match parser.parse() {
         Ok(a) => a,
-        Err(ParserError { message, line, column }) => {
+        Err(ParserError {
+            message,
+            line,
+            column,
+        }) => {
             if pretty {
                 emit_json_error(
                     &input.display().to_string(),
@@ -78,7 +78,10 @@ pub fn run_native(
         println!("note: semantic analysis skipped (native)");
     }
     // Lower & interpret
-    println!("DEBUG: RUN PATH - native: executing '{}' via Aeonmi VM", input.display());
+    println!(
+        "DEBUG: RUN PATH - native: executing '{}' via Aeonmi VM",
+        input.display()
+    );
     match lower_ast_to_ir(&ast, "main") {
         Ok(module) => {
             let mut interp = Interpreter::new();

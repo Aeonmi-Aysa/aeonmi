@@ -17,6 +17,13 @@ pub enum ASTNode {
         params: Vec<FunctionParam>,
         body: Vec<ASTNode>,
     },
+    FunctionExpr {
+        name: Option<String>,
+        line: usize,
+        column: usize,
+        params: Vec<FunctionParam>,
+        body: Vec<ASTNode>,
+    },
     VariableDecl {
         name: String,
         value: Box<ASTNode>,
@@ -75,9 +82,14 @@ pub enum ASTNode {
     StringLiteral(String),
     BooleanLiteral(bool),
     ArrayLiteral(Vec<ASTNode>),
+    ObjectLiteral(Vec<(String, ASTNode)>),
     IndexExpr {
         array: Box<ASTNode>,
         index: Box<ASTNode>,
+    },
+    FieldAccess {
+        object: Box<ASTNode>,
+        field: String,
     },
     // Quantum & Hieroglyphic
     QuantumOp {
@@ -165,6 +177,8 @@ pub struct FunctionParam {
     pub name: String,
     pub line: usize,
     pub column: usize,
+    pub default: Option<Box<ASTNode>>,
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -202,6 +216,8 @@ impl ASTNode {
                     name: p.to_string(),
                     line: 0,
                     column: 0,
+                    default: None,
+                    is_variadic: false,
                 })
                 .collect(),
             body,
@@ -216,6 +232,22 @@ impl ASTNode {
     ) -> Self {
         Self::Function {
             name: name.to_string(),
+            line,
+            column,
+            params,
+            body,
+        }
+    }
+
+    pub fn new_function_expr(
+        name: Option<String>,
+        params: Vec<FunctionParam>,
+        body: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        Self::FunctionExpr {
+            name,
             line,
             column,
             params,
@@ -262,10 +294,21 @@ impl ASTNode {
         Self::ArrayLiteral(elements)
     }
 
+    pub fn new_object_literal(fields: Vec<(String, ASTNode)>) -> Self {
+        Self::ObjectLiteral(fields)
+    }
+
     pub fn new_index_expr(array: ASTNode, index: ASTNode) -> Self {
         Self::IndexExpr {
             array: Box::new(array),
             index: Box::new(index),
+        }
+    }
+
+    pub fn new_field_access(object: ASTNode, field: &str) -> Self {
+        Self::FieldAccess {
+            object: Box::new(object),
+            field: field.to_string(),
         }
     }
 

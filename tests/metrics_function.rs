@@ -1,4 +1,7 @@
-use aeonmi_project::core::incremental::{reset_metrics_full, record_function_infer, FUNCTION_METRICS, record_reinfer_event, CALL_GRAPH_METRICS, force_persist_metrics, load_metrics, metrics_file_location};
+use aeonmi_project::core::incremental::{
+    force_persist_metrics, load_metrics, metrics_file_location, record_function_infer,
+    record_reinfer_event, reset_metrics_full, CALL_GRAPH_METRICS, FUNCTION_METRICS,
+};
 use std::fs;
 
 #[test]

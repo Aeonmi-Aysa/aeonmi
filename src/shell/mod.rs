@@ -46,7 +46,8 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
             // Navigation
             "pwd" => println!("{}", cwd.display()),
             "cd" => {
-                let target = parts.first()
+                let target = parts
+                    .first()
                     .map(PathBuf::from)
                     .unwrap_or_else(|| dirs_next::home_dir().unwrap_or(cwd.clone()));
                 if let Err(e) = std::env::set_current_dir(&target) {
@@ -56,7 +57,8 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                 }
             }
             "ls" | "dir" => {
-                let path = parts.first()
+                let path = parts
+                    .first()
                     .map(PathBuf::from)
                     .unwrap_or_else(|| cwd.clone());
                 match fs::read_dir(&path) {
@@ -271,7 +273,11 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                 let prev = std::env::var("AEONMI_NATIVE").ok();
                 std::env::set_var("AEONMI_NATIVE", "1");
                 let res = commands::run::main_with_opts(input, out, pretty, skip_sema);
-                if let Some(v) = prev { std::env::set_var("AEONMI_NATIVE", v); } else { std::env::remove_var("AEONMI_NATIVE"); }
+                if let Some(v) = prev {
+                    std::env::set_var("AEONMI_NATIVE", v);
+                } else {
+                    std::env::remove_var("AEONMI_NATIVE");
+                }
                 if let Err(e) = res {
                     eprintln!("{} {}", "err:".red().bold(), e);
                 }
@@ -307,7 +313,8 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                             }
                         }
                     }
-                    println!("{} Running quantum simulation on {} with {} backend...",
+                    println!(
+                        "{} Running quantum simulation on {} with {} backend...",
                         "⟨Ψ⟩".truecolor(0, 255, 180),
                         input.display(),
                         backend.truecolor(255, 180, 0)
@@ -324,52 +331,106 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
 
             "qstate" => {
                 // qstate - Display current quantum system state
-                println!("{}", "=== Quantum State Inspector ===".truecolor(0, 255, 180).bold());
+                println!(
+                    "{}",
+                    "=== Quantum State Inspector ==="
+                        .truecolor(0, 255, 180)
+                        .bold()
+                );
                 println!("Available quantum backends:");
-                println!("  • {} - Native Titan quantum simulator", "titan".truecolor(255, 180, 0));
+                println!(
+                    "  • {} - Native Titan quantum simulator",
+                    "titan".truecolor(255, 180, 0)
+                );
                 #[cfg(feature = "qiskit")]
-                println!("  • {} - Qiskit Aer backend", "qiskit".truecolor(100, 255, 100));
-                println!("  • {} - QUBE symbolic processor", "qube".truecolor(255, 100, 255));
+                println!(
+                    "  • {} - Qiskit Aer backend",
+                    "qiskit".truecolor(100, 255, 100)
+                );
+                println!(
+                    "  • {} - QUBE symbolic processor",
+                    "qube".truecolor(255, 100, 255)
+                );
             }
 
             "qgates" => {
                 // qgates - Show available quantum gates
-                println!("{}", "=== Quantum Gate Library ===".truecolor(0, 255, 180).bold());
+                println!(
+                    "{}",
+                    "=== Quantum Gate Library ===".truecolor(0, 255, 180).bold()
+                );
                 println!("Single-qubit gates:");
                 println!("  • {} - Pauli-X (bit flip)", "𓀁".truecolor(255, 180, 0));
                 println!("  • {} - Pauli-Y", "𓀂".truecolor(255, 180, 0));
                 println!("  • {} - Pauli-Z (phase flip)", "𓀃".truecolor(255, 180, 0));
-                println!("  • {} - Hadamard (superposition)", "𓀄".truecolor(255, 180, 0));
+                println!(
+                    "  • {} - Hadamard (superposition)",
+                    "𓀄".truecolor(255, 180, 0)
+                );
                 println!("  • {} - S gate (phase)", "𓀅".truecolor(255, 180, 0));
                 println!("  • {} - T gate", "𓀆".truecolor(255, 180, 0));
                 println!("\nTwo-qubit gates:");
-                println!("  • {} - CNOT (controlled-X)", "entangle()".truecolor(100, 255, 100));
+                println!(
+                    "  • {} - CNOT (controlled-X)",
+                    "entangle()".truecolor(100, 255, 100)
+                );
                 println!("  • {} - CZ (controlled-Z)", "𓀇".truecolor(255, 180, 0));
                 println!("\nBuilt-in operations:");
-                println!("  • {} - Create superposition", "superpose()".truecolor(100, 255, 100));
-                println!("  • {} - Quantum measurement", "measure()".truecolor(100, 255, 100));
+                println!(
+                    "  • {} - Create superposition",
+                    "superpose()".truecolor(100, 255, 100)
+                );
+                println!(
+                    "  • {} - Quantum measurement",
+                    "measure()".truecolor(100, 255, 100)
+                );
             }
 
             "qexample" => {
                 // qexample [teleport|bell|error_correction|grover|qube]
                 let default = String::from("list");
-                let sel: &str = parts.first().map(|s| s.as_str()).unwrap_or(default.as_str());
+                let sel: &str = parts
+                    .first()
+                    .map(|s| s.as_str())
+                    .unwrap_or(default.as_str());
                 match sel {
                     "list" => {
-                        println!("{}", "=== Quantum Example Showcase ===".truecolor(0, 255, 180).bold());
+                        println!(
+                            "{}",
+                            "=== Quantum Example Showcase ==="
+                                .truecolor(0, 255, 180)
+                                .bold()
+                        );
                         println!("Available examples:");
-                        println!("  • {} - Quantum teleportation protocol", "teleport".truecolor(255, 180, 0));
-                        println!("  • {} - Bell state preparation", "bell".truecolor(255, 180, 0));
-                        println!("  • {} - 3-qubit error correction", "error_correction".truecolor(255, 180, 0));
-                        println!("  • {} - Grover's search algorithm", "grover".truecolor(255, 180, 0));
-                        println!("  • {} - QUBE hieroglyphic programming", "qube".truecolor(255, 100, 255));
+                        println!(
+                            "  • {} - Quantum teleportation protocol",
+                            "teleport".truecolor(255, 180, 0)
+                        );
+                        println!(
+                            "  • {} - Bell state preparation",
+                            "bell".truecolor(255, 180, 0)
+                        );
+                        println!(
+                            "  • {} - 3-qubit error correction",
+                            "error_correction".truecolor(255, 180, 0)
+                        );
+                        println!(
+                            "  • {} - Grover's search algorithm",
+                            "grover".truecolor(255, 180, 0)
+                        );
+                        println!(
+                            "  • {} - QUBE hieroglyphic programming",
+                            "qube".truecolor(255, 100, 255)
+                        );
                         println!("\nUsage: qexample <name>");
                     }
                     #[cfg(feature = "quantum")]
                     "teleport" => {
                         if let Err(e) = commands::run::main_with_opts(
-                            PathBuf::from("examples/quantum_teleportation.ai"), 
-                            None, pretty, skip_sema
+                            PathBuf::from("examples/quantum_teleportation.ai"),
+                            None,
+                            pretty,
+                            skip_sema,
                         ) {
                             eprintln!("{} {}", "err:".red().bold(), e);
                         }
@@ -377,8 +438,10 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                     #[cfg(feature = "quantum")]
                     "error_correction" => {
                         if let Err(e) = commands::run::main_with_opts(
-                            PathBuf::from("examples/quantum_error_correction.ai"), 
-                            None, pretty, skip_sema
+                            PathBuf::from("examples/quantum_error_correction.ai"),
+                            None,
+                            pretty,
+                            skip_sema,
                         ) {
                             eprintln!("{} {}", "err:".red().bold(), e);
                         }
@@ -386,8 +449,10 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                     #[cfg(feature = "quantum")]
                     "grover" => {
                         if let Err(e) = commands::run::main_with_opts(
-                            PathBuf::from("examples/grover_search.ai"), 
-                            None, pretty, skip_sema
+                            PathBuf::from("examples/grover_search.ai"),
+                            None,
+                            pretty,
+                            skip_sema,
                         ) {
                             eprintln!("{} {}", "err:".red().bold(), e);
                         }
@@ -395,15 +460,20 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                     #[cfg(feature = "quantum")]
                     "qube" => {
                         if let Err(e) = commands::run::main_with_opts(
-                            PathBuf::from("examples/qube_hieroglyphic.ai"), 
-                            None, pretty, skip_sema
+                            PathBuf::from("examples/qube_hieroglyphic.ai"),
+                            None,
+                            pretty,
+                            skip_sema,
                         ) {
                             eprintln!("{} {}", "err:".red().bold(), e);
                         }
                     }
                     #[cfg(not(feature = "quantum"))]
                     "teleport" | "error_correction" | "grover" => {
-                        eprintln!("{} quantum feature not enabled; recompile with --features quantum", "warn:".yellow().bold());
+                        eprintln!(
+                            "{} quantum feature not enabled; recompile with --features quantum",
+                            "warn:".yellow().bold()
+                        );
                     }
                     other => {
                         println!("{} Unknown example: {other}", "err:".red().bold());

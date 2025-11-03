@@ -124,22 +124,9 @@ impl Parser {
         let func_col = func_tok.column;
         let name = self.consume_identifier("Expected function name")?;
         self.consume(TokenKind::OpenParen, "Expected '(' after function name")?;
-        let mut params: Vec<FunctionParam> = Vec::new();
-        if !self.check(&TokenKind::CloseParen) {
-            loop {
-                let pname = self.consume_identifier("Expected parameter name")?;
-                // For now, param spans reuse function token line/col (could refine with lexer spans)
-                params.push(FunctionParam {
-                    name: pname,
-                    line: func_line,
-                    column: func_col,
-                });
-                if !self.match_token(&[TokenKind::Comma]) {
-                    break;
-                }
-            }
-        }
-        self.consume(TokenKind::CloseParen, "Expected ')' after parameters")?;
+        let closing = TokenKind::CloseParen;
+        let params = self.parse_function_param_list(&closing, func_line, func_col)?;
+        self.consume(closing, "Expected ')' after parameters")?;
         let body = match self.parse_block()? {
             ASTNode::Block(stmts) => stmts,
             _ => return Err(self.err_here("Function body must be a block")),
@@ -147,6 +134,83 @@ impl Parser {
         Ok(ASTNode::new_function_at(
             &name, func_line, func_col, params, body,
         ))
+    }
+
+    fn parse_function_param_list(
+        &mut self,
+        closing: &TokenKind,
+        func_line: usize,
+        func_col: usize,
+    ) -> Result<Vec<FunctionParam>, ParserError> {
+        let mut params = Vec::new();
+        let mut saw_variadic = false;
+        if !self.check(closing) {
+            loop {
+                let mut is_variadic = false;
+                if self.check(&TokenKind::Dot)
+                    && matches!(self.peek_kind(1), TokenKind::Dot)
+                    && matches!(self.peek_kind(2), TokenKind::Dot)
+                {
+                    self.advance();
+                    self.advance();
+                    self.advance();
+                    is_variadic = true;
+                    if saw_variadic {
+                        return Err(self.err_here("Only one variadic parameter is allowed"));
+                    }
+                    saw_variadic = true;
+                }
+
+                let pname = self.consume_identifier("Expected parameter name")?;
+                let default = if !is_variadic && self.match_token(&[TokenKind::Equals]) {
+                    Some(Box::new(self.parse_expression()?))
+                } else {
+                    None
+                };
+                params.push(FunctionParam {
+                    name: pname,
+                    line: func_line,
+                    column: func_col,
+                    default,
+                    is_variadic,
+                });
+
+                if is_variadic {
+                    if !self.check(closing) {
+                        return Err(self.err_here("Variadic parameter must be the final parameter"));
+                    }
+                    break;
+                }
+
+                if !self.match_token(&[TokenKind::Comma]) {
+                    break;
+                }
+                if saw_variadic {
+                    return Err(self.err_here("Unexpected parameter after variadic parameter"));
+                }
+            }
+        }
+        Ok(params)
+    }
+
+    fn parse_function_expression(&mut self, func_tok: Token) -> Result<ASTNode, ParserError> {
+        let line = func_tok.line;
+        let column = func_tok.column;
+        let name = if let TokenKind::Identifier(n) = self.peek().kind.clone() {
+            self.advance();
+            Some(n)
+        } else {
+            None
+        };
+        self.consume(TokenKind::OpenParen, "Expected '(' after function")?;
+        let closing = TokenKind::CloseParen;
+        let params = self.parse_function_param_list(&closing, line, column)?;
+        self.consume(closing, "Expected ')' after parameters")?;
+        let body = match self.parse_block()? {
+            ASTNode::Block(stmts) => stmts,
+            _ => return Err(self.err_here("Function body must be a block")),
+        };
+        Ok(ASTNode::new_function_expr(name, params, body, line, column))
     }
 
     fn parse_return(&mut self) -> Result<ASTNode, ParserError> {
@@ -424,6 +488,9 @@ impl Parser {
                 }
                 self.consume(TokenKind::CloseParen, "Expected ')' after arguments")?;
                 expr = ASTNode::new_call(expr, args);
+            } else if self.match_token(&[TokenKind::Dot]) {
+                let field = self.consume_identifier("Expected identifier after '.'")?;
+                expr = ASTNode::new_field_access(expr, &field);
             } else if self.match_token(&[TokenKind::OpenBracket]) {
                 if self.check(&TokenKind::CloseBracket) {
                     return Err(ParserError {
@@ -438,6 +505,13 @@ impl Parser {
                     "Expected ']' after index expression",
                 )?;
                 expr = ASTNode::new_index_expr(expr, index_expr);
+            } else if self.match_token(&[TokenKind::QuantumIndexOpen]) {
+                let index_expr = self.parse_expression()?;
+                self.consume(
+                    TokenKind::QuantumIndexClose,
+                    "Expected '⟧' after quantum index expression",
+                )?;
+                expr = ASTNode::new_quantum_index_access(expr, index_expr, true);
             } else {
                 break;
             }
@@ -457,6 +531,16 @@ impl Parser {
                 tok.column,
                 name.len(),
             )),
+            TokenKind::Function => self.parse_function_expression(tok),
+            TokenKind::Superpose | TokenKind::Entangle | TokenKind::Measure | TokenKind::Dod => {
+                let name = tok.lexeme.clone();
+                Ok(ASTNode::new_identifier_spanned(
+                    &name,
+                    tok.line,
+                    tok.column,
+                    name.len(),
+                ))
+            }
 
             // Quantum state literals: |0⟩, |1⟩, |+⟩, etc.
             TokenKind::QubitLiteral(literal) => {
@@ -504,25 +588,65 @@ impl Parser {
 
             // Quantum arrays retain brace syntax for now
             TokenKind::OpenBrace => {
-                let mut elements = Vec::new();
+                let is_object_literal = if self.check(&TokenKind::CloseBrace) {
+                    true
+                } else {
+                    match self.peek().kind {
+                        TokenKind::Identifier(_) | TokenKind::StringLiteral(_) => {
+                            matches!(self.peek_kind(1), TokenKind::Colon)
+                        }
+                        _ => false,
+                    }
+                };
 
-                if !self.check(&TokenKind::CloseBrace) {
-                    loop {
-                        elements.push(self.parse_expression()?);
-                        if !self.match_token(&[TokenKind::Comma]) {
-                            break;
+                if is_object_literal {
+                    let mut fields = Vec::new();
+                    if !self.check(&TokenKind::CloseBrace) {
+                        loop {
+                            let key_token = self.advance().clone();
+                            let key = match key_token.kind {
+                                TokenKind::Identifier(name) => name,
+                                TokenKind::StringLiteral(s) => s,
+                                _ => {
+                                    return Err(ParserError {
+                                        message: "Object keys must be identifiers or strings"
+                                            .into(),
+                                        line: key_token.line,
+                                        column: key_token.column,
+                                    })
+                                }
+                            };
+                            self.consume(TokenKind::Colon, "Expected ':' after object key")?;
+                            let value = self.parse_expression()?;
+                            fields.push((key, value));
+                            if !self.match_token(&[TokenKind::Comma]) {
+                                break;
+                            }
                         }
                     }
+                    self.consume(TokenKind::CloseBrace, "Expected '}' after object literal")?;
+                    Ok(ASTNode::new_object_literal(fields))
+                } else {
+                    let mut elements = Vec::new();
+
+                    if !self.check(&TokenKind::CloseBrace) {
+                        loop {
+                            elements.push(self.parse_expression()?);
+                            if !self.match_token(&[TokenKind::Comma]) {
+                                break;
+                            }
+                        }
+                    }
+
+                    self.consume(TokenKind::CloseBrace, "Expected '}' after array elements")?;
+
+                    // Check if this is a superposition array (contains quantum states)
+                    let is_superposition = elements
+                        .iter()
+                        .any(|elem| matches!(elem, ASTNode::QuantumState { .. }));
+
+                    Ok(ASTNode::new_quantum_array(elements, is_superposition))
                 }
-
-                self.consume(TokenKind::CloseBrace, "Expected '}' after array elements")?;
-
-                // Check if this is a superposition array (contains quantum states)
-                let is_superposition = elements
-                    .iter()
-                    .any(|elem| matches!(elem, ASTNode::QuantumState { .. }));
-
-                Ok(ASTNode::new_quantum_array(elements, is_superposition))
             }
 
             // Quantum variable access: ⟨variable⟩
@@ -613,6 +737,15 @@ impl Parser {
         &self.tokens[self.pos.min(self.tokens.len() - 1)]
     }
 
+    fn peek_offset(&self, offset: usize) -> &Token {
+        let idx = (self.pos + offset).min(self.tokens.len() - 1);
+        &self.tokens[idx]
+    }
+
+    fn peek_kind(&self, offset: usize) -> &TokenKind {
+        &self.peek_offset(offset).kind
+    }
+
     fn check(&self, kind: &TokenKind) -> bool {
         !self.is_at_end() && &self.peek().kind == kind
     }
@@ -679,7 +812,18 @@ impl Parser {
         };
 
         self.advance(); // consume the binding operator
-        let value = self.parse_expression()?;
+        let mut value = self.parse_expression()?;
+
+        if matches!(binding_type, QuantumBindingType::Tensor) {
+            if let ASTNode::ArrayLiteral(elements) = value {
+                let is_superposition = elements
+                    .iter()
+                    .any(|elem| matches!(elem, ASTNode::QuantumState { .. }));
+                value = ASTNode::new_quantum_array(elements, is_superposition);
+            }
+        }
+
+        let _ = self.match_token(&[TokenKind::Semicolon]);
 
         Ok(ASTNode::new_quantum_variable_decl(
             &name,
@@ -705,26 +849,9 @@ impl Parser {
             TokenKind::QuantumBracketOpen,
             "Expected '⟨' before parameters",
         )?;
-        let mut params = Vec::new();
-
-        if !self.check(&TokenKind::QuantumBracketClose) {
-            loop {
-                let pname = self.consume_identifier("Expected parameter name")?;
-                params.push(FunctionParam {
-                    name: pname,
-                    line: func_line,
-                    column: func_col,
-                });
-                if !self.match_token(&[TokenKind::Comma]) {
-                    break;
-                }
-            }
-        }
-
-        self.consume(
-            TokenKind::QuantumBracketClose,
-            "Expected '⟩' after parameters",
-        )?;
+        let closing = TokenKind::QuantumBracketClose;
+        let params = self.parse_function_param_list(&closing, func_line, func_col)?;
+        self.consume(closing, "Expected '⟩' after parameters")?;
 
         // Parse return type annotation if present
         if self.match_token(&[TokenKind::QuantumImplies]) {
@@ -747,10 +874,11 @@ impl Parser {
     fn parse_probability_branch(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::QuantumOr, "Expected '⊖'")?; // probability branch operator
 
-        let condition = self.parse_expression()?;
+        let mut condition = self.parse_expression()?;
 
-        // Optional explicit probability ≈ 0.8
-        let probability = if self.match_token(&[TokenKind::QuantumApprox]) {
+        // Optional explicit probability ≈ 0.8. This may already be part of the parsed
+        // expression (e.g. `true ≈ 0.5`), so handle both syntactic forms.
+        let mut probability = if self.match_token(&[TokenKind::QuantumApprox]) {
             if let ASTNode::NumberLiteral(p) = self.parse_expression()? {
                 Some(p)
             } else {
@@ -759,6 +887,22 @@ impl Parser {
         } else {
             None
         };
+
+        if probability.is_none() {
+            if let ASTNode::QuantumBinaryExpr { op, left, right } = condition.clone() {
+                if matches!(op, TokenKind::QuantumApprox) {
+                    match *right {
+                        ASTNode::NumberLiteral(p) => {
+                            probability = Some(p);
+                            condition = *left;
+                        }
+                        _ => {
+                            return Err(self.err_here("Probability annotation must be numeric"));
+                        }
+                    }
+                }
+            }
+        }
 
         self.consume(TokenKind::QuantumImplies, "Expected '⇒' after condition")?;
 

@@ -1,6 +1,8 @@
 use std::{fs, process::Command};
 
-fn bin() -> String { env!("CARGO_BIN_EXE_aeonmi_project").to_string() }
+fn bin() -> String {
+    env!("CARGO_BIN_EXE_aeonmi_project").to_string()
+}
 
 #[test]
 fn exec_watch_once_env_breaks_loop() {

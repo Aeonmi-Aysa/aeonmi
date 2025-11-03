@@ -53,10 +53,25 @@ fn metrics_json_includes_v5_fields() {
     let payload = extract_json(&stdout).expect("metrics dump json");
     let val: serde_json::Value = serde_json::from_str(&payload).expect("valid JSON");
     let version = val.get("version").and_then(|v| v.as_u64()).unwrap_or(0);
-    assert!(version >= 5, "expected metrics version >=5, got {}", version);
-    let savings = val.get("savings").and_then(|v| v.as_object()).expect("savings object");
-    assert!(savings.contains_key("cumulative_savings_pct"), "missing cumulative_savings_pct");
-    assert!(savings.contains_key("cumulative_partial_pct"), "missing cumulative_partial_pct");
+    assert!(
+        version >= 5,
+        "expected metrics version >=5, got {}",
+        version
+    );
+    let savings = val
+        .get("savings")
+        .and_then(|v| v.as_object())
+        .expect("savings object");
+    assert!(
+        savings.contains_key("cumulative_savings_pct"),
+        "missing cumulative_savings_pct"
+    );
+    assert!(
+        savings.contains_key("cumulative_partial_pct"),
+        "missing cumulative_partial_pct"
+    );
     // functionMetrics should be an object
-    val.get("functionMetrics").and_then(|v| v.as_object()).expect("functionMetrics object");
+    val.get("functionMetrics")
+        .and_then(|v| v.as_object())
+        .expect("functionMetrics object");
 }

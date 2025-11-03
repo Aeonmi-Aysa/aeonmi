@@ -129,7 +129,9 @@ impl App {
         } else {
             String::new()
         };
-        let persisted_search = fs::read_to_string(".aeonmi_last_search").ok().unwrap_or_default();
+        let persisted_search = fs::read_to_string(".aeonmi_last_search")
+            .ok()
+            .unwrap_or_default();
         Self {
             filepath,
             buffer,
@@ -208,36 +210,66 @@ impl App {
     }
 
     fn find_next(&mut self) {
-        if self.search_query.is_empty() { return; }
-        if self.search_matches.is_empty() { self.rebuild_search_matches(); }
-        if self.search_matches.is_empty() { self.set_status("No match"); return; }
+        if self.search_query.is_empty() {
+            return;
+        }
+        if self.search_matches.is_empty() {
+            self.rebuild_search_matches();
+        }
+        if self.search_matches.is_empty() {
+            self.set_status("No match");
+            return;
+        }
         self.search_index = (self.search_index + 1) % self.search_matches.len();
         let r = self.search_matches[self.search_index];
         self.last_match_row = Some(r);
         self.cursor_row = r;
         self.cursor_col = 0;
-        self.set_status(format!("Search: {}/{}", self.search_index + 1, self.search_matches.len()));
+        self.set_status(format!(
+            "Search: {}/{}",
+            self.search_index + 1,
+            self.search_matches.len()
+        ));
     }
 
     fn find_prev(&mut self) {
-        if self.search_query.is_empty() { return; }
-        if self.search_matches.is_empty() { self.rebuild_search_matches(); }
-        if self.search_matches.is_empty() { self.set_status("No match"); return; }
-        if self.search_index == 0 { self.search_index = self.search_matches.len()-1; } else { self.search_index -= 1; }
+        if self.search_query.is_empty() {
+            return;
+        }
+        if self.search_matches.is_empty() {
+            self.rebuild_search_matches();
+        }
+        if self.search_matches.is_empty() {
+            self.set_status("No match");
+            return;
+        }
+        if self.search_index == 0 {
+            self.search_index = self.search_matches.len() - 1;
+        } else {
+            self.search_index -= 1;
+        }
         let r = self.search_matches[self.search_index];
         self.last_match_row = Some(r);
         self.cursor_row = r;
         self.cursor_col = 0;
-        self.set_status(format!("Search: {}/{}", self.search_index + 1, self.search_matches.len()));
+        self.set_status(format!(
+            "Search: {}/{}",
+            self.search_index + 1,
+            self.search_matches.len()
+        ));
     }
 
     fn rebuild_search_matches(&mut self) {
         self.search_matches.clear();
         self.search_index = 0;
-        if self.search_query.is_empty() { return; }
+        if self.search_query.is_empty() {
+            return;
+        }
         let q = self.search_query.to_lowercase();
         for (i, l) in self.buffer.lines().enumerate() {
-            if l.to_lowercase().contains(&q) { self.search_matches.push(i); }
+            if l.to_lowercase().contains(&q) {
+                self.search_matches.push(i);
+            }
         }
         if !self.search_matches.is_empty() {
             self.last_match_row = Some(self.search_matches[0]);
@@ -324,7 +356,7 @@ impl App {
             }
         }
         let out = PathBuf::from("aeonmi.run.js");
-    match compile_pipeline_soft(
+        match compile_pipeline_soft(
             Some(self.filepath.clone()),
             EmitKind::Js,
             out.clone(),
@@ -393,19 +425,34 @@ pub fn run_editor_tui(
             let _ = terminal::disable_raw_mode();
             let mut out = io::stdout();
             // Best effort: leave alt screen & disable mouse capture.
-            let _ = execute!(out, LeaveAlternateScreen, DisableMouseCapture, SetTitle("Aeonmi"));
+            let _ = execute!(
+                out,
+                LeaveAlternateScreen,
+                DisableMouseCapture,
+                SetTitle("Aeonmi")
+            );
         }
     }
     terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture, SetTitle("Aeonmi Shard"))?;
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        EnableMouseCapture,
+        SetTitle("Aeonmi Shard")
+    )?;
     let _guard = TerminalGuard; // ensures restoration even on panic
-    // Install a panic hook that also restores terminal (belt & suspenders)
+                                // Install a panic hook that also restores terminal (belt & suspenders)
     let prev_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let _ = terminal::disable_raw_mode();
         let mut out = io::stdout();
-        let _ = execute!(out, LeaveAlternateScreen, DisableMouseCapture, SetTitle("Aeonmi (panic)"));
+        let _ = execute!(
+            out,
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            SetTitle("Aeonmi (panic)")
+        );
         eprintln!("\n(editor panic) {}", info);
         prev_hook(info);
     }));
@@ -414,12 +461,14 @@ pub fn run_editor_tui(
     let mut terminal = Terminal::new(backend)?;
 
     let app = App::new(filepath, map);
-    let res = panic::catch_unwind(AssertUnwindSafe(|| run_app(&mut terminal, app, pretty, skip_sema)));
+    let res = panic::catch_unwind(AssertUnwindSafe(|| {
+        run_app(&mut terminal, app, pretty, skip_sema)
+    }));
     // Explicit show cursor (guard will handle rest)
     let _ = terminal.show_cursor();
     // Restore original panic hook (avoid affecting rest of CLI session)
     let _ = std::panic::take_hook(); // drop our hook
-    // NOTE: We do not reinstall prev_hook; it's already invoked on panic; for normal path we stop intercepting.
+                                     // NOTE: We do not reinstall prev_hook; it's already invoked on panic; for normal path we stop intercepting.
 
     match res {
         Ok(inner) => inner,
@@ -512,10 +561,14 @@ fn run_app(
                             }
                         }
                         (KeyCode::Char('n'), KeyModifiers::NONE) => {
-                            if app.search_active { app.find_next(); }
+                            if app.search_active {
+                                app.find_next();
+                            }
                         }
                         (KeyCode::Char('N'), KeyModifiers::SHIFT) => {
-                            if app.search_active { app.find_prev(); }
+                            if app.search_active {
+                                app.find_prev();
+                            }
                         }
                         (KeyCode::Esc, _) => {
                             if app.search_active {
@@ -553,7 +606,9 @@ fn run_app(
                             app.search_active = true;
                             app.search_query.clear();
                             app.search_matches.clear();
-                            app.set_status("Search: (type) Enter/ n next, Shift+N prev, Esc cancel");
+                            app.set_status(
+                                "Search: (type) Enter/ n next, Shift+N prev, Esc cancel",
+                            );
                             let _ = fs::write(".aeonmi_last_search", "");
                         }
                         (KeyCode::Char('z'), KeyModifiers::CONTROL) => app.undo(),
@@ -562,7 +617,11 @@ fn run_app(
                             if app.search_active {
                                 app.search_query.pop();
                                 app.search_matches.clear();
-                                if app.search_query.is_empty() { app.set_status("Search: (empty)"); } else { app.set_status(format!("Search: {}", app.search_query)); }
+                                if app.search_query.is_empty() {
+                                    app.set_status("Search: (empty)");
+                                } else {
+                                    app.set_status(format!("Search: {}", app.search_query));
+                                }
                                 let _ = fs::write(".aeonmi_last_search", &app.search_query);
                                 continue;
                             }
@@ -577,7 +636,9 @@ fn run_app(
                                         if app.cursor_col > 0 {
                                             let line = &mut lines[app.cursor_row];
                                             let mut new_idx = app.cursor_col - 1;
-                                            while new_idx > 0 && !line.is_char_boundary(new_idx) { new_idx -= 1; }
+                                            while new_idx > 0 && !line.is_char_boundary(new_idx) {
+                                                new_idx -= 1;
+                                            }
                                             line.replace_range(new_idx..app.cursor_col, "");
                                             app.cursor_col = new_idx;
                                             app.dirty = true;
@@ -613,7 +674,12 @@ fn run_app(
                                     let (left, right) = if app.cursor_row < lines.len() {
                                         let line = &lines[app.cursor_row];
                                         let mut split_idx = app.cursor_col.min(line.len());
-                                        while split_idx > 0 && split_idx < line.len() && !line.is_char_boundary(split_idx) { split_idx -= 1; }
+                                        while split_idx > 0
+                                            && split_idx < line.len()
+                                            && !line.is_char_boundary(split_idx)
+                                        {
+                                            split_idx -= 1;
+                                        }
                                         let (l, r) = line.split_at(split_idx);
                                         (l.to_string(), r.to_string())
                                     } else {
@@ -676,11 +742,8 @@ fn run_app(
                             match app.mode {
                                 EditorMode::Append => app.input.push(ch),
                                 EditorMode::Insert => {
-                                    let mut lines: Vec<String> = app
-                                        .buffer
-                                        .lines()
-                                        .map(|s| s.to_string())
-                                        .collect();
+                                    let mut lines: Vec<String> =
+                                        app.buffer.lines().map(|s| s.to_string()).collect();
                                     if lines.is_empty() {
                                         lines.push(String::new());
                                     }
@@ -722,8 +785,7 @@ fn run_app(
                             if app.cursor_row + 1 < line_count {
                                 app.cursor_row += 1;
                             }
-                            let view_height =
-                                (terminal.size()?.height as usize).saturating_sub(8);
+                            let view_height = (terminal.size()?.height as usize).saturating_sub(8);
                             if app.cursor_row >= app.scroll + view_height {
                                 app.scroll = app
                                     .cursor_row
@@ -744,11 +806,14 @@ fn run_app(
                             if app.cursor_col > 0 {
                                 let line = app.buffer.lines().nth(app.cursor_row).unwrap_or("");
                                 let mut new_idx = app.cursor_col - 1;
-                                while new_idx > 0 && !line.is_char_boundary(new_idx) { new_idx -= 1; }
+                                while new_idx > 0 && !line.is_char_boundary(new_idx) {
+                                    new_idx -= 1;
+                                }
                                 app.cursor_col = new_idx;
                             } else if app.cursor_row > 0 {
                                 app.cursor_row -= 1;
-                                let prev_line = app.buffer.lines().nth(app.cursor_row).unwrap_or("");
+                                let prev_line =
+                                    app.buffer.lines().nth(app.cursor_row).unwrap_or("");
                                 app.cursor_col = prev_line.len();
                             }
                         }
@@ -756,7 +821,9 @@ fn run_app(
                             if let Some(line) = app.buffer.lines().nth(app.cursor_row) {
                                 if app.cursor_col < line.len() {
                                     let mut new_idx = app.cursor_col + 1;
-                                    while new_idx < line.len() && !line.is_char_boundary(new_idx) { new_idx += 1; }
+                                    while new_idx < line.len() && !line.is_char_boundary(new_idx) {
+                                        new_idx += 1;
+                                    }
                                     app.cursor_col = new_idx;
                                 } else {
                                     let line_count = app.buffer.lines().count();
@@ -770,154 +837,149 @@ fn run_app(
                         _ => {}
                     }
                 }
-        Event::Mouse(me) => {
-            if app.show_key_debug { app.set_status(format!("mouse: {:?}", me)); }
-            let crossterm::event::MouseEvent { kind, column, row, .. } = me; // destructure
-            // Compute regions to allow click navigation in buffer area.
-                            if row == 1 {
-                                let size = terminal.size()?;
-                                let area = Rect {
-                                    x: 0,
-                                    y: 1,
-                                    width: size.width,
-                                    height: 1,
-                                };
-                                let specs = compute_button_specs(area, &app);
-                                for spec in specs {
-                                    if column >= spec.area.x
-                                        && column < spec.area.x + spec.area.width
-                                    {
-                                        match spec.action {
-                                            ButtonAction::Save => {
-                                                if let Err(e) = app.save() {
-                                                    app.set_status(format!(
-                                                        "Save failed: {e}"
-                                                    ));
-                                                }
-                                            }
-                                            ButtonAction::Compile =>
-                                                app.compile(pretty, skip_sema),
-                                            ButtonAction::Run =>
-                                                app.run(pretty, skip_sema),
-                                            ButtonAction::ToggleEmit => {
-                                                app.emit_mode = app.emit_mode.toggle();
-                                                app.set_status(format!(
-                                                    "Emit → {}",
-                                                    app.emit_mode.label()
-                                                ));
-                                            }
-                                            ButtonAction::ToggleMode => {
-                                                app.mode = match app.mode {
-                                                    EditorMode::Append =>
-                                                        EditorMode::Insert,
-                                                    EditorMode::Insert =>
-                                                        EditorMode::Append,
-                                                };
-                                                app.set_status(match app.mode {
-                                                    EditorMode::Append =>
-                                                        "Mode: Append",
-                                                    EditorMode::Insert =>
-                                                        "Mode: Insert",
-                                                });
-                                            }
-                                            ButtonAction::Search => {
-                                                app.search_active = true;
-                                                app.search_query.clear();
-                                                app.set_status(
-                                                    "Search: type query, Enter=next, Esc=cancel",
-                                                );
-                                            }
-                                            ButtonAction::ToggleMouse => {
-                                                app.mouse_capture = !app.mouse_capture;
-                                                if app.mouse_capture {
-                                                    let _ = execute!(
-                                                        std::io::stdout(),
-                                                        EnableMouseCapture
-                                                    );
-                                                    app.set_status(
-                                                        "Mouse capture ON",
-                                                    );
-                                                } else {
-                                                    let _ = execute!(
-                                                        std::io::stdout(),
-                                                        DisableMouseCapture
-                                                    );
-                                                    app.set_status(
-                                                        "Mouse capture OFF",
-                                                    );
-                                                }
-                                            }
-                                            ButtonAction::Quit => {
-                                                if app.dirty {
-                                                    app.set_status(
+                Event::Mouse(me) => {
+                    if app.show_key_debug {
+                        app.set_status(format!("mouse: {:?}", me));
+                    }
+                    let crossterm::event::MouseEvent {
+                        kind, column, row, ..
+                    } = me; // destructure
+                            // Compute regions to allow click navigation in buffer area.
+                    if row == 1 {
+                        let size = terminal.size()?;
+                        let area = Rect {
+                            x: 0,
+                            y: 1,
+                            width: size.width,
+                            height: 1,
+                        };
+                        let specs = compute_button_specs(area, &app);
+                        for spec in specs {
+                            if column >= spec.area.x && column < spec.area.x + spec.area.width {
+                                match spec.action {
+                                    ButtonAction::Save => {
+                                        if let Err(e) = app.save() {
+                                            app.set_status(format!("Save failed: {e}"));
+                                        }
+                                    }
+                                    ButtonAction::Compile => app.compile(pretty, skip_sema),
+                                    ButtonAction::Run => app.run(pretty, skip_sema),
+                                    ButtonAction::ToggleEmit => {
+                                        app.emit_mode = app.emit_mode.toggle();
+                                        app.set_status(format!("Emit → {}", app.emit_mode.label()));
+                                    }
+                                    ButtonAction::ToggleMode => {
+                                        app.mode = match app.mode {
+                                            EditorMode::Append => EditorMode::Insert,
+                                            EditorMode::Insert => EditorMode::Append,
+                                        };
+                                        app.set_status(match app.mode {
+                                            EditorMode::Append => "Mode: Append",
+                                            EditorMode::Insert => "Mode: Insert",
+                                        });
+                                    }
+                                    ButtonAction::Search => {
+                                        app.search_active = true;
+                                        app.search_query.clear();
+                                        app.set_status(
+                                            "Search: type query, Enter=next, Esc=cancel",
+                                        );
+                                    }
+                                    ButtonAction::ToggleMouse => {
+                                        app.mouse_capture = !app.mouse_capture;
+                                        if app.mouse_capture {
+                                            let _ = execute!(std::io::stdout(), EnableMouseCapture);
+                                            app.set_status("Mouse capture ON");
+                                        } else {
+                                            let _ =
+                                                execute!(std::io::stdout(), DisableMouseCapture);
+                                            app.set_status("Mouse capture OFF");
+                                        }
+                                    }
+                                    ButtonAction::Quit => {
+                                        if app.dirty {
+                                            app.set_status(
                                                         "Unsaved changes — Ctrl+S to save, click Quit again",
                                                     );
-                                                    app.dirty = false;
-                                                } else {
-                                                    break 'outer;
-                                                }
-                                            }
+                                            app.dirty = false;
+                                        } else {
+                                            break 'outer;
                                         }
-                                        break;
                                     }
+                                }
+                                break;
+                            }
+                        }
+                    } else {
+                        // Click elsewhere: if inside buffer text area, move cursor.
+                        let size = terminal.size()?;
+                        // Recompute layout similar to ui().
+                        let rows_layout = Layout::default()
+                            .direction(Direction::Vertical)
+                            .constraints(
+                                [
+                                    Constraint::Length(1),
+                                    Constraint::Length(1),
+                                    Constraint::Min(5),
+                                    Constraint::Length(1),
+                                    Constraint::Length(3),
+                                ]
+                                .as_ref(),
+                            )
+                            .split(size);
+                        let main_split = Layout::default()
+                            .direction(Direction::Horizontal)
+                            .constraints(
+                                [Constraint::Percentage(68), Constraint::Percentage(32)].as_ref(),
+                            )
+                            .split(rows_layout[2]);
+                        let left_split = Layout::default()
+                            .direction(Direction::Vertical)
+                            .constraints([Constraint::Min(5), Constraint::Length(5)].as_ref())
+                            .split(main_split[0]);
+                        let buf_area = left_split[0];
+                        if row >= buf_area.y && row < buf_area.y + buf_area.height {
+                            // Inside buffer block (including borders). Adjust for border offset 1.
+                            let click_line =
+                                (row - buf_area.y).saturating_sub(1) as usize + app.scroll;
+                            if click_line < app.buffer.lines().count() {
+                                app.cursor_row = click_line;
+                                let line_str = app.buffer.lines().nth(app.cursor_row).unwrap_or("");
+                                // Determine desired column based on displayed x (account for left border)
+                                if column >= buf_area.x + 1 {
+                                    // inside after left border
+                                    let rel_x = (column - buf_area.x - 1) as usize; // character cells
+                                                                                    // Walk chars to compute byte offset matching rel_x (monospace assumption, width=1)
+                                    let mut byte_idx = 0;
+                                    let mut cells = 0;
+                                    for ch in line_str.chars() {
+                                        let w = 1; // future: unicode-width crate
+                                        if cells + w > rel_x {
+                                            break;
+                                        }
+                                        cells += w;
+                                        byte_idx += ch.len_utf8();
+                                    }
+                                    app.cursor_col = byte_idx.min(line_str.len());
+                                } else {
+                                    app.cursor_col = 0;
                                 }
                             } else {
-                                // Click elsewhere: if inside buffer text area, move cursor.
-                                let size = terminal.size()?;
-                                // Recompute layout similar to ui().
-                                let rows_layout = Layout::default()
-                                    .direction(Direction::Vertical)
-                                    .constraints([
-                                        Constraint::Length(1),
-                                        Constraint::Length(1),
-                                        Constraint::Min(5),
-                                        Constraint::Length(1),
-                                        Constraint::Length(3),
-                                    ].as_ref())
-                                    .split(size);
-                                let main_split = Layout::default()
-                                    .direction(Direction::Horizontal)
-                                    .constraints([Constraint::Percentage(68), Constraint::Percentage(32)].as_ref())
-                                    .split(rows_layout[2]);
-                                let left_split = Layout::default()
-                                    .direction(Direction::Vertical)
-                                    .constraints([Constraint::Min(5), Constraint::Length(5)].as_ref())
-                                    .split(main_split[0]);
-                                let buf_area = left_split[0];
-                                if row >= buf_area.y && row < buf_area.y + buf_area.height {
-                                    // Inside buffer block (including borders). Adjust for border offset 1.
-                                    let click_line = (row - buf_area.y).saturating_sub(1) as usize + app.scroll;
-                                    if click_line < app.buffer.lines().count() {
-                                        app.cursor_row = click_line;
-                                        let line_str = app.buffer.lines().nth(app.cursor_row).unwrap_or("");
-                                        // Determine desired column based on displayed x (account for left border)
-                                        if column >= buf_area.x + 1 { // inside after left border
-                                            let rel_x = (column - buf_area.x - 1) as usize; // character cells
-                                            // Walk chars to compute byte offset matching rel_x (monospace assumption, width=1)
-                                            let mut byte_idx = 0;
-                                            let mut cells = 0;
-                                            for ch in line_str.chars() {
-                                                let w = 1; // future: unicode-width crate
-                                                if cells + w > rel_x { break; }
-                                                cells += w;
-                                                byte_idx += ch.len_utf8();
-                                            }
-                                            app.cursor_col = byte_idx.min(line_str.len());
-                                        } else {
-                                            app.cursor_col = 0;
-                                        }
-                                    } else {
-                                        // Clicked below last line: move to end
-                                        if let Some(last) = app.buffer.lines().last() {
-                                            app.cursor_row = app.buffer.lines().count().saturating_sub(1);
-                                            app.cursor_col = last.len();
-                                        }
-                                    }
-                                }
-                                if matches!(kind, MouseEventKind::Down(MouseButton::Left)) {
-                                    app.set_status(format!("Cursor → {}:{}", app.cursor_row+1, app.cursor_col));
+                                // Clicked below last line: move to end
+                                if let Some(last) = app.buffer.lines().last() {
+                                    app.cursor_row = app.buffer.lines().count().saturating_sub(1);
+                                    app.cursor_col = last.len();
                                 }
                             }
+                        }
+                        if matches!(kind, MouseEventKind::Down(MouseButton::Left)) {
+                            app.set_status(format!(
+                                "Cursor → {}:{}",
+                                app.cursor_row + 1,
+                                app.cursor_col
+                            ));
+                        }
+                    }
                 }
                 Event::Resize(_, _) => {}
                 _ => {}
@@ -1004,15 +1066,26 @@ fn ui(f: &mut ratatui::Frame<'_>, app: &App) {
         let mut spans: Vec<Span> = Vec::new();
         let lower_q = query.map(|q| q.to_lowercase());
         let keywords = [
-            "function", "let", "if", "else", "while", "for", "return", "log", "superpose",
-            "entangle", "measure", "qubit",
+            "function",
+            "let",
+            "if",
+            "else",
+            "while",
+            "for",
+            "return",
+            "log",
+            "superpose",
+            "entangle",
+            "measure",
+            "qubit",
         ];
         let mut i = 0; // byte index, always maintained at a char boundary
         while i < line.len() {
             // safe because i is always at a boundary
             let rest = &line[i..];
             if rest.starts_with('"') {
-                if let Some(rel_end) = rest[1..].find('"') { // closing quote
+                if let Some(rel_end) = rest[1..].find('"') {
+                    // closing quote
                     let end = i + 1 + rel_end; // position of closing quote
                     let token = &line[i..=end];
                     spans.push(Span::styled(
@@ -1043,18 +1116,26 @@ fn ui(f: &mut ratatui::Frame<'_>, app: &App) {
             // Consume non-whitespace token
             let mut end = i; // exclusive end
             for (off, ch) in line[i..].char_indices() {
-                if ch.is_whitespace() { break; }
+                if ch.is_whitespace() {
+                    break;
+                }
                 end = i + off + ch.len_utf8();
             }
-            if end <= i { break; }
+            if end <= i {
+                break;
+            }
             let token = &line[i..end];
             let lower = token.to_lowercase();
             if keywords.contains(&lower.as_str()) {
                 spans.push(Span::styled(
                     token.to_string(),
-                    Style::default().fg(Color::Rgb(130, 0, 200)).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Rgb(130, 0, 200))
+                        .add_modifier(Modifier::BOLD),
                 ));
-            } else if token.chars().all(|c| c.is_ascii_digit() || c == '.') && token.chars().any(|c| c.is_ascii_digit()) {
+            } else if token.chars().all(|c| c.is_ascii_digit() || c == '.')
+                && token.chars().any(|c| c.is_ascii_digit())
+            {
                 spans.push(Span::styled(
                     token.to_string(),
                     Style::default().fg(Color::Rgb(0, 255, 180)),
@@ -1063,7 +1144,9 @@ fn ui(f: &mut ratatui::Frame<'_>, app: &App) {
                 if !q.is_empty() && lower.contains(q) {
                     spans.push(Span::styled(
                         token.to_string(),
-                        Style::default().bg(Color::Rgb(255, 240, 0)).fg(Color::Black),
+                        Style::default()
+                            .bg(Color::Rgb(255, 240, 0))
+                            .fg(Color::Black),
                     ));
                 } else {
                     spans.push(Span::raw(token.to_string()));
@@ -1087,10 +1170,7 @@ fn ui(f: &mut ratatui::Frame<'_>, app: &App) {
             },
         ));
     }
-    if matches!(app.mode, EditorMode::Append)
-        && !app.input.is_empty()
-        && end == lines.len()
-    {
+    if matches!(app.mode, EditorMode::Append) && !app.input.is_empty() && end == lines.len() {
         lines_styled.push(Line::from(vec![Span::styled(
             format!("> {}", app.input),
             Style::default()
@@ -1106,9 +1186,10 @@ fn ui(f: &mut ratatui::Frame<'_>, app: &App) {
     if matches!(app.mode, EditorMode::Insert) {
         let cursor_screen_row = app.cursor_row.saturating_sub(start);
         if cursor_screen_row < height {
-            let cursor_x =
-                (app.cursor_col.min(lines.get(app.cursor_row).map(|l| l.len()).unwrap_or(0)) + 1)
-                    as u16; // +1 for left border
+            let cursor_x = (app
+                .cursor_col
+                .min(lines.get(app.cursor_row).map(|l| l.len()).unwrap_or(0))
+                + 1) as u16; // +1 for left border
             let cursor_y = (left_split[0].y + 1 + cursor_screen_row as u16) as u16; // +1 for top
             f.set_cursor(left_split[0].x + cursor_x, cursor_y);
         }
@@ -1132,8 +1213,8 @@ fn ui(f: &mut ratatui::Frame<'_>, app: &App) {
             .map(|d| ListItem::new(d.as_str()))
             .collect()
     };
-    let diags = List::new(diags_items)
-        .block(Block::default().borders(Borders::ALL).title(diags_title));
+    let diags =
+        List::new(diags_items).block(Block::default().borders(Borders::ALL).title(diags_title));
     f.render_widget(diags, left_split[1]);
 
     // Cheatsheet
@@ -1187,8 +1268,11 @@ fn draw_status_and_input(
         Span::styled(
             if app.search_active {
                 let count = app.search_matches.len();
-                let idx = if count>0 { app.search_index+1 } else { 0 };
-                format!("{} | /{} [{} / {}] {}", mode_label, app.search_query, idx, count, app.status)
+                let idx = if count > 0 { app.search_index + 1 } else { 0 };
+                format!(
+                    "{} | /{} [{} / {}] {}",
+                    mode_label, app.search_query, idx, count, app.status
+                )
             } else {
                 format!("{} | {}", mode_label, app.status)
             },
@@ -1233,7 +1317,10 @@ fn compute_button_specs(area: Rect, app: &App) -> Vec<ButtonSpec> {
         (ButtonAction::Save, "Save".to_string()),
         (ButtonAction::Compile, "Compile".to_string()),
         (ButtonAction::Run, "Run".to_string()),
-        (ButtonAction::ToggleEmit, format!("Emit:{}", app.emit_mode.label())),
+        (
+            ButtonAction::ToggleEmit,
+            format!("Emit:{}", app.emit_mode.label()),
+        ),
         (
             ButtonAction::ToggleMode,
             match app.mode {

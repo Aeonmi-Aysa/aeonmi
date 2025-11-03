@@ -36,17 +36,20 @@ impl QuantumDiagnostic {
             quantum_context: None,
         }
     }
-    
+
+    #[allow(dead_code)]
     pub fn with_suggestion(mut self, suggestion: String) -> Self {
         self.suggestion = Some(suggestion);
         self
     }
-    
+
+    #[allow(dead_code)]
     pub fn with_help(mut self, help: String) -> Self {
         self.help = Some(help);
         self
     }
-    
+
+    #[allow(dead_code)]
     pub fn with_quantum_context(mut self, context: String) -> Self {
         self.quantum_context = Some(context);
         self
@@ -59,7 +62,11 @@ pub fn print_error(filename: &str, source: &str, title: &str, span: Span) {
 }
 
 pub fn print_quantum_diagnostic(filename: &str, source: &str, diag: &QuantumDiagnostic) {
-    eprintln!("{} {}", "error:".bright_red().bold(), diag.title.bright_white());
+    eprintln!(
+        "{} {}",
+        "error:".bright_red().bold(),
+        diag.title.bright_white()
+    );
     let (ln, col) = (diag.span.line, diag.span.col);
     let line_text = nth_line(source, ln).unwrap_or_default();
 
@@ -81,30 +88,44 @@ pub fn print_quantum_diagnostic(filename: &str, source: &str, diag: &QuantumDiag
         "|".dimmed(),
         underline.bright_red()
     );
-    
+
     // Show suggestion if available
     if let Some(suggestion) = &diag.suggestion {
-        eprintln!(" {} {} {}", " ".repeat(ln_str.len()).dimmed(), "|".dimmed(), " ");
-        eprintln!("{} {}", "suggestion:".bright_yellow().bold(), suggestion.bright_white());
+        eprintln!(
+            " {} {} {}",
+            " ".repeat(ln_str.len()).dimmed(),
+            "|".dimmed(),
+            " "
+        );
+        eprintln!(
+            "{} {}",
+            "suggestion:".bright_yellow().bold(),
+            suggestion.bright_white()
+        );
     }
-    
+
     // Show help if available
     if let Some(help) = &diag.help {
         eprintln!("{} {}", "help:".bright_cyan().bold(), help.bright_white());
     }
-    
+
     // Show quantum context if available
     if let Some(context) = &diag.quantum_context {
-        eprintln!("{} {}", "quantum:".bright_magenta().bold(), context.bright_white());
+        eprintln!(
+            "{} {}",
+            "quantum:".bright_magenta().bold(),
+            context.bright_white()
+        );
     }
-    
+
     eprintln!();
 }
 
 /// Create quantum-specific error diagnostics with helpful suggestions
+#[allow(dead_code)]
 pub fn quantum_syntax_error(message: &str, span: Span) -> QuantumDiagnostic {
     let diag = QuantumDiagnostic::new(message.to_string(), span);
-    
+
     // Add context-specific suggestions based on the error message
     match message {
         msg if msg.contains("Expected quantum binding operator") => {
@@ -133,35 +154,36 @@ pub fn quantum_syntax_error(message: &str, span: Span) -> QuantumDiagnostic {
 }
 
 /// Create specific error for unsupported legacy syntax with migration suggestions
+#[allow(dead_code)]
 pub fn legacy_syntax_error(legacy_syntax: &str, span: Span) -> QuantumDiagnostic {
     let (title, suggestion, help) = match legacy_syntax {
         "let" => (
             "Legacy 'let' keyword detected",
             "Use quantum variable declaration: ⟨variable⟩ ← value",
-            "AEONMI uses quantum-native syntax. Traditional 'let' is deprecated."
+            "AEONMI uses quantum-native syntax. Traditional 'let' is deprecated.",
         ),
         "function" => (
-            "Legacy 'function' keyword detected", 
+            "Legacy 'function' keyword detected",
             "Use ◯ name⟨params⟩ for classical functions or ⊙ name⟨params⟩ for quantum functions",
-            "AEONMI distinguishes between classical (◯) and quantum (⊙) functions"
+            "AEONMI distinguishes between classical (◯) and quantum (⊙) functions",
         ),
         "if" => (
             "Legacy 'if' statement detected",
             "Use ⊖ condition ⇒ { ... } for probability-based branching",
-            "AEONMI supports quantum probability-aware control flow"
+            "AEONMI supports quantum probability-aware control flow",
         ),
         "while" => (
             "Legacy 'while' loop detected",
             "Use ⟲ condition ⇒ { ... } for quantum loops with decoherence awareness",
-            "Quantum loops can include decoherence thresholds"
+            "Quantum loops can include decoherence thresholds",
         ),
         _ => (
             "Legacy syntax detected",
             "Migrate to AEONMI quantum-native syntax",
-            "AEONMI provides quantum-first programming constructs"
-        )
+            "AEONMI provides quantum-first programming constructs",
+        ),
     };
-    
+
     QuantumDiagnostic::new(title.to_string(), span)
         .with_suggestion(suggestion.to_string())
         .with_help(help.to_string())
@@ -180,7 +202,14 @@ pub struct JsonDiagnostic<'a> {
 
 /// Emit a machine-readable JSON line (prefixed) for downstream tools (GUI, editors).
 pub fn emit_json_error(file: &str, title: &str, span: &Span) {
-    let jd = JsonDiagnostic { severity: "error", message: title, file, line: span.line, col: span.col, len: span.len };
+    let jd = JsonDiagnostic {
+        severity: "error",
+        message: title,
+        file,
+        line: span.line,
+        col: span.col,
+        len: span.len,
+    };
     if let Ok(s) = serde_json::to_string(&jd) {
         eprintln!("@@DIAG:{}", s);
     }

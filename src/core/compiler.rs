@@ -80,7 +80,8 @@ impl Compiler {
                 Err(e) => {
                     println!("Semantic Analyzer errors: {}", e);
                     return Err(CoreError::general_error(&format!(
-                        "Semantic analysis error: {}", e
+                        "Semantic analysis error: {}",
+                        e
                     )));
                 }
             }

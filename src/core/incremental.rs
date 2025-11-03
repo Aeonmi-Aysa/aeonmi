@@ -740,10 +740,21 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                         .iter()
                         .any(|c| c.body.iter().any(expr_contains_identifier))
             }
-            N::QuantumFunction { body, .. }
-            | N::Function { body, .. }
-            | N::TimeBlock { body, .. }
-            | N::AILearningBlock { body, .. } => body.iter().any(expr_contains_identifier),
+            N::Function { params, body, .. }
+            | N::FunctionExpr { params, body, .. }
+            | N::QuantumFunction { params, body, .. } => {
+                params.iter().any(|p| {
+                    p.default
+                        .as_ref()
+                        .map(|d| expr_contains_identifier(d.as_ref()))
+                        .unwrap_or(false)
+                }) || body.iter().any(expr_contains_identifier)
+            }
+            N::TimeBlock { body, .. } | N::AILearningBlock { body, .. } => {
+                body.iter().any(expr_contains_identifier)
+            }
+            N::ObjectLiteral(fields) => fields.iter().any(|(_, v)| expr_contains_identifier(v)),
+            N::FieldAccess { object, .. } => expr_contains_identifier(object),
             N::QuantumTryCatch {
                 attempt_body,
                 catch_body,
@@ -799,10 +810,25 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
             N::Identifier(name) | N::IdentifierSpanned { name, .. } => {
                 reads.entry(name.clone()).or_default().insert(idx);
             }
-            N::Function { body, .. } => {
+            N::Function { params, body, .. }
+            | N::FunctionExpr { params, body, .. }
+            | N::QuantumFunction { params, body, .. } => {
+                for p in params {
+                    if let Some(default) = &p.default {
+                        walk(idx, default.as_ref(), reads, writes);
+                    }
+                }
                 for c in body {
                     walk(idx, c, reads, writes);
                 }
+            }
+            N::ObjectLiteral(fields) => {
+                for (_, value) in fields {
+                    walk(idx, value, reads, writes);
+                }
+            }
+            N::FieldAccess { object, .. } => {
+                walk(idx, object, reads, writes);
             }
             N::Block(b) => {
                 for c in b {

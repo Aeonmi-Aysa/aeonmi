@@ -22,7 +22,12 @@ let b = "s";
 let c = a - b;
 "#; // minus between number and string -> error
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Error) && m.contains("Arithmetic operands must be numbers")), "expected arithmetic type error, got: {:?}", diags);
+    assert!(
+        diags.iter().any(|(m, s)| matches!(s, Severity::Error)
+            && m.contains("Arithmetic operands must be numbers")),
+        "expected arithmetic type error, got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -33,7 +38,12 @@ let b = "s";
 let c = a + b;
 "#; // implicit coercion warning
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Warning) && m.contains("Implicit number/string coercion")), "expected coercion warning, got: {:?}", diags);
+    assert!(
+        diags.iter().any(|(m, s)| matches!(s, Severity::Warning)
+            && m.contains("Implicit number/string coercion")),
+        "expected coercion warning, got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -42,7 +52,13 @@ fn unused_function_warning() {
 fn foo() { return 1; }
 "#; // no call -> warning
     let diags = gather(src);
-    assert!(diags.iter().any(|(m,s)| matches!(s, Severity::Warning) && m.contains("Unused function 'foo'")), "expected unused function warning, got: {:?}", diags);
+    assert!(
+        diags
+            .iter()
+            .any(|(m, s)| matches!(s, Severity::Warning) && m.contains("Unused function 'foo'")),
+        "expected unused function warning, got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -52,5 +68,26 @@ fn foo() { return 1; }
 let x = foo();
 "#; // called -> no unused warning
     let diags = gather(src);
-    assert!(!diags.iter().any(|(m,_s)| m.contains("Unused function 'foo'")), "did not expect unused function warning, got: {:?}", diags);
+    assert!(
+        !diags
+            .iter()
+            .any(|(m, _s)| m.contains("Unused function 'foo'")),
+        "did not expect unused function warning, got: {:?}",
+        diags
+    );
+}
+
+#[test]
+fn qubit_arithmetic_is_an_error() {
+    let src = r#"
+let q = |0⟩;
+let r = q + 1;
+"#;
+    let diags = gather(src);
+    assert!(
+        diags.iter().any(|(m, s)| matches!(s, Severity::Error)
+            && m.contains("Qubit values cannot participate in arithmetic expressions")),
+        "expected qubit arithmetic error, got: {:?}",
+        diags
+    );
 }

@@ -28,14 +28,17 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
                 body,
                 ..
             } => {
-                let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                let lowered_params: Vec<FnParam> = params
+                    .iter()
+                    .map(|p| lower_fn_param(p))
+                    .collect::<Result<Vec<_>, _>>()?;
                 let mut stmts: Vec<Stmt> = Vec::new();
                 for stmt_node in body {
                     stmts.push(lower_stmt_ast(&stmt_node)?);
                 }
                 decls.push(Decl::Fn(FnDecl {
                     name: fn_name,
-                    params: param_names,
+                    params: lowered_params,
                     body: Block { stmts },
                 }));
             }
@@ -85,11 +88,14 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
         (a.path.as_str(), a.alias.as_deref()).cmp(&(b.path.as_str(), b.alias.as_deref()))
     });
     m.decls.sort_by(|a, b| {
+        use std::cmp::Ordering;
         let kind_order = decl_kind_rank(a).cmp(&decl_kind_rank(b));
-        if kind_order == std::cmp::Ordering::Equal {
-            a.name().cmp(b.name())
-        } else {
-            kind_order
+        if kind_order != Ordering::Equal {
+            return kind_order;
+        }
+        match (a, b) {
+            (Decl::Fn(_), Decl::Fn(_)) => a.name().cmp(b.name()),
+            _ => Ordering::Equal,
         }
     });
     Ok(m)
@@ -98,9 +104,9 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
 fn decl_kind_rank(decl: &Decl) -> u8 {
     match decl {
         Decl::Const(_) => 0,
-        Decl::Let(_) => 1,
-        Decl::QuantumLet(_) => 1,
-        Decl::Fn(_) => 2,
+        Decl::Fn(_) => 1,
+        Decl::Let(_) => 2,
+        Decl::QuantumLet(_) => 2,
     }
 }
 
@@ -127,12 +133,15 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
         A::Call { .. }
         | A::BinaryExpr { .. }
         | A::UnaryExpr { .. }
+        | A::FunctionExpr { .. }
         | A::Identifier(_)
         | A::NumberLiteral(_)
         | A::StringLiteral(_)
         | A::BooleanLiteral(_)
         | A::ArrayLiteral(_)
-        | A::IndexExpr { .. } => Stmt::Expr(lower_expr_ast(n)?),
+        | A::ObjectLiteral(_)
+        | A::IndexExpr { .. }
+        | A::FieldAccess { .. } => Stmt::Expr(lower_expr_ast(n)?),
 
         A::If {
             condition,
@@ -496,6 +505,12 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
                 .map(|el| lower_expr_ast(el))
                 .collect::<Result<Vec<_>, _>>()?,
         ),
+        A::ObjectLiteral(fields) => Expr::Object(
+            fields
+                .iter()
+                .map(|(k, v)| Ok((k.clone(), lower_expr_ast(v)?)))
+                .collect::<Result<Vec<_>, String>>()?,
+        ),
         A::QuantumArray {
             elements,
             dimensions: _,
@@ -511,6 +526,27 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
             target: Box::new(lower_expr_ast(array)?),
             index: Box::new(lower_expr_ast(index)?),
         },
+        A::FieldAccess { object, field } => Expr::Member {
+            object: Box::new(lower_expr_ast(object)?),
+            field: field.clone(),
+        },
+        A::FunctionExpr {
+            name, params, body, ..
+        } => {
+            let lowered_params = params
+                .iter()
+                .map(|p| lower_fn_param(p))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut stmts = Vec::new();
+            for stmt in body {
+                stmts.push(lower_stmt_ast(stmt)?);
+            }
+            Expr::Lambda {
+                name: name.clone(),
+                params: lowered_params,
+                body: Block { stmts },
+            }
+        }
 
         A::Block(_)
         | A::If { .. }
@@ -563,6 +599,18 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
         _ => Expr::Lit(Lit::String(
             "/* Quantum AST node not yet implemented in lowering */".to_string(),
         )),
+    })
+}
+
+fn lower_fn_param(param: &crate::core::ast::FunctionParam) -> Result<FnParam, String> {
+    let default = match &param.default {
+        Some(expr) => Some(lower_expr_ast(expr)?),
+        None => None,
+    };
+    Ok(FnParam {
+        name: param.name.clone(),
+        default,
+        is_variadic: param.is_variadic,
     })
 }
 

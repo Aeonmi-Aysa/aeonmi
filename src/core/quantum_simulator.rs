@@ -2,7 +2,7 @@
 //! Provides state vector simulation for quantum operations
 #![cfg_attr(not(test), allow(dead_code))]
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 
 /// Complex number representation for quantum amplitudes
@@ -164,7 +164,7 @@ impl QuantumGates {
     /// Apply Hadamard gate (superposition)
     pub fn hadamard(state: &mut QuantumState, qubit: usize) -> Result<()> {
         if qubit >= state.num_qubits {
-            return Err(anyhow::anyhow!("Qubit index {} out of range", qubit));
+            return Err(anyhow!("Qubit index {} out of range", qubit));
         }
 
         let sqrt_half = 1.0 / 2.0_f64.sqrt();
@@ -195,7 +195,7 @@ impl QuantumGates {
     /// Apply Pauli-X gate (bit flip)
     pub fn pauli_x(state: &mut QuantumState, qubit: usize) -> Result<()> {
         if qubit >= state.num_qubits {
-            return Err(anyhow::anyhow!("Qubit index {} out of range", qubit));
+            return Err(anyhow!("Qubit index {} out of range", qubit));
         }
 
         let num_states = state.amplitudes.len();
@@ -213,7 +213,7 @@ impl QuantumGates {
     /// Apply Pauli-Z gate (phase flip)
     pub fn pauli_z(state: &mut QuantumState, qubit: usize) -> Result<()> {
         if qubit >= state.num_qubits {
-            return Err(anyhow::anyhow!("Qubit index {} out of range", qubit));
+            return Err(anyhow!("Qubit index {} out of range", qubit));
         }
 
         for i in 0..state.amplitudes.len() {
@@ -230,7 +230,7 @@ impl QuantumGates {
     #[allow(dead_code)]
     pub fn cnot(state: &mut QuantumState, control: usize, target: usize) -> Result<()> {
         if control >= state.num_qubits || target >= state.num_qubits {
-            return Err(anyhow::anyhow!("Qubit index out of range"));
+            return Err(anyhow!("Qubit index out of range"));
         }
 
         let num_states = state.amplitudes.len();
@@ -274,12 +274,18 @@ impl QuantumSimulator {
         self.qubits.insert(name, QuantumState::new(1));
     }
 
+    fn ensure_qubit(&mut self, name: &str) -> &mut QuantumState {
+        self.qubits
+            .entry(name.to_string())
+            .or_insert_with(|| QuantumState::new(1))
+    }
+
     /// Apply superposition (Hadamard) to a qubit
     pub fn superpose(&mut self, qubit_name: &str) -> Result<()> {
         if let Some(state) = self.qubits.get_mut(qubit_name) {
             QuantumGates::hadamard(state, 0)
         } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+            Err(anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
 
@@ -288,7 +294,7 @@ impl QuantumSimulator {
         if let Some(state) = self.qubits.get_mut(qubit_name) {
             QuantumGates::pauli_x(state, 0)
         } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+            Err(anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
 
@@ -297,7 +303,7 @@ impl QuantumSimulator {
         if let Some(state) = self.qubits.get_mut(qubit_name) {
             QuantumGates::pauli_z(state, 0)
         } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+            Err(anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
 
@@ -306,7 +312,7 @@ impl QuantumSimulator {
         if let Some(state) = self.qubits.get_mut(qubit_name) {
             Ok(state.measure() as u8)
         } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+            Err(anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
 
@@ -315,8 +321,50 @@ impl QuantumSimulator {
         if let Some(state) = self.qubits.get(qubit_name) {
             Ok(state.get_probability(0))
         } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+            Err(anyhow!("Qubit '{}' not found", qubit_name))
         }
+    }
+
+    pub fn prepare_named_state(
+        &mut self,
+        qubit_name: &str,
+        label: &str,
+        amplitude: Option<f64>,
+    ) -> Result<()> {
+        let components = vec![(label.to_string(), amplitude)];
+        self.prepare_state_from_components(qubit_name, &components)
+    }
+
+    pub fn prepare_state_from_components(
+        &mut self,
+        qubit_name: &str,
+        components: &[(String, Option<f64>)],
+    ) -> Result<()> {
+        let amplitudes = Self::components_to_vector(components)?;
+        self.set_state(qubit_name, amplitudes)
+    }
+
+    pub fn probability_from_components(&self, components: &[(String, Option<f64>)]) -> Result<f64> {
+        let amplitudes = Self::components_to_vector(components)?;
+        let mut state = QuantumState::new(1);
+        state.amplitudes = amplitudes;
+        state.normalize();
+        Ok(state.get_probability(1))
+    }
+
+    pub fn set_state(&mut self, qubit_name: &str, amplitudes: Vec<Complex>) -> Result<()> {
+        if amplitudes.len() != 2 {
+            return Err(anyhow!(
+                "Only single-qubit states are supported in this simulator (got {} amplitudes)",
+                amplitudes.len()
+            ));
+        }
+
+        let state = self.ensure_qubit(qubit_name);
+        state.amplitudes = amplitudes;
+        state.num_qubits = 1;
+        state.normalize();
+        Ok(())
     }
 
     /// Create entanglement between two qubits (simplified)
@@ -325,10 +373,10 @@ impl QuantumSimulator {
         // A full implementation would merge their state spaces
 
         if !self.qubits.contains_key(qubit1) {
-            return Err(anyhow::anyhow!("Qubit '{}' not found", qubit1));
+            return Err(anyhow!("Qubit '{}' not found", qubit1));
         }
         if !self.qubits.contains_key(qubit2) {
-            return Err(anyhow::anyhow!("Qubit '{}' not found", qubit2));
+            return Err(anyhow!("Qubit '{}' not found", qubit2));
         }
 
         // Find or create entangled system
@@ -358,6 +406,47 @@ impl QuantumSimulator {
     pub fn reset(&mut self) {
         self.qubits.clear();
         self.entangled_systems.clear();
+    }
+
+    fn canonical_label(label: &str) -> String {
+        let trimmed = label.trim();
+        let without_pipe = trimmed
+            .trim_start_matches('|')
+            .trim_end_matches('⟩')
+            .trim_end_matches('>')
+            .trim();
+        without_pipe.to_string()
+    }
+
+    fn vector_for_label(label: &str) -> Result<[Complex; 2]> {
+        let canonical = Self::canonical_label(label);
+        let sqrt_half = 1.0 / 2.0_f64.sqrt();
+        match canonical.as_str() {
+            "0" | "zero" => Ok([Complex::real(1.0), Complex::real(0.0)]),
+            "1" | "one" => Ok([Complex::real(0.0), Complex::real(1.0)]),
+            "+" | "plus" => Ok([Complex::real(sqrt_half), Complex::real(sqrt_half)]),
+            "-" | "minus" => Ok([Complex::real(sqrt_half), Complex::real(-sqrt_half)]),
+            other => Err(anyhow!("Unsupported quantum state '{}'", other)),
+        }
+    }
+
+    fn components_to_vector(components: &[(String, Option<f64>)]) -> Result<Vec<Complex>> {
+        let mut accumulator = vec![Complex::new(0.0, 0.0); 2];
+        for (label, amplitude) in components {
+            let mut vec = Self::vector_for_label(label)?;
+            if let Some(scale) = amplitude {
+                vec[0] = vec[0] * *scale;
+                vec[1] = vec[1] * *scale;
+            }
+            accumulator[0] = accumulator[0] + vec[0];
+            accumulator[1] = accumulator[1] + vec[1];
+        }
+
+        if accumulator[0].magnitude_squared() + accumulator[1].magnitude_squared() < 1e-12 {
+            accumulator[0] = Complex::real(1.0);
+        }
+
+        Ok(accumulator)
     }
 }
 

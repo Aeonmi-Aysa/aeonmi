@@ -5,12 +5,12 @@ use std::process::exit;
 use colored::Colorize;
 
 use crate::cli::EmitKind;
+use crate::core::artifact_cache::{get_artifact, put_artifact};
 use crate::core::code_generator::CodeGenerator;
-use crate::core::diagnostics::{print_error, emit_json_error, Span};
+use crate::core::diagnostics::{emit_json_error, print_error, Span};
 use crate::core::lexer::{Lexer, LexerError};
 use crate::core::parser::{Parser as AeParser, ParserError}; // JS + AI backends
-use crate::core::artifact_cache::{get_artifact, put_artifact};
-use sha1::{Sha1, Digest};
+use sha1::{Digest, Sha1};
 
 #[allow(dead_code, clippy::too_many_arguments)]
 pub fn main_with_opts(
@@ -47,7 +47,8 @@ pub fn compile_pipeline(
     skip_sema: bool,    // honored via note (codegen path doesn’t need it)
     _debug_titan: bool, // wired for Titan debug; unused in this frontend
 ) -> anyhow::Result<()> {
-    let input_path = input.as_deref()
+    let input_path = input
+        .as_deref()
         .unwrap_or_else(|| Path::new("examples/hello.ai"));
 
     // Load source (with fallback)
@@ -149,17 +150,36 @@ pub fn compile_pipeline(
     }
 
     // Artifact cache key: hash(source)+emit kind
-    let mut hasher = Sha1::new(); hasher.update(source.as_bytes()); hasher.update(match emit { EmitKind::Ai=>b"AI", EmitKind::Js=>b"JS" });
+    let mut hasher = Sha1::new();
+    hasher.update(source.as_bytes());
+    hasher.update(match emit {
+        EmitKind::Ai => b"AI",
+        EmitKind::Js => b"JS",
+    });
     let key = format!("{:x}", hasher.finalize());
-    let output_string = if let Some(entry) = get_artifact(&key) { String::from_utf8(entry.data).unwrap_or_default() } else {
+    let output_string = if let Some(entry) = get_artifact(&key) {
+        String::from_utf8(entry.data).unwrap_or_default()
+    } else {
         let generated = match emit {
             EmitKind::Ai => {
                 let mut gen = CodeGenerator::new_ai();
-                match gen.generate(&ast) { Ok(s)=>s, Err(e)=>{ eprintln!("{} AI emit failed: {}", "error:".bright_red().bold(), e); exit(1);} }
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("{} AI emit failed: {}", "error:".bright_red().bold(), e);
+                        exit(1);
+                    }
+                }
             }
             EmitKind::Js => {
                 let mut gen = CodeGenerator::new();
-                match gen.generate(&ast) { Ok(s)=>s, Err(e)=>{ eprintln!("{} JS emit failed: {}", "error:".bright_red().bold(), e); exit(1);} }
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("{} JS emit failed: {}", "error:".bright_red().bold(), e);
+                        exit(1);
+                    }
+                }
             }
         };
         put_artifact(key.clone(), generated.as_bytes().to_vec());
@@ -216,9 +236,14 @@ pub fn compile_pipeline_soft(
     skip_sema: bool,
     _debug_titan: bool,
 ) -> anyhow::Result<()> {
-    let input_path = input.as_deref().unwrap_or_else(|| Path::new("examples/hello.ai"));
-    let source = fs::read_to_string(input_path).unwrap_or_else(|_| "let x = 42;\nlog(x);".to_string());
-    if print_tokens || print_ast { println!("=== Source Code ===\n{}\n", source); }
+    let input_path = input
+        .as_deref()
+        .unwrap_or_else(|| Path::new("examples/hello.ai"));
+    let source =
+        fs::read_to_string(input_path).unwrap_or_else(|_| "let x = 42;\nlog(x);".to_string());
+    if print_tokens || print_ast {
+        println!("=== Source Code ===\n{}\n", source);
+    }
     let mut lexer = Lexer::from_str(&source);
     let tokens = match lexer.tokenize() {
         Ok(t) => t,
@@ -230,8 +255,17 @@ pub fn compile_pipeline_soft(
                     | LexerError::InvalidNumber(_, line, col)
                     | LexerError::InvalidQubitLiteral(_, line, col)
                     | LexerError::UnterminatedComment(line, col) => {
-                        emit_json_error(&input_path.display().to_string(), &format!("{}", e), &Span::single(line, col));
-                        print_error(&input_path.display().to_string(), &source, &format!("{}", e), Span::single(line, col));
+                        emit_json_error(
+                            &input_path.display().to_string(),
+                            &format!("{}", e),
+                            &Span::single(line, col),
+                        );
+                        print_error(
+                            &input_path.display().to_string(),
+                            &source,
+                            &format!("{}", e),
+                            Span::single(line, col),
+                        );
                     }
                     _ => eprintln!("lex error: {e}"),
                 }
@@ -239,30 +273,79 @@ pub fn compile_pipeline_soft(
             return Err(anyhow::anyhow!("lexing failed"));
         }
     };
-    if print_tokens { for token in &tokens { println!("{}", token); } println!(); }
+    if print_tokens {
+        for token in &tokens {
+            println!("{}", token);
+        }
+        println!();
+    }
     let mut parser = AeParser::new(tokens.clone());
     let ast = match parser.parse() {
         Ok(a) => a,
-        Err(ParserError { message, line, column }) => {
+        Err(ParserError {
+            message,
+            line,
+            column,
+        }) => {
             if pretty {
-                emit_json_error(&input_path.display().to_string(), &format!("Parsing error: {}", message), &Span::single(line, column));
-                print_error(&input_path.display().to_string(), &source, &format!("Parsing error: {}", message), Span::single(line, column));
-            } else { eprintln!("parse error: {}", message); }
+                emit_json_error(
+                    &input_path.display().to_string(),
+                    &format!("Parsing error: {}", message),
+                    &Span::single(line, column),
+                );
+                print_error(
+                    &input_path.display().to_string(),
+                    &source,
+                    &format!("Parsing error: {}", message),
+                    Span::single(line, column),
+                );
+            } else {
+                eprintln!("parse error: {}", message);
+            }
             return Err(anyhow::anyhow!("parse failed"));
         }
     };
-    if print_ast { println!("=== AST ===\n{:#?}\n", ast); }
-    if skip_sema { println!("note: semantic analysis skipped"); }
-    let mut hasher = Sha1::new(); hasher.update(source.as_bytes()); hasher.update(match emit { EmitKind::Ai=>b"AI", EmitKind::Js=>b"JS" });
+    if print_ast {
+        println!("=== AST ===\n{:#?}\n", ast);
+    }
+    if skip_sema {
+        println!("note: semantic analysis skipped");
+    }
+    let mut hasher = Sha1::new();
+    hasher.update(source.as_bytes());
+    hasher.update(match emit {
+        EmitKind::Ai => b"AI",
+        EmitKind::Js => b"JS",
+    });
     let key = format!("{:x}", hasher.finalize());
-    let output_string = if let Some(entry) = get_artifact(&key) { String::from_utf8(entry.data).unwrap_or_default() } else {
+    let output_string = if let Some(entry) = get_artifact(&key) {
+        String::from_utf8(entry.data).unwrap_or_default()
+    } else {
         let generated = match emit {
-            EmitKind::Ai => { let mut gen = CodeGenerator::new_ai(); gen.generate(&ast).map_err(|e| anyhow::anyhow!("AI emit failed: {e}"))? }
-            EmitKind::Js => { let mut gen = CodeGenerator::new(); gen.generate(&ast).map_err(|e| anyhow::anyhow!("JS emit failed: {e}"))? }
-        }; put_artifact(key.clone(), generated.as_bytes().to_vec()); generated };
-    if let Some(parent) = out.parent() { if !parent.as_os_str().is_empty() { fs::create_dir_all(parent).map_err(|e| anyhow::anyhow!("dir create failed: {e}"))?; } }
+            EmitKind::Ai => {
+                let mut gen = CodeGenerator::new_ai();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("AI emit failed: {e}"))?
+            }
+            EmitKind::Js => {
+                let mut gen = CodeGenerator::new();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("JS emit failed: {e}"))?
+            }
+        };
+        put_artifact(key.clone(), generated.as_bytes().to_vec());
+        generated
+    };
+    if let Some(parent) = out.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).map_err(|e| anyhow::anyhow!("dir create failed: {e}"))?;
+        }
+    }
     fs::write(&out, &output_string).map_err(|e| anyhow::anyhow!("write failed: {e}"))?;
-    match emit { EmitKind::Js => println!("ok: wrote js to '{}'.", out.display()), EmitKind::Ai => println!("ok: wrote ai to '{}'.", out.display()), }
+    match emit {
+        EmitKind::Js => println!("ok: wrote js to '{}'.", out.display()),
+        EmitKind::Ai => println!("ok: wrote ai to '{}'.", out.display()),
+    }
     crate::core::incremental::persist_metrics();
     crate::core::incremental::ensure_metrics_file_exists();
     Ok(())

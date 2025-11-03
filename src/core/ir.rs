@@ -69,8 +69,15 @@ pub struct QuantumLetDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FnDecl {
     pub name: String,
-    pub params: Vec<String>,
+    pub params: Vec<FnParam>,
     pub body: Block,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FnParam {
+    pub name: String,
+    pub default: Option<Expr>,
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -127,6 +134,11 @@ pub enum Expr {
         callee: Box<Expr>,
         args: Vec<Expr>,
     },
+    Lambda {
+        name: Option<String>,
+        params: Vec<FnParam>,
+        body: Block,
+    },
     Binary {
         left: Box<Expr>,
         op: BinOp,
@@ -140,6 +152,10 @@ pub enum Expr {
     Index {
         target: Box<Expr>,
         index: Box<Expr>,
+    },
+    Member {
+        object: Box<Expr>,
+        field: String,
     },
     Object(Vec<(String, Expr)>), // simple map/object
     QuantumState {

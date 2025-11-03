@@ -1,5 +1,5 @@
-use std::process::Command;
 use std::fs;
+use std::process::Command;
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_aeonmi_project").to_string()
@@ -20,11 +20,23 @@ fn native_run_does_not_emit_js() {
         .output()
         .expect("failed to execute aeonmi_project run --native");
 
-    assert!(output.status.success(), "native run failed: stdout=\n{}\nstderr=\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "native run failed: stdout=\n{}\nstderr=\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("3"), "expected computed value in stdout: {stdout}");
+    assert!(
+        stdout.contains("3"),
+        "expected computed value in stdout: {stdout}"
+    );
 
     // Ensure no JS artifact was produced in working directory
     let js_path = dir.path().join("aeonmi.run.js");
-    assert!(!js_path.exists(), "unexpected JS output created in native run: {:?}", js_path);
+    assert!(
+        !js_path.exists(),
+        "unexpected JS output created in native run: {:?}",
+        js_path
+    );
 }

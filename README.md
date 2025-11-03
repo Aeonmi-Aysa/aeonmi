@@ -49,7 +49,7 @@ cargo run -- run examples/getting_started.ai --native
 | Concept | Status | Notes |
 |---------|--------|-------|
 | Variables | `let name = expr;` | Bindings are mutable after declaration. Blocks (`{ ... }`) introduce scope. |
-| Arithmetic | `+ - * /` | Division truncates toward zero. `%` is roadmap. |
+| Arithmetic | `+ - * / %` | Division truncates toward zero; `%` returns the remainder. |
 | Comparisons | `== != < <= > >=` | Yield booleans. |
 | Logic | `! && ||` | Short-circuit evaluation. |
 | Control Flow | `if`, `while`, `for` | `for` mirrors JS: `for (init; condition; update) { ... }`. |
@@ -81,7 +81,7 @@ cargo run -- run examples/getting_started.ai --native
 
 Need inspiration? Check out [`examples/aeonmi_focus_flow.ai`](examples/aeonmi_focus_flow.ai) for a complete productivity pulse app built entirely in Aeonmi.
 
-> **Tip:** The [`docs/Aeonmi_Language_Guide.md`](docs/Aeonmi_Language_Guide.md) expands each topic with diagnostics, recipes (e.g., random selection without modulo), and quantum + glyph previews.
+> **Tip:** The [`docs/Aeonmi_Language_Guide.md`](docs/Aeonmi_Language_Guide.md) expands each topic with diagnostics, recipes (e.g., random selection with modulo), and quantum + glyph previews.
 
 ## Branch Status
 
@@ -494,7 +494,7 @@ Aeonmi.exe run --native hello.ai
 | Numbers | Yes | Integer literals (no fractional parsing yet unless already implemented in your branch). |
 | Booleans | Yes | `true`, `false` (if lexer currently recognizes; else represent with 1 / 0). |
 | Arrays / `[]` | Not yet | Using `[` causes a lexing error today. See “Sequences Without Arrays”. |
-| `%` (modulo) | Not yet | Use division + subtraction patterns. |
+| `%` (modulo) | Yes | Native remainder operator (integer semantics). |
 | `&&`, `||` | If implemented | If absent, emulate with nested `if`. |
 
 ### 3. Statements
@@ -521,7 +521,7 @@ Grouping: (expr)
 Concatenation: String + String/Number (the `+` operator does double duty)
 ```
 
-Missing / Not Yet: `%`, `++`, `--`, `?:`, bitwise ops.
+Missing / Not Yet: `++`, `--`, `?:`, bitwise ops.
 
 ### 5. Built‑ins (Native VM subset)
 | Name | Purpose | Example |
@@ -553,21 +553,19 @@ fn abs(n) {
 log(abs(-5));
 ```
 
-### 7. Random Selection Without Arrays or Modulo
+### 7. Random Selection With Modulo
 
-Problem: Need one item from N choices; arrays and `%` not available.
+Problem: Need one item from N choices; arrays remain unavailable but `%` now buckets values directly.
 
 Pattern:
 ```ai
-let r = rand();
-let r10 = (r / 10);       # shrink
-let r100 = (r10 / 10);    # shrink again
-let pick = (r100 / 10);   # coarse bucket
+let pick = rand() % 5;    # 0-4
 
 if (pick == 0) { log("Choice A"); }
 else if (pick == 1) { log("Choice B"); }
 else if (pick == 2) { log("Choice C"); }
-else { log("Fallback"); }
+else if (pick == 3) { log("Choice D"); }
+else { log("Choice E"); }
 ```
 
 ### 8. Emulating Lists (Sequences Without `[]`)
@@ -601,7 +599,7 @@ No template literals yet; just chain `+`.
 |------------|-------------|-----|
 | `Lexing error: Unexpected character '['` | Arrays not implemented | Remove `[` / use pattern in §8 |
 | `Lexing error: Unexpected character '%'
-` | Modulo not implemented | Use division + subtraction buckets |
+` | Using an older build without modulo | Upgrade to the current shard or remove `%` for legacy compatibility |
 | `Parsing error: Expected '(' after if` | Missing parentheses | Add `( )` around condition |
 | Runtime error (if any) | Built‑in misuse / unhandled state | Add logging around variables |
 
@@ -619,7 +617,7 @@ You may lose early detection of type/usage mistakes in that run.
 |--------|---------|-----------|
 | Execution | Transpiles to JS then Node | Direct interpretation |
 | Speed (small scripts) | Node startup overhead | No external process |
-| Feature Gaps | Potential broader syntax (future) | Emerging parity; arrays/modulo pending |
+| Feature Gaps | Potential broader syntax (future) | Emerging parity; arrays pending |
 | Debug Env | Use JS tooling | Set `AEONMI_DEBUG=1` for internal debug logs |
 
 Force native:
@@ -635,7 +633,7 @@ Aeonmi.exe run --native file.ai
 5. Functions (once enabled in your build) & returns.
 6. Randomness patterns with `rand`.
 7. Refactor repeated chains into helper functions.
-8. (Later) Adopt arrays, modulo, richer types when released.
+8. (Later) Adopt arrays and richer types when released.
 
 ### 14. Idiomatic Patterns (Today)
 | Goal | Pattern |

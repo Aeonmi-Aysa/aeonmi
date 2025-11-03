@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 #[allow(dead_code)]
 pub fn main_with_opts(inputs: Vec<PathBuf>, fix: bool) -> anyhow::Result<()> {
-    use std::fs;
     use anyhow::Context;
+    use std::fs;
 
     let mut problems = 0usize;
     for p in inputs {
@@ -36,6 +36,8 @@ pub fn main_with_opts(inputs: Vec<PathBuf>, fix: bool) -> anyhow::Result<()> {
             println!("{}: {} problems", p.display(), problems);
         }
     }
-    if problems > 0 { std::process::exit(1); }
+    if problems > 0 {
+        std::process::exit(1);
+    }
     Ok(())
 }

@@ -1,4 +1,8 @@
-use aeonmi_project::core::{ai_emitter::emit_ai, ir::*, vm::Interpreter};
+use aeonmi_project::core::{
+    ai_emitter::emit_ai,
+    ir::*,
+    vm::{Interpreter, Value},
+};
 
 #[test]
 fn smoke_emits_and_runs() {
@@ -7,6 +11,14 @@ fn smoke_emits_and_runs() {
         name: "demo".into(),
         imports: vec![], // no std/io import needed for this smoke test
         decls: vec![
+            Decl::Let(LetDecl {
+                name: "rem".into(),
+                value: Some(Expr::Binary {
+                    left: Box::new(Expr::Lit(Lit::Number(17.0))),
+                    op: BinOp::Mod,
+                    right: Box::new(Expr::Lit(Lit::Number(5.0))),
+                }),
+            }),
             Decl::Const(ConstDecl {
                 name: "PI".into(),
                 value: Expr::Lit(Lit::Number(3.0)),
@@ -46,4 +58,9 @@ fn smoke_emits_and_runs() {
     // 2) VM runs module without error
     let mut vm = Interpreter::new();
     assert!(vm.run_module(&m).is_ok(), "VM failed to run module");
+
+    match vm.env.get("rem") {
+        Some(Value::Number(n)) => assert_eq!(n, 2.0),
+        other => panic!("expected remainder 2.0, got {:?}", other),
+    }
 }

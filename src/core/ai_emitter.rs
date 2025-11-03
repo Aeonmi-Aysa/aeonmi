@@ -112,7 +112,14 @@ fn write_module(dst: &mut String, m: &Module) {
                     if pi > 0 {
                         dst.push_str(", ");
                     }
-                    write!(dst, "{}", escape_sym(p)).unwrap();
+                    if p.is_variadic {
+                        dst.push_str("...");
+                    }
+                    dst.push_str(&escape_sym(&p.name));
+                    if let Some(default) = &p.default {
+                        dst.push_str(" = ");
+                        write_expr(dst, default, 0);
+                    }
                 }
                 dst.push_str(") ");
                 write_block(dst, &f.body, 0);
@@ -303,6 +310,29 @@ fn write_expr(dst: &mut String, e: &Expr, indent: usize) {
             }
             dst.push(')');
         }
+        Expr::Lambda { name, params, body } => {
+            dst.push_str("fn ");
+            if let Some(n) = name {
+                dst.push_str(&escape_sym(n));
+            }
+            dst.push('(');
+            for (i, p) in params.iter().enumerate() {
+                if i > 0 {
+                    dst.push_str(", ");
+                }
+                if p.is_variadic {
+                    dst.push_str("...");
+                }
+                dst.push_str(&escape_sym(&p.name));
+                if let Some(default) = &p.default {
+                    dst.push_str(" = ");
+                    write_expr(dst, default, indent);
+                }
+            }
+            dst.push(')');
+            dst.push(' ');
+            write_block(dst, body, indent);
+        }
         Expr::Binary { left, op, right } => {
             write_expr(dst, left, indent);
             dst.push(' ');
@@ -357,6 +387,18 @@ fn write_expr(dst: &mut String, e: &Expr, indent: usize) {
             dst.push('[');
             write_expr(dst, index, indent);
             dst.push(']');
+        }
+        Expr::Member { object, field } => {
+            write_expr(dst, object, indent);
+            let escaped = escape_sym(field);
+            if escaped.starts_with('"') {
+                dst.push('[');
+                dst.push_str(&escaped);
+                dst.push(']');
+            } else {
+                dst.push('.');
+                dst.push_str(&escaped);
+            }
         }
         Expr::Object(fields) => {
             dst.push('{');

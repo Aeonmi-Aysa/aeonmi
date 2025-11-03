@@ -847,6 +847,8 @@ impl Lexer {
             '=' => Some(TokenKind::Equals),
             ';' => Some(TokenKind::Semicolon),
             ',' => Some(TokenKind::Comma),
+            ':' => Some(TokenKind::Colon),
+            '.' => Some(TokenKind::Dot),
             '(' => Some(TokenKind::OpenParen),
             ')' => Some(TokenKind::CloseParen),
             '{' => Some(TokenKind::OpenBrace),
