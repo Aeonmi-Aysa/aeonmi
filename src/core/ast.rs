@@ -9,12 +9,44 @@ use crate::core::token::TokenKind;
 pub enum ASTNode {
     // Program root
     Program(Vec<ASTNode>),
+
+    // Module system
+    Module {
+        path: Vec<String>, // e.g., ["Nebula", "Threadsmiths"]
+        body: Vec<ASTNode>,
+    },
+    Import {
+        path: Vec<String>,          // e.g., ["mobile", "core"]
+        items: Option<Vec<String>>, // Optional specific imports
+    },
+
+    // Type declarations
+    RecordDecl {
+        name: String,
+        fields: Vec<(String, Option<ASTNode>)>, // (name, type_annotation)
+        line: usize,
+        column: usize,
+    },
+    EnumDecl {
+        name: String,
+        variants: Vec<String>,
+        line: usize,
+        column: usize,
+    },
+    TypeAlias {
+        name: String,
+        target: Box<ASTNode>,
+        line: usize,
+        column: usize,
+    },
+
     // Declarations
     Function {
         name: String,
         line: usize,
         column: usize,
         params: Vec<FunctionParam>,
+        return_type: Option<String>,
         body: Vec<ASTNode>,
     },
     FunctionExpr {
@@ -26,6 +58,7 @@ pub enum ASTNode {
     },
     VariableDecl {
         name: String,
+        type_annotation: Option<String>,
         value: Box<ASTNode>,
         line: usize,
         column: usize,
@@ -50,6 +83,15 @@ pub enum ASTNode {
         increment: Option<Box<ASTNode>>,
         body: Box<ASTNode>,
     },
+    ForIn {
+        binding: ForInBinding,
+        iterable: Box<ASTNode>,
+        body: Box<ASTNode>,
+    },
+    Match {
+        value: Box<ASTNode>,
+        arms: Vec<MatchArm>,
+    },
     // Expressions
     Assignment {
         name: String,
@@ -60,6 +102,12 @@ pub enum ASTNode {
     Call {
         callee: Box<ASTNode>,
         args: Vec<ASTNode>,
+    },
+    MethodCall {
+        object: Box<ASTNode>,
+        method: String,
+        args: Vec<ASTNode>,
+        named_args: Vec<(String, ASTNode)>,
     },
     BinaryExpr {
         op: TokenKind,
@@ -83,6 +131,22 @@ pub enum ASTNode {
     BooleanLiteral(bool),
     ArrayLiteral(Vec<ASTNode>),
     ObjectLiteral(Vec<(String, ASTNode)>),
+    StructLiteral {
+        type_name: String,
+        fields: Vec<(String, ASTNode)>,
+    },
+    TypeCast {
+        expr: Box<ASTNode>,
+        target_type: String,
+    },
+    GenericType {
+        base_type: String,
+        type_args: Vec<String>,
+    },
+    ReferenceExpr {
+        is_mutable: bool,
+        expr: Box<ASTNode>,
+    },
     IndexExpr {
         array: Box<ASTNode>,
         index: Box<ASTNode>,
@@ -177,8 +241,18 @@ pub struct FunctionParam {
     pub name: String,
     pub line: usize,
     pub column: usize,
+    pub type_annotation: Option<String>,
     pub default: Option<Box<ASTNode>>,
     pub is_variadic: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForInBinding {
+    pub name: String,
+    pub is_mutable: bool,
+    pub type_annotation: Option<String>,
+    pub line: usize,
+    pub column: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -202,6 +276,13 @@ pub struct SuperpositionCase {
     pub body: Vec<ASTNode>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm {
+    pub pattern: ASTNode,            // Pattern to match against
+    pub guard: Option<Box<ASTNode>>, // Optional guard condition
+    pub body: ASTNode,               // Body to execute if matched
+}
+
 impl ASTNode {
     // Utility constructors
     #[allow(dead_code)]
@@ -216,10 +297,12 @@ impl ASTNode {
                     name: p.to_string(),
                     line: 0,
                     column: 0,
+                    type_annotation: None,
                     default: None,
                     is_variadic: false,
                 })
                 .collect(),
+            return_type: None,
             body,
         }
     }
@@ -229,12 +312,14 @@ impl ASTNode {
         column: usize,
         params: Vec<FunctionParam>,
         body: Vec<ASTNode>,
+        return_type: Option<String>,
     ) -> Self {
         Self::Function {
             name: name.to_string(),
             line,
             column,
             params,
+            return_type,
             body,
         }
     }
@@ -258,6 +343,7 @@ impl ASTNode {
     pub fn new_variable_decl(name: &str, value: ASTNode) -> Self {
         Self::VariableDecl {
             name: name.to_string(),
+            type_annotation: None,
             value: Box::new(value),
             line: 0,
             column: 0,
@@ -266,6 +352,23 @@ impl ASTNode {
     pub fn new_variable_decl_at(name: &str, value: ASTNode, line: usize, column: usize) -> Self {
         Self::VariableDecl {
             name: name.to_string(),
+            type_annotation: None,
+            value: Box::new(value),
+            line,
+            column,
+        }
+    }
+
+    pub fn new_variable_decl_typed(
+        name: &str,
+        type_annotation: Option<String>,
+        value: ASTNode,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        Self::VariableDecl {
+            name: name.to_string(),
+            type_annotation,
             value: Box::new(value),
             line,
             column,
@@ -298,6 +401,10 @@ impl ASTNode {
         Self::ObjectLiteral(fields)
     }
 
+    pub fn new_struct_literal(type_name: String, fields: Vec<(String, ASTNode)>) -> Self {
+        Self::StructLiteral { type_name, fields }
+    }
+
     pub fn new_index_expr(array: ASTNode, index: ASTNode) -> Self {
         Self::IndexExpr {
             array: Box::new(array),
@@ -309,6 +416,34 @@ impl ASTNode {
         Self::FieldAccess {
             object: Box::new(object),
             field: field.to_string(),
+        }
+    }
+
+    pub fn new_method_call(
+        object: ASTNode,
+        method: &str,
+        args: Vec<ASTNode>,
+        named_args: Vec<(String, ASTNode)>,
+    ) -> Self {
+        Self::MethodCall {
+            object: Box::new(object),
+            method: method.to_string(),
+            args,
+            named_args,
+        }
+    }
+
+    pub fn new_type_cast(expr: ASTNode, target_type: &str) -> Self {
+        Self::TypeCast {
+            expr: Box::new(expr),
+            target_type: target_type.to_string(),
+        }
+    }
+
+    pub fn new_reference_expr(is_mutable: bool, expr: ASTNode) -> Self {
+        Self::ReferenceExpr {
+            is_mutable,
+            expr: Box::new(expr),
         }
     }
 
@@ -480,6 +615,13 @@ impl ASTNode {
             init: init.map(Box::new),
             condition: condition.map(Box::new),
             increment: increment.map(Box::new),
+            body: Box::new(body),
+        }
+    }
+    pub fn new_for_in(binding: ForInBinding, iterable: ASTNode, body: ASTNode) -> Self {
+        Self::ForIn {
+            binding,
+            iterable: Box::new(iterable),
             body: Box::new(body),
         }
     }

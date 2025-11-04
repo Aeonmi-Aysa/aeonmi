@@ -195,6 +195,7 @@ fn count_nodes(node: &ASTNode) -> usize {
             }
             total + count_nodes(body)
         }
+        ASTNode::ForIn { iterable, body, .. } => 1 + count_nodes(iterable) + count_nodes(body),
         ASTNode::While { condition, body } => 1 + count_nodes(condition) + count_nodes(body),
         ASTNode::If { condition, then_branch, else_branch } => {
             let mut total = 1 + count_nodes(condition) + count_nodes(then_branch);

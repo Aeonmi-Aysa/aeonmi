@@ -1,0 +1,12 @@
+# Aeonmi shard project level tests
+fn noop:
+    print "This function anchors the file"
+
+test addition:
+    let result = 5 + 7
+    assert result == 12
+
+test chained_add:
+    let a = 10 + 1
+    let b = a + 5
+    assert b == 16

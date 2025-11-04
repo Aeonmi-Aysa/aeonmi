@@ -50,6 +50,9 @@ fn expr_contains_identifier(node: &ASTNode) -> bool {
                 || increment.as_ref().map(|expr| expr_contains_identifier(expr.as_ref())).unwrap_or(false)
                 || expr_contains_identifier(body)
         }
+        ASTNode::ForIn { iterable, body, .. } => {
+            expr_contains_identifier(iterable) || expr_contains_identifier(body)
+        }
         ASTNode::SuperpositionSwitch { value, cases } => {
             expr_contains_identifier(value)
                 || cases.iter().any(|c| c.body.iter().any(expr_contains_identifier))
@@ -477,6 +480,7 @@ fn function_body_calls(body: &Vec<ASTNode>, target: &str) -> bool {
             ASTNode::If { condition, then_branch, else_branch } => { scan(condition,target,found); scan(then_branch,target,found); if let Some(e)=else_branch { scan(e,target,found); } }
             ASTNode::While { condition, body } => { scan(condition,target,found); scan(body,target,found); }
             ASTNode::For { init, condition, increment, body } => { if let Some(i)=init { scan(i,target,found); } if let Some(c)=condition { scan(c,target,found); } if let Some(inc)=increment { scan(inc,target,found); } scan(body,target,found); }
+            ASTNode::ForIn { iterable, body, .. } => { scan(iterable,target,found); scan(body,target,found); }
             ASTNode::Assignment { value, .. } | ASTNode::VariableDecl { value, .. } => scan(value,target,found),
             ASTNode::Return(e) | ASTNode::Log(e) | ASTNode::UnaryExpr { expr: e, .. } => scan(e,target,found),
             ASTNode::BinaryExpr { left, right, .. } => { scan(left,target,found); scan(right,target,found); },
@@ -500,6 +504,7 @@ fn collect_calls(body: &Vec<ASTNode>, index_by_name: &std::collections::HashMap<
             ASTNode::If { condition, then_branch, else_branch } => { scan(condition,map,out); scan(then_branch,map,out); if let Some(e)=else_branch { scan(e,map,out); } }
             ASTNode::While { condition, body } => { scan(condition,map,out); scan(body,map,out); }
             ASTNode::For { init, condition, increment, body } => { if let Some(i)=init { scan(i,map,out); } if let Some(c)=condition { scan(c,map,out); } if let Some(inc)=increment { scan(inc,map,out); } scan(body,map,out); }
+            ASTNode::ForIn { iterable, body, .. } => { scan(iterable,map,out); scan(body,map,out); }
             ASTNode::Assignment { value, .. } | ASTNode::VariableDecl { value, .. } => scan(value,map,out),
             ASTNode::Return(e) | ASTNode::Log(e) | ASTNode::UnaryExpr { expr: e, .. } => scan(e,map,out),
             ASTNode::BinaryExpr { left, right, .. } => { scan(left,map,out); scan(right,map,out); }

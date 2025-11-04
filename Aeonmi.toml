@@ -1,0 +1,10 @@
+[package]
+name = "aeonmi-shard"
+version = "0.1.0"
+authors = ["Aeonmi Development Collective"]
+description = "Reference Aeonmi shard application configured with Aeonmi.toml"
+
+[aeonmi]
+entry = "src/main.ai"
+modules = ["src/engine.ai", "src/logic.ai"]
+# Tests are automatically discovered from the tests/ directory when not listed here.

@@ -1,0 +1,9 @@
+aeonmifn test_types() {
+    let x: Int = 10
+    let y: vec<String> = vec![]
+    let z: Option<uuid> = None
+}
+
+fn process(items: &mut vec<Thread>, count: Int) {
+    log("Processing")
+}

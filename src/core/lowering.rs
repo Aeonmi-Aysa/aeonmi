@@ -140,6 +140,7 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
         | A::BooleanLiteral(_)
         | A::ArrayLiteral(_)
         | A::ObjectLiteral(_)
+        | A::StructLiteral { .. }
         | A::IndexExpr { .. }
         | A::FieldAccess { .. } => Stmt::Expr(lower_expr_ast(n)?),
 
@@ -511,6 +512,14 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
                 .map(|(k, v)| Ok((k.clone(), lower_expr_ast(v)?)))
                 .collect::<Result<Vec<_>, String>>()?,
         ),
+        A::StructLiteral { type_name, fields } => {
+            let mut lowered_fields = Vec::with_capacity(fields.len() + 1);
+            lowered_fields.push(("__type".into(), Expr::Lit(Lit::String(type_name.clone()))));
+            for (k, v) in fields {
+                lowered_fields.push((k.clone(), lower_expr_ast(v)?));
+            }
+            Expr::Object(lowered_fields)
+        }
         A::QuantumArray {
             elements,
             dimensions: _,

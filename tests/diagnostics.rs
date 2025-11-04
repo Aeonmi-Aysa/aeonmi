@@ -34,8 +34,8 @@ fn pretty_lexer_error_shows_span() {
 
 #[test]
 fn pretty_parser_error_shows_span() {
-    // missing semicolon after `1` — span may point to the start of next line/token
-    let bad = "let x = 1\nlog(x);";
+    // malformed parenthesized expression triggers a parser error with span info
+    let bad = "let x = (1 + );";
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("bad_parser.ai");
     fs::write(&input, bad).unwrap();
@@ -50,7 +50,7 @@ fn pretty_parser_error_shows_span() {
     let err = String::from_utf8_lossy(&output.stderr);
     assert!(err.contains("error:"), "no 'error:' in stderr\n{err}");
     assert!(
-        err.to_lowercase().contains("expected ';'"),
+        err.to_lowercase().contains("unexpected token"),
         "parser message missing\n{err}"
     );
     // be flexible: parser can report line 1 or 2 depending on how the newline is handled

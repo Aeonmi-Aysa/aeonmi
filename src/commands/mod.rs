@@ -4,6 +4,7 @@ pub mod edit;
 pub mod format;
 pub mod fs;
 pub mod lint;
+pub mod project;
 pub mod repl;
 pub mod run;
 pub mod tokens;

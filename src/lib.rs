@@ -10,6 +10,7 @@ pub mod core;
 pub mod encryption;
 pub mod integration; // Unified system integration layer
 pub mod io;
+pub mod project;
 pub mod quantum_ast_tests;
 pub mod runtime;
 pub mod shell;

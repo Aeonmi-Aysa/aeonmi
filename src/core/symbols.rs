@@ -41,6 +41,7 @@ fn visit(node: &ASTNode, out: &mut Vec<SymbolInfo>) {
             column,
             params,
             body,
+            return_type: _,
         } => {
             out.push(SymbolInfo {
                 kind: SymbolKind::Function,
@@ -85,6 +86,7 @@ fn visit(node: &ASTNode, out: &mut Vec<SymbolInfo>) {
         | ASTNode::If { .. }
         | ASTNode::While { .. }
         | ASTNode::For { .. }
+        | ASTNode::ForIn { .. }
         | ASTNode::BinaryExpr { .. }
         | ASTNode::UnaryExpr { .. }
         | ASTNode::Call { .. }

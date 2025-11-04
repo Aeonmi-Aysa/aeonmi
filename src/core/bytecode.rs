@@ -400,6 +400,16 @@ impl BytecodeCompiler {
                 }
                 self.exit_scope();
             }
+            ASTNode::ForIn { iterable, body, .. } => {
+                if let Some(c) = self.compile_expr(iterable.as_ref()) {
+                    let ci = self.add_constant(c);
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+                self.chunk.code.push(OpCode::Pop);
+                self.enter_scope();
+                self.compile_stmt(body.as_ref(), false, top_level);
+                self.exit_scope();
+            }
             ASTNode::Function {
                 name, params, body, ..
             } => {
@@ -725,6 +735,7 @@ impl BytecodeCompiler {
             | ASTNode::If { .. }
             | ASTNode::While { .. }
             | ASTNode::For { .. }
+            | ASTNode::ForIn { .. }
             | ASTNode::Function { .. }
             | ASTNode::Log(_)
             | ASTNode::Return(_) => {

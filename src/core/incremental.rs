@@ -101,6 +101,8 @@ pub static FUNCTION_METRICS: Lazy<Mutex<HashMap<usize, FunctionInferenceMetric>>
     Lazy::new(|| Mutex::new(HashMap::new()));
 static LAST_PERSIST: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
 const PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
+#[cfg(test)]
+static METRICS_TEST_GUARD: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 // Runtime configurable EMA alpha (1..=100) via env AEONMI_EMA_ALPHA (default 20)
 pub static EMA_ALPHA_RUNTIME: once_cell::sync::Lazy<std::sync::atomic::AtomicU64> =
     once_cell::sync::Lazy::new(|| {
@@ -238,6 +240,10 @@ pub fn set_history_cap(n: usize) {
 
 #[allow(dead_code)]
 pub fn record_function_infer(idx: usize, dur: u128) {
+    #[cfg(test)]
+    let _test_guard = METRICS_TEST_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut m = match FUNCTION_METRICS.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -379,6 +385,10 @@ pub fn ensure_metrics_file_exists() {
 }
 
 pub fn persist_metrics() {
+    #[cfg(test)]
+    let _test_guard = METRICS_TEST_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     // Debounce check
     {
         if let Ok(mut last) = LAST_PERSIST.lock() {
@@ -411,6 +421,10 @@ pub fn persist_metrics() {
 
 /// Force persistence ignoring debounce (used by metrics-flush CLI)
 pub fn force_persist_metrics() {
+    #[cfg(test)]
+    let _test_guard = METRICS_TEST_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if CALL_GRAPH_METRICS.lock().is_ok() {
         let json = build_metrics_json();
         #[cfg(test)]
@@ -466,6 +480,10 @@ pub fn compute_transitive_callers(
 }
 
 pub fn load_metrics() {
+    #[cfg(test)]
+    let _test_guard = METRICS_TEST_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let path = metrics_file_path();
     if let Ok(data) = std::fs::read_to_string(path) {
         #[cfg(test)]
@@ -601,6 +619,10 @@ pub fn reset_metrics_session() {
 
 #[allow(dead_code)]
 pub fn reset_metrics_full() {
+    #[cfg(test)]
+    let _test_guard = METRICS_TEST_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     {
         let mut cg = match CALL_GRAPH_METRICS.lock() {
             Ok(guard) => guard,
@@ -640,6 +662,10 @@ pub fn reset_runtime_metrics_config() {
 
 #[allow(dead_code)]
 pub fn record_reinfer_event(count: usize) {
+    #[cfg(test)]
+    let _test_guard = METRICS_TEST_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut m = match CALL_GRAPH_METRICS.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -674,6 +700,18 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
             N::Call { callee, args } => {
                 expr_contains_identifier(callee) || args.iter().any(expr_contains_identifier)
             }
+            N::MethodCall {
+                object,
+                args,
+                named_args,
+                ..
+            } => {
+                expr_contains_identifier(object)
+                    || args.iter().any(expr_contains_identifier)
+                    || named_args
+                        .iter()
+                        .any(|(_, arg)| expr_contains_identifier(arg))
+            }
             N::ArrayLiteral(elements) => elements.iter().any(expr_contains_identifier),
             N::IndexExpr { array, index } => {
                 expr_contains_identifier(array) || expr_contains_identifier(index)
@@ -683,6 +721,9 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
             N::QuantumArray { elements, .. } => elements.iter().any(expr_contains_identifier),
             N::QuantumIndexAccess { array, index, .. } => {
                 expr_contains_identifier(array) || expr_contains_identifier(index)
+            }
+            N::TypeCast { expr, .. } | N::ReferenceExpr { expr, .. } => {
+                expr_contains_identifier(expr)
             }
             N::ProbabilityBranch {
                 condition,
@@ -734,6 +775,9 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                         .unwrap_or(false)
                     || expr_contains_identifier(body)
             }
+            N::ForIn { iterable, body, .. } => {
+                expr_contains_identifier(iterable) || expr_contains_identifier(body)
+            }
             N::SuperpositionSwitch { value, cases } => {
                 expr_contains_identifier(value)
                     || cases
@@ -754,6 +798,9 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                 body.iter().any(expr_contains_identifier)
             }
             N::ObjectLiteral(fields) => fields.iter().any(|(_, v)| expr_contains_identifier(v)),
+            N::StructLiteral { fields, .. } => {
+                fields.iter().any(|(_, v)| expr_contains_identifier(v))
+            }
             N::FieldAccess { object, .. } => expr_contains_identifier(object),
             N::QuantumTryCatch {
                 attempt_body,
@@ -776,7 +823,26 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
             | N::NumberLiteral(_)
             | N::StringLiteral(_)
             | N::BooleanLiteral(_)
+            | N::GenericType { .. }
             | N::Error(_) => false,
+
+            // New AST nodes
+            N::Module { body, .. } => body.iter().any(expr_contains_identifier),
+            N::Import { .. } | N::RecordDecl { .. } | N::EnumDecl { .. } | N::TypeAlias { .. } => {
+                false
+            }
+            N::Match { value, arms } => {
+                expr_contains_identifier(value)
+                    || arms.iter().any(|arm| {
+                        expr_contains_identifier(&arm.pattern)
+                            || arm
+                                .guard
+                                .as_ref()
+                                .map(|g| expr_contains_identifier(g.as_ref()))
+                                .unwrap_or(false)
+                            || expr_contains_identifier(&arm.body)
+                    })
+            }
         }
     }
     fn walk(
@@ -827,6 +893,11 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                     walk(idx, value, reads, writes);
                 }
             }
+            N::StructLiteral { fields, .. } => {
+                for (_, value) in fields {
+                    walk(idx, value, reads, writes);
+                }
+            }
             N::FieldAccess { object, .. } => {
                 walk(idx, object, reads, writes);
             }
@@ -867,6 +938,10 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                 }
                 walk(idx, body, reads, writes);
             }
+            N::ForIn { iterable, body, .. } => {
+                walk(idx, iterable, reads, writes);
+                walk(idx, body, reads, writes);
+            }
             N::BinaryExpr { left, right, .. } => {
                 walk(idx, left, reads, writes);
                 walk(idx, right, reads, writes);
@@ -888,6 +963,23 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                 for a in args {
                     walk(idx, a, reads, writes);
                 }
+            }
+            N::MethodCall {
+                object,
+                args,
+                named_args,
+                ..
+            } => {
+                walk(idx, object, reads, writes);
+                for a in args {
+                    walk(idx, a, reads, writes);
+                }
+                for (_, arg) in named_args {
+                    walk(idx, arg, reads, writes);
+                }
+            }
+            N::TypeCast { expr, .. } | N::ReferenceExpr { expr, .. } => {
+                walk(idx, expr, reads, writes);
             }
             N::Return(e) | N::Log(e) => {
                 walk(idx, e, reads, writes);

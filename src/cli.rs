@@ -113,10 +113,40 @@ pub enum Command {
         watch: bool,
     },
 
+    /// Build an Aeonmi project defined by Aeonmi.toml
+    Build {
+        /// Build artifacts using the release profile
+        #[arg(long = "release", action = ArgAction::SetTrue)]
+        release: bool,
+        /// Path to a custom manifest file
+        #[arg(long = "manifest-path", value_name = "FILE")]
+        manifest_path: Option<PathBuf>,
+    },
+
+    /// Check that the project parses and type-checks without producing artifacts
+    Check {
+        /// Path to a custom manifest file
+        #[arg(long = "manifest-path", value_name = "FILE")]
+        manifest_path: Option<PathBuf>,
+    },
+
+    /// Run the project's tests
+    Test {
+        /// Run tests in release mode
+        #[arg(long = "release", action = ArgAction::SetTrue)]
+        release: bool,
+        /// Path to a custom manifest file
+        #[arg(long = "manifest-path", value_name = "FILE")]
+        manifest_path: Option<PathBuf>,
+        /// Only run tests whose name contains this filter
+        #[arg(long = "filter", value_name = "SUBSTRING")]
+        filter: Option<String>,
+    },
+
     /// Run an .ai file directly (compile-to-js + execute with Node if available)
     Run {
         #[arg(value_name = "INPUT")]
-        input: PathBuf,
+        input: Option<PathBuf>,
         #[arg(long = "out", value_name = "FILE")]
         out: Option<PathBuf>,
         /// Watch input and re-run when changed
@@ -140,6 +170,12 @@ pub enum Command {
         /// Disassemble compiled bytecode (implies --bytecode)
         #[arg(long = "disasm", action = ArgAction::SetTrue)]
         disasm: bool,
+        /// Run the project using the release profile
+        #[arg(long = "release", action = ArgAction::SetTrue)]
+        release: bool,
+        /// Path to a custom manifest file
+        #[arg(long = "manifest-path", value_name = "FILE")]
+        manifest_path: Option<PathBuf>,
     },
 
     /// Quantum execution (Titan local or Qiskit backends)

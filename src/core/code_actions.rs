@@ -117,7 +117,9 @@ fn add_missing_let_actions(ast: &ASTNode, out: &mut Vec<CodeAction>) {
                     walk(e, &mut declared.clone(), out);
                 }
             }
-            ASTNode::While { body, .. } | ASTNode::For { body, .. } => {
+            ASTNode::While { body, .. }
+            | ASTNode::For { body, .. }
+            | ASTNode::ForIn { body, .. } => {
                 walk(body, &mut declared.clone(), out);
             }
             _ => {}
@@ -142,6 +144,7 @@ fn add_inline_variable_actions(ast: &ASTNode, out: &mut Vec<CodeAction>) {
                 line,
                 column,
                 value: _,
+                ..
             } => {
                 map.entry(name.clone()).or_default().decl = Some((*line, *column));
             }
@@ -182,7 +185,9 @@ fn add_inline_variable_actions(ast: &ASTNode, out: &mut Vec<CodeAction>) {
                     scan(e, map);
                 }
             }
-            ASTNode::While { body, .. } | ASTNode::For { body, .. } => {
+            ASTNode::While { body, .. }
+            | ASTNode::For { body, .. }
+            | ASTNode::ForIn { body, .. } => {
                 scan(body, map);
             }
             ASTNode::Assignment { value, .. } | ASTNode::Return(value) | ASTNode::Log(value) => {

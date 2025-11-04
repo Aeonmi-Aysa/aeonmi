@@ -1,0 +1,927 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug unit tests in library 'aeonmi_project'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'aeonmi_shard'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=aeonmi_shard"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'aeonmi_shard'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=aeonmi_shard"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'MotherAI'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=MotherAI"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'MotherAI'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=MotherAI"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'aeonmi_project'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=aeonmi_project"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'aeonmi_project'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=aeonmi_project"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'aeonmi'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=aeonmi"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'aeonmi'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=aeonmi"
+                ]
+            }
+        },
+        {
+            "name": "Debug example 'branches'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=branches"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in example 'branches'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--example=branches"
+                ]
+            }
+        },
+        {
+            "name": "Debug example 'quantum_demo'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=quantum_demo"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in example 'quantum_demo'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--example=quantum_demo"
+                ]
+            }
+        },
+        {
+            "name": "Debug example 'vm_smoke'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=vm_smoke"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in example 'vm_smoke'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--example=vm_smoke"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'ai_emitter_golden'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=ai_emitter_golden"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'arrays'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=arrays"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'assign_and_calls'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=assign_and_calls"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'builtins_len'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=builtins_len"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_associative_fold'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_associative_fold"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_basic'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_basic"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_const_folding'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_const_folding"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_disasm'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_disasm"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_for'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_for"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_function'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_function"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_if'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_if"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_logical'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_logical"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_max_frames'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_max_frames"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_opt_stats'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_opt_stats"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_overflow'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_overflow"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_recursion'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_recursion"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'bytecode_while'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=bytecode_while"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'cli_opt_stats_json'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=cli_opt_stats_json"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'cli_smoke'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=cli_smoke"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'code_actions_new'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=code_actions_new"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'comparisons'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=comparisons"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'compiler_pipeline'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=compiler_pipeline"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'control_flow'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=control_flow"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'deep_propagation'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=deep_propagation"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'diagnostics'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=diagnostics"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'errors_extra'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=errors_extra"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'exec_cleanup'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=exec_cleanup"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'exec_smoke'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=exec_smoke"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'exec_watch'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=exec_watch"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'format_snapshots'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=format_snapshots"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'functions'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=functions"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'incremental_partial'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=incremental_partial"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'key_rotate'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=key_rotate"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'legacy_flags'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=legacy_flags"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_bench'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_bench"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_function'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_function"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_history_reload'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_history_reload"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_history_reload_feature'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_history_reload_feature"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_numeric'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_numeric"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_numeric_deep'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_numeric_deep"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_savings'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_savings"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_schema'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_schema"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'metrics_window'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=metrics_window"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'native_top_level_lets'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=native_top_level_lets"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'precedence'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=precedence"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'qiskit_bridge'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=qiskit_bridge"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'qpoly'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=qpoly"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_circuit_export'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_circuit_export"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_circuit_extract'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_circuit_extract"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_circuit_integration'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_circuit_integration"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_core'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_core"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_glyph'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_glyph"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_runtime'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_runtime"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'quantum_syntax_tests'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=quantum_syntax_tests"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'run_native_no_js'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=run_native_no_js"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'run_smoke'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=run_smoke"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'scoped_rename'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=scoped_rename"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'semantic_diagnostics'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=semantic_diagnostics"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'semantic_returns_quantum'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=semantic_returns_quantum"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'semantic_types'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=semantic_types"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'shell_native_no_js'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=shell_native_no_js"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'titan_linear_algebra'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=titan_linear_algebra"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'titan_quantum_math'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=titan_quantum_math"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'titan_stats'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=titan_stats"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'types_inference'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=types_inference"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'var_deps'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=var_deps"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'var_deps_edge'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=var_deps_edge"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'vm_smoke'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=vm_smoke"
+                ]
+            }
+        }
+    ]
+}

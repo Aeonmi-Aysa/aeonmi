@@ -1,0 +1,15 @@
+fn describe_logic:
+    print "Aeonmi shard orchestrates deterministic quantum flows"
+    call summarize_scope
+
+fn summarize_scope:
+    print "- deterministic compile"
+    print "- project aware runtime"
+
+fn ensure_consistency:
+    let baseline = 1 + 1
+    let doubled = baseline + baseline
+    assert doubled == 4
+
+test module_consistency:
+    call ensure_consistency

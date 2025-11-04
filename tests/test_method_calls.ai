@@ -1,0 +1,7 @@
+aeonmifn test_methods() {
+    let obj = SomeType { x: 10 }
+    obj.method()
+    obj.method(1, 2)
+    obj.method(a = 1, b = 2)
+    obj.first().second().third()
+}

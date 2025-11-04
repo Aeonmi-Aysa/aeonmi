@@ -115,6 +115,7 @@ fn walk(node: &ASTNode, gates: &mut Vec<QuantumGate>, qubits: &mut Vec<String>) 
         }
         ASTNode::While { body, .. } => walk(body, gates, qubits),
         ASTNode::For { body, .. } => walk(body, gates, qubits),
+        ASTNode::ForIn { body, .. } => walk(body, gates, qubits),
         ASTNode::Log(expr) | ASTNode::Return(expr) => walk(expr, gates, qubits),
         ASTNode::Assignment { value, .. } | ASTNode::VariableDecl { value, .. } => {
             walk(value, gates, qubits)

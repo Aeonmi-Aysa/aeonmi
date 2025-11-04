@@ -21,6 +21,7 @@ path = "src/main.rs"
 [[bin]]
 name = "MotherAI"
 path = "mother_ai/main.rs"
+required-features = ["mother-ai"]
 
 # Legacy binary name for tests (expects CARGO_BIN_EXE_aeonmi_project)
 [[bin]]
@@ -40,7 +41,7 @@ strip = true
 
 [features]
 # Unified AEONMI ecosystem features
-default = ["full-suite"]
+default = ["minimal"]
 full-suite = ["quantum", "mother-ai", "titan-libraries", "holographic", "voice"]
 quantum = ["nalgebra", "num-complex"]
 mother-ai = ["tokio"]
@@ -82,6 +83,7 @@ notify = "6.1"
 
 # Helpers for recursive copy
 fs_extra = "1.3"
+walkdir = "2.5"
 
 # TUI / terminal
 crossterm = "0.27"

@@ -1,0 +1,41 @@
+aeonmimodule Test::Complete
+
+record Point {
+    x: f32,
+    y: f32
+}
+
+fn test_all_features() {
+    // Generic types
+    let items: vec<Point> = vec![]
+    let maybe: Option<String> = None
+    
+    // Method chaining
+    let app = App::build("Test")
+        .with_display(width = 800, height = 600)
+        .with_scene(|scene| {
+            scene.background("#000000")
+        })
+        .launch()
+    
+    // Type casting
+    let count = 10
+    let ratio = (count as f32) / 3.0
+    let result = (ratio * 100.0) as Int
+    
+    // String field names
+    let data = Data {
+        "normal": 10,
+        "⟨quantum⟩": 20
+    }
+    
+    // References in function parameters
+    process_data(&mut items, count)
+    
+    // Closures with type annotations
+    items.iter().map(|p: Point| p.x + p.y).collect()
+}
+
+fn process_data(items: &mut vec<Point>, count: Int) {
+    log("Processing...")
+}

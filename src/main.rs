@@ -9,11 +9,13 @@ mod core;
 mod encryption;
 mod integration; // Unified system integration layer
 mod io;
+mod project;
 mod runtime;
 mod shell;
 mod tui; // tui::editor // neon Shard shell
 mod vault;
 
+use anyhow::bail;
 use clap::Parser; // trait import enables AeonmiCli::parse()
 use std::path::PathBuf;
 
@@ -229,8 +231,21 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
+        Some(Command::Build {
+            release,
+            manifest_path,
+        }) => commands::project::build(manifest_path, release),
+
+        Some(Command::Check { manifest_path }) => commands::project::check(manifest_path),
+
+        Some(Command::Test {
+            release,
+            manifest_path,
+            filter,
+        }) => commands::project::test(manifest_path, release, filter),
+
         Some(Command::Run {
-            input,
+            mut input,
             out,
             watch,
             native,
@@ -239,7 +254,25 @@ fn main() -> anyhow::Result<()> {
             opt_stats,
             opt_stats_json,
             disasm,
+            release,
+            manifest_path,
         }) => {
+            if input.is_none() {
+                if out.is_some()
+                    || watch
+                    || native
+                    || emit_ai.is_some()
+                    || bytecode
+                    || opt_stats
+                    || opt_stats_json
+                    || disasm
+                {
+                    bail!("project run does not support file-specific flags like --out or --watch");
+                }
+                return commands::project::run(manifest_path, release);
+            }
+
+            let input = input.take().unwrap();
             if watch {
                 use std::thread::sleep;
                 use std::time::{Duration, SystemTime};

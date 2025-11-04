@@ -131,6 +131,7 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             line,
             column,
             value,
+            ..
         } => {
             record(sm, name, *line, *column, *stack.last().unwrap(), true);
             visit(value, sm, stack, current);
@@ -176,6 +177,10 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             }
             visit(body, sm, stack, current);
         }
+        ForIn { iterable, body, .. } => {
+            visit(iterable, sm, stack, current);
+            visit(body, sm, stack, current);
+        }
         BinaryExpr { left, right, .. } => {
             visit(left, sm, stack, current);
             visit(right, sm, stack, current);
@@ -186,6 +191,11 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             }
         }
         ObjectLiteral(fields) => {
+            for (_, value) in fields {
+                visit(value, sm, stack, current);
+            }
+        }
+        StructLiteral { fields, .. } => {
             for (_, value) in fields {
                 visit(value, sm, stack, current);
             }
@@ -203,6 +213,23 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             for a in args {
                 visit(a, sm, stack, current);
             }
+        }
+        MethodCall {
+            object,
+            args,
+            named_args,
+            ..
+        } => {
+            visit(object, sm, stack, current);
+            for a in args {
+                visit(a, sm, stack, current);
+            }
+            for (_, arg) in named_args {
+                visit(arg, sm, stack, current);
+            }
+        }
+        TypeCast { expr, .. } | ReferenceExpr { expr, .. } => {
+            visit(expr, sm, stack, current);
         }
         Return(expr) | Log(expr) => visit(expr, sm, stack, current),
         QuantumOp { qubits, .. } => {
@@ -334,7 +361,27 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
         } => {
             record(sm, name, *line, *column, *stack.last().unwrap(), false);
         }
-        NumberLiteral(_) | StringLiteral(_) | BooleanLiteral(_) | Error(_) => {}
+        NumberLiteral(_) | StringLiteral(_) | BooleanLiteral(_) | GenericType { .. } | Error(_) => {
+        }
+
+        // New AST nodes - add minimal handling
+        Module { body, .. } => {
+            for stmt in body {
+                visit(stmt, sm, stack, current);
+            }
+        }
+        Import { .. } => {} // Imports don't create scopes
+        RecordDecl { .. } | EnumDecl { .. } | TypeAlias { .. } => {} // Type declarations
+        Match { value, arms } => {
+            visit(value, sm, stack, current);
+            for arm in arms {
+                visit(&arm.pattern, sm, stack, current);
+                if let Some(guard) = &arm.guard {
+                    visit(guard, sm, stack, current);
+                }
+                visit(&arm.body, sm, stack, current);
+            }
+        }
     }
 }
 

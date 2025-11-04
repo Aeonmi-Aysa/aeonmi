@@ -1,0 +1,15 @@
+aeonmifn test_advanced() {
+    // String literal field names
+    let thread = Thread {
+        id: uuid::v4(),
+        "⟨ψ⟩strand": strand
+    }
+    
+    // Closures with types
+    scene.on_touch(|ctx: Context, touch: Touch| {
+        log("Touched!")
+    })
+    
+    // Type casting
+    let x = (10.5 as Int) + 5
+}

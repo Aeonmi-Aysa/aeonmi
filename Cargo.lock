@@ -91,6 +91,7 @@ dependencies = [
  "unicode-ident",
  "unicode-normalization",
  "uuid",
+ "walkdir",
  "wgpu",
  "whoami",
  "winit",

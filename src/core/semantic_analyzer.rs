@@ -209,6 +209,7 @@ impl SemanticAnalyzer {
                 column,
                 params,
                 body,
+                return_type: _,
             } => {
                 // duplicate function detection
                 if let Some((prev_l, prev_c)) = self.functions.get(name) {
@@ -351,6 +352,7 @@ impl SemanticAnalyzer {
                 value,
                 line,
                 column,
+                type_annotation: _,
             } => {
                 self.visit(value, capture);
                 self.declare(name, Some(*line), Some(*column));
@@ -418,6 +420,17 @@ impl SemanticAnalyzer {
                 self.visit(body, capture);
                 self.end_scope();
             }
+            ASTNode::ForIn {
+                binding,
+                iterable,
+                body,
+            } => {
+                self.visit(iterable, capture);
+                self.begin_scope();
+                self.declare(&binding.name, Some(binding.line), Some(binding.column));
+                self.visit(body, capture);
+                self.end_scope();
+            }
             ASTNode::BinaryExpr { op, left, right } => {
                 self.visit(left, capture);
                 self.visit(right, capture);
@@ -429,6 +442,11 @@ impl SemanticAnalyzer {
                 }
             }
             ASTNode::ObjectLiteral(fields) => {
+                for (_, value) in fields {
+                    self.visit(value, capture);
+                }
+            }
+            ASTNode::StructLiteral { fields, .. } => {
                 for (_, value) in fields {
                     self.visit(value, capture);
                 }
@@ -570,6 +588,7 @@ impl SemanticAnalyzer {
             ASTNode::Call { .. } => Unknown,
             ASTNode::ArrayLiteral(_) => Array,
             ASTNode::ObjectLiteral(_) => Object,
+            ASTNode::StructLiteral { .. } => Object,
             ASTNode::FunctionExpr { .. } => Function,
             ASTNode::QuantumState { .. } | ASTNode::QuantumArray { .. } => Qubit,
             ASTNode::IndexExpr { .. } => Unknown,
@@ -675,6 +694,7 @@ impl SemanticAnalyzer {
             }
             ASTNode::While { body, .. } => self.extract_return_types(body, out),
             ASTNode::For { body, .. } => self.extract_return_types(body, out),
+            ASTNode::ForIn { body, .. } => self.extract_return_types(body, out),
             ASTNode::Program(items) => {
                 let mut any = false;
                 for stmt in items {

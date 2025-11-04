@@ -11,6 +11,7 @@ pub enum TypeKind {
     Number,
     Boolean,
     String,
+    Object,
     Void,
     Unknown,
 }
@@ -130,6 +131,7 @@ impl TypeContext {
                 value,
                 line,
                 column,
+                type_annotation: _,
             } => {
                 let t = self.visit(value);
                 self.declare(name, t.clone());
@@ -225,6 +227,11 @@ impl TypeContext {
                 self.visit(body);
                 TypeKind::Void
             }
+            ASTNode::ForIn { iterable, body, .. } => {
+                self.visit(iterable);
+                self.visit(body);
+                TypeKind::Void
+            }
             ASTNode::BinaryExpr { op, left, right } => {
                 let lt = self.visit(left);
                 let rt = self.visit(right);
@@ -304,6 +311,18 @@ impl TypeContext {
                 } else {
                     TypeKind::Unknown
                 }
+            }
+            ASTNode::ObjectLiteral(fields) => {
+                for (_, value) in fields {
+                    self.visit(value);
+                }
+                TypeKind::Object
+            }
+            ASTNode::StructLiteral { fields, .. } => {
+                for (_, value) in fields {
+                    self.visit(value);
+                }
+                TypeKind::Object
             }
             ASTNode::Identifier(name) => self.lookup(name),
             ASTNode::IdentifierSpanned { name, .. } => self.lookup(name),

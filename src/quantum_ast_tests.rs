@@ -36,6 +36,7 @@ mod quantum_ast_integration_tests {
                 name: "qubit".to_string(),
                 line: 0,
                 column: 0,
+                type_annotation: None,
                 default: None,
                 is_variadic: false,
             }],

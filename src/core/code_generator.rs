@@ -189,6 +189,23 @@ impl CodeGenerator {
                 s.push('\n');
                 s
             }
+            ASTNode::ForIn {
+                binding,
+                iterable,
+                body,
+            } => {
+                let decl_kw = if binding.is_mutable { "let" } else { "const" };
+                let mut s = String::new();
+                s.push_str(&format!(
+                    "for ({} {} of {}) ",
+                    decl_kw,
+                    binding.name,
+                    self.emit_expr_js(iterable)
+                ));
+                s.push_str(&self.wrap_stmt_js(body));
+                s.push('\n');
+                s
+            }
             ASTNode::BinaryExpr { .. }
             | ASTNode::UnaryExpr { .. }
             | ASTNode::Identifier(_)
@@ -523,6 +540,26 @@ impl CodeGenerator {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{{{}}}", entries)
+            }
+            ASTNode::StructLiteral { type_name, fields } => {
+                let entries = fields
+                    .iter()
+                    .map(|(k, v)| {
+                        let key = if k.chars().all(|c| c == '_' || c.is_ascii_alphanumeric()) {
+                            k.clone()
+                        } else {
+                            format!("\"{}\"", k)
+                        };
+                        format!("{}: {}", key, self.emit_expr_js(v))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut props = Vec::new();
+                props.push(format!("__type: \"{}\"", type_name));
+                if !entries.is_empty() {
+                    props.push(entries);
+                }
+                format!("{{{}}}", props.join(", "))
             }
             ASTNode::IndexExpr { array, index } => {
                 format!("{}[{}]", self.emit_expr_js(array), self.emit_expr_js(index))

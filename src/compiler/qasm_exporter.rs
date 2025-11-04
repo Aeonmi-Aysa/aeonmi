@@ -72,6 +72,10 @@ pub fn export_to_qasm(program: &ASTNode) -> String {
                 }
                 collect_ops(body, names, ops);
             }
+            ASTNode::ForIn { iterable, body, .. } => {
+                collect_ops(iterable, names, ops);
+                collect_ops(body, names, ops);
+            }
             ASTNode::Return(expr) | ASTNode::Log(expr) | ASTNode::UnaryExpr { expr, .. } => {
                 collect_ops(expr, names, ops);
             }

@@ -24,9 +24,14 @@ pub enum TokenKind {
     GreaterThan,  // >
     GreaterEqual, // >=
     ColonEquals,  // :=
+    DoubleColon,  // ::
+    Arrow,        // ->
+    FatArrow,     // =>
     Colon,        // :
     Dot,          // .
     Pipe,         // |
+    Ampersand,    // &
+    Exclamation,  // !
     AndAnd,       // &&
     OrOr,         // ||
 
@@ -73,11 +78,33 @@ pub enum TokenKind {
     Log,
     Qubit,
 
+    // Rust-like structure keywords
+    Module,
+    Import,
+    Record,
+    Struct,
+    Enum,
+    Match,
+    Use,
+    Pub,
+    Mut,
+    As, // 'as' keyword for casting
+    Type,
+    Trait,
+    Impl,
+    Where,
+    Self_, // Self keyword
+    Const,
+    Static,
+    Fn,
+    Async,
+    Await,
+
     // AEONMI Quantum-Native Keywords
     ClassicalFunc, // ◯
     QuantumFunc,   // ⊙
     AIFunc,        // 🧠
-    Learn,         // learn block
+    Learn,         // 'learn' keyword for AI training blocks
     Attempt,       // ⚡ (quantum try)
     Warning,       // ⚠️ (quantum catch)
     Success,       // ✓ (quantum success)
@@ -148,9 +175,14 @@ impl std::fmt::Display for TokenKind {
             TokenKind::GreaterThan => ">",
             TokenKind::GreaterEqual => ">=",
             TokenKind::ColonEquals => ":=",
+            TokenKind::DoubleColon => "::",
+            TokenKind::Arrow => "->",
+            TokenKind::FatArrow => "=>",
             TokenKind::Colon => ":",
             TokenKind::Dot => ".",
             TokenKind::Pipe => "|",
+            TokenKind::Ampersand => "&",
+            TokenKind::Exclamation => "!",
             TokenKind::AndAnd => "&&",
             TokenKind::OrOr => "||",
 
@@ -187,6 +219,7 @@ impl std::fmt::Display for TokenKind {
 
             // Traditional keywords
             TokenKind::Function => "function",
+            TokenKind::Fn => "fn",
             TokenKind::Let => "let",
             TokenKind::If => "if",
             TokenKind::Else => "else",
@@ -196,6 +229,28 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Return => "return",
             TokenKind::Log => "log",
             TokenKind::Qubit => "qubit",
+
+            // Rust-like structure keywords
+            TokenKind::Module => "module",
+            TokenKind::Import => "import",
+            TokenKind::Record => "record",
+            TokenKind::Struct => "struct",
+            TokenKind::Enum => "enum",
+            TokenKind::Match => "match",
+            TokenKind::Use => "use",
+            TokenKind::Pub => "pub",
+            TokenKind::Mut => "mut",
+            TokenKind::As => "as",
+            TokenKind::Type => "type",
+            TokenKind::Trait => "trait",
+            TokenKind::Impl => "impl",
+            TokenKind::Where => "where",
+            TokenKind::Self_ => "self",
+            TokenKind::Const => "const",
+            TokenKind::Static => "static",
+            TokenKind::Fn => "fn",
+            TokenKind::Async => "async",
+            TokenKind::Await => "await",
 
             // Quantum-native keywords
             TokenKind::ClassicalFunc => "◯",
