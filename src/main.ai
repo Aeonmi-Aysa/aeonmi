@@ -1,14 +1,9 @@
 fn main:
-    call banner
-    print "Aeonmi shard booted"
-    call render_pipeline
-    call describe_logic
-    let checksum = 21 + 21
-    assert checksum == 42
+    call boot_threadsmiths
+    let pattern = weave_pattern("Aurora", 5)
+    log("Nebula thread matrix: " + pattern)
+    call showcase_looms
+    call report_status
 
-fn verify_runtime:
-    call verify_math
-    call ensure_consistency
-
-test runtime_health:
-    call verify_runtime
+fn report_status:
+    log("All warp cores aligned.")
