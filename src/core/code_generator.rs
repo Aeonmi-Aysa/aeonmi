@@ -2,7 +2,7 @@
 //! - Default backend: **JS** (keeps legacy tests green)
 //! - Optional backend: **AI** (canonical .ai via AiEmitter)
 use crate::core::ai_emitter::AiEmitter;
-use crate::core::ast::ASTNode;
+use crate::core::ast::{ASTNode, StructField};
 use crate::core::token::TokenKind;
 use std::collections::BTreeSet;
 
@@ -133,6 +133,20 @@ impl CodeGenerator {
                 s.push_str(&self.emit_js(&block));
                 s
             }
+            ASTNode::ClassDecl {
+                name,
+                superclass,
+                methods,
+                ..
+            } => self.emit_class_decl(name, superclass, methods),
+            ASTNode::StructDecl { name, fields, .. } => self.emit_struct_decl(name, fields),
+            ASTNode::TraitDecl { name, methods, .. } => self.emit_trait_decl(name, methods),
+            ASTNode::ImplBlock {
+                trait_name,
+                type_name,
+                methods,
+                ..
+            } => self.emit_impl_block(trait_name, type_name, methods),
             ASTNode::Return(expr) => format!("return {};\n", self.emit_expr_js(expr)),
             ASTNode::Log(expr) => format!("console.log({});\n", self.emit_expr_js(expr)),
             ASTNode::Assignment { name, value, .. } => {
@@ -376,6 +390,7 @@ impl CodeGenerator {
                     value_js, cases_js
                 )
             }
+            ASTNode::MatchExpr { .. } => format!("{};\n", self.emit_expr_js(node)),
             ASTNode::QuantumTryCatch {
                 attempt_body,
                 error_probability,
@@ -627,7 +642,219 @@ impl CodeGenerator {
                     format!("{}[{}]", array_js, index_js)
                 }
             }
+            ASTNode::MatchExpr { value, arms, .. } => {
+                let saved_indent = self.indent;
+                let mut out = String::new();
+                out.push_str("(() => {\n");
+                self.indent += 1;
+                out.push_str(&self.indent_str());
+                out.push_str(&format!(
+                    "const __matchValue = {};\n",
+                    self.emit_expr_js(value)
+                ));
+                let mut default_expr: Option<String> = None;
+                for arm in arms {
+                    let is_wildcard = matches!(arm.pattern, ASTNode::Identifier(ref name) if name == "_")
+                        || matches!(
+                            arm.pattern,
+                            ASTNode::IdentifierSpanned { ref name, .. } if name == "_"
+                        );
+                    let body_js = self.emit_expr_js(&arm.body);
+                    if is_wildcard {
+                        default_expr = Some(body_js);
+                        continue;
+                    }
+                    let pattern_js = self.emit_expr_js(&arm.pattern);
+                    out.push_str(&self.indent_str());
+                    out.push_str(&format!("if (__matchValue === {}) {{\n", pattern_js));
+                    self.indent += 1;
+                    if let Some(guard) = &arm.guard {
+                        let guard_js = self.emit_expr_js(guard);
+                        out.push_str(&self.indent_str());
+                        out.push_str(&format!("if ({}) {{\n", guard_js));
+                        self.indent += 1;
+                        out.push_str(&self.indent_str());
+                        out.push_str(&format!("return {};\n", body_js));
+                        self.indent -= 1;
+                        out.push_str(&self.indent_str());
+                        out.push_str("}\n");
+                    } else {
+                        out.push_str(&self.indent_str());
+                        out.push_str(&format!("return {};\n", body_js));
+                    }
+                    self.indent -= 1;
+                    out.push_str(&self.indent_str());
+                    out.push_str("}\n");
+                }
+                out.push_str(&self.indent_str());
+                if let Some(default_expr) = default_expr {
+                    out.push_str(&format!("return {};\n", default_expr));
+                } else {
+                    out.push_str("return undefined;\n");
+                }
+                self.indent -= 1;
+                out.push_str(&self.indent_str());
+                out.push_str("})()");
+                self.indent = saved_indent;
+                out
+            }
             _ => "/*expr*/".into(),
+        }
+    }
+    fn emit_class_decl(
+        &mut self,
+        name: &str,
+        superclass: &Option<String>,
+        methods: &[ASTNode],
+    ) -> String {
+        let mut s = String::new();
+        s.push_str("class ");
+        s.push_str(name);
+        if let Some(base) = superclass {
+            if !base.is_empty() {
+                s.push_str(" extends ");
+                s.push_str(base);
+            }
+        }
+        s.push_str(" {\n");
+        self.indent += 1;
+        if methods.is_empty() {
+            s.push_str(&self.indent_str());
+            s.push_str("constructor() {}\n");
+        } else {
+            for method in methods {
+                if let Some(method_js) = self.emit_method_js(method) {
+                    for line in method_js.trim_end().lines() {
+                        s.push_str(&self.indent_str());
+                        s.push_str(line);
+                        s.push('\n');
+                    }
+                }
+            }
+        }
+        self.indent -= 1;
+        s.push_str("}\n");
+        s
+    }
+
+    fn emit_struct_decl(&mut self, name: &str, fields: &[StructField]) -> String {
+        let mut s = String::new();
+        s.push_str(&format!("function {}(init = {{}}) {{\n", name));
+        self.indent += 1;
+        s.push_str(&self.indent_str());
+        s.push_str("return {\n");
+        self.indent += 1;
+        if fields.is_empty() {
+            s.push_str(&self.indent_str());
+            s.push_str("/* empty struct */\n");
+        } else {
+            for (idx, field) in fields.iter().enumerate() {
+                s.push_str(&self.indent_str());
+                let default_js = field
+                    .default
+                    .as_ref()
+                    .map(|expr| self.emit_expr_js(expr))
+                    .unwrap_or_else(|| "undefined".to_string());
+                s.push_str(&format!(
+                    "{}: (init.{} !== undefined ? init.{} : {})",
+                    field.name, field.name, field.name, default_js
+                ));
+                if idx + 1 != fields.len() {
+                    s.push(',');
+                }
+                s.push('\n');
+            }
+        }
+        self.indent -= 1;
+        s.push_str(&self.indent_str());
+        s.push_str("};\n");
+        self.indent -= 1;
+        s.push_str(&self.indent_str());
+        s.push_str("}\n");
+        s
+    }
+
+    fn emit_trait_decl(&mut self, name: &str, methods: &[ASTNode]) -> String {
+        format!("/* trait {} with {} method(s) */\n", name, methods.len())
+    }
+
+    fn emit_impl_block(
+        &mut self,
+        trait_name: &Option<String>,
+        type_name: &str,
+        methods: &[ASTNode],
+    ) -> String {
+        if let Some(trait_name) = trait_name {
+            return format!(
+                "/* impl {} for {} with {} method(s) */\n",
+                trait_name,
+                type_name,
+                methods.len()
+            );
+        }
+        let mut s = String::new();
+        for method in methods {
+            if let ASTNode::Function {
+                name, params, body, ..
+            } = method
+            {
+                s.push_str(&format!("{}.prototype.{} = function(", type_name, name));
+                let params_str = params
+                    .iter()
+                    .map(|p| {
+                        let mut frag = String::new();
+                        if p.is_variadic {
+                            frag.push_str("...");
+                        }
+                        frag.push_str(&p.name);
+                        if let Some(default) = &p.default {
+                            frag.push_str(" = ");
+                            frag.push_str(&self.emit_expr_js(default));
+                        }
+                        frag
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                s.push_str(&params_str);
+                s.push_str(") ");
+                let block = ASTNode::Block(body.clone());
+                s.push_str(&self.emit_js(&block));
+            }
+        }
+        s
+    }
+
+    fn emit_method_js(&mut self, method: &ASTNode) -> Option<String> {
+        if let ASTNode::Function {
+            name, params, body, ..
+        } = method
+        {
+            let params_str = params
+                .iter()
+                .map(|p| {
+                    let mut frag = String::new();
+                    if p.is_variadic {
+                        frag.push_str("...");
+                    }
+                    frag.push_str(&p.name);
+                    if let Some(default) = &p.default {
+                        frag.push_str(" = ");
+                        frag.push_str(&self.emit_expr_js(default));
+                    }
+                    frag
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            let block = ASTNode::Block(body.clone());
+            let mut out = String::new();
+            out.push_str(name);
+            out.push('(');
+            out.push_str(&params_str);
+            out.push_str(") ");
+            out.push_str(&self.emit_js(&block));
+            Some(out)
+        } else {
+            None
         }
     }
     fn map_helper(&mut self, name: &str) -> Option<String> {

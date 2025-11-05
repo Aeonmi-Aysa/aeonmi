@@ -56,6 +56,32 @@ pub enum ASTNode {
         params: Vec<FunctionParam>,
         body: Vec<ASTNode>,
     },
+    ClassDecl {
+        name: String,
+        superclass: Option<String>,
+        methods: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    },
+    StructDecl {
+        name: String,
+        fields: Vec<StructField>,
+        line: usize,
+        column: usize,
+    },
+    TraitDecl {
+        name: String,
+        methods: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    },
+    ImplBlock {
+        trait_name: Option<String>,
+        type_name: String,
+        methods: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    },
     VariableDecl {
         name: String,
         type_annotation: Option<String>,
@@ -155,6 +181,12 @@ pub enum ASTNode {
         object: Box<ASTNode>,
         field: String,
     },
+    MatchExpr {
+        value: Box<ASTNode>,
+        arms: Vec<MatchArm>,
+        line: usize,
+        column: usize,
+    },
     // Quantum & Hieroglyphic
     QuantumOp {
         op: TokenKind,
@@ -247,6 +279,14 @@ pub struct FunctionParam {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    pub name: String,
+    pub default: Option<ASTNode>,
+    pub line: usize,
+    pub column: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ForInBinding {
     pub name: String,
     pub is_mutable: bool,
@@ -278,9 +318,11 @@ pub struct SuperpositionCase {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchArm {
-    pub pattern: ASTNode,            // Pattern to match against
-    pub guard: Option<Box<ASTNode>>, // Optional guard condition
-    pub body: ASTNode,               // Body to execute if matched
+    pub pattern: ASTNode,
+    pub guard: Option<ASTNode>,
+    pub body: ASTNode,
+    pub line: usize,
+    pub column: usize,
 }
 
 impl ASTNode {
@@ -337,6 +379,57 @@ impl ASTNode {
             column,
             params,
             body,
+        }
+    }
+    pub fn new_class_decl(
+        name: &str,
+        superclass: Option<String>,
+        methods: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        Self::ClassDecl {
+            name: name.to_string(),
+            superclass,
+            methods,
+            line,
+            column,
+        }
+    }
+    pub fn new_struct_decl(
+        name: &str,
+        fields: Vec<StructField>,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        Self::StructDecl {
+            name: name.to_string(),
+            fields,
+            line,
+            column,
+        }
+    }
+    pub fn new_trait_decl(name: &str, methods: Vec<ASTNode>, line: usize, column: usize) -> Self {
+        Self::TraitDecl {
+            name: name.to_string(),
+            methods,
+            line,
+            column,
+        }
+    }
+    pub fn new_impl_block(
+        trait_name: Option<String>,
+        type_name: &str,
+        methods: Vec<ASTNode>,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        Self::ImplBlock {
+            trait_name,
+            type_name: type_name.to_string(),
+            methods,
+            line,
+            column,
         }
     }
     #[allow(dead_code)]
@@ -416,6 +509,15 @@ impl ASTNode {
         Self::FieldAccess {
             object: Box::new(object),
             field: field.to_string(),
+        }
+    }
+
+    pub fn new_match_expr(value: ASTNode, arms: Vec<MatchArm>, line: usize, column: usize) -> Self {
+        Self::MatchExpr {
+            value: Box::new(value),
+            arms,
+            line,
+            column,
         }
     }
 

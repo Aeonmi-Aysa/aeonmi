@@ -1,7 +1,8 @@
 //! Parser for Aeonmi/QUBE/Titan with precedence parsing + spanned errors.
 
 use crate::core::ast::{
-    ASTNode, ForInBinding, FunctionParam, QuantumBindingType, QuantumFunctionType,
+    ASTNode, ForInBinding, FunctionParam, MatchArm, QuantumBindingType, QuantumFunctionType,
+    StructField,
 };
 use crate::core::token::{Token, TokenKind};
 use unicode_ident::is_xid_continue;
@@ -75,6 +76,10 @@ impl Parser {
             TokenKind::While => self.parse_while(),
             TokenKind::For => self.parse_for(),
             TokenKind::Match => self.parse_match(),
+            TokenKind::Class => self.parse_class_declaration(),
+            TokenKind::Struct => self.parse_struct_declaration(),
+            TokenKind::Trait => self.parse_trait_declaration(),
+            TokenKind::Impl => self.parse_impl_block(),
             TokenKind::OpenBrace => Ok(self.parse_block()?),
 
             // AEONMI Quantum-Native Syntax
@@ -217,6 +222,132 @@ impl Parser {
             return Err(self.err_here("Expected return type after '->'"));
         }
         Ok(Some(ty))
+    }
+
+    fn parse_class_declaration(&mut self) -> Result<ASTNode, ParserError> {
+        let class_tok = self.consume(TokenKind::Class, "Expected 'class'")?.clone();
+        let name = self.consume_identifier("Expected class name")?;
+        let superclass = if self.match_token(&[TokenKind::Colon]) {
+            Some(self.consume_identifier("Expected superclass name after ':'")?)
+        } else {
+            None
+        };
+        self.consume(TokenKind::OpenBrace, "Expected '{' after class name")?;
+        let mut methods = Vec::new();
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenKind::Semicolon]) {
+                continue;
+            }
+            if self.check(&TokenKind::Function) {
+                methods.push(self.parse_function_decl()?);
+            } else {
+                return Err(self.err_here("Expected 'function' declaration inside class body"));
+            }
+        }
+        self.consume(TokenKind::CloseBrace, "Expected '}' after class body")?;
+        Ok(ASTNode::new_class_decl(
+            &name,
+            superclass,
+            methods,
+            class_tok.line,
+            class_tok.column,
+        ))
+    }
+
+    fn parse_struct_declaration(&mut self) -> Result<ASTNode, ParserError> {
+        let struct_tok = self
+            .consume(TokenKind::Struct, "Expected 'struct'")?
+            .clone();
+        let name = self.consume_identifier("Expected struct name")?;
+        self.consume(TokenKind::OpenBrace, "Expected '{' after struct name")?;
+        let mut fields = Vec::new();
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenKind::Comma]) || self.match_token(&[TokenKind::Semicolon]) {
+                continue;
+            }
+            let field = self.parse_struct_field()?;
+            fields.push(field);
+            let _ = self.match_token(&[TokenKind::Comma]);
+            let _ = self.match_token(&[TokenKind::Semicolon]);
+        }
+        self.consume(TokenKind::CloseBrace, "Expected '}' after struct fields")?;
+        Ok(ASTNode::new_struct_decl(
+            &name,
+            fields,
+            struct_tok.line,
+            struct_tok.column,
+        ))
+    }
+
+    fn parse_struct_field(&mut self) -> Result<StructField, ParserError> {
+        let ident_tok = self.peek().clone();
+        let name = self.consume_identifier("Expected field name")?;
+        let default = if self.match_token(&[TokenKind::Equals]) {
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+        Ok(StructField {
+            name,
+            default,
+            line: ident_tok.line,
+            column: ident_tok.column,
+        })
+    }
+
+    fn parse_trait_declaration(&mut self) -> Result<ASTNode, ParserError> {
+        let trait_tok = self.consume(TokenKind::Trait, "Expected 'trait'")?.clone();
+        let name = self.consume_identifier("Expected trait name")?;
+        self.consume(TokenKind::OpenBrace, "Expected '{' after trait name")?;
+        let mut methods = Vec::new();
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenKind::Semicolon]) {
+                continue;
+            }
+            if self.check(&TokenKind::Function) {
+                methods.push(self.parse_function_decl()?);
+            } else {
+                return Err(self.err_here("Expected 'function' declaration inside trait body"));
+            }
+        }
+        self.consume(TokenKind::CloseBrace, "Expected '}' after trait body")?;
+        Ok(ASTNode::new_trait_decl(
+            &name,
+            methods,
+            trait_tok.line,
+            trait_tok.column,
+        ))
+    }
+
+    fn parse_impl_block(&mut self) -> Result<ASTNode, ParserError> {
+        let impl_tok = self.consume(TokenKind::Impl, "Expected 'impl'")?.clone();
+        let first_ident = self.consume_identifier("Expected type or trait name after 'impl'")?;
+        let (trait_name, type_name) = if self.match_token(&[TokenKind::For]) {
+            let ty = self.consume_identifier("Expected type name after 'for'")?;
+            (Some(first_ident), ty)
+        } else {
+            (None, first_ident)
+        };
+        self.consume(TokenKind::OpenBrace, "Expected '{' after impl header")?;
+        let mut methods = Vec::new();
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenKind::Semicolon]) {
+                continue;
+            }
+            if self.check(&TokenKind::Function) {
+                methods.push(self.parse_function_decl()?);
+            } else {
+                return Err(self.err_here("Expected 'function' declaration inside impl block"));
+            }
+        }
+        self.consume(TokenKind::CloseBrace, "Expected '}' after impl block")?;
+        Ok(ASTNode::new_impl_block(
+            trait_name,
+            &type_name,
+            methods,
+            impl_tok.line,
+            impl_tok.column,
+        ))
     }
 
     fn parse_function_param_list(
@@ -1042,6 +1173,7 @@ impl Parser {
 
             // 'function' / 'fn' as an expression
             TokenKind::Function | TokenKind::Fn => self.parse_function_expression(tok),
+            TokenKind::Match => self.parse_match(),
 
             // Quantum keywords as identifiers (so they can be callee names)
             TokenKind::Superpose | TokenKind::Entangle | TokenKind::Measure | TokenKind::Dod => {
@@ -1913,43 +2045,46 @@ impl Parser {
     /* ── Match ───────────────────────────────────────────────────────── */
 
     fn parse_match(&mut self) -> Result<ASTNode, ParserError> {
-        use crate::core::ast::MatchArm;
-
-        self.consume(TokenKind::Match, "Expected 'match'")?;
-        let value = Box::new(self.parse_expression()?);
+        let match_tok = self.consume(TokenKind::Match, "Expected 'match'")?.clone();
+        let value = self.parse_expression()?;
         self.consume(TokenKind::OpenBrace, "Expected '{' after match value")?;
-
         let mut arms = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenKind::Comma]) || self.match_token(&[TokenKind::Semicolon]) {
+                continue;
+            }
+            let line = self.peek().line;
+            let column = self.peek().column;
             let pattern = self.parse_expression()?;
-
-            // Optional guard
-            let guard = if self.check(&TokenKind::If) {
-                self.advance();
-                Some(Box::new(self.parse_expression()?))
-            } else {
-                None
-            };
-
             self.consume(TokenKind::FatArrow, "Expected '=>' after match pattern")?;
-
-            let body = if self.check(&TokenKind::OpenBrace) {
-                self.parse_statement()?
-            } else {
-                self.parse_expression()?
-            };
-
+            let body = self.parse_expression()?;
             arms.push(MatchArm {
                 pattern,
-                guard,
+                guard: None,
                 body,
+                line,
+                column,
             });
-
-            let _ = self.match_token(&[TokenKind::Comma]); // optional trailing comma
+            let _ = self.match_token(&[TokenKind::Comma]);
+            let _ = self.match_token(&[TokenKind::Semicolon]);
         }
-
-        self.consume(TokenKind::CloseBrace, "Expected '}' after match arms")?;
-        Ok(ASTNode::Match { value, arms })
+        self.consume(
+            TokenKind::CloseBrace,
+            "Expected '}' to close match expression",
+        )?;
+        if arms.is_empty() {
+            return Err(self.err_at(
+                "Match expression requires at least one arm",
+                match_tok.line,
+                match_tok.column,
+            ));
+        }
+        Ok(ASTNode::new_match_expr(
+            value,
+            arms,
+            match_tok.line,
+            match_tok.column,
+        ))
     }
 }
 

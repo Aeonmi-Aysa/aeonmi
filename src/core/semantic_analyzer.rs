@@ -318,6 +318,30 @@ impl SemanticAnalyzer {
                     }
                 }
             }
+            ASTNode::ClassDecl { methods, .. } => {
+                self.begin_scope();
+                for method in methods {
+                    self.visit(method, capture);
+                }
+                self.end_scope();
+            }
+            ASTNode::StructDecl { fields, .. } => {
+                for field in fields {
+                    if let Some(default) = &field.default {
+                        self.visit(default, capture);
+                    }
+                }
+            }
+            ASTNode::TraitDecl { methods, .. } => {
+                for method in methods {
+                    self.visit(method, capture);
+                }
+            }
+            ASTNode::ImplBlock { methods, .. } => {
+                for method in methods {
+                    self.visit(method, capture);
+                }
+            }
             ASTNode::FunctionExpr {
                 name,
                 line,
@@ -430,6 +454,15 @@ impl SemanticAnalyzer {
                 self.declare(&binding.name, Some(binding.line), Some(binding.column));
                 self.visit(body, capture);
                 self.end_scope();
+            }
+            ASTNode::MatchExpr { value, arms, .. } => {
+                self.visit(value, capture);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.visit(guard, capture);
+                    }
+                    self.visit(&arm.body, capture);
+                }
             }
             ASTNode::BinaryExpr { op, left, right } => {
                 self.visit(left, capture);

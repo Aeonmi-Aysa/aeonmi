@@ -65,6 +65,7 @@ pub enum TokenKind {
     CloseBracket, // ]
     Comma,        // ,
     Semicolon,    // ;
+    FatArrow,     // =>
 
     // Traditional keywords (legacy compatibility)
     Function,
@@ -77,6 +78,11 @@ pub enum TokenKind {
     Return,
     Log,
     Qubit,
+    Class,
+    Struct,
+    Trait,
+    Impl,
+    Match,
 
     // Rust-like structure keywords
     Module,
@@ -216,6 +222,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::CloseBracket => "]",
             TokenKind::Comma => ",",
             TokenKind::Semicolon => ";",
+            TokenKind::FatArrow => "=>",
 
             // Traditional keywords
             TokenKind::Function => "function",
@@ -229,6 +236,9 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Return => "return",
             TokenKind::Log => "log",
             TokenKind::Qubit => "qubit",
+            TokenKind::Class => "class",
+            TokenKind::Trait => "trait",
+            TokenKind::Impl => "impl",
 
             // Rust-like structure keywords
             TokenKind::Module => "module",

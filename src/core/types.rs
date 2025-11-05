@@ -126,6 +126,32 @@ impl TypeContext {
                 self.end_scope();
                 TypeKind::Void
             }
+            ASTNode::ClassDecl { methods, .. } => {
+                for method in methods {
+                    self.visit(method);
+                }
+                TypeKind::Void
+            }
+            ASTNode::StructDecl { fields, .. } => {
+                for field in fields {
+                    if let Some(default) = &field.default {
+                        self.visit(default);
+                    }
+                }
+                TypeKind::Void
+            }
+            ASTNode::TraitDecl { methods, .. } => {
+                for method in methods {
+                    self.visit(method);
+                }
+                TypeKind::Void
+            }
+            ASTNode::ImplBlock { methods, .. } => {
+                for method in methods {
+                    self.visit(method);
+                }
+                TypeKind::Void
+            }
             ASTNode::VariableDecl {
                 name,
                 value,
@@ -231,6 +257,26 @@ impl TypeContext {
                 self.visit(iterable);
                 self.visit(body);
                 TypeKind::Void
+            }
+            ASTNode::MatchExpr { value, arms, .. } => {
+                self.visit(value);
+                let mut arm_type = TypeKind::Unknown;
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.visit(guard);
+                    }
+                    let body_ty = self.visit(&arm.body);
+                    if arm_type == TypeKind::Unknown {
+                        arm_type = body_ty.clone();
+                    } else if body_ty != TypeKind::Unknown && body_ty != arm_type {
+                        self.diags.push(TypeDiagnostic {
+                            message: "Match arms must return the same type".into(),
+                            line: arm.line,
+                            column: arm.column,
+                        });
+                    }
+                }
+                arm_type
             }
             ASTNode::BinaryExpr { op, left, right } => {
                 let lt = self.visit(left);

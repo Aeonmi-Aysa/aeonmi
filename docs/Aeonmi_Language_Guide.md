@@ -16,7 +16,7 @@
 9. Functions & Returns
 10. Built‑ins (Standard Runtime)
 11. Randomness Patterns with `%`
-12. Emulating Collections Pre‑Arrays
+12. Collections
 13. String Construction & Formatting
 14. Diagnostics & Error Patterns
 15. Semantic Analysis & `--no-sema`
@@ -65,9 +65,13 @@ Aeonmi.exe run --native demo.ai
 | Block `{ ... }` | Yes | New scope for locals. |
 | `if (cond) {}` / `else` | Yes | Parens required. |
 | `while (cond)` | Yes | Standard loop. |
-| Function decl | Partial | Depends on current branch: if unsupported, avoid `fn`. |
-| Return | If functions enabled | No implicit last-expression return yet. |
-| Arrays `[...]` | Planned | Use patterns (Sections 11–12). |
+| Function decl | Yes | `function name(args) { ... }` with explicit `return`. |
+| `match` expression | Yes | `match value { pattern => expr, _ => expr }` returns the selected value. |
+| Struct declaration | Yes | `struct Name { field = default }` captures field defaults. |
+| Class declaration | Yes | `class Name { function method() { ... } }` emits JS classes. |
+| Trait declaration | Yes | Collects method contracts; emitted as annotated comments today. |
+| Impl block | Yes | `impl Type { ... }` attaches prototype methods; `impl Trait for Type` records conformance. |
+| Arrays `[...]` | Yes | Classical arrays are available without workarounds. |
 | `%` modulo | Yes | Native remainder; see Section 11 for bucket patterns. |
 | Comments | Yes | Line: `# ...` only. |
 
@@ -100,6 +104,13 @@ if (x > 0) { let x = 1; log(x); } # prints 1
 log(x); # prints 5
 ```
 
+### Composite Abstractions
+
+- `struct Name { field = default }` captures data fields and optional defaults. The generated JS helper returns a plain object with defaults applied when `init.field` is `undefined`.
+- `class Name { function method() { ... } }` emits an ES class; methods use the regular `function` syntax inside the body.
+- `trait Name { function required() { ... } }` documents an interface. At generation time it becomes a comment but still participates in semantic validation.
+- `impl Type { function extra() { ... } }` attaches prototype methods for `Type`. `impl Trait for Type` records the conformance for diagnostics while leaving a comment marker in the output.
+
 ## 7. Expressions & Operators
 | Group | Operators | Notes |
 |-------|-----------|-------|
@@ -126,13 +137,25 @@ Quantum-aware control adds probabilistic branches and guarded loops:
 ```
 Probabilistic branches sample the indicated probability when deciding the active block. Quantum loops reevaluate the condition each iteration (the decoherence threshold is currently advisory). The try/catch form executes the attempt block; catch/finally hooks are parsed and reserved for forthcoming error simulation.
 
-## 9. Functions & Returns
-If available in your build:
+`match` expressions dispatch on simple patterns and evaluate to a value:
+
 ```ai
-fn add(a, b) { return a + b; }
+let status = match measurement {
+    0 => "ground",
+    1 => "excited",
+    _ => "unknown"
+};
+```
+
+Arms are evaluated top-to-bottom. `_` acts as a wildcard fallback. Each branch is an expression; the match lowers to a helper closure so the result can be used inline (e.g., inside a `let` binding or as a function argument).
+
+## 9. Functions & Returns
+Functions are standard:
+```ai
+function add(a, b) { return a + b; }
 log(add(2, 3));
 ```
-If not yet implemented, keep logic inline or simulate with pattern dispatch using `if` chains.
+Variadic parameters use `...args`, and defaults (`function f(x = 1)`) are honored during code generation.
 
 ## 10. Built‑ins
 | Name | Purpose |
@@ -171,8 +194,8 @@ let pick = rand() % choices;
 if (pick >= choices) { pick = choices - 1; } # defensive for legacy builds
 ```
 
-## 12. Emulating Collections
-Classical arrays remain planned; quantum tensors are separate (Section 19). Before arrays, encode via functions:
+## 12. Collections
+Classical arrays are now available (`let items = [1, 2, 3];`). The legacy pattern below remains for reference when targeting extremely old shards:
 ```ai
 fn show_fact(n) {
   if (n == 0) { log("Honey never spoils."); return; }
@@ -194,7 +217,7 @@ log("Hi, " + user + "!");
 Common messages & meanings:
 | Message | Cause | Remedy |
 |---------|-------|--------|
-| `Lexing error: Unexpected character '['` | Arrays not implemented | Remove `[ ]` use pattern §12. |
+| `Parsing error: Match expression requires at least one arm` | `match {}` with no cases | Provide at least one arm, usually an `_` fallback. |
 | `Lexing error: Unexpected character '%'` | Running an older build without modulo | Upgrade to the current shard or remove `%`. |
 | `Parsing error: Expected '(' after if` | Missing parentheses | Add `( )`. |
 | Runtime error: <msg> | Interpreter failure | Add `log()` around suspicious values. |

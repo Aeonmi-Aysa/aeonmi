@@ -824,6 +824,10 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
             | N::StringLiteral(_)
             | N::BooleanLiteral(_)
             | N::GenericType { .. }
+            | N::ClassDecl { .. }
+            | N::StructDecl { .. }
+            | N::TraitDecl { .. }
+            | N::ImplBlock { .. }
             | N::Error(_) => false,
 
             // New AST nodes
@@ -838,7 +842,19 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                             || arm
                                 .guard
                                 .as_ref()
-                                .map(|g| expr_contains_identifier(g.as_ref()))
+                                .map(|g| expr_contains_identifier(g))
+                                .unwrap_or(false)
+                            || expr_contains_identifier(&arm.body)
+                    })
+            }
+            N::MatchExpr { value, arms, .. } => {
+                expr_contains_identifier(value)
+                    || arms.iter().any(|arm| {
+                        expr_contains_identifier(&arm.pattern)
+                            || arm
+                                .guard
+                                .as_ref()
+                                .map(|g| expr_contains_identifier(g))
                                 .unwrap_or(false)
                             || expr_contains_identifier(&arm.body)
                     })

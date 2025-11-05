@@ -361,6 +361,53 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
         } => {
             record(sm, name, *line, *column, *stack.last().unwrap(), false);
         }
+        ClassDecl { name, methods, line, column, .. } => {
+            record(sm, name, *line, *column, *stack.last().unwrap(), true);
+            let new_id = sm.parents.len();
+            sm.parents.push(Some(current));
+            stack.push(new_id);
+            for method in methods {
+                visit(method, sm, stack, new_id);
+            }
+            stack.pop();
+        }
+        StructDecl { name, fields, line, column, .. } => {
+            record(sm, name, *line, *column, *stack.last().unwrap(), true);
+            for field in fields {
+                if let Some(default) = &field.default {
+                    visit(default, sm, stack, current);
+                }
+            }
+        }
+        TraitDecl { name, methods, line, column, .. } => {
+            record(sm, name, *line, *column, *stack.last().unwrap(), true);
+            let new_id = sm.parents.len();
+            sm.parents.push(Some(current));
+            stack.push(new_id);
+            for method in methods {
+                visit(method, sm, stack, new_id);
+            }
+            stack.pop();
+        }
+        ImplBlock { type_name, methods, .. } => {
+            let new_id = sm.parents.len();
+            sm.parents.push(Some(current));
+            stack.push(new_id);
+            for method in methods {
+                visit(method, sm, stack, new_id);
+            }
+            stack.pop();
+        }
+        MatchExpr { value, arms, .. } => {
+            visit(value, sm, stack, current);
+            for arm in arms {
+                visit(&arm.pattern, sm, stack, current);
+                if let Some(guard) = &arm.guard {
+                    visit(guard, sm, stack, current);
+                }
+                visit(&arm.body, sm, stack, current);
+            }
+        }
         NumberLiteral(_) | StringLiteral(_) | BooleanLiteral(_) | GenericType { .. } | Error(_) => {
         }
 
