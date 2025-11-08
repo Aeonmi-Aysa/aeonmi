@@ -10,11 +10,13 @@ use std::collections::BTreeSet;
 pub enum Backend {
     Js,
     Ai,
+    Bytecode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Helper {
     Len,
+    Quantum, // Quantum simulation helpers
 }
 
 pub struct CodeGenerator {
@@ -44,6 +46,20 @@ impl CodeGenerator {
             helpers: BTreeSet::new(),
         }
     }
+    pub fn new_js() -> Self {
+        Self {
+            indent: 0,
+            backend: Backend::Js,
+            helpers: BTreeSet::new(),
+        }
+    }
+    pub fn new_bytecode() -> Self {
+        Self {
+            indent: 0,
+            backend: Backend::Bytecode,
+            helpers: BTreeSet::new(),
+        }
+    }
     pub fn generate(&mut self, ast: &ASTNode) -> Result<String, String> {
         self.generate_with_backend(ast, self.backend)
     }
@@ -59,6 +75,16 @@ impl CodeGenerator {
                 emitter
                     .generate(ast)
                     .map_err(|e| format!("AiEmitter error: {e}"))
+            }
+            Backend::Bytecode => {
+                // For bytecode backend, use the bytecode compiler
+                // This returns a compiled bytecode chunk that can be executed by the VM
+                let compiler = crate::core::bytecode::BytecodeCompiler::new();
+                let chunk = compiler.compile(ast);
+                Ok(format!(
+                    "Bytecode compiled successfully with {} instructions",
+                    chunk.code.len()
+                ))
             }
         }
     }
@@ -140,6 +166,7 @@ impl CodeGenerator {
                 ..
             } => self.emit_class_decl(name, superclass, methods),
             ASTNode::StructDecl { name, fields, .. } => self.emit_struct_decl(name, fields),
+            ASTNode::EnumDecl { name, variants, .. } => self.emit_enum_decl(name, variants),
             ASTNode::TraitDecl { name, methods, .. } => self.emit_trait_decl(name, methods),
             ASTNode::ImplBlock {
                 trait_name,
@@ -149,6 +176,8 @@ impl CodeGenerator {
             } => self.emit_impl_block(trait_name, type_name, methods),
             ASTNode::Return(expr) => format!("return {};\n", self.emit_expr_js(expr)),
             ASTNode::Log(expr) => format!("console.log({});\n", self.emit_expr_js(expr)),
+            ASTNode::Break => "break;\n".to_string(),
+            ASTNode::Continue => "continue;\n".to_string(),
             ASTNode::Assignment { name, value, .. } => {
                 format!("{} = {};\n", name, self.emit_expr_js(value))
             }
@@ -336,42 +365,72 @@ impl CodeGenerator {
                 then_branch,
                 else_branch,
             } => {
-                let condition_js = self.emit_expr_js(condition);
-                let then_js = self.emit_js(then_branch);
-                let prob_comment = if let Some(p) = probability {
-                    format!("// Probability: {:.2}%", p * 100.0)
-                } else {
-                    "// Quantum probability".to_string()
-                };
+                // Mark that we need quantum helpers
+                self.helpers.insert(Helper::Quantum);
+                
+                // Generate probabilistic branch using Math.random()
+                let prob_value = probability.unwrap_or(0.5);
+                let mut s = String::new();
+                
+                // Use probability to decide branch
+                s.push_str(&format!("if (Math.random() < {}) ", prob_value));
+                s.push_str(&self.wrap_stmt_js(then_branch));
+                
                 if let Some(else_stmt) = else_branch {
-                    let else_js = self.emit_js(else_stmt);
-                    format!(
-                        "if (__quantum.evaluate({})) {{ {}\n{}\n}} else {{ {}\n{}\n}}\n",
-                        condition_js, prob_comment, then_js, prob_comment, else_js
-                    )
-                } else {
-                    format!(
-                        "if (__quantum.evaluate({})) {{ {}\n{}\n}}\n",
-                        condition_js, prob_comment, then_js
-                    )
+                    s.push_str(" else ");
+                    s.push_str(&self.wrap_stmt_js(else_stmt));
                 }
+                s.push('\n');
+                s
             }
             ASTNode::QuantumLoop {
                 condition,
                 body,
                 decoherence_threshold,
             } => {
-                let condition_js = self.emit_expr_js(condition);
-                let body_js = self.emit_js(body);
-                let decoherence_comment = if let Some(threshold) = decoherence_threshold {
-                    format!("// Decoherence threshold: {:.3}", threshold)
+                // Mark that we need quantum helpers
+                self.helpers.insert(Helper::Quantum);
+                
+                // Generate quantum loop with iteration limit
+                let mut s = String::new();
+                
+                // Set up iteration tracking
+                let max_iters = if let Some(threshold) = decoherence_threshold {
+                    format!("{}", threshold)
                 } else {
-                    "// Quantum loop with decoherence protection".to_string()
+                    "Infinity".to_string()
                 };
-                format!(
-                    "while (__quantum.evaluateLoop({})) {{ {}\n{}\n}}\n",
-                    condition_js, decoherence_comment, body_js
-                )
+                
+                s.push_str(&format!("let __maxIters = {};\n", max_iters));
+                s.push_str("let __iterCount = 0;\n");
+                s.push_str("while (__iterCount < __maxIters) {\n");
+                self.indent += 1;
+                
+                // Check condition if provided
+                s.push_str(&self.indent_str());
+                s.push_str(&format!("if (!({})) {{\n", self.emit_expr_js(condition)));
+                self.indent += 1;
+                s.push_str(&self.indent_str());
+                s.push_str("break;\n");
+                self.indent -= 1;
+                s.push_str(&self.indent_str());
+                s.push_str("}\n");
+                
+                // Loop body
+                s.push_str(&self.indent_str());
+                let body_js = self.emit_js(body);
+                s.push_str(&body_js.trim());
+                if !body_js.ends_with('\n') {
+                    s.push('\n');
+                }
+                
+                // Increment counter
+                s.push_str(&self.indent_str());
+                s.push_str("__iterCount++;\n");
+                
+                self.indent -= 1;
+                s.push_str("}\n");
+                s
             }
             ASTNode::SuperpositionSwitch { value, cases } => {
                 let value_js = self.emit_expr_js(value);
@@ -395,29 +454,67 @@ impl CodeGenerator {
                 attempt_body,
                 error_probability,
                 catch_body,
-                success_body: _,
+                success_body,
             } => {
-                let attempt_js = attempt_body
-                    .iter()
-                    .map(|stmt| self.emit_js(stmt))
-                    .collect::<String>();
-                let prob_comment = if let Some(p) = error_probability {
-                    format!("// Error probability: {:.2}%", p * 100.0)
-                } else {
-                    "// Quantum error correction".to_string()
-                };
-                let catch_js = if let Some(catch_stmts) = catch_body {
-                    catch_stmts
-                        .iter()
-                        .map(|stmt| self.emit_js(stmt))
-                        .collect::<String>()
-                } else {
-                    "// Default quantum error handling\n".to_string()
-                };
-                format!(
-                    "try {{ {}\n{}\n}} catch (quantum_error) {{ {}\n{}\n}}\n",
-                    prob_comment, attempt_js, prob_comment, catch_js
-                )
+                // Mark that we need quantum helpers
+                self.helpers.insert(Helper::Quantum);
+                
+                let mut s = String::new();
+                
+                // Track quantum failure
+                s.push_str("let __quantumFailed = false;\n");
+                s.push_str("try {\n");
+                self.indent += 1;
+                
+                // Attempt block
+                for stmt in attempt_body {
+                    s.push_str(&self.indent_str());
+                    s.push_str(&self.emit_js(stmt));
+                }
+                
+                self.indent -= 1;
+                s.push_str("} catch (e) {\n");
+                self.indent += 1;
+                s.push_str(&self.indent_str());
+                s.push_str("__quantumFailed = true;\n");
+                self.indent -= 1;
+                s.push_str("}\n");
+                
+                // Check for probabilistic quantum failure
+                let prob = error_probability.unwrap_or(0.0);
+                if prob > 0.0 {
+                    s.push_str(&format!("if (!__quantumFailed && Math.random() < {}) {{\n", prob));
+                    self.indent += 1;
+                    s.push_str(&self.indent_str());
+                    s.push_str("__quantumFailed = true;\n");
+                    self.indent -= 1;
+                    s.push_str("}\n");
+                }
+                
+                // Catch or success block
+                s.push_str("if (__quantumFailed) {\n");
+                self.indent += 1;
+                if let Some(catch_stmts) = catch_body {
+                    for stmt in catch_stmts {
+                        s.push_str(&self.indent_str());
+                        s.push_str(&self.emit_js(stmt));
+                    }
+                }
+                self.indent -= 1;
+                s.push_str("}");
+                
+                if let Some(success_stmts) = success_body {
+                    s.push_str(" else {\n");
+                    self.indent += 1;
+                    for stmt in success_stmts {
+                        s.push_str(&self.indent_str());
+                        s.push_str(&self.emit_js(stmt));
+                    }
+                    self.indent -= 1;
+                    s.push_str("}");
+                }
+                s.push('\n');
+                s
             }
             ASTNode::AILearningBlock {
                 data_binding,
@@ -557,6 +654,7 @@ impl CodeGenerator {
                 format!("{{{}}}", entries)
             }
             ASTNode::StructLiteral { type_name, fields } => {
+                // Generate a call to the struct factory function
                 let entries = fields
                     .iter()
                     .map(|(k, v)| {
@@ -569,12 +667,8 @@ impl CodeGenerator {
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
-                let mut props = Vec::new();
-                props.push(format!("__type: \"{}\"", type_name));
-                if !entries.is_empty() {
-                    props.push(entries);
-                }
-                format!("{{{}}}", props.join(", "))
+                // Call the struct factory function: StructName({ field1: val1, field2: val2 })
+                format!("{}({{{}}})", type_name, entries)
             }
             ASTNode::IndexExpr { array, index } => {
                 format!("{}[{}]", self.emit_expr_js(array), self.emit_expr_js(index))
@@ -750,14 +844,11 @@ impl CodeGenerator {
         } else {
             for (idx, field) in fields.iter().enumerate() {
                 s.push_str(&self.indent_str());
-                let default_js = field
-                    .default
-                    .as_ref()
-                    .map(|expr| self.emit_expr_js(expr))
-                    .unwrap_or_else(|| "undefined".to_string());
+                // The 'default' field actually contains type annotation, not a default value
+                // So we just use undefined as the default
                 s.push_str(&format!(
-                    "{}: (init.{} !== undefined ? init.{} : {})",
-                    field.name, field.name, field.name, default_js
+                    "{}: (init.{} !== undefined ? init.{} : undefined)",
+                    field.name, field.name, field.name
                 ));
                 if idx + 1 != fields.len() {
                     s.push(',');
@@ -774,6 +865,24 @@ impl CodeGenerator {
         s
     }
 
+    fn emit_enum_decl(&mut self, name: &str, variants: &[String]) -> String {
+        let mut s = String::new();
+        s.push_str(&format!("const {} = {{\n", name));
+        self.indent += 1;
+        for (idx, variant) in variants.iter().enumerate() {
+            s.push_str(&self.indent_str());
+            // For now, simple enums use Symbol for unique identity
+            s.push_str(&format!("{}: Symbol(\"{}.{}\")", variant, name, variant));
+            if idx + 1 != variants.len() {
+                s.push(',');
+            }
+            s.push('\n');
+        }
+        self.indent -= 1;
+        s.push_str("};\n");
+        s
+    }
+
     fn emit_trait_decl(&mut self, name: &str, methods: &[ASTNode]) -> String {
         format!("/* trait {} with {} method(s) */\n", name, methods.len())
     }
@@ -784,15 +893,15 @@ impl CodeGenerator {
         type_name: &str,
         methods: &[ASTNode],
     ) -> String {
-        if let Some(trait_name) = trait_name {
-            return format!(
-                "/* impl {} for {} with {} method(s) */\n",
-                trait_name,
-                type_name,
-                methods.len()
-            );
-        }
+        // Generate prototype method assignments for both trait and inherent impls
         let mut s = String::new();
+        
+        // Optional comment for trait implementations
+        if let Some(trait_name) = trait_name {
+            s.push_str(&format!("// impl {} for {}\n", trait_name, type_name));
+        }
+        
+        // Generate prototype assignments for each method
         for method in methods {
             if let ASTNode::Function {
                 name, params, body, ..
@@ -885,6 +994,52 @@ impl CodeGenerator {
                     prelude
                         .push_str("    if (value === null || value === undefined) { return 0; }\n");
                     prelude.push_str("    throw new Error(\"len: unsupported type\");\n");
+                    prelude.push_str("};\n");
+                }
+                Helper::Quantum => {
+                    // Quantum simulation helpers using JavaScript objects and Math.random()
+                    prelude.push_str("// Quantum simulation state management\n");
+                    prelude.push_str("let __entanglementGroups = [];\n\n");
+                    
+                    // superpose: Create qubit in superposition
+                    prelude.push_str("const __aeonmi_superpose = (prob = 0.5) => {\n");
+                    prelude.push_str("    return {\n");
+                    prelude.push_str("        __qubit: true,\n");
+                    prelude.push_str("        __prob: prob,\n");
+                    prelude.push_str("        __entGroup: null,\n");
+                    prelude.push_str("        __value: null\n");
+                    prelude.push_str("    };\n");
+                    prelude.push_str("};\n\n");
+                    
+                    // entangle: Link qubits so they collapse together
+                    prelude.push_str("const __aeonmi_entangle = (...qubits) => {\n");
+                    prelude.push_str("    const groupId = __entanglementGroups.length;\n");
+                    prelude.push_str("    __entanglementGroups.push({ qubits, collapsed: false, value: null });\n");
+                    prelude.push_str("    qubits.forEach(q => { if (q.__qubit) q.__entGroup = groupId; });\n");
+                    prelude.push_str("    return qubits;\n");
+                    prelude.push_str("};\n\n");
+                    
+                    // measure: Collapse qubit to definite value
+                    prelude.push_str("const __aeonmi_measure = (qubit) => {\n");
+                    prelude.push_str("    if (!qubit || !qubit.__qubit) return qubit;\n");
+                    prelude.push_str("    if (qubit.__value !== null) return qubit.__value;\n");
+                    prelude.push_str("    \n");
+                    prelude.push_str("    if (qubit.__entGroup !== null) {\n");
+                    prelude.push_str("        const group = __entanglementGroups[qubit.__entGroup];\n");
+                    prelude.push_str("        if (group.collapsed) {\n");
+                    prelude.push_str("            qubit.__value = group.value;\n");
+                    prelude.push_str("            return group.value;\n");
+                    prelude.push_str("        }\n");
+                    prelude.push_str("        const value = Math.random() < qubit.__prob ? 1 : 0;\n");
+                    prelude.push_str("        group.collapsed = true;\n");
+                    prelude.push_str("        group.value = value;\n");
+                    prelude.push_str("        group.qubits.forEach(q => q.__value = value);\n");
+                    prelude.push_str("        return value;\n");
+                    prelude.push_str("    }\n");
+                    prelude.push_str("    \n");
+                    prelude.push_str("    const value = Math.random() < qubit.__prob ? 1 : 0;\n");
+                    prelude.push_str("    qubit.__value = value;\n");
+                    prelude.push_str("    return value;\n");
                     prelude.push_str("};\n");
                 }
             }
