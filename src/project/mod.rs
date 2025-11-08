@@ -11,8 +11,12 @@ use crate::core::parser::Parser as QubeParser;
 use walkdir::WalkDir;
 
 mod parser;
+pub mod qasm_export;
+pub mod python_export;
+pub mod diagnostics;
 
 pub use parser::{Program, TestReport};
+pub use diagnostics::{Diagnostic, DiagnosticLevel, DiagnosticLogger};
 
 /// Supported build profiles for Aeonmi projects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,6 +114,10 @@ impl Project {
         &self.manifest.package.version
     }
 
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
     fn entry_path(&self) -> PathBuf {
         self.root.join(&self.manifest.aeonmi.entry)
     }
@@ -160,7 +168,7 @@ impl Project {
         }
     }
 
-    fn load_program(&self) -> Result<Program> {
+    pub fn load_program(&self) -> Result<Program> {
         let entry_path = self.entry_path();
         let entry_src = fs::read_to_string(&entry_path)
             .with_context(|| format!("read entry {}", entry_path.display()))?;

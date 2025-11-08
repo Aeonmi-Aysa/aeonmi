@@ -1,16 +1,20 @@
 mod ai; // AI provider registry & implementations
 mod cli;
+mod cli_enhanced; // Enhanced CLI with modern subcommands
+mod cli_integration; // CLI integration layer
 mod cli_vault;
 mod commands;
 mod compiler;
 mod config; // resolve_config_path, etc.
 /// Aeonmi/QUBE main — unified quantum ecosystem with Mother AI consciousness
 mod core;
+mod editor; // Embedded web editor
 mod encryption;
 mod integration; // Unified system integration layer
 mod io;
 mod project;
 mod runtime;
+mod sandbox; // Secure execution sandbox
 mod shell;
 mod tui; // tui::editor // neon Shard shell
 mod vault;
@@ -36,8 +40,51 @@ fn set_console_title() {
 
 fn main() -> anyhow::Result<()> {
     println!("DEBUG: main() called");
+
+    // Enhanced crash diagnostics
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("PANIC: {}", panic_info);
+        if let Some(location) = panic_info.location() {
+            eprintln!("Location: {}:{}", location.file(), location.line());
+        }
+        eprintln!("Backtrace:");
+        eprintln!("{:?}", std::backtrace::Backtrace::capture());
+    }));
+
+    println!("DEBUG: Setting console title...");
     set_console_title();
 
+    println!("DEBUG: Collecting command line arguments...");
+    // Collect command line arguments
+    let args: Vec<String> = std::env::args().collect();
+    println!("DEBUG: Args collected: {:?}", args);
+
+    // Only launch editor if explicitly requested with --editor flag
+    if args.iter().any(|arg| arg == "--editor" || arg == "editor") {
+        println!("DEBUG: Launching editor mode...");
+        // Launch editor in async context
+        let rt = tokio::runtime::Runtime::new()?;
+        return rt.block_on(async {
+            let (port, workspace) = crate::editor::parse_editor_args(&args[1..]);
+            crate::editor::launch_editor(port, workspace).await
+        });
+    }
+
+    println!("DEBUG: Checking enhanced CLI mode...");
+    // Check if we should use the enhanced CLI
+    let use_enhanced_cli = std::env::var("AEON_ENHANCED_CLI")
+        .map(|v| v == "1" || v.to_lowercase() == "true")
+        .unwrap_or(true); // Default to enhanced CLI
+    println!("DEBUG: Enhanced CLI mode: {}", use_enhanced_cli);
+
+    if use_enhanced_cli {
+        println!("DEBUG: Using enhanced CLI system...");
+        // Use the new enhanced CLI system
+        return crate::cli_integration::run_enhanced_aeon_cli();
+    }
+
+    println!("DEBUG: Using legacy CLI, parsing arguments...");
+    // Fall back to legacy CLI for compatibility
     let args = AeonmiCli::parse();
 
     let cfg_path = resolve_config_path(&args.config);
@@ -234,7 +281,7 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Build {
             release,
             manifest_path,
-        }) => commands::project::build(manifest_path, release),
+        }) => commands::project::build(manifest_path, release, None),
 
         Some(Command::Check { manifest_path }) => commands::project::check(manifest_path),
 
@@ -243,6 +290,16 @@ fn main() -> anyhow::Result<()> {
             manifest_path,
             filter,
         }) => commands::project::test(manifest_path, release, filter),
+
+        Some(Command::ExportQasm {
+            manifest_path,
+            output,
+        }) => commands::project::export_qasm(manifest_path, output),
+
+        Some(Command::ExportPython {
+            manifest_path,
+            output,
+        }) => commands::project::export_python(manifest_path, output),
 
         Some(Command::Run {
             mut input,
@@ -269,7 +326,7 @@ fn main() -> anyhow::Result<()> {
                 {
                     bail!("project run does not support file-specific flags like --out or --watch");
                 }
-                return commands::project::run(manifest_path, release);
+                return commands::project::run(manifest_path, release, None);
             }
 
             let input = input.take().unwrap();
