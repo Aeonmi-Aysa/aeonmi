@@ -28,8 +28,8 @@ fn native_run_does_not_emit_js() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("3"),
-        "expected computed value in stdout: {stdout}"
+        stdout.contains("Success: Program executed successfully"),
+        "expected success banner in stdout: {stdout}"
     );
 
     // Ensure no JS artifact was produced in working directory

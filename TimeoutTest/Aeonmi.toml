@@ -1,0 +1,11 @@
+[package]
+name = "TimeoutTest"
+version = "0.1.0"
+
+[aeonmi]
+entry = "src/main.ai"
+modules = []
+
+[[aeonmi.tests]]
+name = "basic"
+path = "tests/basic.ai"

@@ -1,0 +1,12 @@
+# Test program with parse error
+
+fn main:
+    print "Testing parse error..."
+    
+    # This line will trigger a parse error
+    unknown_statement here
+    
+    print "Should not reach this"
+
+fn helper:
+    print "Helper function"

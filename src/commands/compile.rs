@@ -155,6 +155,7 @@ pub fn compile_pipeline(
     hasher.update(match emit {
         EmitKind::Ai => b"AI",
         EmitKind::Js => b"JS",
+        EmitKind::Bytecode => b"BC",
     });
     let key = format!("{:x}", hasher.finalize());
     let output_string = if let Some(entry) = get_artifact(&key) {
@@ -172,11 +173,25 @@ pub fn compile_pipeline(
                 }
             }
             EmitKind::Js => {
-                let mut gen = CodeGenerator::new();
+                let mut gen = CodeGenerator::new_js(); // Use specific JS constructor
                 match gen.generate(&ast) {
                     Ok(s) => s,
                     Err(e) => {
                         eprintln!("{} JS emit failed: {}", "error:".bright_red().bold(), e);
+                        exit(1);
+                    }
+                }
+            }
+            EmitKind::Bytecode => {
+                let mut gen = CodeGenerator::new_bytecode();
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!(
+                            "{} Bytecode emit failed: {}",
+                            "error:".bright_red().bold(),
+                            e
+                        );
                         exit(1);
                     }
                 }
@@ -215,6 +230,7 @@ pub fn compile_pipeline(
     match emit {
         EmitKind::Js => println!("ok: wrote js to '{}'.", out.display()),
         EmitKind::Ai => println!("ok: wrote ai to '{}'.", out.display()),
+        EmitKind::Bytecode => println!("ok: wrote bytecode to '{}'.", out.display()),
     }
 
     // Trigger debounced metrics persistence (CLI path) so metrics file may exist outside GUI.
@@ -316,6 +332,7 @@ pub fn compile_pipeline_soft(
     hasher.update(match emit {
         EmitKind::Ai => b"AI",
         EmitKind::Js => b"JS",
+        EmitKind::Bytecode => b"BC",
     });
     let key = format!("{:x}", hasher.finalize());
     let output_string = if let Some(entry) = get_artifact(&key) {
@@ -328,9 +345,14 @@ pub fn compile_pipeline_soft(
                     .map_err(|e| anyhow::anyhow!("AI emit failed: {e}"))?
             }
             EmitKind::Js => {
-                let mut gen = CodeGenerator::new();
+                let mut gen = CodeGenerator::new_js();
                 gen.generate(&ast)
                     .map_err(|e| anyhow::anyhow!("JS emit failed: {e}"))?
+            }
+            EmitKind::Bytecode => {
+                let mut gen = CodeGenerator::new_bytecode();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("Bytecode emit failed: {e}"))?
             }
         };
         put_artifact(key.clone(), generated.as_bytes().to_vec());
@@ -345,6 +367,7 @@ pub fn compile_pipeline_soft(
     match emit {
         EmitKind::Js => println!("ok: wrote js to '{}'.", out.display()),
         EmitKind::Ai => println!("ok: wrote ai to '{}'.", out.display()),
+        EmitKind::Bytecode => println!("ok: wrote bytecode to '{}'.", out.display()),
     }
     crate::core::incremental::persist_metrics();
     crate::core::incremental::ensure_metrics_file_exists();

@@ -1,0 +1,27 @@
+# Timeout Demo - Shows cancellation of long-running computation
+
+fn main:
+    print "=== Timeout Demonstration ==="
+    print "Starting infinite loop..."
+    print "This should be cancelled by timeout!"
+    print ""
+    
+    let counter = 0
+    
+    call loop_forever
+
+fn loop_forever:
+    let i = 0
+    print "Loop iteration 1"
+    print "Loop iteration 2"
+    print "Loop iteration 3"
+    print "Loop iteration 4"
+    print "Loop iteration 5"
+    print "If you see this, timeout didn't work yet..."
+    print "Loop iteration 6"
+    print "Loop iteration 7"
+    print "Loop iteration 8"
+    print "Loop iteration 9"
+    print "Loop iteration 10"
+    print "Still running..."
+    call loop_forever

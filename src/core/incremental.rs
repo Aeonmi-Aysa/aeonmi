@@ -7,6 +7,7 @@ use crate::core::parser::{Parser as AeParser, ParserError};
 use once_cell::sync::Lazy;
 use sha1::{Digest, Sha1};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -244,6 +245,7 @@ pub fn record_function_infer(idx: usize, dur: u128) {
     let _test_guard = METRICS_TEST_GUARD
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _ = session_start_epoch_ms(); // ensure session marker is initialized before capturing metrics
     let mut m = match FUNCTION_METRICS.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -291,6 +293,18 @@ const METRICS_VERSION: u32 = 6; // bumped for rolling window & history
 
 pub fn metrics_file_location() -> std::path::PathBuf {
     metrics_file_path()
+}
+
+fn write_metrics_json_atomic(
+    path: &std::path::Path,
+    json: &serde_json::Value,
+) -> std::io::Result<()> {
+    let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
+    serde_json::to_writer_pretty(tmp.as_file_mut(), json)?;
+    tmp.as_file_mut().flush()?;
+    tmp.as_file_mut().sync_all()?;
+    tmp.persist(path).map(|_| ()).map_err(|e| e.error)
 }
 
 pub fn build_metrics_json() -> serde_json::Value {
@@ -378,10 +392,7 @@ pub fn ensure_metrics_file_exists() {
         return;
     }
     let json = build_metrics_json();
-    let _ = std::fs::write(
-        &path,
-        serde_json::to_string_pretty(&json).unwrap_or_default(),
-    );
+    let _ = write_metrics_json_atomic(&path, &json);
 }
 
 pub fn persist_metrics() {
@@ -410,10 +421,7 @@ pub fn persist_metrics() {
             serde_json::to_string(&json).unwrap_or_default()
         );
         let path = metrics_file_path();
-        if let Err(e) = std::fs::write(
-            &path,
-            serde_json::to_string_pretty(&json).unwrap_or_default(),
-        ) {
+        if let Err(e) = write_metrics_json_atomic(&path, &json) {
             eprintln!("persist_metrics write error: {e}");
         }
     }
@@ -433,10 +441,7 @@ pub fn force_persist_metrics() {
             serde_json::to_string(&json).unwrap_or_default()
         );
         let path = metrics_file_path();
-        if let Err(e) = std::fs::write(
-            &path,
-            serde_json::to_string_pretty(&json).unwrap_or_default(),
-        ) {
+        if let Err(e) = write_metrics_json_atomic(&path, &json) {
             eprintln!("force_persist_metrics write error: {e}");
         }
     }
@@ -666,6 +671,7 @@ pub fn record_reinfer_event(count: usize) {
     let _test_guard = METRICS_TEST_GUARD
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _ = session_start_epoch_ms();
     let mut m = match CALL_GRAPH_METRICS.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -828,13 +834,13 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
             | N::StructDecl { .. }
             | N::TraitDecl { .. }
             | N::ImplBlock { .. }
-            | N::Error(_) => false,
+            | N::Error(_)
+            | N::Break
+            | N::Continue => false,
 
             // New AST nodes
             N::Module { body, .. } => body.iter().any(expr_contains_identifier),
-            N::Import { .. } | N::RecordDecl { .. } | N::EnumDecl { .. } | N::TypeAlias { .. } => {
-                false
-            }
+            N::Import { .. } | N::EnumDecl { .. } | N::TypeAlias { .. } => false,
             N::Match { value, arms } => {
                 expr_contains_identifier(value)
                     || arms.iter().any(|arm| {
@@ -859,6 +865,8 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
                             || expr_contains_identifier(&arm.body)
                     })
             }
+            N::Export { .. } => false, // Exports don't contain identifiers in their dependencies
+            N::QuantumCircuit { .. } => false, // Quantum circuits don't contain identifiers in their dependencies
         }
     }
     fn walk(

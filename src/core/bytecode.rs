@@ -93,6 +93,15 @@ pub struct BytecodeCompiler {
     local_map: HashMap<String, u16>,
     next_local_slot: u16,
     scope_stack: Vec<Vec<String>>,
+    loop_stack: Vec<LoopContext>, // Track loop breaks/continues for patching
+}
+
+/// Context for tracking break/continue jumps in loops
+#[derive(Debug, Clone)]
+struct LoopContext {
+    loop_start: usize,      // Where to jump for continue
+    breaks: Vec<usize>,     // Positions of break jumps to patch later
+    continues: Vec<usize>,  // Positions of continue jumps to patch later (for for-loops)
 }
 
 impl Default for BytecodeCompiler {
@@ -110,6 +119,7 @@ impl BytecodeCompiler {
             local_map: HashMap::new(),
             next_local_slot: 0,
             scope_stack: Vec::new(),
+            loop_stack: Vec::new(),
         }
     }
 
@@ -216,6 +226,23 @@ impl BytecodeCompiler {
                 }
                 self.exit_scope();
             }
+            ASTNode::QuantumOp { op, qubits } => {
+                for qubit in qubits {
+                    if let Some(c) = self.compile_expr(qubit) {
+                        let ci = self.add_constant(c);
+                        self.chunk.code.push(OpCode::LoadConst(ci));
+                    }
+                }
+
+                match op {
+                    TokenKind::Superpose => self.chunk.code.push(OpCode::Superpose),
+                    TokenKind::Entangle | TokenKind::Dod => {
+                        self.chunk.code.push(OpCode::Entangle)
+                    }
+                    TokenKind::Measure => self.chunk.code.push(OpCode::Measure),
+                    _ => {}
+                }
+            }
             ASTNode::VariableDecl { name, value, .. } => {
                 let const_val = self.compile_expr(value.as_ref());
                 if top_level {
@@ -273,6 +300,24 @@ impl BytecodeCompiler {
                 }
                 self.chunk.code.push(OpCode::Return);
             }
+            ASTNode::Break => {
+                // Emit a placeholder jump; will be patched when loop ends
+                let jump_pos = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Jump(0));
+                if let Some(ctx) = self.loop_stack.last_mut() {
+                    ctx.breaks.push(jump_pos);
+                }
+                // Note: If not in a loop, semantic analysis should have caught this
+            }
+            ASTNode::Continue => {
+                // Emit a placeholder jump; will be patched when loop ends
+                let jump_pos = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Jump(0));
+                if let Some(ctx) = self.loop_stack.last_mut() {
+                    ctx.continues.push(jump_pos);
+                }
+                // Note: If not in a loop, semantic analysis should have caught this
+            }
             ASTNode::If {
                 condition,
                 then_branch,
@@ -321,6 +366,193 @@ impl BytecodeCompiler {
                     *off = end_index as i16 - (jump_to_end as i16 + 1);
                 }
             }
+            ASTNode::ProbabilityBranch {
+                probability,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                let prob = probability.unwrap_or(0.5).clamp(0.0, 1.0);
+                let prob_idx = self.add_constant(Constant::Number(prob));
+                self.chunk.code.push(OpCode::Rand);
+                self.chunk.code.push(OpCode::LoadConst(prob_idx));
+                self.chunk.code.push(OpCode::Lt);
+
+                let jump_to_else = self.chunk.code.len();
+                self.chunk.code.push(OpCode::JumpIfFalse(0));
+                self.chunk.code.push(OpCode::Pop);
+                self.compile_stmt(then_branch.as_ref(), false, top_level);
+                let jump_to_end = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Jump(0));
+                let else_index = self.chunk.code.len();
+                if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_else] {
+                    *off = else_index as i16 - (jump_to_else as i16 + 1);
+                }
+                self.chunk.code.push(OpCode::Pop);
+                if let Some(else_branch) = else_branch {
+                    self.compile_stmt(else_branch.as_ref(), false, top_level);
+                }
+                let end_index = self.chunk.code.len();
+                if let OpCode::Jump(ref mut off) = self.chunk.code[jump_to_end] {
+                    *off = end_index as i16 - (jump_to_end as i16 + 1);
+                }
+                let null_idx = self.add_constant(Constant::Null);
+                self.chunk.code.push(OpCode::LoadConst(null_idx));
+            }
+            ASTNode::QuantumLoop {
+                condition,
+                body,
+                decoherence_threshold,
+            } => {
+                self.enter_scope();
+                let counter_name = format!("__ql_counter_{}", self.loop_stack.len());
+                let counter_slot = self.add_local(counter_name);
+                let zero_idx = self.add_constant(Constant::Number(0.0));
+                self.chunk.code.push(OpCode::LoadConst(zero_idx));
+                self.chunk.code.push(OpCode::StoreLocal(counter_slot));
+                self.chunk.code.push(OpCode::Pop);
+
+                let loop_start = self.chunk.code.len();
+                self.loop_stack.push(LoopContext {
+                    loop_start,
+                    breaks: Vec::new(),
+                    continues: Vec::new(),
+                });
+
+                let threshold_jump = if let Some(threshold) = decoherence_threshold {
+                    let threshold_idx = self.add_constant(Constant::Number(*threshold));
+                    self.chunk.code.push(OpCode::LoadLocal(counter_slot));
+                    self.chunk.code.push(OpCode::LoadConst(threshold_idx));
+                    self.chunk.code.push(OpCode::Ge);
+                    let jump_idx = self.chunk.code.len();
+                    self.chunk.code.push(OpCode::JumpIfTrue(0));
+                    self.chunk.code.push(OpCode::Pop);
+                    Some(jump_idx)
+                } else {
+                    None
+                };
+
+                if let Some(c) = self.compile_expr(condition.as_ref()) {
+                    let truthy = self.is_truthy(&c);
+                    let ci = self.add_constant(Constant::Bool(truthy));
+                    self.chunk.code.push(OpCode::LoadConst(ci));
+                }
+                let jump_to_end = self.chunk.code.len();
+                self.chunk.code.push(OpCode::JumpIfFalse(0));
+                self.chunk.code.push(OpCode::Pop);
+
+                self.enter_scope();
+                self.compile_stmt(body.as_ref(), false, top_level);
+                self.exit_scope();
+
+                let continue_target = self.chunk.code.len();
+                let one_idx = self.add_constant(Constant::Number(1.0));
+                self.chunk.code.push(OpCode::LoadLocal(counter_slot));
+                self.chunk.code.push(OpCode::LoadConst(one_idx));
+                self.chunk.code.push(OpCode::Add);
+                self.chunk.code.push(OpCode::StoreLocal(counter_slot));
+                self.chunk.code.push(OpCode::Pop);
+
+                let back_offset = loop_start as i16 - (self.chunk.code.len() as i16 + 1);
+                self.chunk.code.push(OpCode::Jump(back_offset));
+                let end_index = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Pop);
+
+                if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_end] {
+                    *off = end_index as i16 - (jump_to_end as i16 + 1);
+                }
+                if let Some(jump_idx) = threshold_jump {
+                    if let OpCode::JumpIfTrue(ref mut off) = self.chunk.code[jump_idx] {
+                        *off = end_index as i16 - (jump_idx as i16 + 1);
+                    }
+                }
+
+                if let Some(ctx) = self.loop_stack.pop() {
+                    for break_pos in ctx.breaks {
+                        if let OpCode::Jump(ref mut off) = self.chunk.code[break_pos] {
+                            *off = end_index as i16 - (break_pos as i16 + 1);
+                        }
+                    }
+                    for continue_pos in ctx.continues {
+                        if let OpCode::Jump(ref mut off) = self.chunk.code[continue_pos] {
+                            *off = continue_target as i16 - (continue_pos as i16 + 1);
+                        }
+                    }
+                }
+
+                self.exit_scope();
+                let null_idx = self.add_constant(Constant::Null);
+                self.chunk.code.push(OpCode::LoadConst(null_idx));
+            }
+            ASTNode::QuantumTryCatch {
+                attempt_body,
+                error_probability,
+                catch_body,
+                success_body,
+            } => {
+                self.enter_scope();
+                for stmt in attempt_body {
+                    self.compile_stmt(stmt, false, top_level);
+                    if !matches!(stmt, ASTNode::Function { .. }) {
+                        self.chunk.code.push(OpCode::Pop);
+                    }
+                }
+                self.exit_scope();
+
+                let failure_flag = error_probability.unwrap_or(0.0).clamp(0.0, 1.0);
+                if failure_flag > 0.0 {
+                    let prob_idx = self.add_constant(Constant::Number(failure_flag));
+                    self.chunk.code.push(OpCode::Rand);
+                    self.chunk.code.push(OpCode::LoadConst(prob_idx));
+                    self.chunk.code.push(OpCode::Lt);
+                } else {
+                    let false_idx = self.add_constant(Constant::Bool(false));
+                    self.chunk.code.push(OpCode::LoadConst(false_idx));
+                }
+
+                let jump_to_success = self.chunk.code.len();
+                self.chunk.code.push(OpCode::JumpIfFalse(0));
+                self.chunk.code.push(OpCode::Pop);
+
+                if let Some(catch_body) = catch_body {
+                    self.enter_scope();
+                    for stmt in catch_body {
+                        self.compile_stmt(stmt, false, top_level);
+                        if !matches!(stmt, ASTNode::Function { .. }) {
+                            self.chunk.code.push(OpCode::Pop);
+                        }
+                    }
+                    self.exit_scope();
+                }
+
+                let jump_over_success = self.chunk.code.len();
+                self.chunk.code.push(OpCode::Jump(0));
+
+                let success_index = self.chunk.code.len();
+                if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_success] {
+                    *off = success_index as i16 - (jump_to_success as i16 + 1);
+                }
+                self.chunk.code.push(OpCode::Pop);
+
+                if let Some(success_body) = success_body {
+                    self.enter_scope();
+                    for stmt in success_body {
+                        self.compile_stmt(stmt, false, top_level);
+                        if !matches!(stmt, ASTNode::Function { .. }) {
+                            self.chunk.code.push(OpCode::Pop);
+                        }
+                    }
+                    self.exit_scope();
+                }
+
+                let end_index = self.chunk.code.len();
+                if let OpCode::Jump(ref mut off) = self.chunk.code[jump_over_success] {
+                    *off = end_index as i16 - (jump_over_success as i16 + 1);
+                }
+
+                let null_idx = self.add_constant(Constant::Null);
+                self.chunk.code.push(OpCode::LoadConst(null_idx));
+            }
             ASTNode::While { condition, body } => {
                 let saved_len = self.chunk.code.len();
                 let const_eval = self.compile_expr(condition.as_ref());
@@ -332,6 +564,14 @@ impl BytecodeCompiler {
                 }
 
                 let loop_start = self.chunk.code.len();
+                
+                // Push loop context for break/continue tracking
+                self.loop_stack.push(LoopContext {
+                    loop_start,
+                    breaks: Vec::new(),
+                    continues: Vec::new(),
+                });
+                
                 let cond_const = self.compile_expr(condition.as_ref());
                 if let Some(c) = cond_const {
                     let truthy = self.is_truthy(&c);
@@ -351,6 +591,22 @@ impl BytecodeCompiler {
                 if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_end] {
                     *off = end_index as i16 - (jump_to_end as i16 + 1);
                 }
+                
+                // Patch all break/continue jumps
+                if let Some(ctx) = self.loop_stack.pop() {
+                    // Patch all break jumps to jump to end_index
+                    for break_pos in ctx.breaks {
+                        if let OpCode::Jump(ref mut off) = self.chunk.code[break_pos] {
+                            *off = end_index as i16 - (break_pos as i16 + 1);
+                        }
+                    }
+                    // Patch all continue jumps to jump back to loop_start
+                    for continue_pos in ctx.continues {
+                        if let OpCode::Jump(ref mut off) = self.chunk.code[continue_pos] {
+                            *off = loop_start as i16 - (continue_pos as i16 + 1);
+                        }
+                    }
+                }
             }
             ASTNode::For {
                 init,
@@ -364,6 +620,14 @@ impl BytecodeCompiler {
                     self.chunk.code.push(OpCode::Pop);
                 }
                 let loop_start = self.chunk.code.len();
+                
+                // Push loop context - we'll update continue target later
+                self.loop_stack.push(LoopContext {
+                    loop_start,
+                    breaks: Vec::new(),
+                    continues: Vec::new(),
+                });
+                
                 if let Some(cond) = condition {
                     let saved_len = self.chunk.code.len();
                     let const_eval = self.compile_expr(cond.as_ref());
@@ -371,6 +635,7 @@ impl BytecodeCompiler {
 
                     if let Some(Constant::Bool(false)) = const_eval {
                         self.chunk.opt_stats.dce_for += 1;
+                        self.loop_stack.pop(); // Clean up loop context
                         self.exit_scope();
                         return;
                     }
@@ -387,6 +652,10 @@ impl BytecodeCompiler {
                 self.chunk.code.push(OpCode::JumpIfFalse(0));
                 self.chunk.code.push(OpCode::Pop);
                 self.compile_stmt(body.as_ref(), false, top_level);
+                
+                // Continue should jump here (before increment)
+                let continue_target = self.chunk.code.len();
+                
                 if let Some(incr) = increment {
                     self.compile_expr(incr.as_ref());
                     self.chunk.code.push(OpCode::Pop);
@@ -398,6 +667,23 @@ impl BytecodeCompiler {
                 if let OpCode::JumpIfFalse(ref mut off) = self.chunk.code[jump_to_end] {
                     *off = end_index as i16 - (jump_to_end as i16 + 1);
                 }
+                
+                // Patch all break/continue jumps
+                if let Some(ctx) = self.loop_stack.pop() {
+                    // Patch all break jumps to jump to end_index
+                    for break_pos in ctx.breaks {
+                        if let OpCode::Jump(ref mut off) = self.chunk.code[break_pos] {
+                            *off = end_index as i16 - (break_pos as i16 + 1);
+                        }
+                    }
+                    // Patch all continue jumps to jump to continue_target (increment)
+                    for continue_pos in ctx.continues {
+                        if let OpCode::Jump(ref mut off) = self.chunk.code[continue_pos] {
+                            *off = continue_target as i16 - (continue_pos as i16 + 1);
+                        }
+                    }
+                }
+                
                 self.exit_scope();
             }
             ASTNode::ForIn { iterable, body, .. } => {
@@ -454,6 +740,32 @@ impl BytecodeCompiler {
                 let after_func = self.chunk.code.len();
                 if let OpCode::Jump(ref mut offset) = self.chunk.code[skip_jump_idx] {
                     *offset = after_func as i16 - (skip_jump_idx as i16 + 1);
+                }
+            }
+            ASTNode::StructDecl { name, .. } => {
+                // For bytecode: register struct as a "constructor" function
+                // Skip the actual struct definition in bytecode (it's a compile-time construct)
+                // Store the struct name in globals so it can be referenced
+                let idx = self.add_global(name.clone());
+                // Create a simple marker constant
+                let const_idx = self.add_constant(Constant::String(format!("struct:{}", name)));
+                self.chunk.code.push(OpCode::LoadConst(const_idx));
+                self.chunk.code.push(OpCode::StoreGlobal(idx));
+                self.chunk.code.push(OpCode::Pop);
+                
+                // TODO: In future, could compile a constructor function that creates objects
+                // For now, the JS backend handles struct instantiation
+            }
+            ASTNode::EnumDecl { name, variants, .. } => {
+                // For bytecode: register enum variants as globals
+                // Each variant gets a unique constant value
+                for variant in variants {
+                    let full_name = format!("{}.{}", name, variant);
+                    let idx = self.add_global(full_name.clone());
+                    let const_idx = self.add_constant(Constant::String(format!("enum:{}:{}", name, variant)));
+                    self.chunk.code.push(OpCode::LoadConst(const_idx));
+                    self.chunk.code.push(OpCode::StoreGlobal(idx));
+                    self.chunk.code.push(OpCode::Pop);
                 }
             }
             ASTNode::Call { callee, args } => {

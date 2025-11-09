@@ -1,0 +1,32 @@
+# Bell State Test - Demonstrates quantum entanglement
+# Creates the famous Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2
+
+fn main:
+    print "=== Bell State Demonstration ==="
+    print "Creating two qubits in |0⟩ state..."
+    
+    let q0 = qubit 0
+    let q1 = qubit 0
+    
+    print "Qubit 0:" q0
+    print "Qubit 1:" q1
+    
+    print ""
+    print "Applying superpose to q0 (Hadamard gate)..."
+    superpose q0
+    print "Qubit 0 after superpose:" q0
+    
+    print ""
+    print "Entangling q0 and q1 (CNOT operation)..."
+    entangle q0 q1
+    print "Qubit 0 after entangle:" q0
+    print "Qubit 1 after entangle:" q1
+    
+    print ""
+    print "Measuring both qubits..."
+    measure q0
+    measure q1
+    
+    print ""
+    print "Bell state created and measured!"
+    print "Due to entanglement, both qubits should show correlated results."

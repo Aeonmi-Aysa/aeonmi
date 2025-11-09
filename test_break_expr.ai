@@ -1,0 +1,5 @@
+// Test break as an expression should error
+main: () -> i32 {
+    let x = break + 5;  // break as part of expression should trigger error
+    return x;
+}

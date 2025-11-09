@@ -4,6 +4,7 @@ fn savings_history_reload_with_samples() {
     use std::process::Command;
     fn run(args: &[&str]) -> (i32, String) {
         let out = Command::new(env!("CARGO_BIN_EXE_aeonmi"))
+            .env("AEON_ENHANCED_CLI", "false")
             .args(args)
             .output()
             .expect("run");

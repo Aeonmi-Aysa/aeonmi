@@ -6,6 +6,7 @@ pub mod ai_provider;
 pub mod api_keys;
 pub mod artifact_cache;
 pub mod ast;
+pub mod bytecode_ir;
 pub mod circuit_builder; // Quantum Circuit Builder DSL
 pub mod circuit_compiler; // Quantum circuit compilation pipeline
 pub mod circuit_visualization; // Circuit visualization and ASCII art
@@ -13,6 +14,8 @@ pub mod code_actions;
 pub mod code_generator;
 pub mod compiler;
 pub mod diagnostics;
+pub mod enhanced_error;
+pub mod enhanced_semantic;
 pub mod error;
 pub mod formatter;
 pub mod hardware_integration; // Real quantum hardware integration
@@ -20,11 +23,14 @@ pub mod incremental;
 pub mod ir;
 pub mod lexer;
 pub mod lowering;
+pub mod module_system;
 pub mod parser;
 pub mod qpoly;
 pub mod quantum_algorithms; // Standard quantum algorithms library
+pub mod quantum_bridge;
 pub mod quantum_extract;
 pub mod quantum_simulator; // Quantum simulation capabilities
+pub mod runtime_engine;
 pub mod scope_map;
 pub mod semantic_analyzer;
 pub mod symbols;

@@ -29,13 +29,15 @@ fn parses_and_generates_composite_features() {
             }
         }
 
-        let result = match 3 {
-            1 => 100,
-            3 => 200,
-            _ => 0
-        };
+        function main() {
+            let result = match 3 {
+                1 => 100,
+                3 => 200,
+                _ => 0
+            };
 
-        log(result);
+            log(result);
+        }
     "#;
 
     let output = std::env::temp_dir().join("aeonmi_composite_out.js");

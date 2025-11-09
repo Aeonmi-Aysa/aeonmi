@@ -8,9 +8,10 @@ fn cli_emits_opt_stats_json() {
     let file_path = dir.path().join("fold.ai");
     std::fs::write(&file_path, "fn f(){ return 1+2+3; } return f();").unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .env("AEON_ENHANCED_CLI", "false") // Disable enhanced CLI to use feature-gated flags
         .arg("run")
-        .arg(&file_path)
         .arg("--opt-stats-json")
+        .arg(&file_path)
         .output()
         .expect("failed to run cli");
     assert!(

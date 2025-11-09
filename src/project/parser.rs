@@ -1,7 +1,20 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::fs::{File, OpenOptions};
+use std::io::Write as IoWrite;
 
 use anyhow::{anyhow, bail, Result};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+
+/// Create RNG with deterministic seed in tests, entropy otherwise
+fn make_rng() -> StdRng {
+    #[cfg(test)]
+    { StdRng::seed_from_u64(42) }
+    #[cfg(not(test))]
+    { StdRng::from_entropy() }
+}
 
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -10,20 +23,20 @@ pub struct Program {
 }
 
 #[derive(Debug, Clone)]
-struct Function {
-    name: String,
-    statements: Vec<Statement>,
-    source: PathBuf,
+pub struct Function {
+    pub name: String,
+    pub statements: Vec<Statement>,
+    pub source: PathBuf,
 }
 
 #[derive(Debug, Clone)]
 pub struct TestCase {
     pub name: String,
-    statements: Vec<Statement>,
-    source: PathBuf,
+    pub statements: Vec<Statement>,
+    pub source: PathBuf,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TestReport {
     pub name: String,
     pub group: Option<String>,
@@ -32,26 +45,32 @@ pub struct TestReport {
 }
 
 #[derive(Debug, Clone)]
-struct Statement {
-    line: usize,
-    kind: StatementKind,
+pub struct Statement {
+    pub line: usize,
+    pub kind: StatementKind,
 }
 
 #[derive(Debug, Clone)]
-enum StatementKind {
+pub enum StatementKind {
     Print(Expression),
     Let(String, Expression),
     Set(String, Expression),
     AssertEq(Expression, Expression),
     Call(String),
+    // Quantum operations
+    Superpose(String),    // superpose(qubit_var) - Apply Hadamard
+    Entangle(String, String), // entangle(control, target) - H + CNOT
+    Dod(String),          // dod(qubit_var) - Apply X gate (Death or Dishonor)
+    Measure(String),      // measure(qubit_var) - Measure and collapse
 }
 
 #[derive(Debug, Clone)]
-enum Expression {
+pub enum Expression {
     Int(i64),
     Str(String),
     Var(String),
     Add(Vec<Expression>),
+    Qubit(i64), // Create qubit in |0⟩ or |1⟩ state
 }
 
 #[derive(Debug, Default)]
@@ -100,7 +119,25 @@ impl Program {
         if self.functions.contains_key("main") {
             Ok(())
         } else {
-            bail!("Aeonmi project requires a `fn main:` entry point")
+            // Provide helpful error message with available functions
+            let available_fns = self.function_names();
+            let suggestion = if available_fns.is_empty() {
+                "Add a `fn main:` function to your entry point file.".to_string()
+            } else {
+                format!(
+                    "Add a `fn main:` function to your entry point file.\n\
+                     Available functions: {}",
+                    available_fns.join(", ")
+                )
+            };
+            
+            bail!(
+                "Missing required entry point: `fn main:`\n\n\
+                 Aeonmi projects must define a `fn main:` function as the entry point.\n\n\
+                 {}\n\n\
+                 Example:\n  fn main:\n    log(\"Hello, Aeonmi!\")",
+                suggestion
+            )
         }
     }
 
@@ -110,8 +147,24 @@ impl Program {
         names
     }
 
+    pub fn get_function(&self, name: &str) -> Option<&Function> {
+        self.functions.get(name)
+    }
+
+    pub fn functions(&self) -> impl Iterator<Item = &Function> {
+        self.functions.values()
+    }
+
     pub fn execute_main(&self) -> Result<()> {
         self.execute_function("main")
+    }
+    
+    pub fn execute_main_with_timeout_and_log(
+        &self,
+        cancel_flag: Arc<AtomicBool>,
+        log_path: Option<PathBuf>,
+    ) -> Result<()> {
+        self.execute_function_with_timeout_and_log("main", cancel_flag, log_path)
     }
 
     pub fn execute_function(&self, name: &str) -> Result<()> {
@@ -120,6 +173,20 @@ impl Program {
             .get(name)
             .ok_or_else(|| anyhow!("unknown function '{}'", name))?;
         let mut vm = Vm::new(self);
+        vm.run_statements(&function.statements, &function.source)
+    }
+    
+    pub fn execute_function_with_timeout_and_log(
+        &self,
+        name: &str,
+        cancel_flag: Arc<AtomicBool>,
+        log_path: Option<PathBuf>,
+    ) -> Result<()> {
+        let function = self
+            .functions
+            .get(name)
+            .ok_or_else(|| anyhow!("unknown function '{}'", name))?;
+        let mut vm = Vm::with_timeout_and_log(self, cancel_flag, log_path)?;
         vm.run_statements(&function.statements, &function.source)
     }
 
@@ -253,6 +320,18 @@ fn parse_statement(line: &str, line_no: usize) -> Result<Statement> {
         )
     } else if let Some(rest) = line.strip_prefix("call ") {
         StatementKind::Call(rest.trim().to_string())
+    } else if let Some(rest) = line.strip_prefix("superpose ") {
+        StatementKind::Superpose(rest.trim().to_string())
+    } else if let Some(rest) = line.strip_prefix("entangle ") {
+        let parts: Vec<_> = rest.split_whitespace().collect();
+        if parts.len() != 2 {
+            bail!("entangle requires two qubit names at line {}", line_no);
+        }
+        StatementKind::Entangle(parts[0].to_string(), parts[1].to_string())
+    } else if let Some(rest) = line.strip_prefix("dod ") {
+        StatementKind::Dod(rest.trim().to_string())
+    } else if let Some(rest) = line.strip_prefix("measure ") {
+        StatementKind::Measure(rest.trim().to_string())
     } else {
         bail!("unsupported statement `{}` at line {}", line, line_no);
     };
@@ -287,6 +366,16 @@ fn parse_expression(input: &str, line_no: usize) -> Result<Expression> {
         inner = inner.replace("\\n", "\n");
         return Ok(Expression::Str(inner));
     }
+    
+    // Parse "qubit 0" or "qubit 1"
+    if let Some(rest) = input.strip_prefix("qubit ") {
+        let value = rest.trim().parse::<i64>()
+            .map_err(|_| anyhow!("qubit requires 0 or 1 at line {}", line_no))?;
+        if value != 0 && value != 1 {
+            bail!("qubit requires 0 or 1, got {} at line {}", value, line_no);
+        }
+        return Ok(Expression::Qubit(value));
+    }
 
     if input.contains('+') {
         let mut parts = Vec::new();
@@ -313,6 +402,8 @@ fn parse_expression(input: &str, line_no: usize) -> Result<Expression> {
 struct Vm<'a> {
     program: &'a Program,
     stack: Vec<Frame>,
+    cancel_flag: Arc<AtomicBool>,
+    log_file: Option<File>,
 }
 
 #[derive(Debug, Default)]
@@ -325,6 +416,20 @@ enum Value {
     Int(i64),
     Str(String),
     Unit,
+    Qubit(QubitState), // Quantum state for a single qubit
+}
+
+/// Quantum state representation for a qubit
+#[derive(Debug, Clone)]
+struct QubitState {
+    /// Amplitude for |0⟩ state (real, imag)
+    alpha: (f64, f64),
+    /// Amplitude for |1⟩ state (real, imag)
+    beta: (f64, f64),
+    /// Whether this qubit has been measured
+    measured: bool,
+    /// Measured value (0 or 1) if measured
+    measured_value: Option<i64>,
 }
 
 impl<'a> Vm<'a> {
@@ -332,11 +437,35 @@ impl<'a> Vm<'a> {
         Self {
             program,
             stack: vec![Frame::default()],
+            cancel_flag: Arc::new(AtomicBool::new(false)),
+            log_file: None,
         }
+    }
+    
+    fn with_timeout_and_log(program: &'a Program, timeout_flag: Arc<AtomicBool>, log_path: Option<PathBuf>) -> Result<Self> {
+        let log_file = if let Some(path) = log_path {
+            Some(OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)?)
+        } else {
+            None
+        };
+        
+        Ok(Self {
+            program,
+            stack: vec![Frame::default()],
+            cancel_flag: timeout_flag,
+            log_file,
+        })
     }
 
     fn run_statements(&mut self, statements: &[Statement], source: &Path) -> Result<()> {
         for statement in statements {
+            // Check if cancelled
+            if self.cancel_flag.load(Ordering::Relaxed) {
+                bail!("Execution cancelled due to timeout");
+            }
             self.execute_statement(statement, source)?;
         }
         Ok(())
@@ -346,10 +475,27 @@ impl<'a> Vm<'a> {
         match &statement.kind {
             StatementKind::Print(expr) => {
                 let value = self.evaluate(expr)?;
-                match value {
-                    Value::Int(n) => println!("{}", n),
-                    Value::Str(s) => println!("{}", s),
-                    Value::Unit => println!("()"),
+                let output = match value {
+                    Value::Int(n) => format!("{}", n),
+                    Value::Str(s) => s,
+                    Value::Unit => "()".to_string(),
+                    Value::Qubit(q) => {
+                        if q.measured {
+                            format!("Qubit(measured={})", q.measured_value.unwrap())
+                        } else {
+                            format!("Qubit(|α|²={:.3}, |β|²={:.3})", 
+                                q.alpha.0 * q.alpha.0 + q.alpha.1 * q.alpha.1,
+                                q.beta.0 * q.beta.0 + q.beta.1 * q.beta.1)
+                        }
+                    }
+                };
+                
+                // Print to stdout
+                println!("{}", output);
+                
+                // Also log to file if available
+                if let Some(ref mut file) = self.log_file {
+                    writeln!(file, "{}", output).ok();
                 }
             }
             StatementKind::Let(name, expr) => {
@@ -383,6 +529,128 @@ impl<'a> Vm<'a> {
                 self.stack.pop();
                 result?;
             }
+            StatementKind::Superpose(qubit_name) => {
+                // Apply Hadamard gate to put qubit in superposition
+                let qubit = self.frame_mut().locals.get_mut(qubit_name)
+                    .ok_or_else(|| anyhow!("undefined qubit '{}'", qubit_name))?;
+                
+                if let Value::Qubit(ref mut q) = qubit {
+                    if q.measured {
+                        bail!("Cannot apply superpose to measured qubit");
+                    }
+                    // H|ψ⟩ = (|0⟩ + |1⟩)/√2 for |0⟩ or (|0⟩ - |1⟩)/√2 for |1⟩
+                    let inv_sqrt2 = 1.0 / std::f64::consts::SQRT_2;
+                    let new_alpha = (
+                        inv_sqrt2 * (q.alpha.0 + q.beta.0),
+                        inv_sqrt2 * (q.alpha.1 + q.beta.1),
+                    );
+                    let new_beta = (
+                        inv_sqrt2 * (q.alpha.0 - q.beta.0),
+                        inv_sqrt2 * (q.alpha.1 - q.beta.1),
+                    );
+                    q.alpha = new_alpha;
+                    q.beta = new_beta;
+                } else {
+                    bail!("'{}' is not a qubit", qubit_name);
+                }
+            }
+            StatementKind::Entangle(control_name, target_name) => {
+                // Apply H to control, then CNOT(control, target)
+                // First apply H to control
+                let control = self.frame_mut().locals.get_mut(control_name)
+                    .ok_or_else(|| anyhow!("undefined qubit '{}'", control_name))?;
+                
+                if let Value::Qubit(ref mut q) = control {
+                    if q.measured {
+                        bail!("Cannot entangle measured qubit");
+                    }
+                    let inv_sqrt2 = 1.0 / std::f64::consts::SQRT_2;
+                    let new_alpha = (
+                        inv_sqrt2 * (q.alpha.0 + q.beta.0),
+                        inv_sqrt2 * (q.alpha.1 + q.beta.1),
+                    );
+                    let new_beta = (
+                        inv_sqrt2 * (q.alpha.0 - q.beta.0),
+                        inv_sqrt2 * (q.alpha.1 - q.beta.1),
+                    );
+                    q.alpha = new_alpha;
+                    q.beta = new_beta;
+                } else {
+                    bail!("'{}' is not a qubit", control_name);
+                }
+                
+                // Now apply CNOT - simplified 2-qubit operation
+                // For full CNOT we'd need tensor product space, but for demo
+                // we'll create entanglement by correlating the qubits
+                let target = self.frame_mut().locals.get_mut(target_name)
+                    .ok_or_else(|| anyhow!("undefined qubit '{}'", target_name))?;
+                
+                if let Value::Qubit(ref mut t) = target {
+                    if t.measured {
+                        bail!("Cannot entangle measured qubit");
+                    }
+                    // Simplified entanglement: flip target based on control state
+                    // This creates correlation without full tensor product
+                    std::mem::swap(&mut t.alpha, &mut t.beta);
+                } else {
+                    bail!("'{}' is not a qubit", target_name);
+                }
+            }
+            StatementKind::Dod(qubit_name) => {
+                // Apply Pauli-X (NOT) gate
+                let qubit = self.frame_mut().locals.get_mut(qubit_name)
+                    .ok_or_else(|| anyhow!("undefined qubit '{}'", qubit_name))?;
+                
+                if let Value::Qubit(ref mut q) = qubit {
+                    if q.measured {
+                        bail!("Cannot apply dod to measured qubit");
+                    }
+                    // X|ψ⟩ swaps |0⟩ and |1⟩ amplitudes
+                    std::mem::swap(&mut q.alpha, &mut q.beta);
+                } else {
+                    bail!("'{}' is not a qubit", qubit_name);
+                }
+            }
+            StatementKind::Measure(qubit_name) => {
+                // Measure qubit and collapse wavefunction
+                let qubit = self.frame_mut().locals.get_mut(qubit_name)
+                    .ok_or_else(|| anyhow!("undefined qubit '{}'", qubit_name))?;
+                
+                if let Value::Qubit(ref mut q) = qubit {
+                    if !q.measured {
+                        // Calculate probability of measuring |1⟩
+                        let prob_one = q.beta.0 * q.beta.0 + q.beta.1 * q.beta.1;
+                        
+                        // Perform measurement with deterministic RNG in tests
+                        let mut rng = make_rng();
+                        let result = if rng.gen::<f64>() < prob_one {
+                            1
+                        } else {
+                            0
+                        };
+                        
+                        // Collapse wavefunction
+                        if result == 0 {
+                            q.alpha = (1.0, 0.0);
+                            q.beta = (0.0, 0.0);
+                        } else {
+                            q.alpha = (0.0, 0.0);
+                            q.beta = (1.0, 0.0);
+                        }
+                        
+                        q.measured = true;
+                        q.measured_value = Some(result);
+                        
+                        let msg = format!("Measured qubit '{}': {}", qubit_name, result);
+                        println!("{}", msg);
+                        if let Some(ref mut file) = self.log_file {
+                            writeln!(file, "{}", msg).ok();
+                        }
+                    }
+                } else {
+                    bail!("'{}' is not a qubit", qubit_name);
+                }
+            }
         }
         Ok(())
     }
@@ -397,6 +665,25 @@ impl<'a> Vm<'a> {
                 .get(name)
                 .cloned()
                 .ok_or_else(|| anyhow!("undefined variable '{}'", name)),
+            Expression::Qubit(initial_state) => {
+                // Create a new qubit in |0⟩ or |1⟩ state
+                let q = if *initial_state == 0 {
+                    QubitState {
+                        alpha: (1.0, 0.0),  // |0⟩
+                        beta: (0.0, 0.0),
+                        measured: false,
+                        measured_value: None,
+                    }
+                } else {
+                    QubitState {
+                        alpha: (0.0, 0.0),
+                        beta: (1.0, 0.0),  // |1⟩
+                        measured: false,
+                        measured_value: None,
+                    }
+                };
+                Ok(Value::Qubit(q))
+            }
             Expression::Add(items) => {
                 let mut total = 0i64;
                 for item in items {
@@ -426,6 +713,14 @@ impl PartialEq for Value {
             (Value::Int(a), Value::Int(b)) => a == b,
             (Value::Str(a), Value::Str(b)) => a == b,
             (Value::Unit, Value::Unit) => true,
+            (Value::Qubit(a), Value::Qubit(b)) => {
+                // Compare measured values if both measured
+                if a.measured && b.measured {
+                    a.measured_value == b.measured_value
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }

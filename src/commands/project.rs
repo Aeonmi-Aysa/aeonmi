@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::fs;
-use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 

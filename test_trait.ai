@@ -1,0 +1,15 @@
+trait Greeter {
+    function greet() {
+        log("Default greeting");
+    }
+}
+
+impl Greeter for Person {
+    function greet() {
+        log("Hello from Person!");
+    }
+}
+
+function main() {
+    log("Trait implementation works!");
+}

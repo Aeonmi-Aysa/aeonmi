@@ -1,0 +1,5 @@
+struct Point { x: Number, y: Number }
+
+let p = Point({ x: 5, y: 0 });
+log(p.x);
+log(p.y);

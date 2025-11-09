@@ -1,0 +1,6 @@
+fn main() {
+    let classical = 0;
+    superpose(classical);
+    ⟨q⟩ ← |0⟩;
+    ⊖ q ⇒ { log(true); }
+}

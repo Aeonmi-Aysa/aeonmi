@@ -3,6 +3,7 @@ use std::process::Command;
 #[test]
 fn legacy_top_level_flags_still_work() {
     let cmd = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .env("AEON_ENHANCED_CLI", "false")
         .args(["--tokens", "--out", "legacy.js", "examples/hello.ai"])
         .output()
         .expect("spawn");

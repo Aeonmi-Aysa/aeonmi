@@ -1,0 +1,11 @@
+// Test break/continue statements should error
+main: () -> i32 {
+    let x = 5;
+    while x > 0 {
+        if x == 3 {
+            break;  // This should error with our message
+        }
+        continue;   // This should also error
+    }
+    return 0;
+}

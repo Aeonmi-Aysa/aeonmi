@@ -236,15 +236,17 @@ impl Lexer {
 
     #[inline]
     fn advance_char(&mut self) {
-        self.current = self.chars.next();
+        // Advance *consuming* the current char, updating position based on
+        // what we just consumed (not what we are about to load).
         if let Some((_, ch)) = self.current {
             if ch == '\n' {
-                self.line += 1;
+                self.line = self.line.saturating_add(1);
                 self.col = 0;
             } else {
-                self.col += 1;
+                self.col = self.col.saturating_add(1);
             }
         }
+        self.current = self.chars.next();
     }
 
     #[inline]
@@ -640,24 +642,28 @@ impl Lexer {
 
     fn lex_ascii_number(&mut self) -> Result<Token, LexerError> {
         let (line, col) = self.pos();
-        let mut num_str = String::new();
+        let mut raw = String::new();
         let mut has_decimal = false;
         while let Some((_, ch)) = self.current {
             if ch.is_ascii_digit() {
-                num_str.push(ch);
+                raw.push(ch);
+                self.advance_char();
+            } else if ch == '_' && !raw.is_empty() {
+                // allow numeric separators
                 self.advance_char();
             } else if ch == '.' && !has_decimal {
                 has_decimal = true;
-                num_str.push(ch);
+                raw.push(ch);
                 self.advance_char();
             } else {
                 break;
             }
         }
-        num_str
+        let cleaned: String = raw.chars().filter(|&c| c != '_').collect();
+        cleaned
             .parse::<f64>()
-            .map(|n| Token::new(TokenKind::NumberLiteral(n), num_str.clone(), line, col))
-            .map_err(|_| LexerError::InvalidNumber(num_str, line, col))
+            .map(|n| Token::new(TokenKind::NumberLiteral(n), cleaned.clone(), line, col))
+            .map_err(|_| LexerError::InvalidNumber(cleaned, line, col))
     }
 
     fn lex_glyph_number(&mut self) -> Result<Token, LexerError> {
@@ -685,21 +691,23 @@ impl Lexer {
 
     fn lex_number_mixed(&mut self) -> Result<Token, LexerError> {
         let (line, col) = self.pos();
-        let mut num_str = String::new();
+        let mut raw = String::new();
         let mut has_decimal = false;
         while let Some((_, ch)) = self.current {
             if ch.is_ascii_digit() || is_numeric_glyph(ch) {
-                num_str.push(ch);
+                raw.push(ch);
+                self.advance_char();
+            } else if ch == '_' && !raw.is_empty() {
                 self.advance_char();
             } else if ch == '.' && !has_decimal {
                 has_decimal = true;
-                num_str.push(ch);
+                raw.push(ch);
                 self.advance_char();
             } else {
                 break;
             }
         }
-        let ascii_str: String = num_str
+        let ascii_str: String = raw
             .chars()
             .map(|c| {
                 if is_numeric_glyph(c) {
@@ -708,6 +716,7 @@ impl Lexer {
                     c
                 }
             })
+            .filter(|&c| c != '_')
             .collect();
         ascii_str
             .parse::<f64>()
@@ -830,23 +839,22 @@ impl Lexer {
             // Rust-like keywords
             "module" => Token::new(TokenKind::Module, ident.clone(), line, col),
             "import" => Token::new(TokenKind::Import, ident.clone(), line, col),
+            "export" => Token::new(TokenKind::Export, ident.clone(), line, col),
             "record" => Token::new(TokenKind::Record, ident.clone(), line, col),
-            "struct" => Token::new(TokenKind::Struct, ident.clone(), line, col),
             "enum" => Token::new(TokenKind::Enum, ident.clone(), line, col),
-            "match" => Token::new(TokenKind::Match, ident.clone(), line, col),
             "use" => Token::new(TokenKind::Use, ident.clone(), line, col),
             "pub" => Token::new(TokenKind::Pub, ident.clone(), line, col),
             "mut" => Token::new(TokenKind::Mut, ident.clone(), line, col),
             "as" => Token::new(TokenKind::As, ident.clone(), line, col),
             "type" => Token::new(TokenKind::Type, ident.clone(), line, col),
-            "trait" => Token::new(TokenKind::Trait, ident.clone(), line, col),
-            "impl" => Token::new(TokenKind::Impl, ident.clone(), line, col),
             "where" => Token::new(TokenKind::Where, ident.clone(), line, col),
             "self" => Token::new(TokenKind::Self_, ident.clone(), line, col),
             "const" => Token::new(TokenKind::Const, ident.clone(), line, col),
             "static" => Token::new(TokenKind::Static, ident.clone(), line, col),
             "async" => Token::new(TokenKind::Async, ident.clone(), line, col),
             "await" => Token::new(TokenKind::Await, ident.clone(), line, col),
+            "break" => Token::new(TokenKind::Break, ident.clone(), line, col),
+            "continue" => Token::new(TokenKind::Continue, ident.clone(), line, col),
             "learn" => Token::new(TokenKind::Learn, ident.clone(), line, col),
 
             "true" => Token::new(
@@ -984,7 +992,11 @@ fn is_identifier_part(ch: char) -> bool {
 }
 
 fn is_safe_whitespace(ch: char) -> bool {
-    matches!(ch, ' ' | '\t' | '\r' | '\n' | '\u{FEFF}')
+    // Include BOM, ZWSP/ZWJ/WORD JOINER, and NBSP to avoid surprise tokens.
+    matches!(
+        ch,
+        ' ' | '\t' | '\r' | '\n' | '\u{FEFF}' | '\u{200B}' | '\u{200D}' | '\u{2060}' | '\u{00A0}'
+    )
 }
 
 fn is_numeric_glyph(ch: char) -> bool {

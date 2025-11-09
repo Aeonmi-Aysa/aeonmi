@@ -65,7 +65,6 @@ pub enum TokenKind {
     CloseBracket, // ]
     Comma,        // ,
     Semicolon,    // ;
-    FatArrow,     // =>
 
     // Traditional keywords (legacy compatibility)
     Function,
@@ -79,25 +78,22 @@ pub enum TokenKind {
     Log,
     Qubit,
     Class,
-    Struct,
-    Trait,
-    Impl,
-    Match,
 
     // Rust-like structure keywords
     Module,
     Import,
+    Export, // Added for module system
     Record,
     Struct,
-    Enum,
+    Trait,
+    Impl,
     Match,
+    Enum,
     Use,
     Pub,
     Mut,
     As, // 'as' keyword for casting
     Type,
-    Trait,
-    Impl,
     Where,
     Self_, // Self keyword
     Const,
@@ -105,6 +101,8 @@ pub enum TokenKind {
     Fn,
     Async,
     Await,
+    Break,    // loop control
+    Continue, // loop control
 
     // AEONMI Quantum-Native Keywords
     ClassicalFunc, // ◯
@@ -130,6 +128,7 @@ pub enum TokenKind {
     Entangle,
     Measure,
     Dod,
+    QuantumGate, // Quantum gate operations like H, X, Y, Z, CNOT, etc.
 
     // Hieroglyphic operations
     HieroglyphicOp(String),
@@ -222,7 +221,6 @@ impl std::fmt::Display for TokenKind {
             TokenKind::CloseBracket => "]",
             TokenKind::Comma => ",",
             TokenKind::Semicolon => ";",
-            TokenKind::FatArrow => "=>",
 
             // Traditional keywords
             TokenKind::Function => "function",
@@ -243,6 +241,7 @@ impl std::fmt::Display for TokenKind {
             // Rust-like structure keywords
             TokenKind::Module => "module",
             TokenKind::Import => "import",
+            TokenKind::Export => "export",
             TokenKind::Record => "record",
             TokenKind::Struct => "struct",
             TokenKind::Enum => "enum",
@@ -252,15 +251,14 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Mut => "mut",
             TokenKind::As => "as",
             TokenKind::Type => "type",
-            TokenKind::Trait => "trait",
-            TokenKind::Impl => "impl",
             TokenKind::Where => "where",
             TokenKind::Self_ => "self",
             TokenKind::Const => "const",
             TokenKind::Static => "static",
-            TokenKind::Fn => "fn",
             TokenKind::Async => "async",
             TokenKind::Await => "await",
+            TokenKind::Break => "break",
+            TokenKind::Continue => "continue",
 
             // Quantum-native keywords
             TokenKind::ClassicalFunc => "◯",
@@ -282,6 +280,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Entangle => "entangle",
             TokenKind::Measure => "measure",
             TokenKind::Dod => "dod",
+            TokenKind::QuantumGate => "quantum_gate",
             TokenKind::HieroglyphicOp(_) => "hieroglyphic",
             TokenKind::EOF => "end of file",
         };

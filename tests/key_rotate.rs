@@ -3,6 +3,7 @@ use std::{fs, iter::Peekable, process::Command, str::Chars};
 // Helper to run cli (aeonmi) with args returning stdout
 fn run(args: &[&str]) -> (i32, String, String) {
     let out = Command::new(env!("CARGO_BIN_EXE_aeonmi"))
+        .env("AEON_ENHANCED_CLI", "false")
         .args(args)
         .output()
         .expect("run aeonmi");

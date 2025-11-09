@@ -1,0 +1,6 @@
+// Test that should definitely fail if break parsing is working
+main: () -> i32 {
+    continue;
+    break;
+    return 0;
+}

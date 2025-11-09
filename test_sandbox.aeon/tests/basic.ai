@@ -1,0 +1,14 @@
+// Basic tests for the project
+import { assert, test } from "aeonmi:test";
+
+test("basic arithmetic", () => {
+    assert.equal(2 + 2, 4);
+    assert.equal(5 - 3, 2);
+    assert.equal(3 * 4, 12);
+});
+
+test("string operations", () => {
+    let greeting = "Hello" + " " + "World";
+    assert.equal(greeting, "Hello World");
+    assert.equal(greeting.length, 11);
+});

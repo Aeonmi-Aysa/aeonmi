@@ -8,32 +8,28 @@ autobins = false
 default-run = "aeonmi_shard"
 description = "AEONMI Quantum Computing Ecosystem with AI Consciousness"
 authors = ["AEONMI Team"]
+resolver = "2"
 
 [lib]
 path = "src/lib.rs"
 
-# Main unified executable with all components
 [[bin]]
 name = "aeonmi_shard"
 path = "src/main.rs"
 
-# Modern CLI executable - primary user interface
 [[bin]]
 name = "aeon"
 path = "src/bin/aeon.rs"
 
-# Mother AI standalone executable
 [[bin]]
 name = "MotherAI"
 path = "mother_ai/main.rs"
 required-features = ["mother-ai"]
 
-# Legacy binary name for tests (expects CARGO_BIN_EXE_aeonmi_project)
 [[bin]]
 name = "aeonmi_project"
 path = "src/bin/aeonmi_project.rs"
 
-# Lowercase CLI alias so integration tests can resolve CARGO_BIN_EXE_aeonmi
 [[bin]]
 name = "aeonmi"
 path = "src/bin/aeonmi.rs"
@@ -44,8 +40,23 @@ lto = true
 codegen-units = 1
 strip = true
 
+# Make warnings loud in CI but easy to relax locally if needed.
+[lints.rust]
+unused = "warn"
+warnings = "warn"
+
+[lints.clippy]
+# Turn on broad checks without going full pedantic.
+all = "warn"
+cargo = "warn"
+float_cmp = "warn"
+len_zero = "warn"
+module_inception = "warn"
+# You can relax noisy ones:
+needless_pass_by_value = "allow"
+too_many_arguments = "allow"
+
 [features]
-# Unified AEONMI ecosystem features
 default = ["minimal", "bytecode"]
 full-suite = ["quantum", "mother-ai", "titan-libraries", "holographic", "voice"]
 quantum = ["nalgebra", "num-complex"]
@@ -66,7 +77,6 @@ bytecode_vm = []
 minimal = []
 
 [dependencies]
-# Core
 anyhow = "1"
 colored = "2.1"
 clap = { version = "4.5", features = ["derive"] }
@@ -76,57 +86,42 @@ zeroize = "1"
 uuid = { version = "1.0", features = ["v4"] }
 thiserror = "1.0"
 
-# Config / paths
 dirs-next = "2"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 
-# Editor niceties
 ctrlc = "3.4"
-
-# File watching
 notify = "6.1"
-
-# Directory traversal
 walkdir = "2.5"
-
-# Helpers for recursive copy
 fs_extra = "1.3"
 
-# TUI / terminal
 crossterm = "0.27"
 ratatui = "0.26"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
-# Mother AI dependencies and async runtime
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 futures-util = "0.3"
 dashmap = "5.5"
 parking_lot = "0.12"
+dunce = "1"
 
-# Voice and holographic interface (feature-gated)
 rodio = { version = "0.17", optional = true }
 three-d = { version = "0.16", optional = true }
 wgpu = { version = "0.17", optional = true }
 winit = { version = "0.28", optional = true }
 
-# Titan math & RNG
 rand = "0.8"
 rand_distr = "0.4"
 
-# Quantum math backend (feature-gated)
 nalgebra = { version = "0.33", optional = true }
 num-complex = { version = "0.4", optional = true }
 
-# Qiskit bridge (feature-gated)
 pyo3 = { version = "0.21", optional = true, features = ["auto-initialize"] }
 numpy = { version = "0.21", optional = true }
 
-# Quantum Vault security dependencies (feature-gated)
 ring = { version = "0.16", optional = true }
 rustls = { version = "0.21", optional = true }
 
-# HTTP (AI providers and embedded web server)
 reqwest = { version = "0.12", features = ["blocking","json"], optional = true }
 axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
@@ -147,12 +142,21 @@ pqcrypto-kyber = "0.7"
 pqcrypto-sphincsplus = "0.7"
 pqcrypto-traits = "0.3"
 
-# For atomic file operations
 tempfile = "3.10"
 
 [dev-dependencies]
 tempfile = "3.10"
 insta = { version = "1.39", features = ["glob"] }
+serial_test = "3"
+ntest = "0.9"
+
+# --- Windows-only ---
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52.0", features = ["Win32_System_Threading", "Win32_Foundation"] }
+
+# --- Unix-only ---
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.27", features = ["signal"] }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

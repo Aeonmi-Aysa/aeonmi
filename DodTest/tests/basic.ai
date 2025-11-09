@@ -1,0 +1,11 @@
+# Basic tests for the project
+
+test arithmetic:
+    let x = 4
+    assert x == 4
+    print "Arithmetic tests passed"
+
+test variables:
+    let x = 10
+    let y = 5
+    print "Variable tests passed"

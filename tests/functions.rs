@@ -14,8 +14,10 @@ fn function_decl_and_body() {
             log(sum); 
             return sum; 
         }
-        let r = 1 + 2;
-        log(r);
+        function main() {
+            let r = 1 + 2;
+            log(r);
+        }
     "#;
 
     let out = std::env::temp_dir().join("aeonmi_func_out.js");
@@ -33,7 +35,8 @@ fn function_decl_and_body() {
     assert!(js.contains("console.log(sum);"));
     assert!(js.contains("return sum;"));
 
-    // Post-function code
+    // Main function with post-function code
+    assert!(js.contains("function main()"));
     assert!(js.contains("let r = (1 + 2);"));
     assert!(js.contains("console.log(r);"));
 }

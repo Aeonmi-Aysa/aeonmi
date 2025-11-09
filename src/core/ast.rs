@@ -19,14 +19,12 @@ pub enum ASTNode {
         path: Vec<String>,          // e.g., ["mobile", "core"]
         items: Option<Vec<String>>, // Optional specific imports
     },
+    Export {
+        items: Vec<String>,        // Items to export
+        path: Option<Vec<String>>, // Optional re-export from another module
+    },
 
     // Type declarations
-    RecordDecl {
-        name: String,
-        fields: Vec<(String, Option<ASTNode>)>, // (name, type_annotation)
-        line: usize,
-        column: usize,
-    },
     EnumDecl {
         name: String,
         variants: Vec<String>,
@@ -93,6 +91,8 @@ pub enum ASTNode {
     Block(Vec<ASTNode>),
     Return(Box<ASTNode>),
     Log(Box<ASTNode>),
+    Break,    // Loop control - exit loop
+    Continue, // Loop control - next iteration
     // Control flow
     If {
         condition: Box<ASTNode>,
@@ -263,6 +263,13 @@ pub enum ASTNode {
         success_body: Option<Vec<ASTNode>>,
     },
 
+    // Quantum circuit and gate operations
+    QuantumCircuit {
+        name: String,
+        qubits: Vec<ASTNode>,
+        operations: Vec<QuantumOperation>,
+    },
+
     // Special
     #[allow(dead_code)]
     Error(String),
@@ -308,6 +315,54 @@ pub enum QuantumFunctionType {
     Classical, // ◯
     Quantum,   // ⊙
     AINeural,  // 🧠
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum QuantumOperation {
+    Gate {
+        name: String,
+        qubits: Vec<ASTNode>,
+        parameters: Vec<ASTNode>,
+    },
+    Measurement {
+        qubit: ASTNode,
+    },
+}
+
+// Type alias for consistency with patch
+pub type Expression = ASTNode;
+
+// Quantum gate information helper
+#[derive(Debug, Clone)]
+pub struct GateInfo {
+    pub qubit_count: usize,
+    pub parameterized: bool,
+}
+
+pub struct QuantumTokens;
+
+impl QuantumTokens {
+    pub fn is_quantum_gate(name: &str) -> bool {
+        matches!(name, "H" | "X" | "Y" | "Z" | "CNOT" | "CX" | "RX" | "RY" | "RZ" | "S" | "T")
+    }
+
+    pub fn get_gate_info(name: &str) -> Option<GateInfo> {
+        match name {
+            "H" | "X" | "Y" | "Z" | "S" | "T" => Some(GateInfo {
+                qubit_count: 1,
+                parameterized: false,
+            }),
+            "CNOT" | "CX" => Some(GateInfo {
+                qubit_count: 2,
+                parameterized: false,
+            }),
+            "RX" | "RY" | "RZ" => Some(GateInfo {
+                qubit_count: 1,
+                parameterized: true,
+            }),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

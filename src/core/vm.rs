@@ -1299,18 +1299,26 @@ static INIT_SEED: Once = Once::new();
 fn init_seed_once() {
     INIT_SEED.call_once(|| {
         // Order of precedence:
-        // 1. AEONMI_SEED env var (u64 parse)
-        // 2. Time-based fallback (nanos lower 32 bits)
-        let from_env = std::env::var("AEONMI_SEED")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok());
-        let seed = from_env.unwrap_or_else(|| {
-            (SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-                & 0xFFFF_FFFF) as u64
-        });
+        // 1. Fixed seed 42 in test mode
+        // 2. AEONMI_SEED env var (u64 parse)
+        // 3. Time-based fallback (nanos lower 32 bits)
+        #[cfg(test)]
+        let seed = 42u64;
+        
+        #[cfg(not(test))]
+        let seed = {
+            let from_env = std::env::var("AEONMI_SEED")
+                .ok()
+                .and_then(|s| s.parse::<u64>().ok());
+            from_env.unwrap_or_else(|| {
+                (SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+                    & 0xFFFF_FFFF) as u64
+            })
+        };
+        
         // Avoid zero seed (LCG degenerate cycles shorter sometimes)
         let seed = if seed == 0 { 1 } else { seed };
         GLOBAL_SEED.store(seed, Ordering::Relaxed);

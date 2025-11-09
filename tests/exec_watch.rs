@@ -9,6 +9,7 @@ fn exec_watch_once_env_breaks_loop() {
     let ai = "watch_once.ai";
     fs::write(ai, "let x = 1;\nlog(x);\n").unwrap();
     let mut cmd = Command::new(bin());
+    cmd.env("AEON_ENHANCED_CLI", "false");
     cmd.args(["exec", ai, "--watch", "--no-run"]);
     cmd.env("AEONMI_WATCH_ONCE", "1");
     let status = cmd.status().unwrap();

@@ -45,6 +45,7 @@ fn extract_json(output: &str) -> Option<String> {
 fn metrics_json_includes_v5_fields() {
     // Run metrics-dump
     let output = Command::new(env!("CARGO_BIN_EXE_aeonmi"))
+        .env("AEON_ENHANCED_CLI", "false")
         .arg("metrics-dump")
         .output()
         .expect("failed to run aeonmi metrics-dump");

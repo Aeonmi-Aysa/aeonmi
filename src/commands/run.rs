@@ -100,18 +100,26 @@ pub fn main_with_opts(
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
-    // Force native interpreter path if env requests or if node missing
-    let force_native = std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1");
+    // Use native VM by default, only use Node.js if explicitly requested via env var
+    let force_js = std::env::var("AEONMI_USE_JS").ok().as_deref() == Some("1");
+
+    if !force_js {
+        // Default to native VM execution (no Node.js dependency)
+        return run_native(&input, pretty, no_sema);
+    }
+
+    // Legacy JavaScript execution path (only if explicitly requested)
     let node_available = std::process::Command::new("node")
         .arg("--version")
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
 
-    if force_native || !node_available {
-        if !node_available && !force_native {
-            println!("(node not found — falling back to native interpreter)");
-        }
+    if !node_available {
+        eprintln!(
+            "{} Node.js not found, falling back to native VM execution",
+            "warn:".yellow().bold()
+        );
         return run_native(&input, pretty, no_sema);
     }
 

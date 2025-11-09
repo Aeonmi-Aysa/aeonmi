@@ -1,0 +1,58 @@
+//! Test for enhanced module system and semantic analysis
+
+// Module with exports
+module math {
+    export { add, subtract, PI };
+    
+    const PI = 3.14159;
+    
+    function add(a, b) {
+        return a + b;
+    }
+    
+    function subtract(a, b) {
+        return a - b;
+    }
+}
+
+// Import from math module
+import math::{add, PI};
+
+// Use imported functions
+let result = add(5, 3);
+let circle_area = PI * 2 * 2;
+
+// Class with method
+class Calculator {
+    function calculate(x, y) {
+        return add(x, y);
+    }
+}
+
+// Struct with fields
+struct Point {
+    x: Number,
+    y: Number,
+}
+
+// Trait definition
+trait Drawable {
+    function draw();
+}
+
+// Implementation
+impl Drawable for Point {
+    function draw() {
+        log("Drawing point at (" + this.x + ", " + this.y + ")");
+    }
+}
+
+// Match expression
+function process_value(value) {
+    match value {
+        0 => "Zero",
+        1 => "One", 
+        x if x > 10 => "Large number",
+        _ => "Other number",
+    }
+}

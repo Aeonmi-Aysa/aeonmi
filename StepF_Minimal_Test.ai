@@ -1,0 +1,7 @@
+# Minimal QASM export test - just basic gates
+
+fn main:
+    let q = qubit 0
+    superpose q
+    dod q
+    measure q

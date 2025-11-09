@@ -368,12 +368,16 @@ impl CodeGenerator {
                 // Mark that we need quantum helpers
                 self.helpers.insert(Helper::Quantum);
                 
-                // Generate probabilistic branch using Math.random()
+                // Generate probabilistic branch using quantum evaluation
                 let prob_value = probability.unwrap_or(0.5);
                 let mut s = String::new();
                 
-                // Use probability to decide branch
-                s.push_str(&format!("if (Math.random() < {}) ", prob_value));
+                // Generate condition expression
+                let condition_js = self.emit_expr_js(condition);
+                
+                // Use __quantum.evaluate() with probability comment
+                s.push_str(&format!("// Probability: {:.2}%\n", prob_value * 100.0));
+                s.push_str(&format!("if (__quantum.evaluate({})) ", condition_js));
                 s.push_str(&self.wrap_stmt_js(then_branch));
                 
                 if let Some(else_stmt) = else_branch {
@@ -391,24 +395,21 @@ impl CodeGenerator {
                 // Mark that we need quantum helpers
                 self.helpers.insert(Helper::Quantum);
                 
-                // Generate quantum loop with iteration limit
+                // Generate quantum loop with decoherence tracking
                 let mut s = String::new();
                 
-                // Set up iteration tracking
-                let max_iters = if let Some(threshold) = decoherence_threshold {
-                    format!("{}", threshold)
-                } else {
-                    "Infinity".to_string()
-                };
+                // Set up decoherence threshold
+                let threshold = decoherence_threshold.unwrap_or(1.0);
                 
-                s.push_str(&format!("let __maxIters = {};\n", max_iters));
-                s.push_str("let __iterCount = 0;\n");
-                s.push_str("while (__iterCount < __maxIters) {\n");
+                s.push_str(&format!("// Decoherence threshold: {}\n", threshold));
+                s.push_str("let __qLoopState = { coherent: true };\n");
+                s.push_str("while (__qLoopState.coherent) {\n");
                 self.indent += 1;
                 
                 // Check condition if provided
                 s.push_str(&self.indent_str());
-                s.push_str(&format!("if (!({})) {{\n", self.emit_expr_js(condition)));
+                let condition_js = self.emit_expr_js(condition);
+                s.push_str(&format!("if (!({})) {{\n", condition_js));
                 self.indent += 1;
                 s.push_str(&self.indent_str());
                 s.push_str("break;\n");
@@ -424,9 +425,9 @@ impl CodeGenerator {
                     s.push('\n');
                 }
                 
-                // Increment counter
+                // Evaluate quantum loop state
                 s.push_str(&self.indent_str());
-                s.push_str("__iterCount++;\n");
+                s.push_str("__qLoopState = __quantum.evaluateLoop(__qLoopState);\n");
                 
                 self.indent -= 1;
                 s.push_str("}\n");

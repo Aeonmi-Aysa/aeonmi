@@ -1,0 +1,6 @@
+// Debug what tokens are generated for break
+main: () -> i32 {
+    break;
+    continue;
+    return 0;
+}

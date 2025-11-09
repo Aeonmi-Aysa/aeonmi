@@ -1,0 +1,20 @@
+# Bell State Test - Demonstrates quantum entanglement
+
+fn main:
+    print "=== Bell State Demonstration ==="
+    print "Creating two qubits in |0⟩ state..."
+    
+    let q0 = qubit 0
+    let q1 = qubit 0
+    
+    print "Applying superpose to q0..."
+    superpose q0
+    
+    print "Entangling q0 and q1..."
+    entangle q0 q1
+    
+    print "Measuring both qubits..."
+    measure q0
+    measure q1
+    
+    print "Bell state demonstration complete!"

@@ -6,3 +6,8 @@ pub fn main(input: PathBuf) -> anyhow::Result<()> {
     println!("(ast) placeholder: showing AST...");
     Ok(())
 }
+
+pub fn run_ast(file: &std::path::Path, format: &str) -> anyhow::Result<()> {
+    let _ = format;
+    main(file.to_path_buf())
+}

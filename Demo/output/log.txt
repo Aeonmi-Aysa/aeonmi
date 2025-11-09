@@ -1,0 +1,6 @@
+error: unsupported statement `unknown_statement_here` at line 9
+   = Run 'aeon build' to see full compilation output
+
+=== Step H Diagnostics Demo ===
+All errors fixed!
+Program executes successfully!

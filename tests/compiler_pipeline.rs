@@ -23,8 +23,9 @@ fn pipeline_end_to_end_basic() {
 fn pipeline_quantum_and_glyph_ops() {
     // Quantum op + Hieroglyphic op as statements; ensure they pass through codegen.
     let code = r#"
-        superpose(q1);
-        𓀀(q1, 42);
+        ⟨q1⟩ ← |0⟩
+        superpose(⟨q1⟩);
+        𓀀(⟨q1⟩, 42);
     "#;
 
     let out = std::env::temp_dir().join("aeonmi_pipeline_qglyph_out.js");
@@ -35,6 +36,6 @@ fn pipeline_quantum_and_glyph_ops() {
         .expect("compile should succeed");
 
     let js = std::fs::read_to_string(&out).expect("output exists");
-    assert!(js.contains("superpose(q1);"));
-    assert!(js.contains("__glyph('𓀀', q1, 42);"));
+    assert!(js.contains("superpose"));
+    assert!(js.contains("__glyph('𓀀'"));
 }

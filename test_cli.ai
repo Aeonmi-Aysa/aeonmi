@@ -1,0 +1,10 @@
+// Simple test for Aeonmi CLI compilation
+addnums: (a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+main: () -> i32 {
+    let result = addnums(2, 3);
+    log("Result: " + result);
+    return result;
+}

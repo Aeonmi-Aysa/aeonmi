@@ -1,0 +1,24 @@
+error: unsupported statement `badcommand here` at line 8
+   = Run 'aeon build' to see full compilation output
+
+error: Build failed: could not parse expression `x / y` at line 8
+   = Check your source files for syntax errors
+
+error: Build failed: could not parse expression `[1, 2, 3]` at line 5
+   = Check your source files for syntax errors
+
+error: Build failed: unsupported statement `return a + b` at line 4
+   = Check your source files for syntax errors
+
+error: Build failed: unsupported statement `log("Hello, ", name)` at line 4
+   = Check your source files for syntax errors
+
+error: Build failed: unsupported statement `fn main() {` at line 3
+   = Check your source files for syntax errors
+
+error: Build failed: could not parse expression `"x:" x` at line 7
+   = Check your source files for syntax errors
+
+=== Testing Diagnostics ===
+x and y defined
+Done!

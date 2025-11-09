@@ -33,6 +33,7 @@ fn top_level_lets_execute() {
         .arg("run")
         .arg(&file_path)
         .arg("--native")
+        .env("AEON_ENHANCED_CLI", "false")
         .env("AEONMI_NATIVE", "1")
         .output()
         .expect("failed to run aeonmi_shard binary");

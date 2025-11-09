@@ -6,10 +6,12 @@ use crate::cli_vault::VaultCommand as VaultSubcommand;
 #[derive(Copy, Clone, Debug, ValueEnum, Default)]
 pub enum EmitKind {
     #[clap(alias = "js")]
-    #[default]
     Js,
     #[clap(alias = "ai")]
     Ai,
+    #[clap(alias = "vm")]
+    #[default]
+    Bytecode,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -143,6 +145,26 @@ pub enum Command {
         filter: Option<String>,
     },
 
+    /// Export project to OpenQASM 2.0 format
+    ExportQasm {
+        /// Path to a custom manifest file
+        #[arg(long = "manifest-path", value_name = "FILE")]
+        manifest_path: Option<PathBuf>,
+        /// Output path for QASM file (default: output/circuit.qasm)
+        #[arg(short = 'o', long = "output", value_name = "FILE")]
+        output: Option<PathBuf>,
+    },
+
+    /// Export project to Python script that runs QASM via Qiskit
+    ExportPython {
+        /// Path to a custom manifest file
+        #[arg(long = "manifest-path", value_name = "FILE")]
+        manifest_path: Option<PathBuf>,
+        /// Output path for Python file (default: output/<project>_runner.py)
+        #[arg(short = 'o', long = "output", value_name = "FILE")]
+        output: Option<PathBuf>,
+    },
+
     /// Run an .ai file directly (compile-to-js + execute with Node if available)
     Run {
         #[arg(value_name = "INPUT")]
@@ -161,12 +183,15 @@ pub enum Command {
         /// Additionally emit canonical AI form to FILE (no JS) before executing (works with or without --native)
         #[arg(long = "emit-ai", value_name = "FILE")]
         emit_ai: Option<PathBuf>,
+        #[cfg(feature = "bytecode")]
         /// Print optimization stats (bytecode mode only)
         #[arg(long = "opt-stats", action = ArgAction::SetTrue)]
         opt_stats: bool,
+        #[cfg(feature = "bytecode")]
         /// Emit optimization stats JSON (implies --bytecode)
         #[arg(long = "opt-stats-json", action = ArgAction::SetTrue)]
         opt_stats_json: bool,
+        #[cfg(feature = "bytecode")]
         /// Disassemble compiled bytecode (implies --bytecode)
         #[arg(long = "disasm", action = ArgAction::SetTrue)]
         disasm: bool,

@@ -3,9 +3,11 @@ use aeonmi_project::core::compiler::Compiler;
 #[test]
 fn len_builtin_emits_helper_and_invocation() {
     let code = r#"
-        let name = "Aeonmi";
-        let n = len(name);
-        log(n);
+        function main() {
+            let name = "Aeonmi";
+            let n = len(name);
+            log(n);
+        }
     "#;
 
     let out = std::env::temp_dir().join("aeonmi_len_helper.js");
@@ -15,7 +17,7 @@ fn len_builtin_emits_helper_and_invocation() {
 
     let compiler = Compiler::new();
     compiler
-        .compile(code, out.to_str().expect("valid output path"))
+        .compile_with(code, out.to_str().expect("valid output path"), false, false)
         .expect("compilation should succeed");
 
     let js = std::fs::read_to_string(&out).expect("output JS exists");

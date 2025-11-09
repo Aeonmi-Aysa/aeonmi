@@ -1,0 +1,17 @@
+# Minimal QASM Export Test
+
+fn main:
+    print "=== Minimal QASM Export Test ==="
+    let q0 = qubit 0
+    let q1 = qubit 0
+    print "Created two qubits in |0⟩ state"
+    superpose q0
+    print "Applied superpose (H) to q0"
+    entangle q0 q1
+    print "Applied entangle (H+CX) to q0 and q1"
+    dod q1
+    print "Applied dod (X) to q1"
+    measure q0
+    measure q1
+    print "Measured both qubits"
+    print "QASM export test complete"

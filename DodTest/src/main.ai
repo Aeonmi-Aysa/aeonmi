@@ -1,0 +1,16 @@
+# Death or Dishonor (DoD) Test - X gate (NOT) operation
+
+fn main:
+    print "=== DoD (X Gate) Demonstration ==="
+    print "Creating qubit in |0⟩ state..."
+    
+    let q = qubit 0
+    
+    print "Applying dod (X gate / NOT)..."
+    dod q
+    
+    print "Measuring qubit..."
+    measure q
+    
+    print "DoD test complete!"
+    print "Expected: Should measure |1⟩"

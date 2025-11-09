@@ -1,6 +1,8 @@
 //! Simple bytecode VM (feature: bytecode)
 use crate::core::bytecode::{Chunk, Constant, OpCode};
 use rand::random;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
@@ -9,6 +11,21 @@ pub enum Value {
     String(String),
     Bool(bool),
     Null,
+    Quantum(Rc<RefCell<QuantumState>>),
+}
+
+#[derive(Debug)]
+pub struct QuantumState {
+    prob: f64,
+    ent_group: Option<Rc<RefCell<EntanglementGroup>>>,
+    collapsed: Option<bool>,
+}
+
+#[derive(Debug)]
+struct EntanglementGroup {
+    members: Vec<Rc<RefCell<QuantumState>>>,
+    correlated: bool,
+    collapsed: bool,
 }
 
 #[derive(Debug)]
@@ -143,16 +160,66 @@ impl<'a> VM<'a> {
                 self.stack.push(Value::Number(random::<f64>()));
             }
             Superpose => {
-                self.consume_call_args(1);
-                self.stack.push(Value::Null);
+                if let Some(arg) = self.stack.pop() {
+                    let state = self.into_quantum(arg);
+                    Self::detach_from_group(&state);
+                    {
+                        let mut q = state.borrow_mut();
+                        q.prob = 0.5;
+                        q.collapsed = None;
+                    }
+                    self.stack.push(Value::Quantum(state));
+                } else {
+                    self.stack.push(Value::Null);
+                }
             }
             Entangle => {
-                self.consume_call_args(2);
+                let q2 = self.stack.pop().unwrap_or(Value::Null);
+                let q1 = self.stack.pop().unwrap_or(Value::Null);
+
+                let state1 = self.into_quantum(q1);
+                let state2 = self.into_quantum(q2);
+
+                Self::detach_from_group(&state1);
+                Self::detach_from_group(&state2);
+
+                let correlated = {
+                    let a = state1.borrow().collapsed;
+                    let b = state2.borrow().collapsed;
+                    if let (Some(av), Some(bv)) = (a, b) {
+                        av == bv
+                    } else {
+                        true
+                    }
+                };
+
+                let group = Rc::new(RefCell::new(EntanglementGroup {
+                    members: vec![Rc::clone(&state1), Rc::clone(&state2)],
+                    correlated,
+                    collapsed: false,
+                }));
+
+                {
+                    let mut s1 = state1.borrow_mut();
+                    s1.ent_group = Some(Rc::clone(&group));
+                    s1.prob = 0.5;
+                    s1.collapsed = None;
+                }
+                {
+                    let mut s2 = state2.borrow_mut();
+                    s2.ent_group = Some(Rc::clone(&group));
+                    s2.prob = 0.5;
+                    s2.collapsed = None;
+                }
+
                 self.stack.push(Value::Null);
             }
             Measure => {
-                self.consume_call_args(1);
-                let outcome = random::<bool>();
+                let value = self.stack.pop().unwrap_or(Value::Null);
+                let outcome = match value {
+                    Value::Quantum(state) => self.measure_quantum(state),
+                    other => Self::coerce_bool(&other),
+                };
                 self.stack.push(Value::Bool(outcome));
             }
             Return => {
@@ -234,25 +301,122 @@ impl<'a> VM<'a> {
             Some(Value::String(s)) => s.chars().count() as f64,
             Some(Value::Number(_)) => 0.0,
             Some(Value::Bool(_)) => 0.0,
+            Some(Value::Quantum(_)) => 0.0,
             Some(Value::Null) | None => 0.0,
         };
         self.stack.push(Value::Number(len));
     }
 
-    fn consume_call_args(&mut self, expected: usize) {
-        for _ in 0..expected {
-            self.stack.pop();
+    fn into_quantum(&self, value: Value) -> Rc<RefCell<QuantumState>> {
+        match value {
+            Value::Quantum(state) => state,
+            Value::Bool(b) => Self::new_quantum_state(if b { 1.0 } else { 0.0 }, Some(b)),
+            Value::Number(n) => {
+                let collapsed = n != 0.0;
+                Self::new_quantum_state(if collapsed { 1.0 } else { 0.0 }, Some(collapsed))
+            }
+            Value::String(s) => {
+                let collapsed = !s.is_empty();
+                Self::new_quantum_state(if collapsed { 1.0 } else { 0.0 }, Some(collapsed))
+            }
+            Value::Null => Self::new_quantum_state(0.5, None),
+        }
+    }
+
+    fn new_quantum_state(prob: f64, collapsed: Option<bool>) -> Rc<RefCell<QuantumState>> {
+        Rc::new(RefCell::new(QuantumState {
+            prob: prob.clamp(0.0, 1.0),
+            ent_group: None,
+            collapsed,
+        }))
+    }
+
+    fn detach_from_group(state: &Rc<RefCell<QuantumState>>) {
+        let group_opt = { state.borrow().ent_group.clone() };
+        if let Some(group_rc) = group_opt {
+            {
+                let mut group = group_rc.borrow_mut();
+                group.members.retain(|member| !Rc::ptr_eq(member, state));
+            }
+            state.borrow_mut().ent_group = None;
+        }
+    }
+
+    fn measure_quantum(&mut self, state: Rc<RefCell<QuantumState>>) -> bool {
+        if let Some(val) = state.borrow().collapsed {
+            return val;
+        }
+
+        let ent_group = { state.borrow().ent_group.clone() };
+        if let Some(group_rc) = ent_group {
+            let mut group = group_rc.borrow_mut();
+            if group.collapsed {
+                if let Some(val) = state.borrow().collapsed {
+                    return val;
+                }
+            }
+
+            let base_outcome = {
+                let mut known = None;
+                for member in &group.members {
+                    if let Some(val) = member.borrow().collapsed {
+                        known = Some(val);
+                        break;
+                    }
+                }
+                known.unwrap_or_else(|| {
+                    let prob = state.borrow().prob.clamp(0.0, 1.0);
+                    random::<f64>() < prob
+                })
+            };
+
+            group.collapsed = true;
+
+            for member in &group.members {
+                let mut qubit = member.borrow_mut();
+                let value = if group.correlated {
+                    base_outcome
+                } else if Rc::ptr_eq(member, &state) {
+                    base_outcome
+                } else {
+                    !base_outcome
+                };
+                qubit.collapsed = Some(value);
+                qubit.prob = if value { 1.0 } else { 0.0 };
+            }
+
+            return base_outcome;
+        }
+
+        let mut state_ref = state.borrow_mut();
+        if let Some(val) = state_ref.collapsed {
+            return val;
+        }
+        let prob = state_ref.prob.clamp(0.0, 1.0);
+        let outcome = random::<f64>() < prob;
+        state_ref.collapsed = Some(outcome);
+        state_ref.prob = if outcome { 1.0 } else { 0.0 };
+        outcome
+    }
+
+    fn coerce_bool(value: &Value) -> bool {
+        match value {
+            Value::Null => false,
+            Value::Bool(b) => *b,
+            Value::Number(n) => *n != 0.0,
+            Value::String(s) => !s.is_empty(),
+            Value::Quantum(state) => {
+                let state = state.borrow();
+                state
+                    .collapsed
+                    .unwrap_or_else(|| state.prob.clamp(0.0, 1.0) >= 0.5)
+            }
         }
     }
 }
 
 fn is_truthy(value: &Value) -> bool {
-    match value {
-        Value::Null => false,
-        Value::Bool(b) => *b,
-        Value::Number(n) => *n != 0.0,
-        Value::String(s) => !s.is_empty(),
-    }
+    VM::coerce_bool(value)
 }
 
 fn value_to_string(value: &Value) -> String {
@@ -267,6 +431,15 @@ fn value_to_string(value: &Value) -> String {
         Value::String(s) => s.clone(),
         Value::Bool(b) => b.to_string(),
         Value::Null => "null".to_string(),
+        Value::Quantum(state) => {
+            let state = state.borrow();
+            let collapsed = match state.collapsed {
+                Some(true) => "1",
+                Some(false) => "0",
+                None => "?",
+            };
+            format!("qubit[p={:.2}, collapsed={}]", state.prob, collapsed)
+        }
     }
 }
 
@@ -282,20 +455,47 @@ fn bin(vm: &mut VM, f: impl Fn(f64, f64) -> f64) {
 fn cmp(vm: &mut VM, op: OpCode) {
     use OpCode::*;
     if let (Some(r), Some(l)) = (vm.stack.pop(), vm.stack.pop()) {
-        if let (Value::Number(rb), Value::Number(lb)) = (r, l) {
-            let res = match op {
-                Eq => lb == rb,
-                Ne => lb != rb,
-                Lt => lb < rb,
-                Le => lb <= rb,
-                Gt => lb > rb,
-                Ge => lb >= rb,
-                _ => false,
-            };
-            vm.stack.push(Value::Bool(res));
-        } else {
-            vm.stack.push(Value::Bool(false));
-        }
+        let result = match op {
+            Eq | Ne => {
+                let eq_result = match (&l, &r) {
+                    (Value::Number(lb), Value::Number(rb)) => lb == rb,
+                    (Value::Bool(lb), Value::Bool(rb)) => lb == rb,
+                    (Value::String(ls), Value::String(rs)) => ls == rs,
+                    (Value::Null, Value::Null) => true,
+                    (Value::Quantum(a), Value::Quantum(b)) => {
+                        if Rc::ptr_eq(a, b) {
+                            true
+                        } else {
+                            let a_state = a.borrow();
+                            let b_state = b.borrow();
+                            a_state.collapsed == b_state.collapsed
+                                && (a_state.prob - b_state.prob).abs() < f64::EPSILON
+                        }
+                    }
+                    _ => false,
+                };
+                if matches!(op, Eq) {
+                    eq_result
+                } else {
+                    !eq_result
+                }
+            }
+            Lt | Le | Gt | Ge => {
+                if let (Value::Number(lb), Value::Number(rb)) = (&l, &r) {
+                    match op {
+                        Lt => lb < rb,
+                        Le => lb <= rb,
+                        Gt => lb > rb,
+                        Ge => lb >= rb,
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        };
+        vm.stack.push(Value::Bool(result));
     }
 }
 fn add_any(vm: &mut VM) {

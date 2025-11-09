@@ -35,7 +35,7 @@ fn set_console_title() {
 }
 
 fn main() -> anyhow::Result<()> {
-    println!("DEBUG: main() called");
+    debug_log!("DEBUG: main() called");
 
     // Enhanced crash diagnostics
     std::panic::set_hook(Box::new(|panic_info| {
@@ -47,17 +47,17 @@ fn main() -> anyhow::Result<()> {
         eprintln!("{:?}", std::backtrace::Backtrace::capture());
     }));
 
-    println!("DEBUG: Setting console title...");
+    debug_log!("DEBUG: Setting console title...");
     set_console_title();
 
-    println!("DEBUG: Collecting command line arguments...");
+    debug_log!("DEBUG: Collecting command line arguments...");
     // Collect command line arguments
     let args: Vec<String> = std::env::args().collect();
-    println!("DEBUG: Args collected: {:?}", args);
+    debug_log!("DEBUG: Args collected: {:?}", args);
 
     // Only launch editor if explicitly requested with --editor flag
     if args.iter().any(|arg| arg == "--editor" || arg == "editor") {
-        println!("DEBUG: Launching editor mode...");
+    debug_log!("DEBUG: Launching editor mode...");
         // Launch editor in async context
         let rt = tokio::runtime::Runtime::new()?;
         return rt.block_on(async {
@@ -66,20 +66,20 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    println!("DEBUG: Checking enhanced CLI mode...");
+    debug_log!("DEBUG: Checking enhanced CLI mode...");
     // Check if we should use the enhanced CLI
     let use_enhanced_cli = std::env::var("AEON_ENHANCED_CLI")
         .map(|v| v == "1" || v.to_lowercase() == "true")
         .unwrap_or(true); // Default to enhanced CLI
-    println!("DEBUG: Enhanced CLI mode: {}", use_enhanced_cli);
+    debug_log!("DEBUG: Enhanced CLI mode: {}", use_enhanced_cli);
 
     if use_enhanced_cli {
-        println!("DEBUG: Using enhanced CLI system...");
+    debug_log!("DEBUG: Using enhanced CLI system...");
         // Use the new enhanced CLI system
         return crate::cli_integration::run_enhanced_aeon_cli();
     }
 
-    println!("DEBUG: Using legacy CLI, parsing arguments...");
+    debug_log!("DEBUG: Using legacy CLI, parsing arguments...");
     // Fall back to legacy CLI for compatibility
     let args = AeonmiCli::parse();
 
@@ -272,12 +272,18 @@ fn main() -> anyhow::Result<()> {
             native,
             emit_ai,
             bytecode,
+            #[cfg(feature = "bytecode")]
             opt_stats,
+            #[cfg(feature = "bytecode")]
             opt_stats_json,
+            #[cfg(feature = "bytecode")]
             disasm,
             release,
             manifest_path,
         }) => {
+            #[cfg(not(feature = "bytecode"))]
+            let (opt_stats, opt_stats_json, disasm) = (false, false, false);
+            
             if input.is_none() {
                 if out.is_some()
                     || watch
@@ -1159,7 +1165,7 @@ fn main() -> anyhow::Result<()> {
                                 Ok(())
                             } else {
                                 // Native interpretation path
-                                println!(
+                                debug_log!(
                                     "DEBUG: EXEC PATH - native: executing '{}' via Aeonmi VM",
                                     file.display()
                                 );
@@ -1237,7 +1243,7 @@ fn main() -> anyhow::Result<()> {
                                 }
                                 match lower_ast_to_ir(&ast, "main") {
                                     Ok(module) => {
-                                        println!("DEBUG: About to call run_module in main.rs");
+                                        debug_log!("DEBUG: About to call run_module in main.rs");
                                         let mut interp = Interpreter::new();
                                         if !no_run {
                                             if let Err(e) = interp.run_module(&module) {

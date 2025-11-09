@@ -9,6 +9,7 @@ fn exec_ai_compiles_and_runs() {
     let file = "temp_exec_test.ai";
     fs::write(file, ai_src).expect("write ai file");
     let status = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .env("AEON_ENHANCED_CLI", "false")
         .args(["exec", file, "--keep-temp"])
         .status()
         .expect("spawn exec ai");
@@ -26,6 +27,7 @@ fn exec_js_runs_directly() {
     let file = "temp_exec_test.js";
     fs::write(&file, js_src).expect("write js file");
     let status = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .env("AEON_ENHANCED_CLI", "false")
         .args(["exec", file])
         .status()
         .expect("spawn exec js");
@@ -39,6 +41,7 @@ fn exec_js_runs_directly() {
 fn native_run_env() {
     use std::process::Command;
     let output = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .env("AEON_ENHANCED_CLI", "false")
         .env("AEONMI_NATIVE", "1")
         .arg("run")
         .arg("examples/hello.ai")
@@ -55,6 +58,7 @@ fn native_run_env() {
 fn shard_native_run_command() {
     use std::process::{Command, Stdio};
     let mut child = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .env("AEON_ENHANCED_CLI", "false")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

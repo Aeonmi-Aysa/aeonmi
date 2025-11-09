@@ -18,6 +18,7 @@ fn cli_compiles_basic_file() {
     fs::write(&input, src).unwrap();
 
     let output = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .arg("--tokens")
         .arg("--ast")
         .arg("--out")
@@ -53,6 +54,7 @@ fn cli_skips_semantic_when_flagged() {
     fs::write(&input, src).unwrap();
 
     let output = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .arg("--no-sema")
         .arg("--out")
         .arg(out.to_str().unwrap())
@@ -92,6 +94,7 @@ fn cli_rejects_unsupported_emit() {
     fs::write(&input, src).unwrap();
 
     let output = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .arg("--emit")
         .arg("wasm")
         .arg(input.to_str().unwrap())

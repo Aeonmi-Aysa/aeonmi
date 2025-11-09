@@ -24,6 +24,7 @@ fn exec_ai_removes_temp_by_default() {
     let _ = fs::remove_file("__exec_tmp.js");
 
     let status = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .args(["exec", ai, "--no-run"])
         .status()
         .unwrap();
@@ -42,6 +43,7 @@ fn exec_ai_keeps_temp_with_flag() {
     let _ = fs::remove_file("__exec_tmp.js");
     fs::write(ai, "let a = 2;\nlog(a);\n").unwrap();
     let status = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .args(["exec", ai, "--keep-temp", "--no-run"])
         .status()
         .unwrap();

@@ -1,0 +1,5 @@
+# Main entry point for Aeonmi application
+
+fn main:
+    print "Hello, Aeonmi World!"
+    print "Welcome to your new project!"

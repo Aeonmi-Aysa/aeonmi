@@ -13,6 +13,7 @@ fn pretty_lexer_error_shows_span() {
     fs::write(&input, bad).unwrap();
 
     let output = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .arg("--pretty-errors")
         .arg(input.to_str().unwrap())
         .output()
@@ -41,6 +42,7 @@ fn pretty_parser_error_shows_span() {
     fs::write(&input, bad).unwrap();
 
     let output = Command::new(bin())
+        .env("AEON_ENHANCED_CLI", "false")
         .arg("--pretty-errors")
         .arg(input.to_str().unwrap())
         .output()

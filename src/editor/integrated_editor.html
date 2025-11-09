@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aeonmi Integrated Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e6e6fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "sidebar editor terminal"
+                "sidebar editor terminal";
+            grid-template-rows: 60px 1fr 1fr;
+            grid-template-columns: 250px 1fr 350px;
+            height: 100vh;
+            gap: 2px;
+        }
+
+        .header {
+            grid-area: header;
+            background: linear-gradient(90deg, #2d1b69 0%, #11998e 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00f5ff, #ff00ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 20px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e6e6fa;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        .btn.danger {
+            background: linear-gradient(45deg, #ff6b6b 0%, #ee5a6f 100%);
+            border: none;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: rgba(30, 30, 60, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .file-tree {
+            margin-top: 10px;
+        }
+
+        .file-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 2px 0;
+            transition: background 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .file-item.selected {
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .file-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .editor {
+            grid-area: editor;
+            background: rgba(20, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .editor-tabs {
+            background: rgba(30, 30, 60, 0.8);
+            padding: 10px;
+            display: flex;
+            gap: 2px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #e6e6fa;
+            padding: 8px 16px;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab.active {
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-close {
+            margin-left: 8px;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .tab-close:hover {
+            opacity: 1;
+        }
+
+        .editor-content {
+            height: calc(100% - 60px);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            background: #1e1e3f;
+            color: #e6e6fa;
+            border: none;
+            outline: none;
+            padding: 20px;
+            resize: none;
+            overflow: auto;
+        }
+
+        .terminal {
+            grid-area: terminal;
+            background: rgba(10, 10, 30, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            background: rgba(30, 30, 60, 0.8);
+            padding: 10px;
+            border-radius: 6px 6px 0 0;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-content {
+            background: #0d0d26;
+            color: #00ff88;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            padding: 15px;
+            border-radius: 0 0 6px 6px;
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(30, 30, 60, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            font-size: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00ff88;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(30, 30, 60, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            max-width: 300px;
+            z-index: 1000;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .notification.success {
+            border-left: 4px solid #00ff88;
+        }
+
+        .notification.error {
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .notification.warning {
+            border-left: 4px solid #ffd93d;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 30, 60, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">⚛️ AEONMI</div>
+                <span id="workspace-info">Loading workspace...</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn" id="new-file-btn">📄 New</button>
+                <button class="btn" id="save-btn">💾 Save</button>
+                <button class="btn primary" id="build-btn">🔨 Build</button>
+                <button class="btn primary" id="run-btn">▶️ Run</button>
+                <button class="btn danger" id="stop-btn" disabled>⏹️ Stop</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <h3>📁 Files</h3>
+            <div class="file-tree" id="file-tree">
+                <div class="file-item">
+                    <span class="file-icon">📄</span>
+                    <span>Loading files...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="editor">
+            <div class="editor-tabs" id="editor-tabs">
+                <div class="tab active" data-file="welcome">
+                    <span>Welcome</span>
+                    <span class="tab-close">×</span>
+                </div>
+            </div>
+            <textarea 
+                class="editor-content" 
+                id="editor-content"
+                placeholder="Welcome to Aeonmi Integrated Editor!&#10;&#10;Click on a file in the sidebar to start editing, or create a new file.&#10;&#10;Features:&#10;- Integrated build and run&#10;- Real-time compilation feedback&#10;- File management&#10;- Quantum language support"
+            ></textarea>
+        </div>
+
+        <div class="terminal">
+            <div class="terminal-header">
+                <span>🖥️ Output</span>
+                <button class="btn" id="clear-terminal-btn">Clear</button>
+            </div>
+            <div class="terminal-content" id="terminal-content">
+                Welcome to Aeonmi Integrated Editor!
+                Ready for quantum computing development.
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-left">
+            <span id="current-file">No file selected</span>
+            <span id="file-status">Ready</span>
+        </div>
+        <div class="status-right">
+            <span id="connection-status">🟢 Connected</span>
+            <span id="editor-version">Aeonmi v1.0</span>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentFile = null;
+        let openTabs = new Map();
+        let ws = null;
+        let isRunning = false;
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                updateConnectionStatus('🟢 Connected');
+                logToTerminal('WebSocket connected\n');
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (e) {
+                    console.error('Failed to parse WebSocket message:', e);
+                }
+            };
+            
+            ws.onclose = () => {
+                updateConnectionStatus('🔴 Disconnected');
+                logToTerminal('WebSocket disconnected\n');
+                // Attempt to reconnect after 3 seconds
+                setTimeout(initWebSocket, 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus('🟡 Error');
+            };
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'CompileStart':
+                    logToTerminal(`🔨 Building ${data.file}...\n`);
+                    setRunning(true);
+                    break;
+                case 'CompileSuccess':
+                    logToTerminal(`✅ Build successful: ${data.output}\n`);
+                    setRunning(false);
+                    showNotification('Build successful!', 'success');
+                    break;
+                case 'CompileError':
+                    logToTerminal(`❌ Build failed:\n${data.errors.join('\n')}\n`);
+                    setRunning(false);
+                    showNotification('Build failed!', 'error');
+                    break;
+                case 'RunStart':
+                    logToTerminal(`▶️ Running ${data.file}...\n`);
+                    setRunning(true);
+                    break;
+                case 'RunOutput':
+                    logToTerminal(data.output);
+                    break;
+                case 'RunError':
+                    logToTerminal(`❌ Runtime error: ${data.error}\n`);
+                    setRunning(false);
+                    showNotification('Runtime error!', 'error');
+                    break;
+                case 'RunComplete':
+                    logToTerminal(`✅ Execution completed\n`);
+                    setRunning(false);
+                    showNotification('Execution completed!', 'success');
+                    break;
+                case 'FileChange':
+                    // Update file content if it's currently open
+                    if (openTabs.has(data.file)) {
+                        openTabs.set(data.file, data.content);
+                        if (currentFile === data.file) {
+                            document.getElementById('editor-content').value = data.content;
+                        }
+                    }
+                    break;
+                case 'StatusUpdate':
+                    updateFileStatus(data.message);
+                    break;
+            }
+        }
+
+        // UI helper functions
+        function updateConnectionStatus(status) {
+            document.getElementById('connection-status').textContent = status;
+        }
+
+        function updateFileStatus(status) {
+            document.getElementById('file-status').textContent = status;
+        }
+
+        function logToTerminal(text) {
+            const terminal = document.getElementById('terminal-content');
+            terminal.textContent += text;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal-content').textContent = '';
+        }
+
+        function setRunning(running) {
+            isRunning = running;
+            document.getElementById('run-btn').disabled = running;
+            document.getElementById('build-btn').disabled = running;
+            document.getElementById('stop-btn').disabled = !running;
+            
+            if (running) {
+                document.getElementById('file-status').innerHTML = '<span class="loading"></span> Processing...';
+            } else {
+                document.getElementById('file-status').textContent = 'Ready';
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // File management
+        async function loadFileTree() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                renderFileTree(data.files);
+            } catch (error) {
+                console.error('Failed to load file tree:', error);
+                showNotification('Failed to load files', 'error');
+            }
+        }
+
+        function renderFileTree(files) {
+            const fileTree = document.getElementById('file-tree');
+            fileTree.innerHTML = '';
+            
+            // Sort files: directories first, then by name
+            files.sort((a, b) => {
+                if (a.is_directory !== b.is_directory) {
+                    return a.is_directory ? -1 : 1;
+                }
+                return a.name.localeCompare(b.name);
+            });
+            
+            files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span class="file-icon">${file.is_directory ? '📁' : getFileIcon(file.extension)}</span>
+                    <span>${file.name}</span>
+                `;
+                
+                if (!file.is_directory) {
+                    item.addEventListener('click', () => openFile(file.path));
+                }
+                
+                fileTree.appendChild(item);
+            });
+        }
+
+        function getFileIcon(extension) {
+            const icons = {
+                'aeon': '⚛️',
+                'aeonmi': '⚛️',
+                'rs': '🦀',
+                'js': '📜',
+                'ts': '📘',
+                'py': '🐍',
+                'md': '📝',
+                'toml': '⚙️',
+                'json': '📋',
+                'html': '🌐',
+                'css': '🎨',
+                'qasm': '🔬'
+            };
+            return icons[extension] || '📄';
+        }
+
+        async function openFile(filePath) {
+            try {
+                const response = await fetch(`/api/files/${encodeURIComponent(filePath)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Add to open tabs
+                openTabs.set(filePath, data.content);
+                
+                // Update UI
+                currentFile = filePath;
+                document.getElementById('editor-content').value = data.content;
+                document.getElementById('current-file').textContent = filePath;
+                
+                // Update tabs
+                updateTabs();
+                
+                showNotification(`Opened ${filePath}`, 'success');
+            } catch (error) {
+                console.error('Failed to open file:', error);
+                showNotification(`Failed to open ${filePath}`, 'error');
+            }
+        }
+
+        async function saveCurrentFile() {
+            if (!currentFile) {
+                showNotification('No file selected', 'warning');
+                return;
+            }
+            
+            const content = document.getElementById('editor-content').value;
+            
+            try {
+                const response = await fetch(`/api/files/${encodeURIComponent(currentFile)}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        path: currentFile,
+                        content: content
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                // Update local state
+                openTabs.set(currentFile, content);
+                
+                showNotification(`Saved ${currentFile}`, 'success');
+            } catch (error) {
+                console.error('Failed to save file:', error);
+                showNotification(`Failed to save ${currentFile}`, 'error');
+            }
+        }
+
+        function updateTabs() {
+            const tabsContainer = document.getElementById('editor-tabs');
+            tabsContainer.innerHTML = '';
+            
+            openTabs.forEach((content, filePath) => {
+                const tab = document.createElement('div');
+                tab.className = `tab ${filePath === currentFile ? 'active' : ''}`;
+                tab.innerHTML = `
+                    <span>${filePath.split('/').pop()}</span>
+                    <span class="tab-close" onclick="closeTab('${filePath}')">×</span>
+                `;
+                
+                tab.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('tab-close')) {
+                        switchToTab(filePath);
+                    }
+                });
+                
+                tabsContainer.appendChild(tab);
+            });
+        }
+
+        function switchToTab(filePath) {
+            if (openTabs.has(filePath)) {
+                currentFile = filePath;
+                document.getElementById('editor-content').value = openTabs.get(filePath);
+                document.getElementById('current-file').textContent = filePath;
+                updateTabs();
+            }
+        }
+
+        function closeTab(filePath) {
+            openTabs.delete(filePath);
+            if (currentFile === filePath) {
+                // Switch to another tab or clear editor
+                const remainingTabs = Array.from(openTabs.keys());
+                if (remainingTabs.length > 0) {
+                    switchToTab(remainingTabs[0]);
+                } else {
+                    currentFile = null;
+                    document.getElementById('editor-content').value = '';
+                    document.getElementById('current-file').textContent = 'No file selected';
+                }
+            }
+            updateTabs();
+        }
+
+        // Build and run functions
+        async function buildCurrentFile() {
+            if (!currentFile) {
+                showNotification('No file selected', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/compile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file: currentFile,
+                        options: null
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    logToTerminal(`✅ Build successful\n${result.output}\n`);
+                    showNotification('Build successful!', 'success');
+                } else {
+                    logToTerminal(`❌ Build failed:\n${result.errors.join('\n')}\n`);
+                    showNotification('Build failed!', 'error');
+                }
+            } catch (error) {
+                console.error('Build failed:', error);
+                showNotification('Build failed!', 'error');
+            }
+        }
+
+        async function runCurrentFile() {
+            if (!currentFile) {
+                showNotification('No file selected', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        file: currentFile,
+                        args: []
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    logToTerminal(`▶️ Execution completed:\n${result.output}\n`);
+                    showNotification('Execution completed!', 'success');
+                } else {
+                    logToTerminal(`❌ Execution failed:\n${result.errors.join('\n')}\n`);
+                    showNotification('Execution failed!', 'error');
+                }
+            } catch (error) {
+                console.error('Execution failed:', error);
+                showNotification('Execution failed!', 'error');
+            }
+        }
+
+        async function stopExecution() {
+            try {
+                await fetch('/api/stop', { method: 'POST' });
+                setRunning(false);
+                logToTerminal('⏹️ Execution stopped\n');
+                showNotification('Execution stopped', 'warning');
+            } catch (error) {
+                console.error('Failed to stop execution:', error);
+            }
+        }
+
+        // Load workspace info
+        async function loadWorkspaceInfo() {
+            try {
+                const response = await fetch('/api/workspace');
+                const data = await response.json();
+                document.getElementById('workspace-info').textContent = `📁 ${data.workspace}`;
+                document.getElementById('editor-version').textContent = `${data.name} v${data.version}`;
+            } catch (error) {
+                console.error('Failed to load workspace info:', error);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('build-btn').addEventListener('click', buildCurrentFile);
+        document.getElementById('run-btn').addEventListener('click', runCurrentFile);
+        document.getElementById('stop-btn').addEventListener('click', stopExecution);
+        document.getElementById('save-btn').addEventListener('click', saveCurrentFile);
+        document.getElementById('clear-terminal-btn').addEventListener('click', clearTerminal);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 's':
+                        e.preventDefault();
+                        saveCurrentFile();
+                        break;
+                    case 'b':
+                        e.preventDefault();
+                        buildCurrentFile();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        runCurrentFile();
+                        break;
+                }
+            }
+        });
+
+        // Auto-save functionality
+        let autoSaveTimeout;
+        document.getElementById('editor-content').addEventListener('input', () => {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(() => {
+                if (currentFile) {
+                    // Update local state
+                    openTabs.set(currentFile, document.getElementById('editor-content').value);
+                }
+            }, 1000);
+        });
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            initWebSocket();
+            loadWorkspaceInfo();
+            loadFileTree();
+            
+            logToTerminal('🚀 Aeonmi Integrated Editor initialized\n');
+            logToTerminal('📖 Use Ctrl+S to save, Ctrl+B to build, Ctrl+R to run\n\n');
+        });
+    </script>
+</body>
+</html>

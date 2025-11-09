@@ -1,0 +1,69 @@
+// Test quantum constructs in JavaScript backend
+// Tests: ProbabilityBranch, QuantumLoop, QuantumTryCatch
+
+// Test 1: Probability Branch - Should go to different branches randomly
+print("Test 1: Probability Branch");
+let branch_a = 0;
+let branch_b = 0;
+
+// Run 100 trials with 70% probability
+for (let i = 0; i < 100; i = i + 1) {
+    quantum_branch(0.7) {
+        branch_a = branch_a + 1;
+    } else {
+        branch_b = branch_b + 1;
+    }
+}
+
+print("Branch A (70% expected): ");
+print(branch_a);
+print("Branch B (30% expected): ");
+print(branch_b);
+
+// Test 2: Quantum Loop - Should respect decoherence threshold
+print("\nTest 2: Quantum Loop with Threshold");
+let loop_count = 0;
+quantum_loop(true, 10) {
+    loop_count = loop_count + 1;
+}
+print("Loop iterations (should be 10): ");
+print(loop_count);
+
+// Test 3: Quantum Try-Catch - Should fail randomly
+print("\nTest 3: Quantum Try-Catch");
+let success_count = 0;
+let failure_count = 0;
+
+for (let i = 0; i < 50; i = i + 1) {
+    quantum_try(0.3) {
+        let x = 5;
+    } on_error {
+        failure_count = failure_count + 1;
+    } on_success {
+        success_count = success_count + 1;
+    }
+}
+
+print("Success count (should be ~35): ");
+print(success_count);
+print("Failure count (should be ~15): ");
+print(failure_count);
+
+// Test 4: Combined quantum features
+print("\nTest 4: Nested Quantum Features");
+let nested_result = 0;
+
+quantum_branch(0.5) {
+    quantum_try(0.2) {
+        nested_result = 1;
+    } on_error {
+        nested_result = 2;
+    } on_success {
+        nested_result = 3;
+    }
+} else {
+    nested_result = 4;
+}
+
+print("Nested result (1-4): ");
+print(nested_result);

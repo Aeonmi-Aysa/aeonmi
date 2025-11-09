@@ -6,9 +6,12 @@ use std::fs;
 fn assignment_and_function_call_pipeline() {
     let code = r#"
         function add(a, b) { return a + b; }
-        let x = 1;
-        x = add(x, 2);
-        log(x);
+        
+        function main() {
+            let x = 1;
+            x = add(x, 2);
+            log(x);
+        }
     "#;
 
     let out = std::env::temp_dir().join("aeonmi_assign_call_out.js");
@@ -20,6 +23,7 @@ fn assignment_and_function_call_pipeline() {
 
     let js = fs::read_to_string(&out).expect("output exists");
     assert!(js.contains("function add(a, b)"));
+    assert!(js.contains("function main()"));
     assert!(js.contains("let x = 1;"));
     assert!(js.contains("x = add(x, 2);"));
     assert!(js.contains("console.log(x);"));

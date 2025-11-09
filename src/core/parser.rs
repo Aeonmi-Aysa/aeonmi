@@ -2,7 +2,7 @@
 
 use crate::core::ast::{
     ASTNode, ForInBinding, FunctionParam, MatchArm, QuantumBindingType, QuantumFunctionType,
-    StructField,
+    StructField, QuantumOperation, QuantumTokens, Expression,
 };
 use crate::core::token::{Token, TokenKind};
 use unicode_ident::is_xid_continue;
@@ -63,6 +63,7 @@ impl Parser {
             // Module system
             TokenKind::Module => self.parse_module_decl(),
             TokenKind::Import => self.parse_import_decl(),
+            TokenKind::Export => self.parse_export_decl(),
             TokenKind::Record | TokenKind::Struct => self.parse_record_decl(),
             TokenKind::Enum => self.parse_enum_decl(),
             TokenKind::Type => self.parse_type_alias(),
@@ -76,8 +77,9 @@ impl Parser {
             TokenKind::While => self.parse_while(),
             TokenKind::For => self.parse_for(),
             TokenKind::Match => self.parse_match(),
+            TokenKind::Break => self.parse_break(),
+            TokenKind::Continue => self.parse_continue(),
             TokenKind::Class => self.parse_class_declaration(),
-            TokenKind::Struct => self.parse_struct_declaration(),
             TokenKind::Trait => self.parse_trait_declaration(),
             TokenKind::Impl => self.parse_impl_block(),
             TokenKind::OpenBrace => Ok(self.parse_block()?),
@@ -134,6 +136,22 @@ impl Parser {
             TokenKind::QuantumComment | TokenKind::BecauseComment | TokenKind::NoteComment => {
                 self.advance();
                 self.parse_statement()
+            }
+
+            // Handle quantum circuit definitions
+            TokenKind::Identifier(ref name) if name == "quantum" => {
+                // Check if next token is "circuit"
+                if self.pos + 1 < self.tokens.len() {
+                    if let TokenKind::Identifier(ref next_name) = &self.tokens[self.pos + 1].kind {
+                        if next_name == "circuit" {
+                            return self.parse_quantum_circuit();
+                        }
+                    }
+                }
+                // Not a quantum circuit, fall through to expression parsing
+                let expr = self.parse_expression()?;
+                let _ = self.match_token(&[TokenKind::Semicolon]); // optional semicolon
+                Ok(expr)
             }
 
             _ => {
@@ -251,31 +269,6 @@ impl Parser {
             methods,
             class_tok.line,
             class_tok.column,
-        ))
-    }
-
-    fn parse_struct_declaration(&mut self) -> Result<ASTNode, ParserError> {
-        let struct_tok = self
-            .consume(TokenKind::Struct, "Expected 'struct'")?
-            .clone();
-        let name = self.consume_identifier("Expected struct name")?;
-        self.consume(TokenKind::OpenBrace, "Expected '{' after struct name")?;
-        let mut fields = Vec::new();
-        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
-            if self.match_token(&[TokenKind::Comma]) || self.match_token(&[TokenKind::Semicolon]) {
-                continue;
-            }
-            let field = self.parse_struct_field()?;
-            fields.push(field);
-            let _ = self.match_token(&[TokenKind::Comma]);
-            let _ = self.match_token(&[TokenKind::Semicolon]);
-        }
-        self.consume(TokenKind::CloseBrace, "Expected '}' after struct fields")?;
-        Ok(ASTNode::new_struct_decl(
-            &name,
-            fields,
-            struct_tok.line,
-            struct_tok.column,
         ))
     }
 
@@ -565,6 +558,18 @@ impl Parser {
         let value = self.parse_expression()?;
         self.consume(TokenKind::Semicolon, "Expected ';' after return value")?;
         Ok(ASTNode::new_return(value))
+    }
+
+    fn parse_break(&mut self) -> Result<ASTNode, ParserError> {
+        self.consume(TokenKind::Break, "Expected 'break'")?;
+        self.consume(TokenKind::Semicolon, "Expected ';' after break")?;
+        Ok(ASTNode::Break)
+    }
+
+    fn parse_continue(&mut self) -> Result<ASTNode, ParserError> {
+        self.consume(TokenKind::Continue, "Expected 'continue'")?;
+        self.consume(TokenKind::Semicolon, "Expected ';' after continue")?;
+        Ok(ASTNode::Continue)
     }
 
     fn parse_log(&mut self) -> Result<ASTNode, ParserError> {
@@ -1173,7 +1178,23 @@ impl Parser {
 
             // 'function' / 'fn' as an expression
             TokenKind::Function | TokenKind::Fn => self.parse_function_expression(tok),
-            TokenKind::Match => self.parse_match(),
+            TokenKind::Match => self.parse_match_expression(tok),
+
+            // Loop control errors
+            TokenKind::Break => {
+                Err(ParserError {
+                    message: "Loop control 'break' not implemented. Use 'return' or restructure your loop.".to_string(),
+                    line: tok.line,
+                    column: tok.column,
+                })
+            }
+            TokenKind::Continue => {
+                Err(ParserError {
+                    message: "Loop control 'continue' not implemented. Use 'return' or restructure your loop.".to_string(),
+                    line: tok.line,
+                    column: tok.column,
+                })
+            }
 
             // Quantum keywords as identifiers (so they can be callee names)
             TokenKind::Superpose | TokenKind::Entangle | TokenKind::Measure | TokenKind::Dod => {
@@ -1377,6 +1398,26 @@ impl Parser {
                 self.peek().line,
                 self.peek().column,
             ))
+        }
+    }
+
+    fn consume_identifier_or_keyword(
+        &mut self,
+        expected: &str,
+        msg: &str,
+    ) -> Result<String, ParserError> {
+        let token = self.peek();
+        match &token.kind {
+            TokenKind::Identifier(name) if name == expected => {
+                let name_clone = name.clone();
+                self.advance();
+                Ok(name_clone)
+            }
+            _ => Err(self.err_at(
+                &format!("{} (found {:?})", msg, token.kind),
+                token.line,
+                token.column,
+            )),
         }
     }
     fn is_at_end(&self) -> bool {
@@ -1713,6 +1754,162 @@ impl Parser {
         })
     }
 
+    // Parse quantum circuit definition
+    fn parse_quantum_circuit(&mut self) -> Result<ASTNode, ParserError> {
+        self.consume(TokenKind::Identifier("quantum".to_string()), "Expected 'quantum'")?;
+        self.consume(TokenKind::Identifier("circuit".to_string()), "Expected 'circuit'")?;
+        
+        // Circuit name
+        let name = self.consume_identifier("Expected circuit name")?;
+        
+        self.consume(TokenKind::OpenBrace, "Expected '{'")?;
+        
+        // Parse qubits declaration
+        let qubits = if self.check(&TokenKind::Identifier("qubits".to_string())) {
+            self.advance(); // qubits
+            self.consume(TokenKind::Colon, "Expected ':'")?;
+            self.parse_qubit_arguments()?
+        } else {
+            vec![]
+        };
+        
+        // Parse operations
+        let operations = if self.check(&TokenKind::Identifier("operations".to_string())) {
+            self.advance(); // operations
+            self.consume(TokenKind::Colon, "Expected ':'")?;
+            self.parse_quantum_operations()?
+        } else {
+            vec![]
+        };
+        
+        self.consume(TokenKind::CloseBrace, "Expected '}'")?;
+        
+        Ok(ASTNode::QuantumCircuit {
+            name,
+            qubits,
+            operations,
+        })
+    }
+    
+    // Parse quantum operations list
+    fn parse_quantum_operations(&mut self) -> Result<Vec<QuantumOperation>, ParserError> {
+        let mut operations = vec![];
+
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            if let Some(op) = self.parse_quantum_operation()? {
+                operations.push(op);
+            }
+            
+            // Optional comma
+            if self.match_token(&[TokenKind::Comma]) {
+                // consume comma
+            }
+        }
+        
+        Ok(operations)
+    }
+    
+    // Parse individual quantum operation
+    fn parse_quantum_operation(&mut self) -> Result<Option<QuantumOperation>, ParserError> {
+        match &self.peek().kind {
+            TokenKind::QuantumGate => {
+                let gate_name = self.advance().lexeme.clone();
+                Ok(Some(self.parse_named_gate_operation(gate_name)?))
+            },
+
+            TokenKind::Measure => {
+                self.advance(); // measure
+                self.consume(TokenKind::OpenParen, "Expected '(' after measure")?;
+                let qubit = self.parse_expression()?;
+                self.consume(TokenKind::CloseParen, "Expected ')'")?;
+                
+                Ok(Some(QuantumOperation::Measurement { qubit }))
+            },
+
+            TokenKind::Identifier(name) => {
+                // Handle gate names that are identifiers (H, X, Y, Z, etc.)
+                let gate_name = name.clone();
+
+                if QuantumTokens::is_quantum_gate(&gate_name) {
+                    self.advance();
+                    Ok(Some(self.parse_named_gate_operation(gate_name)?))
+                } else {
+                    Err(self.err_here(&format!("Unknown quantum operation: {}", gate_name)))
+                }
+            },
+            
+            _ => {
+                Err(self.err_here(&format!("Expected quantum operation, found {:?}", self.peek().kind)))
+            }
+        }
+    }
+
+    fn parse_named_gate_operation(&mut self, gate_name: String) -> Result<QuantumOperation, ParserError> {
+        self.consume(TokenKind::OpenParen, "Expected '(' after gate")?;
+        let arguments = self.parse_argument_list()?;
+        self.consume(TokenKind::CloseParen, "Expected ')'")?;
+
+        let (parameters, qubits) = self.split_gate_arguments(&gate_name, arguments)?;
+
+        Ok(QuantumOperation::Gate {
+            name: gate_name,
+            qubits,
+            parameters,
+        })
+    }
+
+    // Parse argument list shared by gate parameters and qubits
+    fn parse_argument_list(&mut self) -> Result<Vec<Expression>, ParserError> {
+        let mut arguments = vec![];
+
+        if !self.check(&TokenKind::CloseParen) {
+            loop {
+                arguments.push(self.parse_expression()?);
+
+                if !self.match_token(&[TokenKind::Comma]) {
+                    break;
+                }
+                // consume comma
+            }
+        }
+
+        Ok(arguments)
+    }
+
+    fn parse_qubit_arguments(&mut self) -> Result<Vec<Expression>, ParserError> {
+        self.parse_argument_list()
+    }
+
+    fn split_gate_arguments(&mut self, gate_name: &str, mut args: Vec<Expression>) -> Result<(Vec<Expression>, Vec<Expression>), ParserError> {
+        if let Some(gate_info) = QuantumTokens::get_gate_info(gate_name) {
+            let required_qubits = gate_info.qubit_count;
+
+            if args.len() < required_qubits {
+                return Err(self.err_here(&format!("Gate {} requires {} qubit argument(s)", gate_name, required_qubits)));
+            }
+
+            if gate_info.parameterized {
+                if args.len() == required_qubits {
+                    return Err(self.err_here(&format!("Gate {} requires parameter arguments before qubits", gate_name)));
+                }
+
+                let qubit_start = args.len() - required_qubits;
+                let qubits = args.split_off(qubit_start);
+                let parameters = args;
+
+                Ok((parameters, qubits))
+            } else {
+                if args.len() != required_qubits {
+                    return Err(self.err_here(&format!("Gate {} expects {} qubit argument(s), found {}", gate_name, required_qubits, args.len())));
+                }
+
+                Ok((vec![], args))
+            }
+        } else {
+            Ok((vec![], args))
+        }
+    }
+
     fn parse_time_block(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::TimeBlock, "Expected time block marker")?;
         let duration = if !self.check(&TokenKind::QuantumImplies) {
@@ -1784,11 +1981,67 @@ impl Parser {
             path.push(self.consume_identifier("Expected module name component")?);
         }
 
-        // TODO: support import foo::bar::{item1, item2}
-        let items = None;
+        // Support selective imports: import foo::bar::{item1, item2}
+        let items = if self.match_token(&[TokenKind::DoubleColon]) {
+            self.consume(TokenKind::OpenBrace, "Expected '{' for selective import")?;
+            let mut import_items = Vec::new();
+
+            if !self.check(&TokenKind::CloseBrace) {
+                import_items.push(self.consume_identifier("Expected import item")?);
+                while self.match_token(&[TokenKind::Comma]) {
+                    import_items.push(self.consume_identifier("Expected import item")?);
+                }
+            }
+
+            self.consume(TokenKind::CloseBrace, "Expected '}' after import items")?;
+            Some(import_items)
+        } else {
+            None
+        };
 
         let _ = self.match_token(&[TokenKind::Semicolon]);
         Ok(ASTNode::Import { path, items })
+    }
+
+    fn parse_export_decl(&mut self) -> Result<ASTNode, ParserError> {
+        self.consume(TokenKind::Export, "Expected 'export'")?;
+
+        // Two forms:
+        // 1. export {item1, item2, ...}
+        // 2. export * from "module::path"
+
+        if self.match_token(&[TokenKind::Star]) {
+            // Re-export everything from another module
+            self.consume_identifier_or_keyword("from", "Expected 'from' after '*'")?;
+
+            let mut path = Vec::new();
+            path.push(self.consume_identifier("Expected module name")?);
+            while self.match_token(&[TokenKind::DoubleColon]) {
+                path.push(self.consume_identifier("Expected module name component")?);
+            }
+
+            let _ = self.match_token(&[TokenKind::Semicolon]);
+            Ok(ASTNode::Export {
+                items: vec!["*".to_string()],
+                path: Some(path),
+            })
+        } else {
+            // Export specific items
+            self.consume(TokenKind::OpenBrace, "Expected '{' after 'export'")?;
+            let mut items = Vec::new();
+
+            if !self.check(&TokenKind::CloseBrace) {
+                items.push(self.consume_identifier("Expected export item")?);
+                while self.match_token(&[TokenKind::Comma]) {
+                    items.push(self.consume_identifier("Expected export item")?);
+                }
+            }
+
+            self.consume(TokenKind::CloseBrace, "Expected '}' after export items")?;
+            let _ = self.match_token(&[TokenKind::Semicolon]);
+
+            Ok(ASTNode::Export { items, path: None })
+        }
     }
 
     fn parse_record_decl(&mut self) -> Result<ASTNode, ParserError> {
@@ -1796,8 +2049,11 @@ impl Parser {
         let line = tok.line;
         let column = tok.column;
 
-        let name = self.consume_identifier("Expected record name")?;
-        self.consume(TokenKind::OpenBrace, "Expected '{' after record name")?;
+        let name = self.consume_identifier("Expected struct/record name")?;
+        self.consume(
+            TokenKind::OpenBrace,
+            "Expected '{' after struct/record name",
+        )?;
 
         let mut fields = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
@@ -1820,18 +2076,31 @@ impl Parser {
                 self.consume_identifier("Expected field name")?
             };
 
-            let type_annotation = if self.match_token(&[TokenKind::Colon]) {
-                Some(self.parse_type_annotation()?)
+            // Support both type annotations (: Type) and default values (= expr)
+            let default_value = if self.match_token(&[TokenKind::Equals]) {
+                Some(self.parse_expression()?)
+            } else if self.match_token(&[TokenKind::Colon]) {
+                // Type annotation - for now, skip it (we don't use it in StructField)
+                let _type_str = self.parse_type_annotation()?;
+                None
             } else {
                 None
             };
 
-            fields.push((field_name, type_annotation));
+            fields.push(StructField {
+                name: field_name,
+                default: default_value,
+                line,
+                column,
+            });
             let _ = self.match_token(&[TokenKind::Comma]); // optional separators
         }
 
-        self.consume(TokenKind::CloseBrace, "Expected '}' after record fields")?;
-        Ok(ASTNode::RecordDecl {
+        self.consume(
+            TokenKind::CloseBrace,
+            "Expected '}' after struct/record fields",
+        )?;
+        Ok(ASTNode::StructDecl {
             name,
             fields,
             line,
@@ -2045,7 +2314,11 @@ impl Parser {
     /* ── Match ───────────────────────────────────────────────────────── */
 
     fn parse_match(&mut self) -> Result<ASTNode, ParserError> {
-        let match_tok = self.consume(TokenKind::Match, "Expected 'match'")?.clone();
+        let match_tok = self.advance().clone();
+        self.parse_match_expression(match_tok)
+    }
+
+    fn parse_match_expression(&mut self, match_tok: Token) -> Result<ASTNode, ParserError> {
         let value = self.parse_expression()?;
         self.consume(TokenKind::OpenBrace, "Expected '{' after match value")?;
         let mut arms = Vec::new();

@@ -1,0 +1,37 @@
+[package]
+name = "test_sandbox.aeon"
+version = "0.1.0"
+edition = "2024"
+description = "A new Aeonmi project"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+
+[[bin]]
+name = "main"
+path = "src/main.ai"
+
+[dependencies]
+# Add your dependencies here
+# quantum = "1.0"
+# ai = "0.5"
+
+[dev-dependencies]
+# Development dependencies for testing
+
+[features]
+default = []
+quantum = []
+ai = []
+
+[build]
+target = "bytecode"
+optimization = 2
+
+[quantum]
+# Quantum backend configuration
+default-backend = "simulator"
+shots = 1024
+
+[ai]
+# AI configuration
+default-provider = "local"

@@ -1,23 +1,42 @@
+use crate::sandbox::filesystem::SandboxedFileSystem;
 use anyhow::Result;
 use chrono::Local;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
+/// Create a sandboxed filesystem restricted to the current project directory
+fn create_project_sandbox() -> Result<SandboxedFileSystem> {
+    let current_dir = std::env::current_dir()?;
+    let mut sandbox = SandboxedFileSystem::with_root(&current_dir);
+    sandbox.set_allow_parent_access(false); // Prevent .. access
+    sandbox.set_allow_absolute_paths(false); // Prevent absolute path access
+    Ok(sandbox)
+}
+
 pub fn new_file(path: Option<PathBuf>) -> Result<()> {
     let target = path.unwrap_or_else(|| PathBuf::from("untitled.ai"));
-    if target.exists() {
+
+    // Create sandbox to validate the target path
+    let sandbox = create_project_sandbox()?;
+    let safe_target = sandbox
+        .validate_path(&target)
+        .map_err(|e| anyhow::anyhow!("File creation denied - {}", e))?;
+
+    if safe_target.exists() {
         println!(
             "new: '{}' already exists (leaving unchanged)",
-            target.display()
+            safe_target.display()
         );
         return Ok(());
     }
-    if let Some(parent) = target.parent() {
+
+    if let Some(parent) = safe_target.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent)?;
         }
     }
+
     let now = Local::now().format("%Y-%m-%d %H:%M:%S");
     let template = format!(
         r#"// Aeonmi source created {now}
@@ -28,9 +47,9 @@ for let i = 0; i < 5; i = i + 1 {{ total = total + square(i); }}
 log(greeting, total);
 "#
     );
-    let mut f = fs::File::create(&target)?;
+    let mut f = fs::File::create(&safe_target)?;
     f.write_all(template.as_bytes())?;
-    println!("new: created '{}'", target.display());
+    println!("new: created '{}' (sandboxed)", safe_target.display());
     Ok(())
 }
 
@@ -77,19 +96,23 @@ pub fn export(path: PathBuf, format: Option<String>) -> Result<()> {
 }
 
 pub fn upload(path: PathBuf) -> Result<()> {
-    use std::env;
-    use std::fs;
+    // Create sandbox restricted to project directory
+    let sandbox = create_project_sandbox()?;
 
-    let src = if path.is_absolute() {
-        path
-    } else {
-        env::current_dir()?.join(path)
-    };
-    if !src.exists() {
-        anyhow::bail!("upload failed: source '{}' does not exist", src.display());
+    // Validate the source path through sandbox
+    let src = sandbox
+        .validate_path(&path)
+        .map_err(|e| anyhow::anyhow!("Upload denied - {}", e))?;
+
+    // Ensure source exists and is within project
+    if !sandbox.exists(&src) {
+        anyhow::bail!(
+            "upload failed: source '{}' does not exist in project directory",
+            src.display()
+        );
     }
 
-    let repo_root = env::current_dir()?;
+    let repo_root = std::env::current_dir()?;
     let uploads_dir = repo_root.join("uploads");
     if !uploads_dir.exists() {
         fs::create_dir_all(&uploads_dir)?;
@@ -102,7 +125,11 @@ pub fn upload(path: PathBuf) -> Result<()> {
                 .unwrap_or_else(|| std::ffi::OsStr::new("uploaded_dir")),
         );
         fs_extra::dir::copy(&src, &to, &options)?;
-        println!("uploaded dir '{}' -> '{}'", src.display(), to.display());
+        println!(
+            "uploaded dir '{}' -> '{}' (sandboxed)",
+            src.display(),
+            to.display()
+        );
         return Ok(());
     }
 
@@ -112,27 +139,32 @@ pub fn upload(path: PathBuf) -> Result<()> {
         .unwrap_or_else(|| "uploaded.bin".into());
     let dst = uploads_dir.join(filename);
     fs::copy(&src, &dst)?;
-    println!("uploaded '{}' -> '{}'", src.display(), dst.display());
+    println!(
+        "uploaded '{}' -> '{}' (sandboxed)",
+        src.display(),
+        dst.display()
+    );
     Ok(())
 }
 
 pub fn download(path: PathBuf) -> Result<()> {
-    use std::env;
-    use std::fs;
+    // Create sandbox restricted to project directory
+    let sandbox = create_project_sandbox()?;
 
-    let repo_root = env::current_dir()?;
-    let src = if path.is_absolute() {
-        path
-    } else {
-        repo_root.join(&path)
-    };
-    if !src.exists() {
+    // Validate the source path through sandbox
+    let src = sandbox
+        .validate_path(&path)
+        .map_err(|e| anyhow::anyhow!("Download denied - {}", e))?;
+
+    // Ensure source exists within project
+    if !sandbox.exists(&src) {
         anyhow::bail!(
-            "download failed: source '{}' does not exist in workspace",
+            "download failed: source '{}' does not exist in project workspace",
             src.display()
         );
     }
 
+    let repo_root = std::env::current_dir()?;
     let downloads_dir = repo_root.join("downloads");
     if !downloads_dir.exists() {
         fs::create_dir_all(&downloads_dir)?;
@@ -145,7 +177,11 @@ pub fn download(path: PathBuf) -> Result<()> {
                 .unwrap_or_else(|| std::ffi::OsStr::new("downloaded_dir")),
         );
         fs_extra::dir::copy(&src, &to, &options)?;
-        println!("downloaded dir '{}' -> '{}'", src.display(), to.display());
+        println!(
+            "downloaded dir '{}' -> '{}' (sandboxed)",
+            src.display(),
+            to.display()
+        );
         return Ok(());
     }
 
@@ -155,6 +191,10 @@ pub fn download(path: PathBuf) -> Result<()> {
         .unwrap_or_else(|| "downloaded.bin".into());
     let dst = downloads_dir.join(filename);
     fs::copy(&src, &dst)?;
-    println!("downloaded '{}' -> '{}'", src.display(), dst.display());
+    println!(
+        "downloaded '{}' -> '{}' (sandboxed)",
+        src.display(),
+        dst.display()
+    );
     Ok(())
 }

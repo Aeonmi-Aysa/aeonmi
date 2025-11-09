@@ -47,12 +47,46 @@ impl Default for ValueType {
     }
 }
 
+impl ValueType {
+    fn as_str(&self) -> &'static str {
+        match self {
+            ValueType::Number => "number",
+            ValueType::String => "string",
+            ValueType::Bool => "bool",
+            ValueType::Object => "object",
+            ValueType::Array => "array",
+            ValueType::Function => "function",
+            ValueType::Qubit => "qubit",
+            ValueType::Unknown => "unknown",
+        }
+    }
+
+    fn from_annotation(annotation: &str) -> Option<ValueType> {
+        let normalized = annotation.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "bool" | "boolean" => Some(ValueType::Bool),
+            "number" | "float" | "int" | "integer" => Some(ValueType::Number),
+            "string" => Some(ValueType::String),
+            "qubit" => Some(ValueType::Qubit),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Default)]
 struct VarInfo {
     line: usize,
     column: usize,
     used: bool,
     ty: ValueType,
+}
+
+// Trait method signature for trait enforcement
+#[derive(Debug, Clone)]
+struct TraitMethodSignature {
+    name: String,
+    line: usize,
+    column: usize,
 }
 
 pub struct SemanticAnalyzer {
@@ -62,6 +96,9 @@ pub struct SemanticAnalyzer {
     used_functions: HashSet<String>,            // function call sites
     errors: Vec<String>,                        // legacy string list for existing callers
     diags: Vec<SemanticDiagnostic>,             // unified diagnostics (errors + warnings)
+    has_main_function: bool,                    // track if a main function is declared
+    loop_depth: usize,                          // track loop nesting depth for break/continue validation
+    traits: HashMap<String, Vec<TraitMethodSignature>>, // trait name -> required methods
 }
 
 impl SemanticAnalyzer {
@@ -73,6 +110,9 @@ impl SemanticAnalyzer {
             diags: vec![],
             functions: HashMap::new(),
             used_functions: HashSet::new(),
+            has_main_function: false,
+            loop_depth: 0,
+            traits: HashMap::new(),
         }
     }
 
@@ -96,6 +136,19 @@ impl SemanticAnalyzer {
     }
 
     fn post_pass(&mut self) {
+        // Check for main function requirement
+        if !self.has_main_function && !self.functions.is_empty() {
+            self.errors
+                .push("Program must have a main() entry point function".to_string());
+            self.diags.push(SemanticDiagnostic {
+                message: "Program must have a main() entry point function".to_string(),
+                line: 1,
+                column: 1,
+                len: 1,
+                severity: Severity::Error,
+            });
+        }
+
         // Placeholder for future multi-pass checks (e.g., unused function detection)
         // Currently detects functions never referenced (simple heuristic: name never marked used as identifier)
         // This is conservative and may false-positive for indirect calls.
@@ -115,6 +168,22 @@ impl SemanticAnalyzer {
     }
 
     // identifier_was_used removed (replaced by used_functions set)
+
+    fn predeclare_functions(&mut self, items: &[ASTNode]) {
+        for item in items {
+            if let ASTNode::Function {
+                name, line, column, ..
+            } = item
+            {
+                if !self.functions.contains_key(name) {
+                    self.functions.insert(name.clone(), (*line, *column));
+                    if name == "main" {
+                        self.has_main_function = true;
+                    }
+                }
+            }
+        }
+    }
 
     fn begin_scope(&mut self) {
         self.scopes.push(HashSet::new());
@@ -192,6 +261,7 @@ impl SemanticAnalyzer {
     fn visit(&mut self, node: &ASTNode, capture: bool) {
         match node {
             ASTNode::Program(items) => {
+                self.predeclare_functions(items);
                 for it in items {
                     self.visit(it, capture);
                 }
@@ -211,22 +281,23 @@ impl SemanticAnalyzer {
                 body,
                 return_type: _,
             } => {
-                // duplicate function detection
                 if let Some((prev_l, prev_c)) = self.functions.get(name) {
-                    let msg =
-                        format!("Duplicate function '{name}' (previous at {prev_l}:{prev_c})");
-                    self.errors.push(msg.clone());
-                    if capture {
-                        self.diags.push(SemanticDiagnostic {
-                            message: msg,
-                            line: *line,
-                            column: *column,
-                            len: name.len().max(1),
-                            severity: Severity::Error,
-                        });
+                    if *prev_l != *line || *prev_c != *column {
+                        let msg =
+                            format!("Duplicate function '{name}' (previous at {prev_l}:{prev_c})");
+                        self.push_error_at(
+                            msg,
+                            Some(*line),
+                            Some(*column),
+                            Some(name.len().max(1)),
+                            capture,
+                        );
                     }
                 } else {
                     self.functions.insert(name.clone(), (*line, *column));
+                    if name == "main" {
+                        self.has_main_function = true;
+                    }
                 }
                 self.begin_scope();
                 for FunctionParam {
@@ -332,12 +403,65 @@ impl SemanticAnalyzer {
                     }
                 }
             }
-            ASTNode::TraitDecl { methods, .. } => {
+            ASTNode::TraitDecl { name, methods, .. } => {
+                // Register trait and collect required method signatures
+                // Note: Don't visit the trait methods as regular functions since they're just signatures
+                let mut trait_methods = Vec::new();
                 for method in methods {
-                    self.visit(method, capture);
+                    if let ASTNode::Function { name: method_name, line: method_line, column: method_column, .. } = method {
+                        trait_methods.push(TraitMethodSignature {
+                            name: method_name.clone(),
+                            line: *method_line,
+                            column: *method_column,
+                        });
+                        // Don't visit trait methods - they're just interface definitions
+                    }
                 }
+                self.traits.insert(name.clone(), trait_methods);
             }
-            ASTNode::ImplBlock { methods, .. } => {
+            ASTNode::ImplBlock { trait_name, type_name, methods, .. } => {
+                // If implementing a trait, verify all required methods are present
+                if let Some(trait_name) = trait_name {
+                    // Clone required methods to avoid borrow checker issues
+                    let required_methods = self.traits.get(trait_name).cloned();
+                    
+                    if let Some(required_methods) = required_methods {
+                        // Collect implemented method names
+                        let mut impl_methods: HashSet<String> = HashSet::new();
+                        for method in methods {
+                            if let ASTNode::Function { name, .. } = method {
+                                impl_methods.insert(name.clone());
+                            }
+                        }
+                        
+                        // Check that all required methods are implemented
+                        for required in &required_methods {
+                            if !impl_methods.contains(&required.name) {
+                                self.push_error_at(
+                                    format!(
+                                        "Type '{}' does not implement required method '{}' for trait '{}'",
+                                        type_name, required.name, trait_name
+                                    ),
+                                    None,
+                                    None,
+                                    None,
+                                    capture,
+                                );
+                            }
+                        }
+                    } else {
+                        // Trait not found - this is an error
+                        self.push_error_at(
+                            format!("Trait '{}' not found for type '{}'", trait_name, type_name),
+                            None,
+                            None,
+                            None,
+                            capture,
+                        );
+                    }
+                }
+                
+                // Visit all methods in the impl block
                 for method in methods {
                     self.visit(method, capture);
                 }
@@ -376,12 +500,45 @@ impl SemanticAnalyzer {
                 value,
                 line,
                 column,
-                type_annotation: _,
+                type_annotation,
             } => {
                 self.visit(value, capture);
                 self.declare(name, Some(*line), Some(*column));
-                let ty = self.expr_type(value);
-                self.set_var_type(name, ty);
+                let expr_ty = self.expr_type(value);
+                if let Some(annotation) = type_annotation {
+                    if let Some(annotation_ty) = ValueType::from_annotation(annotation) {
+                        if expr_ty != ValueType::Unknown && expr_ty != annotation_ty {
+                            let msg = format!(
+                                "Variable '{name}' annotated as {} but assigned {}",
+                                annotation_ty.as_str(),
+                                expr_ty.as_str()
+                            );
+                            self.push_error_at(
+                                msg,
+                                Some(*line),
+                                Some(*column),
+                                Some(name.len().max(1)),
+                                capture,
+                            );
+                        }
+                        self.set_var_type(name, annotation_ty);
+                    } else {
+                        self.set_var_type(name, expr_ty);
+                    }
+                } else {
+                    self.set_var_type(name, expr_ty);
+                }
+            }
+            ASTNode::QuantumVariableDecl {
+                name,
+                value,
+                line,
+                column,
+                ..
+            } => {
+                self.visit(value, capture);
+                self.declare(name, Some(*line), Some(*column));
+                self.set_var_type(name, ValueType::Qubit);
             }
             ASTNode::Assignment {
                 name,
@@ -391,28 +548,48 @@ impl SemanticAnalyzer {
             } => {
                 if !self.is_declared(name) {
                     let msg = format!("Assignment to undeclared variable '{}'", name);
-                    self.errors.push(msg.clone());
-                    if capture {
-                        self.diags.push(SemanticDiagnostic {
-                            message: msg,
-                            line: *line,
-                            column: *column,
-                            len: name.len().max(1),
-                            severity: Severity::Error,
-                        });
-                    }
+                    self.push_error_at(
+                        msg,
+                        Some(*line),
+                        Some(*column),
+                        Some(name.len().max(1)),
+                        capture,
+                    );
                 }
                 // write counts as a use
                 self.visit(value, capture);
                 self.mark_used(name);
             }
-            ASTNode::Return(expr)
-            | ASTNode::Log(expr)
-            | ASTNode::While {
-                condition: expr,
-                body: _,
-            } => {
+            ASTNode::Return(expr) | ASTNode::Log(expr) => {
                 self.visit(expr, capture);
+            }
+            ASTNode::While { condition, body } => {
+                self.visit(condition, capture);
+                self.loop_depth += 1;
+                self.visit(body, capture);
+                self.loop_depth -= 1;
+            }
+            ASTNode::Break => {
+                if self.loop_depth == 0 {
+                    self.push_error_at(
+                        "'break' used outside of loop".to_string(),
+                        None,
+                        None,
+                        None,
+                        capture,
+                    );
+                }
+            }
+            ASTNode::Continue => {
+                if self.loop_depth == 0 {
+                    self.push_error_at(
+                        "'continue' used outside of loop".to_string(),
+                        None,
+                        None,
+                        None,
+                        capture,
+                    );
+                }
             }
             ASTNode::If {
                 condition,
@@ -441,7 +618,9 @@ impl SemanticAnalyzer {
                 if let Some(inc) = increment {
                     self.visit(inc, capture);
                 }
+                self.loop_depth += 1;
                 self.visit(body, capture);
+                self.loop_depth -= 1;
                 self.end_scope();
             }
             ASTNode::ForIn {
@@ -452,7 +631,9 @@ impl SemanticAnalyzer {
                 self.visit(iterable, capture);
                 self.begin_scope();
                 self.declare(&binding.name, Some(binding.line), Some(binding.column));
+                self.loop_depth += 1;
                 self.visit(body, capture);
+                self.loop_depth -= 1;
                 self.end_scope();
             }
             ASTNode::MatchExpr { value, arms, .. } => {
@@ -463,6 +644,30 @@ impl SemanticAnalyzer {
                     }
                     self.visit(&arm.body, capture);
                 }
+            }
+            ASTNode::ProbabilityBranch {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.visit(condition, capture);
+                let cond_ty = self.expr_type(condition);
+                self.ensure_boolean_condition("Probability branch", cond_ty, condition, capture);
+                self.visit(then_branch, capture);
+                if let Some(else_node) = else_branch {
+                    self.visit(else_node, capture);
+                }
+            }
+            ASTNode::QuantumLoop {
+                condition, body, ..
+            } => {
+                self.visit(condition, capture);
+                let cond_ty = self.expr_type(condition);
+                self.ensure_boolean_condition("Quantum loop", cond_ty, condition, capture);
+                self.loop_depth += 1;
+                self.visit(body, capture);
+                self.loop_depth -= 1;
             }
             ASTNode::BinaryExpr { op, left, right } => {
                 self.visit(left, capture);
@@ -507,9 +712,25 @@ impl SemanticAnalyzer {
 
             // literals / identifiers / quantum/glyph / error
             ASTNode::Identifier(name) => {
+                if !self.is_declared(name) && !self.functions.contains_key(name) {
+                    let msg = format!("Use of undeclared identifier '{name}'");
+                    self.push_error_at(msg, None, None, Some(name.len().max(1)), capture);
+                }
                 self.mark_used(name);
             }
-            ASTNode::IdentifierSpanned { name, .. } => {
+            ASTNode::IdentifierSpanned {
+                name, line, column, ..
+            } => {
+                if !self.is_declared(name) && !self.functions.contains_key(name) {
+                    let msg = format!("Use of undeclared identifier '{name}'");
+                    self.push_error_at(
+                        msg,
+                        Some(*line),
+                        Some(*column),
+                        Some(name.len().max(1)),
+                        capture,
+                    );
+                }
                 self.mark_used(name);
             }
             ASTNode::NumberLiteral(_)
@@ -518,6 +739,9 @@ impl SemanticAnalyzer {
             | ASTNode::HieroglyphicOp { .. }
             | ASTNode::Error(_) => {}
             ASTNode::QuantumOp { op, qubits } => {
+                for qubit in qubits {
+                    self.visit(qubit, capture);
+                }
                 // Arity validation
                 let qlen = qubits.len();
                 let (min, kind_name) = match op {
@@ -531,15 +755,16 @@ impl SemanticAnalyzer {
                     let msg = format!(
                         "Quantum op '{kind_name}' expects >= {min} qubit(s) but got {qlen}"
                     );
-                    self.errors.push(msg.clone());
-                    if capture {
-                        self.diags.push(SemanticDiagnostic {
-                            message: msg,
-                            line: 0,
-                            column: 0,
-                            len: 1,
-                            severity: Severity::Error,
-                        });
+                    self.push_error_at(msg, None, None, None, capture);
+                }
+                for qubit in qubits {
+                    let ty = self.expr_type(qubit);
+                    if ty != ValueType::Qubit {
+                        let (line, column, len) = Self::node_span(qubit);
+                        let msg = format!(
+                            "Quantum operation '{kind_name}' requires qubit arguments. Declare with ⟨q⟩ ← |0⟩."
+                        );
+                        self.push_error_at(msg, line, column, len, capture);
                     }
                 }
             }
@@ -775,6 +1000,67 @@ impl SemanticAnalyzer {
                 len: 1,
                 severity: Severity::Error,
             });
+        }
+    }
+
+    fn push_error_at(
+        &mut self,
+        msg: String,
+        line: Option<usize>,
+        column: Option<usize>,
+        len: Option<usize>,
+        capture: bool,
+    ) {
+        self.errors.push(msg.clone());
+        if capture {
+            self.diags.push(SemanticDiagnostic {
+                message: msg,
+                line: line.unwrap_or(0),
+                column: column.unwrap_or(0),
+                len: len.unwrap_or(1),
+                severity: Severity::Error,
+            });
+        }
+    }
+
+    fn ensure_boolean_condition(
+        &mut self,
+        context: &str,
+        ty: ValueType,
+        condition: &ASTNode,
+        capture: bool,
+    ) {
+        if ty == ValueType::Qubit {
+            let msg = format!(
+                "{context} condition must be a classical boolean. If you have a qubit, call measure(q) first."
+            );
+            let (line, column, len) = Self::node_span(condition);
+            self.push_error_at(msg, line, column, len, capture);
+        } else if ty != ValueType::Bool && ty != ValueType::Unknown {
+            let msg = format!(
+                "{context} condition must be a boolean expression (found {}).",
+                ty.as_str()
+            );
+            let (line, column, len) = Self::node_span(condition);
+            self.push_error_at(msg, line, column, len, capture);
+        }
+    }
+
+    fn node_span(node: &ASTNode) -> (Option<usize>, Option<usize>, Option<usize>) {
+        match node {
+            ASTNode::IdentifierSpanned {
+                name, line, column, ..
+            } => (Some(*line), Some(*column), Some(name.len().max(1))),
+            ASTNode::VariableDecl {
+                name, line, column, ..
+            } => (Some(*line), Some(*column), Some(name.len().max(1))),
+            ASTNode::Assignment {
+                name, line, column, ..
+            } => (Some(*line), Some(*column), Some(name.len().max(1))),
+            ASTNode::QuantumVariableDecl {
+                name, line, column, ..
+            } => (Some(*line), Some(*column), Some(name.len().max(1))),
+            _ => (None, None, None),
         }
     }
 
