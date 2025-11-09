@@ -4,7 +4,6 @@ mod cli_enhanced; // Enhanced CLI with modern subcommands
 mod cli_integration; // CLI integration layer
 mod cli_vault;
 mod commands;
-mod compiler;
 mod config; // resolve_config_path, etc.
 /// Aeonmi/QUBE main — unified quantum ecosystem with Mother AI consciousness
 mod core;
@@ -23,13 +22,10 @@ use anyhow::bail;
 use clap::Parser; // trait import enables AeonmiCli::parse()
 use std::path::PathBuf;
 
-// Additional imports for unified system
-#[cfg(any(feature = "mother-ai", feature = "titan-libraries"))]
-use tokio;
+use crate::cli::{AeonmiCli, Command, EmitKind};
 
 #[cfg(feature = "quantum")]
 use crate::cli::BackendKind;
-use crate::cli::{AeonmiCli, Command, EmitKind};
 
 use crate::config::resolve_config_path;
 
@@ -151,40 +147,8 @@ fn main() -> anyhow::Result<()> {
         && !args.ast_legacy;
 
     if args.cmd.is_none() && no_legacy {
-        // Check if we have Mother AI or Titan Libraries features enabled
-        #[cfg(any(feature = "mother-ai", feature = "titan-libraries"))]
-        {
-            // Initialize unified AEONMI ecosystem with available components
-            println!("Starting AEONMI unified runtime...");
-
-            let rt = tokio::runtime::Runtime::new()?;
-
-            return rt.block_on(async {
-                use crate::integration::{
-                    initialize_aeonmi_with_config, ExecutionMode, SystemConfig,
-                };
-
-                let config = SystemConfig {
-                    enable_mother_ai: cfg!(feature = "mother-ai"),
-                    enable_titan_libraries: cfg!(feature = "titan-libraries"),
-                    enable_quantum_vault: cfg!(feature = "quantum-vault"),
-                    config_path: cfg_path.clone(),
-                    pretty_errors: args.pretty_errors,
-                    skip_sema: args.no_sema,
-                };
-
-                let mut system = initialize_aeonmi_with_config(config).await?;
-                system.mode = ExecutionMode::Unified;
-                system.run().await
-            });
-        }
-
-        // Fall back to traditional shell if no advanced features are available
-        #[cfg(not(any(feature = "mother-ai", feature = "titan-libraries")))]
-        {
-            // Start the neon shard shell as default interactive mode
-            return shell::start(cfg_path, args.pretty_errors, args.no_sema);
-        }
+        // Start the neon shard shell as default interactive mode
+        return shell::start(cfg_path, args.pretty_errors, args.no_sema);
     }
 
     // Backward compatibility: `aeonmi <file>` or `-i <file>` behaves like compile.
