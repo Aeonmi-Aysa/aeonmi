@@ -1,0 +1,70 @@
+// Book data
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["The Great Gatsby", "To Kill a Mockingbird", "1984", "Pride and Prejudice", "The Catcher in the Rye"];
+let book_authors = ["F. Scott Fitzgerald", "Harper Lee", "George Orwell", "Jane Austen", "J.D. Salinger"];
+let book_prices = [12.99, 14.99, 13.99, 11.99, 10.99];
+let book_stocks = [10, 8, 15, 6, 12];
+let book_genres = ["Classic", "Drama", "Dystopian", "Romance", "Coming-of-age"];
+
+// Cart data
+let cart_ids = [];
+let cart_titles = [];
+let cart_prices = [];
+
+function display_welcome() {
+    log("=====================================");
+    log("      Welcome to AEONMI BOOKSTORE");
+    log("=====================================");
+}
+
+function display_books() {
+    log("=== AVAILABLE BOOKS ===");
+    let i = 0;
+    while (i < book_ids.length) {
+        log("ID: " + book_ids[i]);
+        log("Title: " + book_titles[i]);
+        log("Author: " + book_authors[i]);
+        log("Price: $" + book_prices[i]);
+        log("Stock: " + book_stocks[i]);
+        log("Genre: " + book_genres[i]);
+        log("-------------------");
+        i = i + 1;
+    }
+}
+
+function find_book_index(book_id) {
+    let i = 0;
+    while (i < book_ids.length) {
+        if (book_ids[i] == book_id) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function calculate_total() {
+    let total = 0;
+    let i = 0;
+    while (i < cart_prices.length) {
+        total = total + cart_prices[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+function display_cart() {
+    log("=== SHOPPING CART ===");
+    if (cart_ids.length == 0) {
+        log("Your cart is empty.");
+    } else {
+        let i = 0;
+        while (i < cart_ids.length) {
+            log("Title: " + cart_titles[i]);
+            log("Price: $" + cart_prices[i]);
+            log("---");
+            i = i + 1;
+        }
+        log("Total: $" + calculate_total());
+    }
+}

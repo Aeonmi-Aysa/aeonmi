@@ -292,6 +292,7 @@ impl<'a> VM<'a> {
         if !values.is_empty() {
             let rendered: Vec<String> = values.iter().map(value_to_string).collect();
             println!("{}", rendered.join(" "));
+            std::io::Write::flush(&mut std::io::stdout()).unwrap();
         }
         self.stack.push(Value::Null);
     }

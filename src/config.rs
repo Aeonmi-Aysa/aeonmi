@@ -4,17 +4,11 @@ use std::path::{Path, PathBuf};
 /// Configuration structure for Aeonmi
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub quantum_backend: String,
-    pub debug_mode: bool,
-    pub output_dir: PathBuf,
 }
 
 impl Config {
     pub fn new() -> Self {
         Self {
-            quantum_backend: "simulator".to_string(),
-            debug_mode: false,
-            output_dir: PathBuf::from("target"),
         }
     }
 }

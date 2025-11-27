@@ -1,18 +1,18 @@
 // Test quantum state literals in AEONMI
-𓀀 psi0 |0⟩
-𓀁 psi1 |1⟩
-𓀂 psi_plus |+⟩
-𓀃 psi_minus |-⟩
+𓀀 psi0 = |0⟩;
+𓀁 psi1 = |1⟩;
+𓀂 psi_plus = |+⟩;
+𓀃 psi_minus = |-⟩;
 
 // Test complex quantum states
-𓀀 psi_complex |ψ⟩
-𓀁 psi_numbered |42⟩
+𓀀 psi_complex = |ψ⟩;
+𓀁 psi_numbered = |42⟩;
 
-log(psi0)
-log(psi1)
-log(psi_plus)
-log(psi_minus)
-log(psi_complex)
-log(psi_numbered)
+log(psi0);
+log(psi1);
+log(psi_plus);
+log(psi_minus);
+log(psi_complex);
+log(psi_numbered);
 
-log("Quantum state literals test complete")
+log("Quantum state literals test complete");

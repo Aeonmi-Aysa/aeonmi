@@ -137,12 +137,14 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             visit(value, sm, stack, current);
         }
         Assignment {
-            name,
+            target,
             line,
             column,
             value,
         } => {
-            record(sm, name, *line, *column, *stack.last().unwrap(), false);
+            if let ASTNode::Identifier(name) = &**target {
+                record(sm, name, *line, *column, *stack.last().unwrap(), false);
+            }
             visit(value, sm, stack, current);
         }
         If {

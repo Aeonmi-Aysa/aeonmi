@@ -1,0 +1,19 @@
+// AEONMI Bookstore Test
+// Simplified version
+
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["Quantum Computing Fundamentals", "The Art of Programming", "Mystery of the Lost Temple", "Cooking for Beginners", "World History: Ancient Civilizations"];
+let book_authors = ["Dr. Alice Chen", "Bob Smith", "Sarah Johnson", "Chef Mario", "Prof. David Lee"];
+let book_prices = [49.99, 39.99, 24.99, 29.99, 54.99];
+let book_stocks = [15, 8, 22, 12, 6];
+let book_genres = ["Technology", "Technology", "Fiction", "Lifestyle", "Education"];
+
+fn display_books() {
+    let i = 0;
+    while (i < book_ids.len()) {
+        print(book_titles[i]);
+        i = i + 1;
+    }
+}
+
+display_books();

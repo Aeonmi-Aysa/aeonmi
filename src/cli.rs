@@ -12,6 +12,14 @@ pub enum EmitKind {
     #[clap(alias = "vm")]
     #[default]
     Bytecode,
+    #[clap(alias = "ir")]
+    Ir,
+    #[clap(alias = "native")]
+    Native,
+    #[clap(alias = "qasm")]
+    Qasm,
+    #[clap(alias = "wasm")]
+    WebAssembly,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]

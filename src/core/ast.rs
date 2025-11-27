@@ -120,7 +120,7 @@ pub enum ASTNode {
     },
     // Expressions
     Assignment {
-        name: String,
+        target: Box<ASTNode>,
         value: Box<ASTNode>,
         line: usize,
         column: usize,
@@ -706,17 +706,17 @@ impl ASTNode {
         }
     }
     #[allow(dead_code)]
-    pub fn new_assignment(name: &str, value: ASTNode) -> Self {
+    pub fn new_assignment(target: ASTNode, value: ASTNode) -> Self {
         Self::Assignment {
-            name: name.to_string(),
+            target: Box::new(target),
             value: Box::new(value),
             line: 0,
             column: 0,
         }
     }
-    pub fn new_assignment_at(name: &str, value: ASTNode, line: usize, column: usize) -> Self {
+    pub fn new_assignment_at(target: ASTNode, value: ASTNode, line: usize, column: usize) -> Self {
         Self::Assignment {
-            name: name.to_string(),
+            target: Box::new(target),
             value: Box::new(value),
             line,
             column,
@@ -843,11 +843,11 @@ mod tests {
             ASTNode::Identifier("f".into()),
             vec![ASTNode::NumberLiteral(1.0)],
         );
-        let asn = ASTNode::new_assignment("x", call);
-        let ASTNode::Assignment { name, value, .. } = asn else {
+        let asn = ASTNode::new_assignment(ASTNode::Identifier("x".into()), call);
+        let ASTNode::Assignment { target, value, .. } = asn else {
             panic!("Expected Assignment")
         };
-        assert_eq!(name, "x");
+        assert_eq!(*target, ASTNode::Identifier("x".into()));
         let ASTNode::Call { callee, args } = *value else {
             panic!("Expected Call")
         };

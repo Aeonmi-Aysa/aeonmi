@@ -134,6 +134,7 @@ pub struct CompilerError {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum ErrorKind {
     // Lexical errors
     UnexpectedCharacter,
@@ -222,6 +223,7 @@ pub type CompilerResult<T> = Result<T, Box<CompilerError>>;
 
 /// Multiple errors that can occur during compilation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CompilerErrors {
     pub errors: Vec<CompilerError>,
 }

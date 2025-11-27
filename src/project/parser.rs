@@ -147,33 +147,8 @@ impl Program {
         names
     }
 
-    pub fn get_function(&self, name: &str) -> Option<&Function> {
-        self.functions.get(name)
-    }
-
     pub fn functions(&self) -> impl Iterator<Item = &Function> {
         self.functions.values()
-    }
-
-    pub fn execute_main(&self) -> Result<()> {
-        self.execute_function("main")
-    }
-    
-    pub fn execute_main_with_timeout_and_log(
-        &self,
-        cancel_flag: Arc<AtomicBool>,
-        log_path: Option<PathBuf>,
-    ) -> Result<()> {
-        self.execute_function_with_timeout_and_log("main", cancel_flag, log_path)
-    }
-
-    pub fn execute_function(&self, name: &str) -> Result<()> {
-        let function = self
-            .functions
-            .get(name)
-            .ok_or_else(|| anyhow!("unknown function '{}'", name))?;
-        let mut vm = Vm::new(self);
-        vm.run_statements(&function.statements, &function.source)
     }
     
     pub fn execute_function_with_timeout_and_log(
@@ -415,7 +390,6 @@ struct Frame {
 enum Value {
     Int(i64),
     Str(String),
-    Unit,
     Qubit(QubitState), // Quantum state for a single qubit
 }
 
@@ -478,7 +452,6 @@ impl<'a> Vm<'a> {
                 let output = match value {
                     Value::Int(n) => format!("{}", n),
                     Value::Str(s) => s,
-                    Value::Unit => "()".to_string(),
                     Value::Qubit(q) => {
                         if q.measured {
                             format!("Qubit(measured={})", q.measured_value.unwrap())
@@ -712,7 +685,6 @@ impl PartialEq for Value {
         match (self, other) {
             (Value::Int(a), Value::Int(b)) => a == b,
             (Value::Str(a), Value::Str(b)) => a == b,
-            (Value::Unit, Value::Unit) => true,
             (Value::Qubit(a), Value::Qubit(b)) => {
                 // Compare measured values if both measured
                 if a.measured && b.measured {

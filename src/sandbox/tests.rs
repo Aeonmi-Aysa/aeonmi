@@ -69,11 +69,7 @@ fn test_workspace_creation() -> anyhow::Result<()> {
         // Test process limits
         let limits = ExecutionLimits {
             timeout: Duration::from_secs(5),
-            memory_limit_mb: 64,
             max_processes: 2,
-            allow_network: false,
-            allow_file_write: true,
-            allowed_commands: vec!["echo".to_string()],
             ..ExecutionLimits::default()
         };
 
@@ -141,20 +137,12 @@ quantum main() {
     fn test_execution_limits() {
         let limits = ExecutionLimits {
             timeout: Duration::from_secs(30),
-            memory_limit_mb: 128,
             max_processes: 4,
-            allow_network: false,
-            allow_file_write: true,
-            allowed_commands: vec!["python".to_string(), "aeon".to_string()],
             ..ExecutionLimits::default()
         };
 
         assert_eq!(limits.timeout, Duration::from_secs(30));
-        assert_eq!(limits.memory_limit_mb, 128);
         assert_eq!(limits.max_processes, 4);
-        assert!(!limits.allow_network);
-        assert!(limits.allow_file_write);
-        assert!(limits.allowed_commands.contains(&"python".to_string()));
 
         println!("✅ Execution limits test passed");
     }

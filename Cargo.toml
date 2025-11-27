@@ -59,7 +59,7 @@ too_many_arguments = "allow"
 [features]
 default = ["minimal", "bytecode"]
 full-suite = ["quantum", "mother-ai", "titan-libraries", "holographic", "voice"]
-quantum = ["nalgebra", "num-complex"]
+quantum = ["nalgebra"]
 mother-ai = []
 titan-libraries = ["quantum"]
 holographic = ["three-d", "wgpu", "winit"]
@@ -89,6 +89,8 @@ thiserror = "1.0"
 dirs-next = "2"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+num_cpus = "1.16"
+seahash = "4.1"
 
 ctrlc = "3.4"
 notify = "6.1"
@@ -114,7 +116,7 @@ rand = "0.8"
 rand_distr = "0.4"
 
 nalgebra = { version = "0.33", optional = true }
-num-complex = { version = "0.4", optional = true }
+num-complex = "0.4"
 
 pyo3 = { version = "0.21", optional = true, features = ["auto-initialize"] }
 numpy = { version = "0.21", optional = true }

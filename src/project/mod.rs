@@ -5,7 +5,6 @@ use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::config::resolve_config_path;
 use crate::core::lexer::Lexer;
 use crate::core::parser::Parser as QubeParser;
 use walkdir::WalkDir;
@@ -14,9 +13,11 @@ mod parser;
 pub mod qasm_export;
 pub mod python_export;
 pub mod diagnostics;
+pub mod build_cache;
 
 pub use parser::{Program, TestReport};
-pub use diagnostics::{Diagnostic, DiagnosticLevel, DiagnosticLogger};
+pub use diagnostics::DiagnosticLogger;
+pub use build_cache::{BuildCache, DependencyAnalyzer, ParallelCompiler, CacheEntry};
 
 /// Supported build profiles for Aeonmi projects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,26 +40,93 @@ struct Manifest {
     package: PackageSection,
     #[serde(default)]
     aeonmi: AeonmiSection,
+    #[serde(default)]
+    dependencies: std::collections::HashMap<String, Dependency>,
+    #[serde(default)]
+    build: BuildSection,
 }
 
 #[derive(Debug, Deserialize)]
 struct PackageSection {
     name: String,
     version: String,
+    #[serde(default)]
+    authors: Vec<String>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    license: Option<String>,
+    #[serde(default)]
+    repository: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
-struct AeonmiSection {
+pub struct AeonmiSection {
     #[serde(default = "default_entry_path")]
-    entry: PathBuf,
+    pub entry: PathBuf,
     #[serde(default)]
-    modules: Vec<PathBuf>,
+    pub modules: Vec<PathBuf>,
     #[serde(default)]
-    tests: Vec<TestEntry>,
+    pub tests: Vec<TestEntry>,
+    #[serde(default)]
+    pub include: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Dependency {
+    version: String,
+    #[serde(default)]
+    path: Option<PathBuf>,
+    #[serde(default)]
+    git: Option<String>,
+    #[serde(default)]
+    features: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct BuildSection {
+    #[serde(default)]
+    target: Option<String>,
+    #[serde(default)]
+    optimization_level: Option<u8>,
+    #[serde(default)]
+    debug_info: Option<bool>,
+    #[serde(default)]
+    incremental: IncrementalConfig,
+    #[serde(default)]
+    parallel: ParallelConfig,
+    #[serde(default)]
+    output_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct IncrementalConfig {
+    #[serde(default = "default_true")]
+    enabled: bool,
+    #[serde(default)]
+    cache_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct ParallelConfig {
+    #[serde(default = "default_true")]
+    enabled: bool,
+    #[serde(default = "default_num_cpus")]
+    max_jobs: usize,
 }
 
 fn default_entry_path() -> PathBuf {
     PathBuf::from("src/main.ai")
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_num_cpus() -> usize {
+    num_cpus::get()
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +184,74 @@ impl Project {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    pub fn authors(&self) -> &[String] {
+        &self.manifest.package.authors
+    }
+
+    pub fn description(&self) -> Option<&str> {
+        self.manifest.package.description.as_deref()
+    }
+
+    pub fn license(&self) -> Option<&str> {
+        self.manifest.package.license.as_deref()
+    }
+
+    pub fn repository(&self) -> Option<&str> {
+        self.manifest.package.repository.as_deref()
+    }
+
+    pub fn dependencies(&self) -> &std::collections::HashMap<String, Dependency> {
+        &self.manifest.dependencies
+    }
+
+    pub fn build_target(&self) -> Option<&str> {
+        self.manifest.build.target.as_deref()
+    }
+
+    pub fn optimization_level(&self) -> Option<u8> {
+        self.manifest.build.optimization_level
+    }
+
+    pub fn debug_info(&self) -> Option<bool> {
+        self.manifest.build.debug_info
+    }
+
+    pub fn incremental_enabled(&self) -> bool {
+        self.manifest.build.incremental.enabled
+    }
+
+    pub fn incremental_cache_dir(&self) -> Option<&Path> {
+        self.manifest.build.incremental.cache_dir.as_deref()
+    }
+
+    pub fn parallel_enabled(&self) -> bool {
+        self.manifest.build.parallel.enabled
+    }
+
+    pub fn max_parallel_jobs(&self) -> usize {
+        self.manifest.build.parallel.max_jobs
+    }
+
+    pub fn output_dir(&self) -> Option<&Path> {
+        self.manifest.build.output_dir.as_deref()
+    }
+
+    pub fn include_patterns(&self) -> &[String] {
+        &self.manifest.aeonmi.include
+    }
+
+    pub fn exclude_patterns(&self) -> &[String] {
+        &self.manifest.aeonmi.exclude
+    }
+
+    pub fn manifest(&self) -> &Manifest {
+        &self.manifest
+    }
+
+    pub fn aeonmi_config(&self) -> &AeonmiSection {
+        &self.manifest.aeonmi
     }
 
     fn entry_path(&self) -> PathBuf {
@@ -196,20 +332,10 @@ impl Project {
                 bail!("Full QUBE execution not yet implemented. Use 'aeonmi run {}' for direct execution.", entry_path.display())
             }
             "ai" => {
-                // Use simple .ai parser
-                let mut fragments = Vec::new();
-                fragments.push(parser::parse_fragment(&entry_path, &entry_src)?);
-
-                for module in self.module_paths() {
-                    let src = fs::read_to_string(&module)
-                        .with_context(|| format!("read module {}", module.display()))?;
-                    fragments.push(parser::parse_fragment(&module, &src)?);
-                }
-
+                // Use regular AEONMI parser for .ai files
+                let fragment = parser::parse_fragment(&entry_path, &entry_src)?;
                 let mut builder = parser::ProgramBuilder::new();
-                for fragment in fragments {
-                    builder.add_fragment(fragment)?;
-                }
+                builder.add_fragment(fragment)?;
                 Ok(builder.build())
             }
             _ => {
@@ -268,24 +394,19 @@ impl Project {
         program.require_main()
     }
 
-    pub fn run(&self, release: bool) -> Result<()> {
-        let profile = if release {
-            BuildProfile::Release
-        } else {
-            BuildProfile::Debug
-        };
-        self.build(profile)?;
+    pub fn run(&self, _release: bool) -> Result<()> {
         let program = self.load_program()?;
-        program.execute_main()
+        program.require_main()?;
+
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        program.execute_function_with_timeout_and_log("main", cancel_flag, None)
     }
 
-    pub fn run_tests(&self, release: bool, filter: Option<&str>) -> Result<Vec<TestReport>> {
-        let profile = if release {
-            BuildProfile::Release
-        } else {
-            BuildProfile::Debug
-        };
-        self.build(profile)?;
+    pub fn run_tests(&self, _release: bool, filter: Option<&str>) -> Result<Vec<TestReport>> {
+        // For testing, we don't need to build the main program
+        // Just load an empty program for the main tests (which should be empty anyway)
         let mut program = self.load_program()?;
 
         let mut reports = program.run_tests(filter)?;
@@ -306,14 +427,6 @@ impl Project {
 
         Ok(reports)
     }
-}
-
-pub fn load_project_from_cli(manifest: Option<PathBuf>) -> Result<Project> {
-    Project::load(manifest)
-}
-
-pub fn resolve_project_manifest(cli_override: &Option<PathBuf>) -> Option<PathBuf> {
-    resolve_config_path(cli_override)
 }
 
 #[cfg(test)]
@@ -349,7 +462,11 @@ fn main:
         project.check()?;
         let artifact = project.build(BuildProfile::Debug)?;
         assert!(artifact.exists());
-        project.run(false)?;
+        let program = project.load_program()?;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        program.execute_function_with_timeout_and_log("main", cancel_flag, None)?;
         Ok(())
     }
 

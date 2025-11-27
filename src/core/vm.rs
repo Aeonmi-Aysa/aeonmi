@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::io::Write;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -1284,7 +1285,9 @@ fn eq_val(a: &Value, b: &Value) -> bool {
 
 fn builtin_print(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     let parts: Vec<String> = args.iter().map(display).collect();
-    println!("{}", parts.join(" "));
+    let output = format!("{}\n", parts.join(" "));
+    std::io::stdout().write_all(output.as_bytes()).unwrap();
+    std::io::Write::flush(&mut std::io::stdout()).unwrap();
     Ok(Value::Null)
 }
 

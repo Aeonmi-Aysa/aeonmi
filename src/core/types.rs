@@ -171,21 +171,23 @@ impl TypeContext {
                 TypeKind::Void
             }
             ASTNode::Assignment {
-                name,
+                target,
                 value,
                 line,
                 column,
             } => {
-                let lhs = self.lookup(name);
-                let rhs = self.visit(value);
-                if lhs != TypeKind::Unknown && lhs != rhs && rhs != TypeKind::Unknown {
-                    self.diags.push(TypeDiagnostic {
-                        message: format!("Type mismatch assigning {rhs:?} to {lhs:?}"),
-                        line: *line,
-                        column: *column,
-                    });
-                } else if lhs == TypeKind::Unknown {
-                    self.update_if_unknown(name, &rhs);
+                if let ASTNode::Identifier(name) = &**target {
+                    let lhs = self.lookup(name);
+                    let rhs = self.visit(value);
+                    if lhs != TypeKind::Unknown && lhs != rhs && rhs != TypeKind::Unknown {
+                        self.diags.push(TypeDiagnostic {
+                            message: format!("Type mismatch assigning {rhs:?} to {lhs:?}"),
+                            line: *line,
+                            column: *column,
+                        });
+                    } else if lhs == TypeKind::Unknown {
+                        self.update_if_unknown(name, &rhs);
+                    }
                 }
                 TypeKind::Void
             }

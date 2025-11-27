@@ -75,25 +75,7 @@ pub struct ProcessConfig {
     pub capture_stderr: bool,
 }
 
-/// Process execution result (unused by callers but kept for future)
-#[derive(Debug)]
-pub struct ProcessResult {
-    pub id: Uuid,
-    pub status: ProcessStatus,
-    pub duration: Duration,
-    pub stdout: Option<Vec<u8>>,
-    pub stderr: Option<Vec<u8>>,
-    pub metrics: ProcessMetrics,
-}
 
-/// Process execution metrics
-#[derive(Debug, Default)]
-pub struct ProcessMetrics {
-    pub peak_memory: u64,
-    pub cpu_time: Duration,
-    pub file_operations: u64,
-    pub network_connections: u64,
-}
 
 /// Process manager errors
 #[derive(Debug, thiserror::Error)]
@@ -547,11 +529,7 @@ mod tests {
     fn test_process_limits() {
         let limits = ExecutionLimits {
             timeout: Duration::from_secs(5),
-            memory_limit_mb: 64,
             max_processes: 2,
-            allow_network: false,
-            allow_file_write: true,
-            allowed_commands: vec!["test".to_string()],
             allowed_env_vars: vec!["PATH".to_string()],
             blocked_env_vars: vec!["SECRET".to_string()],
         };

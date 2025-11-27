@@ -85,8 +85,13 @@ fn add_missing_let_actions(ast: &ASTNode, out: &mut Vec<CodeAction>) {
                 declared.insert(name.clone());
             }
             ASTNode::Assignment {
-                name, line, column, ..
+                target, line, column, ..
             } => {
+                let name = match &**target {
+                    ASTNode::Identifier(name) => name,
+                    ASTNode::IdentifierSpanned { name, .. } => name,
+                    _ => return,
+                };
                 if !declared.contains(name) {
                     out.push(CodeAction {
                         title: format!("Add missing 'let' for '{name}'"),

@@ -1,0 +1,35 @@
+let arr = [1, 2, 3, 4, 5];
+
+// Test array element access
+let first = arr[0];
+let second = arr[1];
+
+// Test array element assignment
+arr[0] = 10;
+arr[2] = 30;
+
+// Test that assignments worked
+let new_first = arr[0];
+let new_third = arr[2];
+
+// Test array length
+let len = arr.len();
+
+// Test nested arrays
+let nested = [[1, 2], [3, 4]];
+let inner_first = nested[0][1];
+let inner_second = nested[1][0];
+
+// Test array of different types (mixed)
+let mixed = [1, "hello", true, 3.14];
+
+print("Original array:", arr);
+print("First element:", first);
+print("Second element:", second);
+print("After assignment - first:", new_first);
+print("After assignment - third:", new_third);
+print("Array length:", len);
+print("Nested array:", nested);
+print("nested[0][1]:", inner_first);
+print("nested[1][0]:", inner_second);
+print("Mixed array:", mixed);

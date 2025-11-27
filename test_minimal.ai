@@ -1,0 +1,10 @@
+// AEONMI Bookstore Application
+// A complete e-commerce application for selling books
+// Demonstrates real-world application development with AEONMI syntax
+
+// === BOOKSTORE DATA STRUCTURES ===
+
+// Book inventory (using parallel arrays)
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["Quantum Computing Fundamentals", "The Art of Programming", "Mystery of the Lost Temple", "Cooking for Beginners", "World History: Ancient Civilizations"];
+let book_authors = ["Dr. Alice Chen", "Bob Smith", "Sarah Johnson", "Chef Mario", "Prof. David Lee"];

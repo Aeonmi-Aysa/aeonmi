@@ -1,0 +1,79 @@
+// Test with data arrays and one function
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["Quantum Computing Fundamentals", "The Art of Programming", "Mystery of the Lost Temple", "Cooking for Beginners", "World History: Ancient Civilizations"];
+let book_authors = ["Dr. Alice Chen", "Bob Smith", "Sarah Johnson", "Chef Mario", "Prof. David Lee"];
+let book_prices = [49.99, 39.99, 24.99, 29.99, 54.99];
+let book_stocks = [15, 8, 22, 12, 6];
+let book_genres = ["Technology", "Technology", "Fiction", "Lifestyle", "Education"];
+
+let cart_ids = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let cart_titles = ["", "", "", "", "", "", "", "", "", ""];
+let cart_prices = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+let cart_size = 0;
+let total_amount = 0;
+
+function display_welcome() {
+    log("==========================================");
+    log("         AEONMI BOOKSTORE SYSTEM          ");
+    log("==========================================");
+    log("Welcome to your personal bookstore!");
+    log("Manage your inventory and sales here.");
+    log("==========================================");
+}
+
+function display_books() {
+    log("=== AVAILABLE BOOKS ===");
+    let i = 0;
+    while (i < len(book_ids)) {
+        log("ID: " + book_ids[i]);
+        log("Title: " + book_titles[i]);
+        log("Author: " + book_authors[i]);
+        log("Price: $" + book_prices[i]);
+        log("Stock: " + book_stocks[i]);
+        log("Genre: " + book_genres[i]);
+        log("-------------------");
+        i = i + 1;
+    }
+}
+
+function find_book_index(book_id) {
+    let i = 0;
+    while (i < len(book_ids)) {
+        if (book_ids[i] == book_id) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1; // Not found
+}
+
+function calculate_total() {
+    total_amount = 0;
+    let i = 0;
+    while (i < cart_size) {
+        total_amount = total_amount + cart_prices[i];
+        i = i + 1;
+    }
+    return total_amount;
+}
+
+function display_cart() {
+    if (cart_size == 0) {
+        log("Your shopping cart is empty.");
+        return;
+    }
+
+    log("=== SHOPPING CART ===");
+    let i = 0;
+    while (i < cart_size) {
+        log("Title: " + cart_titles[i]);
+        log("Price: $" + cart_prices[i]);
+        log("Quantity: 1");
+        i = i + 1;
+    }
+    log("Total: $" + calculate_total());
+    log("===================");
+}
+
+display_welcome();
+display_books();

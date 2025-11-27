@@ -60,6 +60,7 @@ pub enum EditorEvent {
 
 /// HTTP request/response structures
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct FileOpenRequest {
     pub path: String,
 }
@@ -79,6 +80,7 @@ pub struct FileSaveRequest {
 #[derive(Debug, Deserialize)]
 pub struct CompileRequest {
     pub file: String,
+    #[allow(dead_code)]
     pub options: Option<CompilerOptions>,
 }
 
@@ -114,7 +116,7 @@ pub async fn start_editor_server(port: u16, workspace_dir: PathBuf) -> Result<()
     println!("🚀 Starting Aeonmi Editor Server...");
 
     // Initialize state
-    let config = Config::new();
+    let _config = Config::new();
     let engine = Arc::new(RwLock::new(RuntimeEngine::new()));
     let file_manager = Arc::new(RwLock::new(FileManager::default()));
     let (broadcast_tx, _) = broadcast::channel(100);

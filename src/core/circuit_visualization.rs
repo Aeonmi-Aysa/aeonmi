@@ -1,6 +1,8 @@
 /// AEONMI Quantum Circuit Visualization
 /// Provides ASCII art circuit diagrams, LaTeX output, and interactive visualization
 use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType};
+use num_complex::Complex;
+use std::f64::consts::PI;
 
 /// Circuit visualization configuration
 #[derive(Debug, Clone)]
@@ -450,6 +452,240 @@ impl CircuitVisualizer {
             "metadata": circuit.metadata
         })
     }
+
+    /// Generate state vector visualization
+    pub fn visualize_state_vector(&self, state_vector: &[Complex<f64>], num_qubits: usize) -> String {
+        let mut output = String::new();
+        output.push_str("Quantum State Vector:\n");
+        output.push_str(&"─".repeat(50));
+        output.push('\n');
+
+        let total_states = 1 << num_qubits;
+        for i in 0..total_states {
+            let amplitude = state_vector[i];
+            let probability = amplitude.norm_sqr();
+            let phase = amplitude.arg();
+
+            // Only show non-zero amplitudes
+            if probability > 1e-10 {
+                let binary = format!("{:0width$b}", i, width = num_qubits);
+                let real_part = amplitude.re;
+                let imag_part = amplitude.im;
+
+                output.push_str(&format!(
+                    "|{}⟩: ({:.4} + {:.4}i) | {:.4} | ∠{:.2}°\n",
+                    binary,
+                    real_part,
+                    imag_part,
+                    probability.sqrt(),
+                    phase.to_degrees()
+                ));
+            }
+        }
+
+        output
+    }
+
+    /// Generate measurement histogram visualization
+    pub fn visualize_measurement_histogram(&self, measurements: &[(String, usize)]) -> String {
+        let mut output = String::new();
+        output.push_str("Measurement Results:\n");
+        output.push_str(&"─".repeat(40));
+        output.push('\n');
+
+        let total_shots: usize = measurements.iter().map(|(_, count)| count).sum();
+        let max_count = measurements.iter().map(|(_, count)| *count).max().unwrap_or(1);
+
+        for (outcome, count) in measurements {
+            let percentage = (*count as f64 / total_shots as f64) * 100.0;
+            let bar_width = ((*count as f64 / max_count as f64) * 20.0) as usize;
+            let bar = "█".repeat(bar_width);
+
+            output.push_str(&format!(
+                "{:<8}: {:>4} shots ({:>5.1}%) {}\n",
+                outcome, count, percentage, bar
+            ));
+        }
+
+        output.push_str(&format!("\nTotal shots: {}\n", total_shots));
+        output
+    }
+
+    /// Generate density matrix visualization
+    pub fn visualize_density_matrix(&self, density_matrix: &[Complex<f64>], num_qubits: usize) -> String {
+        let mut output = String::new();
+        output.push_str("Density Matrix:\n");
+
+        let dim = 1 << num_qubits;
+        let max_width = 8;
+
+        // Header row
+        output.push_str(&format!("{:>width$}", "", width = max_width + 2));
+        for i in 0..dim {
+            output.push_str(&format!("{:>width$}", format!("|{:0width$b}⟩", i, width = num_qubits), width = max_width));
+        }
+        output.push('\n');
+
+        for i in 0..dim {
+            // Row header
+            output.push_str(&format!("{:>width$}", format!("⟨{:0width$b}|", i, width = num_qubits), width = max_width + 2));
+
+            // Matrix elements
+            for j in 0..dim {
+                let element = density_matrix[i * dim + j];
+                let real = element.re;
+                let imag = element.im;
+
+                if real.abs() < 1e-10 && imag.abs() < 1e-10 {
+                    output.push_str(&format!("{:>width$}", "0", width = max_width));
+                } else if imag.abs() < 1e-10 {
+                    output.push_str(&format!("{:>width$.3}", real, width = max_width));
+                } else if real.abs() < 1e-10 {
+                    output.push_str(&format!("{:>width$.3}i", imag, width = max_width));
+                } else {
+                    let sign = if imag >= 0.0 { "+" } else { "-" };
+                    output.push_str(&format!("{:>width$.1}{}{:.1}i", real, sign, imag.abs(), width = max_width));
+                }
+            }
+            output.push('\n');
+        }
+
+        output
+    }
+
+    /// Generate Bloch sphere visualization (text-based)
+    pub fn visualize_bloch_sphere(&self, state_vector: &[Complex<f64>]) -> String {
+        let mut output = String::new();
+        output.push_str("Bloch Sphere Representation:\n");
+        output.push_str(&"─".repeat(30));
+        output.push('\n');
+
+        if state_vector.len() == 2 {
+            // Single qubit state
+            let alpha = state_vector[0];
+            let beta = state_vector[1];
+
+            let theta: f64 = 2.0 * (beta / alpha).arg();
+            let phi: f64 = (alpha * alpha.conj() - beta * beta.conj()).arg();
+
+            let x = theta.sin() * phi.cos();
+            let y = theta.sin() * phi.sin();
+            let z = theta.cos();
+
+            output.push_str(&format!("Single Qubit Bloch Vector:\n"));
+            output.push_str(&format!("θ (polar angle): {:.3} rad ({:.1}°)\n", theta, theta.to_degrees()));
+            output.push_str(&format!("φ (azimuthal angle): {:.3} rad ({:.1}°)\n", phi, phi.to_degrees()));
+            output.push_str(&format!("Bloch vector: ({:.3}, {:.3}, {:.3})\n", x, y, z));
+
+            // Simple text-based sphere representation
+            output.push_str("\nBloch Sphere (top view):\n");
+            let sphere_size = 10;
+            for i in 0..=sphere_size {
+                for j in 0..=sphere_size {
+                    let x_pos = (j as f64 - sphere_size as f64 / 2.0) / (sphere_size as f64 / 2.0);
+                    let y_pos = (i as f64 - sphere_size as f64 / 2.0) / (sphere_size as f64 / 2.0);
+                    let distance = (x_pos * x_pos + y_pos * y_pos).sqrt();
+
+                    if distance <= 1.0 {
+                        let z_pos = (1.0 - distance * distance).sqrt();
+                        // Check if this point is close to our state vector
+                        let state_distance = ((x_pos - x).powi(2) + (y_pos - y).powi(2) + (z_pos - z).powi(2)).sqrt();
+                        if state_distance < 0.1 {
+                            output.push('●');
+                        } else {
+                            output.push('○');
+                        }
+                    } else {
+                        output.push(' ');
+                    }
+                }
+                output.push('\n');
+            }
+        } else {
+            output.push_str("Multi-qubit states not supported for Bloch sphere visualization\n");
+        }
+
+        output
+    }
+
+    /// Generate comprehensive circuit analysis report
+    pub fn generate_circuit_analysis(&self, circuit: &QuantumCircuitBuilder) -> String {
+        let mut output = String::new();
+        output.push_str("Circuit Analysis Report\n");
+        output.push_str(&"═".repeat(50));
+        output.push('\n');
+
+        // Basic statistics
+        output.push_str(&format!("Circuit Name: {}\n", circuit.name));
+        output.push_str(&format!("Qubits: {}\n", circuit.qubits.len()));
+        output.push_str(&format!("Gates: {}\n", circuit.gate_count()));
+        output.push_str(&format!("Depth: {}\n", circuit.depth()));
+        output.push_str(&format!("Parameters: {}\n", circuit.parameters.len()));
+
+        // Gate breakdown
+        output.push_str("\nGate Breakdown:\n");
+        let mut gate_counts = std::collections::HashMap::new();
+        for gate in &circuit.gates {
+            let gate_name = match &gate.gate_type {
+                QuantumGateType::Hadamard => "H",
+                QuantumGateType::PauliX => "X",
+                QuantumGateType::PauliY => "Y",
+                QuantumGateType::PauliZ => "Z",
+                QuantumGateType::CNOT => "CNOT",
+                QuantumGateType::CZ => "CZ",
+                QuantumGateType::Toffoli => "Toffoli",
+                QuantumGateType::SWAP => "SWAP",
+                QuantumGateType::Measure => "Measure",
+                QuantumGateType::Phase(_) => "Phase",
+                QuantumGateType::RotationX(_) => "RX",
+                QuantumGateType::RotationY(_) => "RY",
+                QuantumGateType::RotationZ(_) => "RZ",
+                QuantumGateType::S => "S",
+                QuantumGateType::T => "T",
+                QuantumGateType::SDagger => "S†",
+                QuantumGateType::TDagger => "T†",
+                QuantumGateType::CY => "CY",
+                QuantumGateType::Fredkin => "Fredkin",
+                QuantumGateType::Custom(name, _) => name,
+            };
+            *gate_counts.entry(gate_name.clone()).or_insert(0) += 1;
+        }
+
+        for (gate_name, count) in gate_counts.iter() {
+            output.push_str(&format!("  {}: {}\n", gate_name, count));
+        }
+
+        // Qubit usage analysis
+        output.push_str("\nQubit Usage:\n");
+        for (i, qubit) in circuit.qubits.iter().enumerate() {
+            let gate_count = circuit.gates.iter()
+                .filter(|gate| gate.qubits.contains(qubit))
+                .count();
+            output.push_str(&format!("  {}: {} gates\n", qubit.name, gate_count));
+        }
+
+        // Circuit connectivity
+        output.push_str("\nCircuit Connectivity:\n");
+        let mut connections = std::collections::HashMap::new();
+        for gate in &circuit.gates {
+            if gate.qubits.len() == 2 {
+                let q1 = &gate.qubits[0];
+                let q2 = &gate.qubits[1];
+                let key = if q1 < q2 {
+                    format!("{} ↔ {}", q1.name, q2.name)
+                } else {
+                    format!("{} ↔ {}", q2.name, q1.name)
+                };
+                *connections.entry(key).or_insert(0) += 1;
+            }
+        }
+
+        for (connection, count) in connections.iter() {
+            output.push_str(&format!("  {}: {} interactions\n", connection, count));
+        }
+
+        output
+    }
 }
 
 #[cfg(test)]
@@ -484,5 +720,85 @@ mod tests {
         assert_eq!(json["name"], "test_circuit");
         assert_eq!(json["qubits"], 1);
         assert_eq!(json["gates"], 1);
+    }
+
+    #[test]
+    fn test_state_vector_visualization() {
+        let visualizer = CircuitVisualizer::default();
+
+        // |0⟩ state
+        let state_0 = vec![Complex::new(1.0, 0.0), Complex::new(0.0, 0.0)];
+        let output = visualizer.visualize_state_vector(&state_0, 1);
+        assert!(output.contains("|0⟩"));
+        assert!(output.contains("1.0000"));
+
+        // |+⟩ state
+        let state_plus = vec![
+            Complex::new(1.0 / (2.0_f64).sqrt(), 0.0),
+            Complex::new(1.0 / (2.0_f64).sqrt(), 0.0)
+        ];
+        let output = visualizer.visualize_state_vector(&state_plus, 1);
+        assert!(output.contains("|0⟩"));
+        assert!(output.contains("|1⟩"));
+    }
+
+    #[test]
+    fn test_measurement_histogram() {
+        let visualizer = CircuitVisualizer::default();
+        let measurements = vec![
+            ("00".to_string(), 512),
+            ("01".to_string(), 256),
+            ("10".to_string(), 128),
+            ("11".to_string(), 104),
+        ];
+
+        let output = visualizer.visualize_measurement_histogram(&measurements);
+        assert!(output.contains("Measurement Results"));
+        assert!(output.contains("512 shots"));
+        assert!(output.contains("Total shots: 1000"));
+    }
+
+    #[test]
+    fn test_density_matrix_visualization() {
+        let visualizer = CircuitVisualizer::default();
+
+        // |0⟩⟨0| density matrix
+        let density_matrix = vec![
+            Complex::new(1.0, 0.0), Complex::new(0.0, 0.0),
+            Complex::new(0.0, 0.0), Complex::new(0.0, 0.0),
+        ];
+
+        let output = visualizer.visualize_density_matrix(&density_matrix, 1);
+        assert!(output.contains("Density Matrix"));
+        assert!(output.contains("⟨0|"));
+        assert!(output.contains("⟨1|"));
+    }
+
+    #[test]
+    fn test_bloch_sphere_visualization() {
+        let visualizer = CircuitVisualizer::default();
+
+        // |0⟩ state
+        let state_0 = vec![Complex::new(1.0, 0.0), Complex::new(0.0, 0.0)];
+        let output = visualizer.visualize_bloch_sphere(&state_0);
+        assert!(output.contains("Bloch Sphere"));
+        assert!(output.contains("Single Qubit Bloch Vector"));
+    }
+
+    #[test]
+    fn test_circuit_analysis() {
+        let mut circuit = QuantumCircuitBuilder::new("test_analysis");
+        let qubits = circuit.add_qubits(2);
+        circuit.h(&qubits[0]).cnot(&qubits[0], &qubits[1]);
+
+        let visualizer = CircuitVisualizer::default();
+        let analysis = visualizer.generate_circuit_analysis(&circuit);
+
+        assert!(analysis.contains("Circuit Analysis Report"));
+        assert!(analysis.contains("test_analysis"));
+        assert!(analysis.contains("Qubits: 2"));
+        assert!(analysis.contains("Gates: 2"));
+        assert!(analysis.contains("H: 1"));
+        assert!(analysis.contains("CNOT: 1"));
     }
 }

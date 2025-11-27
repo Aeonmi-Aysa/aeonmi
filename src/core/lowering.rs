@@ -125,9 +125,18 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             callee: Box::new(Expr::Ident("log".into())),
             args: vec![lower_expr_ast(expr)?],
         }),
-        A::Assignment { name, value, .. } => Stmt::Assign {
-            target: Expr::Ident(name.clone()),
-            value: lower_expr_ast(value)?,
+        A::Assignment { target, value, .. } => {
+            match &**target {
+                A::Identifier(name) => Stmt::Assign {
+                    target: Expr::Ident(name.clone()),
+                    value: lower_expr_ast(value)?,
+                },
+                A::IdentifierSpanned { name, .. } => Stmt::Assign {
+                    target: Expr::Ident(name.clone()),
+                    value: lower_expr_ast(value)?,
+                },
+                _ => return Err(format!("Complex assignment targets not yet supported: {:?}", target)),
+            }
         },
 
         A::Call { .. }
@@ -428,9 +437,18 @@ fn lower_stmt_init_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             value: lower_expr_ast(value)?,
         },
 
-        A::Assignment { name, value, .. } => Stmt::Assign {
-            target: Expr::Ident(name.clone()),
-            value: lower_expr_ast(value)?,
+        A::Assignment { target, value, .. } => {
+            match &**target {
+                A::Identifier(name) => Stmt::Assign {
+                    target: Expr::Ident(name.clone()),
+                    value: lower_expr_ast(value)?,
+                },
+                A::IdentifierSpanned { name, .. } => Stmt::Assign {
+                    target: Expr::Ident(name.clone()),
+                    value: lower_expr_ast(value)?,
+                },
+                _ => return Err(format!("Complex assignment targets not yet supported: {:?}", target)),
+            }
         },
         A::Return(expr) => Stmt::Return(Some(lower_expr_ast(expr)?)),
         _ => Stmt::Expr(lower_expr_ast(n)?),

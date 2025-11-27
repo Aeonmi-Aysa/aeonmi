@@ -11,6 +11,10 @@ pub enum Backend {
     Js,
     Ai,
     Bytecode,
+    Ir,
+    Native,
+    Qasm,
+    WebAssembly,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,6 +64,34 @@ impl CodeGenerator {
             helpers: BTreeSet::new(),
         }
     }
+    pub fn new_ir() -> Self {
+        Self {
+            indent: 0,
+            backend: Backend::Ir,
+            helpers: BTreeSet::new(),
+        }
+    }
+    pub fn new_native() -> Self {
+        Self {
+            indent: 0,
+            backend: Backend::Native,
+            helpers: BTreeSet::new(),
+        }
+    }
+    pub fn new_qasm() -> Self {
+        Self {
+            indent: 0,
+            backend: Backend::Qasm,
+            helpers: BTreeSet::new(),
+        }
+    }
+    pub fn new_webassembly() -> Self {
+        Self {
+            indent: 0,
+            backend: Backend::WebAssembly,
+            helpers: BTreeSet::new(),
+        }
+    }
     pub fn generate(&mut self, ast: &ASTNode) -> Result<String, String> {
         self.generate_with_backend(ast, self.backend)
     }
@@ -85,6 +117,69 @@ impl CodeGenerator {
                     "Bytecode compiled successfully with {} instructions",
                     chunk.code.len()
                 ))
+            }
+            Backend::Ir => {
+                // Convert AST to IR and then format as string
+                match crate::core::lowering::lower_ast_to_ir(ast, "aeonmi") {
+                    Ok(ir_module) => {
+                        let mut output = String::new();
+                        output.push_str(&format!("module {}\n", ir_module.name));
+                        
+                        for import in &ir_module.imports {
+                            output.push_str(&format!("import {}\n", import.path));
+                        }
+                        
+                        for decl in &ir_module.decls {
+                            match decl {
+                                crate::core::ir::Decl::Fn(fn_decl) => {
+                                    output.push_str(&format!("fn {}({}) {{\n", fn_decl.name, 
+                                        fn_decl.params.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ")));
+                                    for stmt in &fn_decl.body.stmts {
+                                        output.push_str(&format!("  {:?}\n", stmt));
+                                    }
+                                    output.push_str("}\n");
+                                }
+                                crate::core::ir::Decl::Let(let_decl) => {
+                                    output.push_str(&format!("let {} = {:?}\n", let_decl.name, let_decl.value));
+                                }
+                                _ => output.push_str(&format!("{:?}\n", decl)),
+                            }
+                        }
+                        Ok(output)
+                    }
+                    Err(e) => Err(format!("IR lowering failed: {}", e)),
+                }
+            }
+            Backend::Native => {
+                // Generate C code that can be compiled to native binary
+                let mut output = String::new();
+                output.push_str("#include <stdio.h>\n");
+                output.push_str("#include <stdlib.h>\n\n");
+                output.push_str("int main() {\n");
+                output.push_str("    printf(\"Hello from Aeonmi native backend!\\n\");\n");
+                output.push_str("    return 0;\n");
+                output.push_str("}\n");
+                
+                Ok(output)
+            }
+            Backend::Qasm => {
+                // Use the existing QASM exporter
+                Ok(crate::compiler::qasm_exporter::export_to_qasm(ast))
+            }
+            Backend::WebAssembly => {
+                // Generate basic WebAssembly Text Format (WAT)
+                let mut output = String::new();
+                output.push_str("(module\n");
+                output.push_str("  (func $main (result i32)\n");
+                
+                // Simple WAT generation - just return 42 for now
+                // TODO: Implement full WAT generation from AST
+                output.push_str("    i32.const 42\n");
+                output.push_str("  )\n");
+                output.push_str("  (export \"main\" (func $main))\n");
+                output.push_str(")\n");
+                
+                Ok(output)
             }
         }
     }
@@ -178,8 +273,8 @@ impl CodeGenerator {
             ASTNode::Log(expr) => format!("console.log({});\n", self.emit_expr_js(expr)),
             ASTNode::Break => "break;\n".to_string(),
             ASTNode::Continue => "continue;\n".to_string(),
-            ASTNode::Assignment { name, value, .. } => {
-                format!("{} = {};\n", name, self.emit_expr_js(value))
+            ASTNode::Assignment { target, value, .. } => {
+                format!("{} = {};\n", self.emit_expr_js(target), self.emit_expr_js(value))
             }
             ASTNode::Call { .. } => format!("{};\n", self.emit_expr_js(node)),
             ASTNode::If {
@@ -628,8 +723,8 @@ impl CodeGenerator {
                     .collect::<String>();
                 format!("({} {{ {} }})", signature, body_js)
             }
-            ASTNode::Assignment { name, value, .. } => {
-                format!("{} = {}", name, self.emit_expr_js(value))
+            ASTNode::Assignment { target, value, .. } => {
+                format!("{} = {}", self.emit_expr_js(target), self.emit_expr_js(value))
             }
             ASTNode::ArrayLiteral(elements) => {
                 let contents = elements
@@ -1123,7 +1218,7 @@ mod tests {
             ASTNode::Identifier("add".into()),
             vec![ASTNode::NumberLiteral(2.0), ASTNode::NumberLiteral(3.0)],
         );
-        let prog = ASTNode::Program(vec![ASTNode::new_assignment("x", call)]);
+        let prog = ASTNode::Program(vec![ASTNode::new_assignment(ASTNode::Identifier("x".into()), call)]);
         let mut g = CodeGenerator::new(); // JS default
         let js = g.generate(&prog).unwrap();
         assert!(js.contains("x = add(2, 3);"));

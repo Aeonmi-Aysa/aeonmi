@@ -40,7 +40,7 @@ pub enum QuantumGateType {
 }
 
 /// Qubit identifier in AEONMI circuits
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QubitId {
     pub name: String,
     pub index: Option<usize>,

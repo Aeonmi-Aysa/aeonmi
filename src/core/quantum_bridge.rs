@@ -1,9 +1,11 @@
+#![cfg(feature = "quantum")]
+
 //! Quantum Integration Bridge for Aeonmi Runtime
 //!
 //! This module provides seamless integration between Aeonmi's quantum operations
 //! and various quantum backends including simulators and real hardware.
 
-use crate::core::bytecode_ir::{QuantumCircuit, QuantumGate};
+use crate::core::hardware_integration::{QuantumCircuit, QuantumGate};
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::Write;
@@ -208,9 +210,9 @@ impl QuantumBridge {
 
         // Validate circuit against backend capabilities
         let info = backend.get_info();
-        if circuit.qubits > info.max_qubits {
+        if circuit.qubits > info.max_qubits as usize {
             return Err(QuantumError::CircuitTooLarge(
-                circuit.qubits,
+                circuit.qubits as u32,
                 info.max_qubits,
             ));
         }
@@ -232,13 +234,12 @@ impl QuantumBridge {
         let mut optimized_gates = Vec::new();
 
         for gate in &circuit.gates {
-            match gate {
-                // Skip identity-like operations
-                QuantumGate::RZ(_, angle) if angle.abs() < 1e-10 => continue,
-                QuantumGate::RY(_, angle) if angle.abs() < 1e-10 => continue,
-                QuantumGate::RX(_, angle) if angle.abs() < 1e-10 => continue,
-                _ => optimized_gates.push(gate.clone()),
+            // Skip identity-like operations
+            if (gate.gate_type == "RZ" || gate.gate_type == "RY" || gate.gate_type == "RX")
+                && gate.parameters.len() > 0 && gate.parameters[0].abs() < 1e-10 {
+                continue;
             }
+            optimized_gates.push(gate.clone());
         }
 
         Ok(QuantumCircuit {
@@ -299,13 +300,13 @@ impl QuantumBackend for LocalSimulator {
 
         // Apply quantum gates
         for gate in &circuit.gates {
-            self.apply_gate(&mut state_vector, gate, circuit.qubits)?;
+            self.apply_gate(&mut state_vector, gate, circuit.qubits as u32)?;
         }
 
         // Perform measurements
         let mut measurements = Vec::new();
         for &qubit_index in &circuit.measurements {
-            let measurement = self.measure_qubit(&state_vector, qubit_index, circuit.qubits);
+            let measurement = self.measure_qubit(&state_vector, qubit_index as u32, circuit.qubits as u32);
             measurements.push(measurement);
         }
 
@@ -374,16 +375,34 @@ impl LocalSimulator {
         gate: &QuantumGate,
         num_qubits: u32,
     ) -> Result<(), QuantumError> {
-        match gate {
-            QuantumGate::H(qubit) => self.apply_hadamard(state, *qubit, num_qubits),
-            QuantumGate::X(qubit) => self.apply_pauli_x(state, *qubit, num_qubits),
-            QuantumGate::Y(qubit) => self.apply_pauli_y(state, *qubit, num_qubits),
-            QuantumGate::Z(qubit) => self.apply_pauli_z(state, *qubit, num_qubits),
-            QuantumGate::CNOT(control, target) => {
-                self.apply_cnot(state, *control, *target, num_qubits)
+        match gate.gate_type.as_str() {
+            "H" => {
+                let qubit = gate.qubits[0] as u32;
+                self.apply_hadamard(state, qubit, num_qubits)
             }
-            QuantumGate::RZ(qubit, angle) => self.apply_rz(state, *qubit, *angle, num_qubits),
-            _ => Err(QuantumError::InvalidGate(format!("{:?}", gate))),
+            "X" => {
+                let qubit = gate.qubits[0] as u32;
+                self.apply_pauli_x(state, qubit, num_qubits)
+            }
+            "Y" => {
+                let qubit = gate.qubits[0] as u32;
+                self.apply_pauli_y(state, qubit, num_qubits)
+            }
+            "Z" => {
+                let qubit = gate.qubits[0] as u32;
+                self.apply_pauli_z(state, qubit, num_qubits)
+            }
+            "CNOT" => {
+                let control = gate.qubits[0] as u32;
+                let target = gate.qubits[1] as u32;
+                self.apply_cnot(state, control, target, num_qubits)
+            }
+            "RZ" => {
+                let qubit = gate.qubits[0] as u32;
+                let angle = gate.parameters[0];
+                self.apply_rz(state, qubit, angle, num_qubits)
+            }
+            _ => Err(QuantumError::InvalidGate(format!("Unsupported gate type: {}", gate.gate_type))),
         }
     }
 
@@ -583,7 +602,7 @@ import sys
 import json
 import qiskit
 from qiskit import QuantumCircuit, transpile, assemble
-from qiskit.providers.aer import AerSimulator
+from qiskit.providers.basic_provider import BasicSimulator
 
 def execute_circuit(circuit_json, backend_name, shots=1024):
     # Parse circuit from JSON
@@ -617,10 +636,10 @@ def execute_circuit(circuit_json, backend_name, shots=1024):
     
     # Execute circuit
     if backend_name == 'qasm_simulator':
-        backend = AerSimulator()
+        backend = BasicSimulator()
     else:
         # For hardware backends, would need IBMQ provider setup
-        backend = AerSimulator()
+        backend = BasicSimulator()
     
     transpiled = transpile(qc, backend)
     job = backend.run(transpiled, shots=shots)
@@ -660,14 +679,16 @@ impl QuantumBackend for QiskitBackend {
         // Convert circuit to JSON for Python script
         let circuit_json = serde_json::json!({
             "qubits": circuit.qubits,
-            "gates": circuit.gates.iter().map(|gate| match gate {
-                QuantumGate::H(q) => json!({"type": "H", "qubits": [q]}),
-                QuantumGate::X(q) => json!({"type": "X", "qubits": [q]}),
-                QuantumGate::Y(q) => json!({"type": "Y", "qubits": [q]}),
-                QuantumGate::Z(q) => json!({"type": "Z", "qubits": [q]}),
-                QuantumGate::CNOT(c, t) => json!({"type": "CNOT", "qubits": [c, t]}),
-                QuantumGate::RZ(q, angle) => json!({"type": "RZ", "qubits": [q], "angle": angle}),
-                _ => json!({"type": "UNKNOWN", "qubits": []}),
+            "gates": circuit.gates.iter().map(|gate| {
+                match gate.gate_type.as_str() {
+                    "H" => json!({"type": "H", "qubits": gate.qubits}),
+                    "X" => json!({"type": "X", "qubits": gate.qubits}),
+                    "Y" => json!({"type": "Y", "qubits": gate.qubits}),
+                    "Z" => json!({"type": "Z", "qubits": gate.qubits}),
+                    "CNOT" => json!({"type": "CNOT", "qubits": gate.qubits}),
+                    "RZ" => json!({"type": "RZ", "qubits": gate.qubits, "angle": gate.parameters.get(0).unwrap_or(&0.0)}),
+                    _ => json!({"type": &gate.gate_type, "qubits": gate.qubits, "parameters": gate.parameters}),
+                }
             }).collect::<Vec<_>>(),
             "measurements": circuit.measurements
         });
@@ -877,3 +898,115 @@ impl std::fmt::Display for QuantumError {
 }
 
 impl std::error::Error for QuantumError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::hardware_integration::{QuantumCircuit, QuantumGate};
+
+    #[test]
+    fn test_quantum_bridge_creation() {
+        let bridge = QuantumBridge::new();
+        assert!(bridge.backends.contains_key("local_simulator"));
+        assert_eq!(bridge.default_backend, "local_simulator");
+    }
+
+    #[test]
+    fn test_qiskit_backend_creation() {
+        // This test will only pass if Qiskit is available
+        match QiskitBackend::new("qasm_simulator".to_string(), None) {
+            Ok(backend) => {
+                assert_eq!(backend.backend_name, "qasm_simulator");
+                assert!(backend.python_path.contains("python"));
+            }
+            Err(QuantumError::ConfigurationError(msg)) if msg.contains("Qiskit not found") => {
+                // Skip test if Qiskit is not available
+                println!("Skipping Qiskit test: {}", msg);
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_qiskit_circuit_execution() {
+        // This test will only pass if Qiskit is available
+        let backend = match QiskitBackend::new("qasm_simulator".to_string(), None) {
+            Ok(b) => b,
+            Err(QuantumError::ConfigurationError(msg)) if msg.contains("Qiskit not found") => {
+                println!("Skipping Qiskit circuit test: {}", msg);
+                return;
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        };
+
+        // Create a simple Bell state circuit
+        let mut circuit = QuantumCircuit {
+            gates: vec![
+                QuantumGate {
+                    gate_type: "H".to_string(),
+                    qubits: vec![0],
+                    parameters: vec![],
+                },
+                QuantumGate {
+                    gate_type: "CNOT".to_string(),
+                    qubits: vec![0, 1],
+                    parameters: vec![],
+                },
+            ],
+            qubits: 2,
+            measurements: vec![0, 1],
+        };
+
+        match backend.execute_circuit(&circuit) {
+            Ok(result) => {
+                // Check that we got measurement results
+                assert!(!result.probabilities.is_empty());
+                assert_eq!(result.measurements.len(), 2);
+
+                // Bell state should have equal probability for 00 and 11
+                let prob_00 = result.probabilities.get("00").unwrap_or(&0.0);
+                let prob_11 = result.probabilities.get("11").unwrap_or(&0.0);
+                assert!((prob_00 - 0.5).abs() < 0.1); // Allow some statistical variation
+                assert!((prob_11 - 0.5).abs() < 0.1);
+            }
+            Err(e) => panic!("Circuit execution failed: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_quantum_bridge_setup_qiskit() {
+        let mut bridge = QuantumBridge::new();
+
+        match bridge.setup_qiskit(None, "qasm_simulator".to_string()) {
+            Ok(()) => {
+                assert!(bridge.backends.contains_key("qiskit_qasm_simulator"));
+            }
+            Err(QuantumError::ConfigurationError(msg)) if msg.contains("Qiskit not found") => {
+                println!("Skipping Qiskit setup test: {}", msg);
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_quantum_bridge_execute_on_backend() {
+        let bridge = QuantumBridge::new();
+
+        let circuit = QuantumCircuit {
+            gates: vec![QuantumGate {
+                gate_type: "H".to_string(),
+                qubits: vec![0],
+                parameters: vec![],
+            }],
+            qubits: 1,
+            measurements: vec![0],
+        };
+
+        let result = bridge.execute_on_backend(&circuit, "local_simulator");
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+        assert!(!result.probabilities.is_empty());
+        assert_eq!(result.measurements.len(), 1);
+    }
+}

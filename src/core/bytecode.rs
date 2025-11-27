@@ -99,7 +99,6 @@ pub struct BytecodeCompiler {
 /// Context for tracking break/continue jumps in loops
 #[derive(Debug, Clone)]
 struct LoopContext {
-    loop_start: usize,      // Where to jump for continue
     breaks: Vec<usize>,     // Positions of break jumps to patch later
     continues: Vec<usize>,  // Positions of continue jumps to patch later (for for-loops)
 }
@@ -266,21 +265,23 @@ impl BytecodeCompiler {
                 }
                 self.chunk.code.push(OpCode::Pop);
             }
-            ASTNode::Assignment { name, value, .. } => {
-                let const_val = self.compile_expr(value.as_ref());
-                if let Some(&slot) = self.local_map.get(name) {
-                    if let Some(c) = const_val {
-                        let ci = self.add_constant(c);
-                        self.chunk.code.push(OpCode::LoadConst(ci));
+            ASTNode::Assignment { target, value, .. } => {
+                if let ASTNode::Identifier(name) = &**target {
+                    let const_val = self.compile_expr(value.as_ref());
+                    if let Some(&slot) = self.local_map.get(name) {
+                        if let Some(c) = const_val {
+                            let ci = self.add_constant(c);
+                            self.chunk.code.push(OpCode::LoadConst(ci));
+                        }
+                        self.chunk.code.push(OpCode::StoreLocal(slot));
+                    } else {
+                        let idx = self.add_global(name.clone());
+                        if let Some(c) = const_val {
+                            let ci = self.add_constant(c);
+                            self.chunk.code.push(OpCode::LoadConst(ci));
+                        }
+                        self.chunk.code.push(OpCode::StoreGlobal(idx));
                     }
-                    self.chunk.code.push(OpCode::StoreLocal(slot));
-                } else {
-                    let idx = self.add_global(name.clone());
-                    if let Some(c) = const_val {
-                        let ci = self.add_constant(c);
-                        self.chunk.code.push(OpCode::LoadConst(ci));
-                    }
-                    self.chunk.code.push(OpCode::StoreGlobal(idx));
                 }
                 self.chunk.code.push(OpCode::Pop);
             }
@@ -414,7 +415,6 @@ impl BytecodeCompiler {
 
                 let loop_start = self.chunk.code.len();
                 self.loop_stack.push(LoopContext {
-                    loop_start,
                     breaks: Vec::new(),
                     continues: Vec::new(),
                 });
@@ -567,7 +567,6 @@ impl BytecodeCompiler {
                 
                 // Push loop context for break/continue tracking
                 self.loop_stack.push(LoopContext {
-                    loop_start,
                     breaks: Vec::new(),
                     continues: Vec::new(),
                 });
@@ -623,7 +622,6 @@ impl BytecodeCompiler {
                 
                 // Push loop context - we'll update continue target later
                 self.loop_stack.push(LoopContext {
-                    loop_start,
                     breaks: Vec::new(),
                     continues: Vec::new(),
                 });

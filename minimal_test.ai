@@ -1,0 +1,11 @@
+// Minimal test with just data and one function
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["Quantum Computing Fundamentals", "The Art of Programming", "Mystery of the Lost Temple", "Cooking for Beginners", "World History: Ancient Civilizations"];
+
+function display_welcome() {
+    log("==========================================");
+    log("         AEONMI BOOKSTORE SYSTEM          ");
+    log("==========================================");
+}
+
+display_welcome();

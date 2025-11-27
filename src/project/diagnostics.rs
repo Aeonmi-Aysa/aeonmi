@@ -8,27 +8,18 @@ use colored::Colorize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticLevel {
     Error,
-    Warning,
-    Hint,
-    Info,
 }
 
 impl DiagnosticLevel {
     fn label(&self) -> &'static str {
         match self {
             DiagnosticLevel::Error => "error",
-            DiagnosticLevel::Warning => "warning",
-            DiagnosticLevel::Hint => "hint",
-            DiagnosticLevel::Info => "info",
         }
     }
 
     fn color_label(&self) -> colored::ColoredString {
         match self {
             DiagnosticLevel::Error => self.label().red().bold(),
-            DiagnosticLevel::Warning => self.label().yellow().bold(),
-            DiagnosticLevel::Hint => self.label().cyan().bold(),
-            DiagnosticLevel::Info => self.label().blue().bold(),
         }
     }
 }
@@ -56,17 +47,6 @@ impl Diagnostic {
         }
     }
 
-    pub fn warning(message: impl Into<String>) -> Self {
-        Self {
-            level: DiagnosticLevel::Warning,
-            message: message.into(),
-            file: None,
-            line: None,
-            hint: None,
-            source_line: None,
-        }
-    }
-
     pub fn with_location(mut self, file: impl Into<String>, line: usize) -> Self {
         self.file = Some(file.into());
         self.line = Some(line);
@@ -75,11 +55,6 @@ impl Diagnostic {
 
     pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
         self.hint = Some(hint.into());
-        self
-    }
-
-    pub fn with_source_line(mut self, source: impl Into<String>) -> Self {
-        self.source_line = Some(source.into());
         self
     }
 
@@ -202,14 +177,6 @@ impl DiagnosticLogger {
         }
         if let Some(h) = hint {
             diag = diag.with_hint(h);
-        }
-        self.emit(&diag);
-    }
-
-    pub fn emit_warning(&mut self, message: &str, file: Option<&str>, line: Option<usize>) {
-        let mut diag = Diagnostic::warning(message);
-        if let (Some(f), Some(l)) = (file, line) {
-            diag = diag.with_location(f, l);
         }
         self.emit(&diag);
     }

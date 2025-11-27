@@ -335,21 +335,7 @@ impl AeonmiWorkspace {
         Ok(())
     }
 
-    /// Get workspace statistics
-    #[allow(dead_code)]
-    pub fn get_stats(&self) -> Result<WorkspaceStats> {
-        let source_files = self.list_source_files()?.len();
-        let artifacts = self.list_artifacts()?.len();
 
-        let workspace_size = self.calculate_directory_size(&self.project_root)?;
-
-        Ok(WorkspaceStats {
-            source_files,
-            artifacts,
-            workspace_size,
-            last_modified: self.get_last_modified()?,
-        })
-    }
 
     // Private helper methods
 
@@ -532,14 +518,7 @@ Visit the [Aeonmi documentation](https://github.com/DarthMetaCrypro/Aeonmi) for 
     }
 }
 
-/// Workspace statistics
-#[derive(Debug)]
-pub struct WorkspaceStats {
-    pub source_files: usize,
-    pub artifacts: usize,
-    pub workspace_size: u64,
-    pub last_modified: SystemTime,
-}
+
 
 #[cfg(test)]
 mod tests {

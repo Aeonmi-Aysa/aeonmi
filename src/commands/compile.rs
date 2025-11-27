@@ -156,6 +156,10 @@ pub fn compile_pipeline(
         EmitKind::Ai => b"AI",
         EmitKind::Js => b"JS",
         EmitKind::Bytecode => b"BC",
+        EmitKind::Ir => b"IR",
+        EmitKind::Native => b"NT",
+        EmitKind::Qasm => b"QM",
+        EmitKind::WebAssembly => b"WA",
     });
     let key = format!("{:x}", hasher.finalize());
     let output_string = if let Some(entry) = get_artifact(&key) {
@@ -189,6 +193,54 @@ pub fn compile_pipeline(
                     Err(e) => {
                         eprintln!(
                             "{} Bytecode emit failed: {}",
+                            "error:".bright_red().bold(),
+                            e
+                        );
+                        exit(1);
+                    }
+                }
+            }
+            EmitKind::Ir => {
+                let mut gen = CodeGenerator::new_ir();
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("{} IR emit failed: {}", "error:".bright_red().bold(), e);
+                        exit(1);
+                    }
+                }
+            }
+            EmitKind::Native => {
+                let mut gen = CodeGenerator::new_native();
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!(
+                            "{} Native emit failed: {}",
+                            "error:".bright_red().bold(),
+                            e
+                        );
+                        exit(1);
+                    }
+                }
+            }
+            EmitKind::Qasm => {
+                let mut gen = CodeGenerator::new_qasm();
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("{} QASM emit failed: {}", "error:".bright_red().bold(), e);
+                        exit(1);
+                    }
+                }
+            }
+            EmitKind::WebAssembly => {
+                let mut gen = CodeGenerator::new_webassembly();
+                match gen.generate(&ast) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!(
+                            "{} WebAssembly emit failed: {}",
                             "error:".bright_red().bold(),
                             e
                         );
@@ -231,6 +283,10 @@ pub fn compile_pipeline(
         EmitKind::Js => println!("ok: wrote js to '{}'.", out.display()),
         EmitKind::Ai => println!("ok: wrote ai to '{}'.", out.display()),
         EmitKind::Bytecode => println!("ok: wrote bytecode to '{}'.", out.display()),
+        EmitKind::Ir => println!("ok: wrote ir to '{}'.", out.display()),
+        EmitKind::Native => println!("ok: wrote native to '{}'.", out.display()),
+        EmitKind::Qasm => println!("ok: wrote qasm to '{}'.", out.display()),
+        EmitKind::WebAssembly => println!("ok: wrote wasm to '{}'.", out.display()),
     }
 
     // Trigger debounced metrics persistence (CLI path) so metrics file may exist outside GUI.
@@ -333,6 +389,10 @@ pub fn compile_pipeline_soft(
         EmitKind::Ai => b"AI",
         EmitKind::Js => b"JS",
         EmitKind::Bytecode => b"BC",
+        EmitKind::Ir => b"IR",
+        EmitKind::Native => b"NT",
+        EmitKind::Qasm => b"QM",
+        EmitKind::WebAssembly => b"WA",
     });
     let key = format!("{:x}", hasher.finalize());
     let output_string = if let Some(entry) = get_artifact(&key) {
@@ -354,6 +414,26 @@ pub fn compile_pipeline_soft(
                 gen.generate(&ast)
                     .map_err(|e| anyhow::anyhow!("Bytecode emit failed: {e}"))?
             }
+            EmitKind::Ir => {
+                let mut gen = CodeGenerator::new_ir();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("IR emit failed: {e}"))?
+            }
+            EmitKind::Native => {
+                let mut gen = CodeGenerator::new_native();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("Native emit failed: {e}"))?
+            }
+            EmitKind::Qasm => {
+                let mut gen = CodeGenerator::new_qasm();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("QASM emit failed: {e}"))?
+            }
+            EmitKind::WebAssembly => {
+                let mut gen = CodeGenerator::new_webassembly();
+                gen.generate(&ast)
+                    .map_err(|e| anyhow::anyhow!("WebAssembly emit failed: {e}"))?
+            }
         };
         put_artifact(key.clone(), generated.as_bytes().to_vec());
         generated
@@ -368,6 +448,10 @@ pub fn compile_pipeline_soft(
         EmitKind::Js => println!("ok: wrote js to '{}'.", out.display()),
         EmitKind::Ai => println!("ok: wrote ai to '{}'.", out.display()),
         EmitKind::Bytecode => println!("ok: wrote bytecode to '{}'.", out.display()),
+        EmitKind::Ir => println!("ok: wrote ir to '{}'.", out.display()),
+        EmitKind::Native => println!("ok: wrote native to '{}'.", out.display()),
+        EmitKind::Qasm => println!("ok: wrote qasm to '{}'.", out.display()),
+        EmitKind::WebAssembly => println!("ok: wrote wasm to '{}'.", out.display()),
     }
     crate::core::incremental::persist_metrics();
     crate::core::incremental::ensure_metrics_file_exists();

@@ -800,7 +800,7 @@ pub enum SandboxCommand {
     },
 }
 
-#[derive(Copy, Clone, Debug, ValueEnum)]
+#[derive(Copy, Clone, Debug, ValueEnum, serde::Serialize, serde::Deserialize)]
 pub enum OutputFormat {
     /// JavaScript output
     #[clap(alias = "js")]
@@ -824,9 +824,16 @@ pub enum OutputFormat {
     WebAssembly,
 }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Bytecode
+impl OutputFormat {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            OutputFormat::Javascript => "javascript",
+            OutputFormat::Aeonmi => "aeonmi",
+            OutputFormat::Bytecode => "bytecode",
+            OutputFormat::Native => "native",
+            OutputFormat::Qasm => "qasm",
+            OutputFormat::WebAssembly => "webassembly",
+        }
     }
 }
 

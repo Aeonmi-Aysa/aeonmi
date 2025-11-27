@@ -3,8 +3,30 @@ name = "aeonmi-shard"
 version = "0.1.0"
 authors = ["Aeonmi Development Collective"]
 description = "Reference Aeonmi shard application configured with Aeonmi.toml"
+license = "MIT"
+repository = "https://github.com/aeonmi/aeonmi"
 
 [aeonmi]
 entry = "src/main.ai"
 modules = ["src/engine.ai", "src/logic.ai"]
+include = ["src/**/*.ai"]
+exclude = ["src/test/**/*.ai"]
 # Tests are automatically discovered from the tests/ directory when not listed here.
+
+[dependencies]
+# Example dependency configuration
+# serde = { version = "1.0", features = ["derive"] }
+# quantum-lib = { path = "../quantum-lib" }
+
+[build]
+target = "javascript"
+optimization_level = 1
+debug_info = false
+
+[build.incremental]
+enabled = true
+cache_dir = "target/.aeonmi_cache"
+
+[build.parallel]
+enabled = true
+max_jobs = 4

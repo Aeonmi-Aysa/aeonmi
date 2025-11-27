@@ -219,8 +219,6 @@ fn handle_lint_command(
                     println!("  {}:", file.display());
                     for issue in result.issues {
                         let level_str = match issue.level {
-                            LintLevel::Error => "error".red(),
-                            LintLevel::Warning => "warning".yellow(),
                             LintLevel::Info => "info".blue(),
                         };
                         println!(
@@ -275,7 +273,7 @@ fn handle_clean(_cli: &AeonCli, manifest_path: Option<PathBuf>) -> Result<()> {
 
 /// Handle quantum-specific commands
 fn handle_quantum_commands(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     action: &crate::cli_enhanced::QuantumCommand,
 ) -> Result<()> {
     use crate::cli_enhanced::{print_info, print_success, QuantumCommand};
@@ -328,7 +326,7 @@ fn handle_quantum_commands(
 }
 
 /// Handle development commands
-fn handle_dev_commands(cli: &AeonCli, action: &crate::cli_enhanced::DevCommand) -> Result<()> {
+fn handle_dev_commands(_cli: &AeonCli, action: &crate::cli_enhanced::DevCommand) -> Result<()> {
     use crate::cli_enhanced::{print_info, DebugTarget, DevCommand};
 
     match action {
@@ -389,7 +387,7 @@ fn handle_dev_commands(cli: &AeonCli, action: &crate::cli_enhanced::DevCommand) 
 
 /// Handle project management commands
 fn handle_project_commands(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     action: &crate::cli_enhanced::ProjectCommand,
 ) -> Result<()> {
     use crate::cli_enhanced::{print_info, print_success, ProjectCommand};
@@ -459,7 +457,7 @@ fn handle_project_commands(
 
 /// Handle package management commands
 fn handle_package_commands(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     action: &crate::cli_enhanced::PackageCommand,
 ) -> Result<()> {
     use crate::cli_enhanced::{print_info, print_success, PackageCommand};
@@ -509,7 +507,7 @@ fn handle_package_commands(
 
 /// Handle REPL command
 fn handle_repl_command(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     backend: Option<&str>,
     load: Option<&std::path::Path>,
 ) -> Result<()> {
@@ -522,7 +520,7 @@ fn handle_repl_command(
 
 /// Handle benchmark command
 fn handle_bench_command(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     filter: Option<&str>,
     save: Option<&std::path::Path>,
     compare: Option<&std::path::Path>,
@@ -537,7 +535,7 @@ fn handle_bench_command(
 
 /// Handle documentation command
 fn handle_doc_command(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     open: bool,
     private: bool,
     target_dir: Option<&std::path::Path>,
@@ -556,7 +554,7 @@ fn handle_doc_command(
 }
 
 /// Handle LSP commands
-fn handle_lsp_commands(cli: &AeonCli, action: &crate::cli_enhanced::LspCommand) -> Result<()> {
+fn handle_lsp_commands(_cli: &AeonCli, action: &crate::cli_enhanced::LspCommand) -> Result<()> {
     use crate::cli_enhanced::{print_info, print_success, LspCommand};
 
     match action {
@@ -582,7 +580,7 @@ fn handle_lsp_commands(cli: &AeonCli, action: &crate::cli_enhanced::LspCommand) 
 
 /// Handle configuration commands
 fn handle_config_commands(
-    cli: &AeonCli,
+    _cli: &AeonCli,
     action: &crate::cli_enhanced::ConfigCommand,
 ) -> Result<()> {
     use crate::cli_enhanced::{print_success, ConfigCommand};
@@ -620,7 +618,7 @@ fn handle_config_commands(
 }
 
 /// Handle version command
-fn handle_version_command(cli: &AeonCli, verbose: bool) -> Result<()> {
+fn handle_version_command(_cli: &AeonCli, verbose: bool) -> Result<()> {
     if verbose {
         show_detailed_version_info()?;
     } else {
@@ -680,9 +678,9 @@ fn discover_source_files_in_project() -> Result<Vec<PathBuf>> {
 }
 
 fn format_file(
-    file: &std::path::Path,
-    check: bool,
-    config: Option<&std::path::Path>,
+    _file: &std::path::Path,
+    _check: bool,
+    _config: Option<&std::path::Path>,
 ) -> Result<bool> {
     // Implementation would format the file or check if it needs formatting
     Ok(false)
@@ -695,6 +693,11 @@ struct LintResult {
 }
 
 #[derive(Debug)]
+enum LintLevel {
+    Info,
+}
+
+#[derive(Debug)]
 struct LintIssue {
     line: usize,
     column: usize,
@@ -702,17 +705,10 @@ struct LintIssue {
     message: String,
 }
 
-#[derive(Debug)]
-enum LintLevel {
-    Error,
-    Warning,
-    Info,
-}
-
 fn lint_file(
-    file: &std::path::Path,
-    fix: bool,
-    config: Option<&std::path::Path>,
+    _file: &std::path::Path,
+    _fix: bool,
+    _config: Option<&std::path::Path>,
 ) -> Result<LintResult> {
     // Implementation would lint the file
     Ok(LintResult {
@@ -723,10 +719,10 @@ fn lint_file(
 
 // Quantum command implementations
 fn execute_quantum_circuit(
-    file: &std::path::Path,
-    backend: &str,
-    shots: usize,
-    optimize: Option<u8>,
+    _file: &std::path::Path,
+    _backend: &str,
+    _shots: usize,
+    _optimize: Option<u8>,
 ) -> Result<()> {
     todo!("Implement quantum circuit execution")
 }
@@ -735,36 +731,36 @@ fn list_quantum_backends() -> Result<()> {
     todo!("Implement quantum backend listing")
 }
 
-fn simulate_quantum_circuit(file: &std::path::Path, shots: usize, statevector: bool) -> Result<()> {
+fn simulate_quantum_circuit(_file: &std::path::Path, _shots: usize, _statevector: bool) -> Result<()> {
     todo!("Implement quantum circuit simulation")
 }
 
 fn visualize_quantum_circuit(
-    file: &std::path::Path,
-    format: &str,
-    output: Option<&std::path::Path>,
+    _file: &std::path::Path,
+    _format: &str,
+    _output: Option<&std::path::Path>,
 ) -> Result<()> {
     todo!("Implement quantum circuit visualization")
 }
 
 // Dev command implementations
-fn debug_lexer(file: &std::path::Path) -> Result<()> {
+fn debug_lexer(_file: &std::path::Path) -> Result<()> {
     todo!("Implement lexer debugging")
 }
 
-fn debug_parser(file: &std::path::Path) -> Result<()> {
+fn debug_parser(_file: &std::path::Path) -> Result<()> {
     todo!("Implement parser debugging")
 }
 
-fn debug_semantic_analysis(file: &std::path::Path) -> Result<()> {
+fn debug_semantic_analysis(_file: &std::path::Path) -> Result<()> {
     todo!("Implement semantic analysis debugging")
 }
 
-fn debug_code_generation(file: &std::path::Path) -> Result<()> {
+fn debug_code_generation(_file: &std::path::Path) -> Result<()> {
     todo!("Implement code generation debugging")
 }
 
-fn profile_execution(file: &std::path::Path, mode: &str) -> Result<()> {
+fn profile_execution(_file: &std::path::Path, _mode: &str) -> Result<()> {
     todo!("Implement execution profiling")
 }
 
@@ -778,11 +774,11 @@ fn show_ast(file: &std::path::Path, format: &str) -> Result<()> {
     crate::commands::ast::run_ast(file, format)
 }
 
-fn show_ir(file: &std::path::Path, optimize: Option<u8>) -> Result<()> {
+fn show_ir(_file: &std::path::Path, _optimize: Option<u8>) -> Result<()> {
     todo!("Implement IR display")
 }
 
-fn disassemble_bytecode(file: &std::path::Path) -> Result<()> {
+fn disassemble_bytecode(_file: &std::path::Path) -> Result<()> {
     todo!("Implement bytecode disassembly")
 }
 
@@ -791,15 +787,15 @@ fn show_project_info() -> Result<()> {
     todo!("Implement project info display")
 }
 
-fn add_dependency(dependency: &str, version: Option<&str>, dev: bool) -> Result<()> {
+fn add_dependency(_dependency: &str, _version: Option<&str>, _dev: bool) -> Result<()> {
     todo!("Implement dependency addition")
 }
 
-fn remove_dependency(dependency: &str) -> Result<()> {
+fn remove_dependency(_dependency: &str) -> Result<()> {
     todo!("Implement dependency removal")
 }
 
-fn update_dependency(dependency: Option<&str>) -> Result<()> {
+fn update_dependency(_dependency: Option<&str>) -> Result<()> {
     todo!("Implement dependency update")
 }
 
@@ -807,24 +803,24 @@ fn show_dependency_tree() -> Result<()> {
     todo!("Implement dependency tree display")
 }
 
-fn clean_project(all: bool) -> Result<()> {
+fn clean_project(_all: bool) -> Result<()> {
     todo!("Implement project cleaning")
 }
 
 // Package command implementations
-fn package_project(output: Option<&std::path::Path>, format: &str) -> Result<()> {
+fn package_project(_output: Option<&std::path::Path>, _format: &str) -> Result<()> {
     todo!("Implement project packaging")
 }
 
-fn publish_package(dry_run: bool, registry: Option<&str>) -> Result<()> {
+fn publish_package(_dry_run: bool, _registry: Option<&str>) -> Result<()> {
     todo!("Implement package publishing")
 }
 
-fn install_package(package: &str, version: Option<&str>) -> Result<()> {
+fn install_package(_package: &str, _version: Option<&str>) -> Result<()> {
     todo!("Implement package installation")
 }
 
-fn uninstall_package(package: &str) -> Result<()> {
+fn uninstall_package(_package: &str) -> Result<()> {
     todo!("Implement package uninstallation")
 }
 
@@ -832,7 +828,7 @@ fn list_installed_packages() -> Result<()> {
     todo!("Implement installed package listing")
 }
 
-fn search_packages(query: &str) -> Result<()> {
+fn search_packages(_query: &str) -> Result<()> {
     todo!("Implement package search")
 }
 
@@ -843,22 +839,22 @@ fn start_repl(backend: Option<&str>, load: Option<&std::path::Path>) -> Result<(
 }
 
 fn run_benchmarks(
-    filter: Option<&str>,
-    save: Option<&std::path::Path>,
-    compare: Option<&std::path::Path>,
+    _filter: Option<&str>,
+    _save: Option<&std::path::Path>,
+    _compare: Option<&std::path::Path>,
 ) -> Result<()> {
     todo!("Implement benchmark running")
 }
 
-fn generate_documentation(private: bool, target_dir: Option<&std::path::Path>) -> Result<()> {
+fn generate_documentation(_private: bool, _target_dir: Option<&std::path::Path>) -> Result<()> {
     todo!("Implement documentation generation")
 }
 
-fn open_documentation(target_dir: Option<&std::path::Path>) -> Result<()> {
+fn open_documentation(_target_dir: Option<&std::path::Path>) -> Result<()> {
     todo!("Implement documentation opening")
 }
 
-fn start_lsp_server(port: Option<u16>, log_level: &str) -> Result<()> {
+fn start_lsp_server(_port: Option<u16>, _log_level: &str) -> Result<()> {
     todo!("Implement LSP server startup")
 }
 
@@ -874,15 +870,15 @@ fn show_configuration() -> Result<()> {
     todo!("Implement configuration display")
 }
 
-fn set_configuration(key: &str, value: &str) -> Result<()> {
+fn set_configuration(_key: &str, _value: &str) -> Result<()> {
     todo!("Implement configuration setting")
 }
 
-fn get_configuration(key: &str) -> Result<()> {
+fn get_configuration(_key: &str) -> Result<()> {
     todo!("Implement configuration getting")
 }
 
-fn reset_configuration_key(key: &str) -> Result<()> {
+fn reset_configuration_key(_key: &str) -> Result<()> {
     todo!("Implement configuration key reset")
 }
 
@@ -975,7 +971,7 @@ fn handle_editor_command(
 }
 
 /// Handle sandbox command
-fn handle_sandbox_command(cli: &AeonCli, action: &SandboxCommand) -> Result<()> {
+fn handle_sandbox_command(_cli: &AeonCli, action: &SandboxCommand) -> Result<()> {
     use crate::cli_enhanced::{print_error, print_info, print_success, print_warning};
     use crate::sandbox::{create_workspace, AeonmiWorkspace, ExecutionLimits, WorkspaceConfig};
     use std::path::PathBuf;
@@ -1015,7 +1011,7 @@ fn handle_sandbox_command(cli: &AeonCli, action: &SandboxCommand) -> Result<()> 
             };
 
             // Create the workspace
-            let workspace = create_workspace(workspace_path.clone(), Some(config))?;
+            let _workspace = create_workspace(workspace_path.clone(), Some(config))?;
 
             print_success(&format!(
                 "✅ Sandbox workspace '{}' created at: {}",
@@ -1092,7 +1088,7 @@ fn handle_sandbox_command(cli: &AeonCli, action: &SandboxCommand) -> Result<()> 
             }
 
             // Load the workspace
-            let ws = AeonmiWorkspace::load(workspace_path.clone())?;
+            let _ws = AeonmiWorkspace::load(workspace_path.clone())?;
 
             print_success(&format!("✅ Entered sandbox: {}", workspace));
             print_info(&format!(
@@ -1129,7 +1125,7 @@ fn handle_sandbox_command(cli: &AeonCli, action: &SandboxCommand) -> Result<()> 
             }
 
             // Load the workspace
-            let ws = AeonmiWorkspace::load(workspace_path.clone())?;
+            let _ws = AeonmiWorkspace::load(workspace_path.clone())?;
 
             // Create execution context
             let mut exec_limits = ExecutionLimits::default();

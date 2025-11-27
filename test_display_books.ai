@@ -1,0 +1,24 @@
+// Test with data and display_books function
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["Quantum Computing Fundamentals", "The Art of Programming", "Mystery of the Lost Temple", "Cooking for Beginners", "World History: Ancient Civilizations"];
+let book_authors = ["Dr. Alice Chen", "Bob Smith", "Sarah Johnson", "Chef Mario", "Prof. David Lee"];
+let book_prices = [49.99, 39.99, 24.99, 29.99, 54.99];
+let book_stocks = [15, 8, 22, 12, 6];
+let book_genres = ["Technology", "Technology", "Fiction", "Lifestyle", "Education"];
+
+function display_books() {
+    log("=== AVAILABLE BOOKS ===");
+    let i = 0;
+    while (i < len(book_ids)) {
+        log("ID: " + book_ids[i]);
+        log("Title: " + book_titles[i]);
+        log("Author: " + book_authors[i]);
+        log("Price: $" + book_prices[i]);
+        log("Stock: " + book_stocks[i]);
+        log("Genre: " + book_genres[i]);
+        log("-------------------");
+        i = i + 1;
+    }
+}
+
+display_books();

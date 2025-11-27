@@ -86,6 +86,7 @@ impl Parser {
 
             // AEONMI Quantum-Native Syntax
             TokenKind::QuantumBracketOpen => self.parse_quantum_variable_decl(),
+            TokenKind::Qubit => self.parse_qubit_variable_decl(),
             TokenKind::ClassicalFunc => self.parse_quantum_function(QuantumFunctionType::Classical),
             TokenKind::QuantumFunc => self.parse_quantum_function(QuantumFunctionType::Quantum),
             TokenKind::AIFunc => {
@@ -270,22 +271,6 @@ impl Parser {
             class_tok.line,
             class_tok.column,
         ))
-    }
-
-    fn parse_struct_field(&mut self) -> Result<StructField, ParserError> {
-        let ident_tok = self.peek().clone();
-        let name = self.consume_identifier("Expected field name")?;
-        let default = if self.match_token(&[TokenKind::Equals]) {
-            Some(self.parse_expression()?)
-        } else {
-            None
-        };
-        Ok(StructField {
-            name,
-            default,
-            line: ident_tok.line,
-            column: ident_tok.column,
-        })
     }
 
     fn parse_trait_declaration(&mut self) -> Result<ASTNode, ParserError> {
@@ -814,28 +799,14 @@ impl Parser {
         Ok(expr)
     }
 
-    // assignment: Identifier '=' assignment | equality
+    // assignment: expression '=' assignment | equality
     fn parse_assignment(&mut self) -> Result<ASTNode, ParserError> {
         let expr = self.parse_equality()?;
         if self.match_token(&[TokenKind::Equals]) {
-            match expr {
-                ASTNode::Identifier(name) => {
-                    let line = self.previous().line;
-                    let column = self.previous().column;
-                    let value = self.parse_assignment()?;
-                    Ok(ASTNode::new_assignment_at(&name, value, line, column))
-                }
-                ASTNode::IdentifierSpanned {
-                    name,
-                    line: id_line,
-                    column: id_col,
-                    ..
-                } => {
-                    let value = self.parse_assignment()?;
-                    Ok(ASTNode::new_assignment_at(&name, value, id_line, id_col))
-                }
-                _ => Err(self.err_here("Invalid assignment target")),
-            }
+            let line = self.previous().line;
+            let column = self.previous().column;
+            let value = self.parse_assignment()?;
+            Ok(ASTNode::new_assignment_at(expr, value, line, column))
         } else {
             Ok(expr)
         }
@@ -1434,83 +1405,6 @@ impl Parser {
         }
     }
 
-    fn parse_param_type_annotation(
-        &mut self,
-        closing: &TokenKind,
-    ) -> Result<Option<String>, ParserError> {
-        if !self.match_token(&[TokenKind::Colon]) {
-            return Ok(None);
-        }
-
-        let ty = self.collect_type_annotation(closing)?;
-        let ty_trimmed = ty.trim().to_string();
-        if ty_trimmed.is_empty() {
-            return Err(self.err_here("Expected type annotation after ':'"));
-        }
-        Ok(Some(ty_trimmed))
-    }
-
-    fn collect_type_annotation(&mut self, closing: &TokenKind) -> Result<String, ParserError> {
-        let mut parts = Vec::new();
-        let mut depth = 0usize;
-
-        while !self.is_at_end() {
-            let kind = self.peek().kind.clone();
-            if depth == 0
-                && (matches!(kind, TokenKind::Comma | TokenKind::Equals) || kind == *closing)
-            {
-                break;
-            }
-
-            match kind {
-                TokenKind::LessThan | TokenKind::OpenParen | TokenKind::OpenBracket => {
-                    depth = depth.saturating_add(1);
-                }
-                TokenKind::GreaterThan | TokenKind::CloseParen | TokenKind::CloseBracket => {
-                    if depth > 0 {
-                        depth -= 1;
-                    } else if kind == *closing {
-                        break;
-                    }
-                }
-                _ => {}
-            }
-
-            let token = self.advance().clone();
-            parts.push(Self::token_fragment(&token));
-        }
-
-        Ok(parts.join(""))
-    }
-
-    fn token_fragment(token: &Token) -> String {
-        if !token.lexeme.is_empty() {
-            return token.lexeme.clone();
-        }
-
-        match &token.kind {
-            TokenKind::Identifier(name) => name.clone(),
-            TokenKind::NumberLiteral(value) => value.to_string(),
-            TokenKind::StringLiteral(value) => format!("\"{}\"", value),
-            TokenKind::BooleanLiteral(value) => value.to_string(),
-            TokenKind::LessThan => "<".into(),
-            TokenKind::GreaterThan => ">".into(),
-            TokenKind::OpenParen => "(".into(),
-            TokenKind::CloseParen => ")".into(),
-            TokenKind::OpenBracket => "[".into(),
-            TokenKind::CloseBracket => "]".into(),
-            TokenKind::Dot => ".".into(),
-            TokenKind::Comma => ",".into(),
-            TokenKind::Star => "*".into(),
-            TokenKind::Percent => "%".into(),
-            TokenKind::Plus => "+".into(),
-            TokenKind::Minus => "-".into(),
-            TokenKind::Slash => "/".into(),
-            TokenKind::Colon => ":".into(),
-            other => other.to_string(),
-        }
-    }
-
     fn normalize_qubit_literal(raw: &str) -> String {
         let trimmed = raw.trim();
         if trimmed.starts_with('|') && trimmed.ends_with('⟩') {
@@ -1594,6 +1488,25 @@ impl Parser {
         Ok(ASTNode::new_quantum_variable_decl(
             &name,
             binding_type,
+            value,
+            line,
+            column,
+        ))
+    }
+
+    fn parse_qubit_variable_decl(&mut self) -> Result<ASTNode, ParserError> {
+        self.advance(); // consume 'qubit'
+        let line = self.peek().line;
+        let column = self.peek().column;
+        let name = self.consume_identifier("Expected variable name after 'qubit'")?;
+        let _ = self.match_token(&[TokenKind::Semicolon]);
+
+        // Create a quantum variable with default |0⟩ state
+        let value = ASTNode::new_quantum_state("|0⟩", None);
+
+        Ok(ASTNode::new_quantum_variable_decl(
+            &name,
+            QuantumBindingType::Classical,
             value,
             line,
             column,

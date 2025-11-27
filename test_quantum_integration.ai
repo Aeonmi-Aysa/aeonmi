@@ -1,0 +1,43 @@
+// Quantum Integration Test - AEONMI
+// Tests basic quantum functionality: qubit declaration, superposition, measurement
+
+// Test 1: Basic qubit declaration with 'qubit' keyword
+qubit q1;
+superpose(q1);
+let result1 = measure(q1);
+log("Test 1 - Basic qubit:");
+log(result1);
+
+// Test 2: Quantum state literals
+let zero_state = |0⟩;
+let one_state = |1⟩;
+let plus_state = |+⟩;
+log("Test 2 - Zero state:");
+log(zero_state);
+log("Test 2 - One state:");
+log(one_state);
+log("Test 2 - Plus state:");
+log(plus_state);
+
+// Test 3: Hieroglyphic quantum variables
+𓀀 qbit_a = |0⟩;
+𓀁 qbit_b = |1⟩;
+log("Test 3 - Hieroglyphic vars:");
+log(qbit_a);
+log(qbit_b);
+
+// Test 4: Quantum operations
+qubit q2;
+superpose(q2);
+let entangled = entangle(q2, q1);
+log("Test 4 - Entanglement result:");
+log(entangled);
+
+// Test 5: Quantum arrays
+let qarray = [|0⟩, |1⟩, |+⟩];
+log("Test 5 - Quantum array length:");
+log(len(qarray));
+log("Test 5 - First element:");
+log(qarray[0]);
+
+log("Quantum Integration Test Complete!");

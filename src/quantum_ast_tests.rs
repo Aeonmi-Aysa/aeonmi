@@ -63,7 +63,7 @@ mod quantum_ast_integration_tests {
         let quantum_loop = ASTNode::QuantumLoop {
             condition: Box::new(ASTNode::Identifier("continue_loop".to_string())),
             body: Box::new(ASTNode::Block(vec![ASTNode::Assignment {
-                name: "state".to_string(),
+                target: Box::new(ASTNode::Identifier("state".to_string())),
                 value: Box::new(ASTNode::Identifier("qbit".to_string())),
                 line: 0,
                 column: 0,
@@ -88,13 +88,13 @@ mod quantum_ast_integration_tests {
             condition: Box::new(ASTNode::Identifier("quantum_state".to_string())),
             probability: Some(0.75),
             then_branch: Box::new(ASTNode::Block(vec![ASTNode::Assignment {
-                name: "result".to_string(),
+                target: Box::new(ASTNode::Identifier("result".to_string())),
                 value: Box::new(ASTNode::StringLiteral("success".to_string())),
                 line: 0,
                 column: 0,
             }])),
             else_branch: Some(Box::new(ASTNode::Block(vec![ASTNode::Assignment {
-                name: "result".to_string(),
+                target: Box::new(ASTNode::Identifier("result".to_string())),
                 value: Box::new(ASTNode::StringLiteral("failure".to_string())),
                 line: 0,
                 column: 0,
@@ -120,7 +120,7 @@ mod quantum_ast_integration_tests {
                 SuperpositionCase {
                     pattern: "|0⟩".to_string(),
                     body: vec![ASTNode::Assignment {
-                        name: "outcome".to_string(),
+                        target: Box::new(ASTNode::Identifier("outcome".to_string())),
                         value: Box::new(ASTNode::StringLiteral("zero".to_string())),
                         line: 0,
                         column: 0,
@@ -129,7 +129,7 @@ mod quantum_ast_integration_tests {
                 SuperpositionCase {
                     pattern: "|1⟩".to_string(),
                     body: vec![ASTNode::Assignment {
-                        name: "outcome".to_string(),
+                        target: Box::new(ASTNode::Identifier("outcome".to_string())),
                         value: Box::new(ASTNode::StringLiteral("one".to_string())),
                         line: 0,
                         column: 0,
@@ -155,7 +155,7 @@ mod quantum_ast_integration_tests {
             data_binding: Some("training_data".to_string()),
             model_binding: Some("neural_net".to_string()),
             body: vec![ASTNode::Assignment {
-                name: "prediction".to_string(),
+                target: Box::new(ASTNode::Identifier("prediction".to_string())),
                 value: Box::new(ASTNode::Identifier("processed_data".to_string())),
                 line: 0,
                 column: 0,
@@ -179,7 +179,7 @@ mod quantum_ast_integration_tests {
         let time_block = ASTNode::TimeBlock {
             duration: Some(Box::new(ASTNode::NumberLiteral(1000.0))),
             body: vec![ASTNode::Assignment {
-                name: "measurement".to_string(),
+                target: Box::new(ASTNode::Identifier("measurement".to_string())),
                 value: Box::new(ASTNode::Identifier("quantum_state".to_string())),
                 line: 0,
                 column: 0,

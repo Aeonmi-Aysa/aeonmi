@@ -1,0 +1,11 @@
+// AEONMI Bookstore Test
+// Minimal test to isolate parsing issue
+
+let book_ids = [1, 2, 3];
+let book_titles = ["Book1", "Book2", "Book3"];
+
+function test() {
+    log("Test");
+}
+
+test();

@@ -1,0 +1,57 @@
+// Simple test to verify bookstore logic works
+let book_ids = [1, 2, 3, 4, 5];
+let book_titles = ["The Great Gatsby", "To Kill a Mockingbird", "1984", "Pride and Prejudice", "The Catcher in the Rye"];
+let book_prices = [12.99, 14.99, 13.99, 11.99, 10.99];
+let book_stocks = [10, 8, 15, 6, 12];
+let book_count = 5;
+
+// Cart data - using fixed size arrays and tracking length
+let cart_ids = [0, 0, 0, 0, 0];
+let cart_titles = ["", "", "", "", ""];
+let cart_prices = [0.0, 0.0, 0.0, 0.0, 0.0];
+let cart_count = 0;
+
+fn find_book_index(book_id) {
+    let i = 0;
+    while (i < book_count) {
+        if (book_ids[i] == book_id) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+fn add_to_cart(book_id) {
+    let book_index = find_book_index(book_id);
+    if (book_index == -1) {
+        return "Book not found!";
+    }
+    if (book_stocks[book_index] <= 0) {
+        return "Book out of stock!";
+    }
+    if (cart_count >= 5) {
+        return "Cart is full!";
+    }
+    cart_ids[cart_count] = book_id;
+    cart_titles[cart_count] = book_titles[book_index];
+    cart_prices[cart_count] = book_prices[book_index];
+    cart_count = cart_count + 1;
+    book_stocks[book_index] = book_stocks[book_index] - 1;
+    return "Added to cart: " + book_titles[book_index];
+}
+
+fn calculate_total() {
+    let total = 0.0;
+    let i = 0;
+    while (i < cart_count) {
+        total = total + cart_prices[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+// Test the functions
+add_to_cart(1);
+add_to_cart(3);
+calculate_total();

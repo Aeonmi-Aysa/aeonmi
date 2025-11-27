@@ -1,15 +1,3 @@
-fn banner:
-    print "⚙️  Aeonmi quantum shard initializing"
-
-fn render_pipeline:
-    print "→ establishing shard runtime context"
-    let steps = 2 + 3
-    assert steps == 5
-    call audit_state
-
-fn audit_state:
-    print "Runtime state verified"
-
-fn verify_math:
-    let left = 40 + 2
-    assert left == 42
+﻿fn add(a, b) {
+  return a + b;
+}

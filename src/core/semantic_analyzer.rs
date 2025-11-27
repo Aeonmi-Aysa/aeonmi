@@ -85,8 +85,6 @@ struct VarInfo {
 #[derive(Debug, Clone)]
 struct TraitMethodSignature {
     name: String,
-    line: usize,
-    column: usize,
 }
 
 pub struct SemanticAnalyzer {
@@ -408,11 +406,9 @@ impl SemanticAnalyzer {
                 // Note: Don't visit the trait methods as regular functions since they're just signatures
                 let mut trait_methods = Vec::new();
                 for method in methods {
-                    if let ASTNode::Function { name: method_name, line: method_line, column: method_column, .. } = method {
+                    if let ASTNode::Function { name: method_name, line: _method_line, column: _method_column, .. } = method {
                         trait_methods.push(TraitMethodSignature {
                             name: method_name.clone(),
-                            line: *method_line,
-                            column: *method_column,
                         });
                         // Don't visit trait methods - they're just interface definitions
                     }
@@ -541,24 +537,29 @@ impl SemanticAnalyzer {
                 self.set_var_type(name, ValueType::Qubit);
             }
             ASTNode::Assignment {
-                name,
+                target,
                 value,
                 line,
                 column,
             } => {
-                if !self.is_declared(name) {
-                    let msg = format!("Assignment to undeclared variable '{}'", name);
-                    self.push_error_at(
-                        msg,
-                        Some(*line),
-                        Some(*column),
+                if let ASTNode::Identifier(name) = &**target {
+                    if !self.is_declared(name) {
+                        let msg = format!("Assignment to undeclared variable '{}'", name);
+                        self.push_error_at(
+                            msg,
+                            Some(*line),
+                            Some(*column),
                         Some(name.len().max(1)),
                         capture,
                     );
+                    }
+                    // write counts as a use
+                    self.visit(value, capture);
+                    self.mark_used(name);
+                } else {
+                    // For complex assignments, just visit the value
+                    self.visit(value, capture);
                 }
-                // write counts as a use
-                self.visit(value, capture);
-                self.mark_used(name);
             }
             ASTNode::Return(expr) | ASTNode::Log(expr) => {
                 self.visit(expr, capture);
@@ -1055,8 +1056,14 @@ impl SemanticAnalyzer {
                 name, line, column, ..
             } => (Some(*line), Some(*column), Some(name.len().max(1))),
             ASTNode::Assignment {
-                name, line, column, ..
-            } => (Some(*line), Some(*column), Some(name.len().max(1))),
+                target, line, column, ..
+            } => {
+                if let ASTNode::Identifier(name) = &**target {
+                    (Some(*line), Some(*column), Some(name.len().max(1)))
+                } else {
+                    (Some(*line), Some(*column), None)
+                }
+            }
             ASTNode::QuantumVariableDecl {
                 name, line, column, ..
             } => (Some(*line), Some(*column), Some(name.len().max(1))),
@@ -1105,7 +1112,7 @@ mod tests {
     #[test]
     fn assignment_to_undeclared_fails() {
         let ast = ASTNode::Program(vec![ASTNode::new_assignment(
-            "x",
+            ASTNode::Identifier("x".into()),
             ASTNode::NumberLiteral(1.0),
         )]);
         let mut a = SemanticAnalyzer::new();
@@ -1116,7 +1123,7 @@ mod tests {
     fn assignment_to_declared_ok() {
         let ast = ASTNode::Program(vec![
             ASTNode::new_variable_decl("x", ASTNode::NumberLiteral(1.0)),
-            ASTNode::new_assignment("x", ASTNode::NumberLiteral(2.0)),
+            ASTNode::new_assignment(ASTNode::Identifier("x".into()), ASTNode::NumberLiteral(2.0)),
         ]);
         let mut a = SemanticAnalyzer::new();
         assert!(a.analyze(&ast).is_ok());

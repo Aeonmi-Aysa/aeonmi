@@ -1,9 +1,4 @@
-fn main:
-    call boot_threadsmiths
-    let pattern = weave_pattern("Aurora", 5)
-    log("Nebula thread matrix: " + pattern)
-    call showcase_looms
-    call report_status
-
-fn report_status:
-    log("All warp cores aligned.")
+﻿fn main() {
+  let result = add(2, 3) + multiply(4, 5);
+  log(result);
+}

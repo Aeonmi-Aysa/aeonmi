@@ -1,4 +1,5 @@
 #[cfg(feature = "quantum")]
+// Test comment for incremental compilation
 fn main() -> anyhow::Result<()> {
     use aeonmi_project::commands::quantum::quantum_run;
     use std::env;

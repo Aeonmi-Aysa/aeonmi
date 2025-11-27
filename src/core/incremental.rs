@@ -876,10 +876,12 @@ pub fn compute_var_deps(ast: &ASTNode) -> VarDeps {
         writes: &mut HashMap<String, HashSet<usize>>,
     ) {
         match n {
-            N::Assignment { name, value, .. } => {
-                writes.entry(name.clone()).or_default().insert(idx);
-                if expr_contains_identifier(value) {
-                    reads.entry(name.clone()).or_default().insert(idx);
+            N::Assignment { target, value, .. } => {
+                if let N::Identifier(name) = &**target {
+                    writes.entry(name.clone()).or_default().insert(idx);
+                    if expr_contains_identifier(value) {
+                        reads.entry(name.clone()).or_default().insert(idx);
+                    }
                 }
                 walk(idx, value, reads, writes);
             }

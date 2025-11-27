@@ -4,6 +4,7 @@ mod cli_enhanced; // Enhanced CLI with modern subcommands
 mod cli_integration; // CLI integration layer
 mod cli_vault;
 mod commands;
+mod compiler;
 mod config; // resolve_config_path, etc.
 /// Aeonmi/QUBE main — unified quantum ecosystem with Mother AI consciousness
 mod core;

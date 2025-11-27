@@ -4,6 +4,7 @@ use std::fs;
 use anyhow::{bail, Context, Result};
 
 use crate::project::{BuildProfile, Project, TestReport};
+use crate::cli_enhanced::OutputFormat;
 
 /// Build target format for compilation output
 #[derive(Debug, Clone, Copy)]
@@ -46,50 +47,123 @@ pub fn build(
     target: Option<String>,
 ) -> Result<()> {
     let project = Project::load(manifest_path)?;
-    let profile = if release {
-        BuildProfile::Release
+
+    use crate::commands::enhanced::{BuildConfig, build_files};
+
+    // Create build config from project settings
+    let mut config = BuildConfig::default();
+    config.release = release;
+    config.incremental = project.incremental_enabled();
+    config.parallel = project.parallel_enabled();
+    config.max_parallel_jobs = project.max_parallel_jobs();
+
+    // Set output format based on target
+    if let Some(target_str) = target.or_else(|| project.build_target().map(|s| s.to_string())) {
+        match target_str.as_str() {
+            "javascript" | "js" => config.output_format = OutputFormat::Javascript,
+            "aeonmi" | "ai" => config.output_format = OutputFormat::Aeonmi,
+            "bytecode" | "bc" => config.output_format = OutputFormat::Bytecode,
+            "native" | "exe" => config.output_format = OutputFormat::Native,
+            "qasm" => config.output_format = OutputFormat::Qasm,
+            "wasm" | "wat" => config.output_format = OutputFormat::WebAssembly,
+            _ => config.output_format = OutputFormat::Bytecode,
+        }
+    }
+
+    // Set optimization level
+    if let Some(level) = project.optimization_level() {
+        config.opt_level = level;
+    }
+
+    // Set debug info
+    if let Some(debug) = project.debug_info() {
+        config.debug = debug;
+    }
+
+    // Set output directory
+    if let Some(output_dir) = project.output_dir() {
+        config.output_dir = project.root().join(output_dir);
     } else {
-        BuildProfile::Debug
-    };
+        config.output_dir = project.root().join("target");
+    }
 
-    // Parse build target
-    let build_target = target
-        .as_deref()
-        .map(BuildTarget::from_str)
-        .transpose()?
-        .unwrap_or(BuildTarget::Bytecode);
+    // Set cache directory
+    if let Some(cache_dir) = project.incremental_cache_dir() {
+        config.cache_dir = Some(project.root().join(cache_dir));
+    }
 
-    let artifact = project.build(profile)?;
+    // Collect all source files
+    let mut source_files = Vec::new();
 
-    // Ensure output directory exists
-    let output_dir = project.root().join("output");
-    fs::create_dir_all(&output_dir)
-        .with_context(|| format!("Failed to create output directory: {}", output_dir.display()))?;
+    // Add entry file
+    let entry_path = project.root().join(project.aeonmi_config().entry.clone());
+    if entry_path.exists() {
+        source_files.push(entry_path);
+    }
 
-    // Copy artifact to output directory with appropriate extension
-    let output_file = output_dir.join(format!(
-        "{}.{}",
-        project.package_name(),
-        build_target.extension()
-    ));
+    // Add module files
+    for module in &project.aeonmi_config().modules {
+        let module_path = project.root().join(module);
+        if module_path.exists() {
+            source_files.push(module_path);
+        }
+    }
 
-    // For now, just copy the bundle. In future, we'll add actual target compilation
-    fs::copy(&artifact, &output_file).with_context(|| {
-        format!(
-            "Failed to copy artifact {} to {}",
-            artifact.display(),
-            output_file.display()
-        )
-    })?;
+    // Find additional source files based on include/exclude patterns
+    if !project.include_patterns().is_empty() || !project.exclude_patterns().is_empty() {
+        use walkdir::WalkDir;
+
+        for entry in WalkDir::new(&project.root()) {
+            let entry = entry?;
+            let path = entry.path();
+
+            if !entry.file_type().is_file() {
+                continue;
+            }
+
+            // Check extension
+            if let Some(ext) = path.extension() {
+                if ext != "ai" && ext != "aeonmi" {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+
+            // Check include patterns
+            let relative_path = path.strip_prefix(&project.root()).unwrap_or(path);
+            let path_str = relative_path.to_string_lossy();
+
+            let included = if project.include_patterns().is_empty() {
+                true
+            } else {
+                project.include_patterns().iter().any(|pattern| path_str.contains(pattern))
+            };
+
+            let excluded = project.exclude_patterns().iter().any(|pattern| path_str.contains(pattern));
+
+            if included && !excluded && !source_files.contains(&path.to_path_buf()) {
+                source_files.push(path.to_path_buf());
+            }
+        }
+    }
+
+    if source_files.is_empty() {
+        bail!("No source files found for compilation");
+    }
+
+    // Use the enhanced build system
+    let output_path = build_files(&config, &source_files)?;
 
     println!(
         "Built {} v{} [{}] -> {} (target: {})",
         project.package_name(),
         project.package_version(),
-        profile.as_str(),
-        output_file.display(),
-        build_target.as_str()
+        if release { "release" } else { "debug" },
+        output_path.display(),
+        config.output_format.as_str()
     );
+
     Ok(())
 }
 
@@ -189,7 +263,7 @@ pub fn run(manifest_path: Option<PathBuf>, release: bool, timeout_ms: Option<u64
     }
     
     // Execute with timeout and logging
-    match program.execute_main_with_timeout_and_log(cancel_flag, Some(log_path.clone())) {
+    match program.execute_function_with_timeout_and_log("main", cancel_flag, Some(log_path.clone())) {
         Ok(()) => Ok(()),
         Err(e) => {
             logger.emit_error(

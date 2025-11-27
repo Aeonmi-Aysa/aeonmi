@@ -43,13 +43,10 @@ impl std::ops::Add for Complex {
     }
 }
 
-impl std::ops::Mul for Complex {
+impl std::ops::Sub for Complex {
     type Output = Self;
-    fn mul(self, other: Self) -> Self {
-        Self::new(
-            self.real * other.real - self.imag * other.imag,
-            self.real * other.imag + self.imag * other.real,
-        )
+    fn sub(self, other: Self) -> Self {
+        Self::new(self.real - other.real, self.imag - other.imag)
     }
 }
 
@@ -57,6 +54,16 @@ impl std::ops::Mul<f64> for Complex {
     type Output = Self;
     fn mul(self, scalar: f64) -> Self {
         Self::new(self.real * scalar, self.imag * scalar)
+    }
+}
+
+impl std::ops::Mul for Complex {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        Self::new(
+            self.real * other.real - self.imag * other.imag,
+            self.real * other.imag + self.imag * other.real,
+        )
     }
 }
 
@@ -314,6 +321,120 @@ impl QuantumSimulator {
         } else {
             Err(anyhow!("Qubit '{}' not found", qubit_name))
         }
+    }
+
+    pub fn apply_controlled_z(&mut self, control_name: &str, target_name: &str) -> Result<()> {
+        let control_prob = self.get_zero_probability(control_name)?;
+        // Apply CZ gate: phase flip when control is |1⟩
+        if control_prob < 0.5 { // control is more likely to be |1⟩
+            self.pauli_z(target_name)?;
+        }
+        Ok(())
+    }
+
+    pub fn apply_rx(&mut self, qubit_name: &str, angle: f64) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // Apply RX rotation around X-axis
+            let cos_half = (angle / 2.0).cos();
+            let sin_half = (angle / 2.0).sin();
+
+            let new_0 = Complex::new(cos_half, 0.0) * state.amplitudes[0]
+                      - Complex::new(0.0, sin_half) * state.amplitudes[1];
+            let new_1 = Complex::new(0.0, -sin_half) * state.amplitudes[0]
+                      + Complex::new(cos_half, 0.0) * state.amplitudes[1];
+
+            state.amplitudes[0] = new_0;
+            state.amplitudes[1] = new_1;
+            state.normalize();
+        }
+        Ok(())
+    }
+
+    pub fn apply_ry(&mut self, qubit_name: &str, angle: f64) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // Apply RY rotation around Y-axis
+            let cos_half = (angle / 2.0).cos();
+            let sin_half = (angle / 2.0).sin();
+
+            let new_0 = Complex::new(cos_half, 0.0) * state.amplitudes[0]
+                      - Complex::new(sin_half, 0.0) * state.amplitudes[1];
+            let new_1 = Complex::new(sin_half, 0.0) * state.amplitudes[0]
+                      + Complex::new(cos_half, 0.0) * state.amplitudes[1];
+
+            state.amplitudes[0] = new_0;
+            state.amplitudes[1] = new_1;
+            state.normalize();
+        }
+        Ok(())
+    }
+
+    pub fn apply_rz(&mut self, qubit_name: &str, angle: f64) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // Apply RZ rotation around Z-axis
+            let cos_half = (angle / 2.0).cos();
+            let sin_half = (angle / 2.0).sin();
+
+            let new_0 = Complex::new(cos_half, -sin_half) * state.amplitudes[0];
+            let new_1 = Complex::new(cos_half, sin_half) * state.amplitudes[1];
+
+            state.amplitudes[0] = new_0;
+            state.amplitudes[1] = new_1;
+            state.normalize();
+        }
+        Ok(())
+    }
+
+    /// Apply S gate (Z^0.5 = sqrt(Z)) to a qubit
+    pub fn apply_s_gate(&mut self, qubit_name: &str) -> Result<()> {
+        self.apply_rz(qubit_name, std::f64::consts::PI / 2.0)
+    }
+
+    /// Apply T gate (Z^0.25) to a qubit
+    pub fn apply_t_gate(&mut self, qubit_name: &str) -> Result<()> {
+        self.apply_rz(qubit_name, std::f64::consts::PI / 4.0)
+    }
+
+    /// Apply Hadamard gate to a qubit
+    pub fn apply_hadamard(&mut self, qubit_name: &str) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // Hadamard gate: |0⟩ → (|0⟩ + |1⟩)/√2, |1⟩ → (|0⟩ - |1⟩)/√2
+            let sqrt_2_inv = Complex::new(1.0 / (2.0_f64).sqrt(), 0.0);
+            let new_0 = sqrt_2_inv * (state.amplitudes[0] + state.amplitudes[1]);
+            let new_1 = sqrt_2_inv * (state.amplitudes[0] - state.amplitudes[1]);
+
+            state.amplitudes[0] = new_0;
+            state.amplitudes[1] = new_1;
+            state.normalize();
+        }
+        Ok(())
+    }
+
+    /// Apply controlled-X (CNOT) gate
+    pub fn apply_controlled_x(&mut self, control_name: &str, target_name: &str) -> Result<()> {
+        // Get control probability first (avoids borrowing issues)
+        let control_prob_1 = self.get_zero_probability(control_name)? * (-1.0) + 1.0; // P(|1⟩) = 1 - P(|0⟩)
+
+        // Apply CNOT if control is in |1⟩ state
+        if control_prob_1 > 0.5 {
+            if let Some(target_state) = self.qubits.get_mut(target_name) {
+                // Control is in |1⟩ state, apply X to target
+                let temp = target_state.amplitudes[0];
+                target_state.amplitudes[0] = target_state.amplitudes[1];
+                target_state.amplitudes[1] = temp;
+            } else {
+                return Err(anyhow!("Target qubit '{}' not found", target_name));
+            }
+        }
+        Ok(())
+    }
+
+    /// Reset a qubit to |0⟩ state
+    pub fn reset_qubit(&mut self, qubit_name: &str) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            state.amplitudes[0] = Complex::new(1.0, 0.0);
+            state.amplitudes[1] = Complex::new(0.0, 0.0);
+        }
+        Ok(())
     }
 
     /// Get the probability of measuring |0⟩ for a qubit

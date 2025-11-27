@@ -1,0 +1,10 @@
+let arr = [1, 2, 3, 4, 5];
+let first = arr[0];
+let second = arr[1];
+
+// Test that we can assign back
+arr[0] = 10;
+
+// Test nested arrays
+let nested = [[1, 2], [3, 4]];
+let inner = nested[0][1];

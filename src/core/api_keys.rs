@@ -16,27 +16,22 @@ fn key_material() -> [u8; 32] {
     let salt_static = b"AEONMI_API_KEY_SALT_v1";
     #[cfg(feature = "kdf-argon2")]
     {
-        use argon2::{
-            password_hash::{PasswordHash, SaltString},
-            Argon2, PasswordHasher,
-        };
+        use argon2::Argon2;
         // Construct deterministic salt from user+host hashed to 16 bytes to avoid storing separate salt file
         let mut hasher = Sha256::new();
         hasher.update(user.as_bytes());
         hasher.update(host.as_bytes());
         hasher.update(salt_static);
         let full = hasher.finalize();
-        let salt_bytes = &full[..16];
-        let salt_b64 = base64::engine::general_purpose::STANDARD_NO_PAD.encode(salt_bytes);
-        let salt = SaltString::new(&salt_b64)
-            .unwrap_or_else(|_| SaltString::encode_b64(salt_bytes).unwrap());
+        let mut salt_bytes = [0u8; 16];
+        salt_bytes.copy_from_slice(&full[..16]);
         let argon = Argon2::default(); // default params (can be tuned)
         let mut key = [0u8; 32];
         // Use password as user+host (not secret) purely to expand into key space; security relies on local file protection.
         if argon
             .hash_password_into(
                 format!("{}:{}", user, host).as_bytes(),
-                salt.as_salt(),
+                &salt_bytes,
                 &mut key,
             )
             .is_err()

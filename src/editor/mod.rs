@@ -6,7 +6,7 @@
 
 pub mod server;
 
-pub use server::{start_editor_server, AppState, EditorEvent};
+pub use server::{start_editor_server};
 
 use anyhow::Result;
 use std::path::PathBuf;
@@ -29,6 +29,7 @@ pub async fn launch_editor(port: Option<u16>, workspace: Option<PathBuf>) -> Res
 }
 
 /// Check if the editor should be launched based on command line arguments
+#[allow(dead_code)]
 pub fn should_launch_editor(args: &[String]) -> bool {
     // Only launch editor if explicitly requested with --editor flag
     // No longer auto-launch on empty arguments - default to CLI mode

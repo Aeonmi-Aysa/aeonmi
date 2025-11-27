@@ -1,0 +1,6 @@
+error: Build failed: could not parse expression `weave_pattern("Aurora", 5)` at line 3
+   = Check your source files for syntax errors
+
+error: Build failed: could not parse expression `weave_pattern("Aurora", 5)` at line 3
+   = Check your source files for syntax errors
+

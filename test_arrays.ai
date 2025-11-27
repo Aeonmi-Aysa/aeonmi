@@ -1,0 +1,9 @@
+let arr = [1, 2, 3, 4, 5];
+let first = arr[0];
+let second = arr[1];
+let len = arr.len();
+
+print("Array:", arr);
+print("First element:", first);
+print("Second element:", second);
+print("Length:", len);
