@@ -1,0 +1,24 @@
+// Aeonmi QUBE demo circuit — Bell state preparation
+// Run: aeonmi qube run examples/demo.qube --diagram
+
+// Initialize qubits
+state ψ = |0⟩
+state φ = |0⟩
+
+// Put ψ into superposition
+apply H → ψ
+
+// Entangle: CNOT with ψ as control, φ as target
+apply CNOT → (ψ, φ)
+
+// Measure both
+collapse ψ → r0
+collapse φ → r1
+
+// Assert both measurements are valid bits
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+
+// Print results
+print r0
+print r1

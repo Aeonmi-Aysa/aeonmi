@@ -1,0 +1,7 @@
+// P1-4: quantum circuit test
+quantum circuit Bell {
+    let q = superpose("q0");
+    let r = entangle("q0", "q1");
+    let result = measure("q0");
+    log(result);
+}

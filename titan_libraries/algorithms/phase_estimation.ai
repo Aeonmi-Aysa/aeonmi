@@ -1,0 +1,539 @@
+// QUANTUM PHASE ESTIMATION IMPLEMENTATION
+// Estimates eigenvalues of unitary operators
+// Foundation for many quantum algorithms
+// Written in hybrid AEONMI syntax
+
+import { QuantumCircuit, Qubit, Gate } from "../../src/core/quantum_core";
+import { QuantumFourierTransform } from "./qft";
+import { QuantumAlgorithm, AlgorithmParameters, AlgorithmResult } from "../titan";
+
+// === QUANTUM PHASE ESTIMATION IMPLEMENTATION ===
+quantum algorithm PhaseEstimation implements QuantumAlgorithm {
+    
+    qft: QuantumFourierTransform;
+    
+    function new() -> Self {
+        PhaseEstimation {
+            qft: QuantumFourierTransform::new(),
+        }
+    }
+    
+    function name(&self) -> &str {
+        "Quantum Phase Estimation"
+    }
+    
+    function description(&self) -> &str {
+        "Estimates eigenvalues of unitary operators with exponential precision"
+    }
+    
+    function required_qubits(&self, params: &AlgorithmParameters) -> usize {
+        let precision_qubits = params.get_integer("precision_qubits").unwrap_or(4) as usize;
+        let eigenstate_qubits = params.get_integer("eigenstate_qubits").unwrap_or(1) as usize;
+        precision_qubits + eigenstate_qubits
+    }
+    
+    function estimated_depth(&self, params: &AlgorithmParameters) -> usize {
+        let precision_qubits = params.get_integer("precision_qubits").unwrap_or(4) as usize;
+        let unitary_depth = params.get_integer("unitary_depth").unwrap_or(10) as usize;
+        
+        // Depth includes controlled unitaries + inverse QFT
+        precision_qubits * unitary_depth + precision_qubits * precision_qubits
+    }
+    
+    // === MAIN PHASE ESTIMATION EXECUTION ===
+    async function execute(&self, params: AlgorithmParameters) -> Result<AlgorithmResult, String> {
+        let precision_qubits = params.get_integer("precision_qubits")
+            .ok_or("Missing required parameter: precision_qubits")? as usize;
+        
+        let eigenstate_qubits = params.get_integer("eigenstate_qubits")
+            .ok_or("Missing required parameter: eigenstate_qubits")? as usize;
+        
+        let unitary_name = params.get_string("unitary_operator")
+            .ok_or("Missing required parameter: unitary_operator")?;
+        
+        let eigenstate_prep = params.get_string("eigenstate_preparation");
+        let num_measurements = params.get_integer("num_measurements").unwrap_or(1000) as usize;
+        
+        log(f"📏 Starting phase estimation with {} precision qubits", precision_qubits);
+        log(f"🎯 Estimating phase of unitary: {}", unitary_name);
+        
+        let start_time = std::time::Instant::now();
+        
+        // Create quantum circuit
+        let total_qubits = precision_qubits + eigenstate_qubits;
+        let mut circuit = QuantumCircuit::new(total_qubits);
+        
+        // Step 1: Prepare eigenstate
+        self.prepare_eigenstate(&mut circuit, precision_qubits, eigenstate_qubits, eigenstate_prep);
+        
+        // Step 2: Create superposition in precision qubits
+        self.initialize_precision_register(&mut circuit, precision_qubits);
+        
+        // Step 3: Apply controlled unitary operations
+        self.apply_controlled_unitaries(&mut circuit, precision_qubits, eigenstate_qubits, &unitary_name)?;
+        
+        // Step 4: Apply inverse QFT to precision register
+        self.qft.inverse_qft(&mut circuit, 0, precision_qubits);
+        
+        // Step 5: Measure and estimate phase
+        let phase_estimate = self.measure_and_estimate_phase(&circuit, precision_qubits, num_measurements).await;
+        
+        let execution_time = start_time.elapsed();
+        
+        log(f"✅ Phase estimation completed: φ ≈ {:.6}", phase_estimate.estimated_phase);
+        log(f"🎯 Confidence: {:.1}%", phase_estimate.confidence * 100.0);
+        
+        Ok(AlgorithmResult {
+            success: phase_estimate.confidence > 0.7,
+            result_data: serde_json::json!({
+                "estimated_phase": phase_estimate.estimated_phase,
+                "confidence": phase_estimate.confidence,
+                "precision_bits": phase_estimate.precision_bits,
+                "measurement_distribution": phase_estimate.measurement_distribution,
+                "theoretical_precision": self.calculate_theoretical_precision(precision_qubits),
+                "eigenvalue": self.phase_to_eigenvalue(phase_estimate.estimated_phase),
+            }),
+            execution_time,
+            quantum_resources_used: QuantumResources::high(),
+            success_rate: phase_estimate.confidence,
+            confidence: phase_estimate.confidence,
+        })
+    }
+    
+    // === EIGENSTATE PREPARATION ===
+    
+    function prepare_eigenstate(
+        &self,
+        circuit: &mut QuantumCircuit,
+        precision_qubits: usize,
+        eigenstate_qubits: usize,
+        preparation_method: Option<String>,
+    ) {
+        log("🎯 Preparing eigenstate");
+        
+        let eigenstate_start = precision_qubits;
+        
+        match preparation_method.as_deref() {
+            Some("computational_basis") => {
+                // Start with |1⟩ state
+                circuit.x(eigenstate_start);
+            },
+            Some("plus_state") => {
+                // Create |+⟩ state
+                circuit.h(eigenstate_start);
+            },
+            Some("custom") => {
+                // Would load custom eigenstate preparation
+                self.prepare_custom_eigenstate(circuit, eigenstate_start, eigenstate_qubits);
+            },
+            _ => {
+                // Default: |1⟩ state
+                circuit.x(eigenstate_start);
+            }
+        }
+    }
+    
+    function prepare_custom_eigenstate(&self, circuit: &mut QuantumCircuit, start_qubit: usize, num_qubits: usize) {
+        // This would implement custom eigenstate preparation
+        // For now, create a simple superposition
+        for i in 0..num_qubits {
+            circuit.h(start_qubit + i);
+        }
+    }
+    
+    // === PRECISION REGISTER INITIALIZATION ===
+    
+    function initialize_precision_register(&self, circuit: &mut QuantumCircuit, precision_qubits: usize) {
+        log(f"🌊 Initializing {} precision qubits in superposition", precision_qubits);
+        
+        // Apply Hadamard to all precision qubits
+        for i in 0..precision_qubits {
+            circuit.h(i);
+        }
+    }
+    
+    // === CONTROLLED UNITARY OPERATIONS ===
+    
+    function apply_controlled_unitaries(
+        &self,
+        circuit: &mut QuantumCircuit,
+        precision_qubits: usize,
+        eigenstate_qubits: usize,
+        unitary_name: &str,
+    ) -> Result<(), String> {
+        log(f"⚡ Applying controlled unitary operations: {}", unitary_name);
+        
+        let eigenstate_start = precision_qubits;
+        
+        for i in 0..precision_qubits {
+            let control_qubit = i;
+            let repetitions = 1 << i;  // 2^i repetitions
+            
+            log(f"🔄 Control qubit {}: applying U^{}", i, repetitions);
+            
+            for _ in 0..repetitions {
+                self.apply_controlled_unitary(
+                    circuit,
+                    control_qubit,
+                    eigenstate_start,
+                    eigenstate_qubits,
+                    unitary_name,
+                )?;
+            }
+        }
+        
+        Ok(())
+    }
+    
+    function apply_controlled_unitary(
+        &self,
+        circuit: &mut QuantumCircuit,
+        control_qubit: usize,
+        target_start: usize,
+        target_qubits: usize,
+        unitary_name: &str,
+    ) -> Result<(), String> {
+        match unitary_name {
+            "pauli_z" => {
+                circuit.cz(control_qubit, target_start);
+            },
+            "pauli_x" => {
+                circuit.cx(control_qubit, target_start);
+            },
+            "pauli_y" => {
+                circuit.cy(control_qubit, target_start);
+            },
+            "rotation_z" => {
+                let angle = std::f64::consts::PI / 4.0;  // 45 degrees
+                circuit.crz(control_qubit, target_start, angle);
+            },
+            "rotation_x" => {
+                let angle = std::f64::consts::PI / 4.0;
+                circuit.crx(control_qubit, target_start, angle);
+            },
+            "rotation_y" => {
+                let angle = std::f64::consts::PI / 4.0;
+                circuit.cry(control_qubit, target_start, angle);
+            },
+            "phase_gate" => {
+                let phase = std::f64::consts::PI / 2.0;  // 90 degrees
+                circuit.cu1(control_qubit, target_start, phase);
+            },
+            "t_gate" => {
+                circuit.ct(control_qubit, target_start);
+            },
+            "custom" => {
+                return self.apply_custom_controlled_unitary(circuit, control_qubit, target_start, target_qubits);
+            },
+            _ => {
+                return Err(format!("Unknown unitary operator: {}", unitary_name));
+            }
+        }
+        
+        Ok(())
+    }
+    
+    function apply_custom_controlled_unitary(
+        &self,
+        circuit: &mut QuantumCircuit,
+        control_qubit: usize,
+        target_start: usize,
+        target_qubits: usize,
+    ) -> Result<(), String> {
+        // This would implement custom unitary operations
+        // For demo, apply a simple rotation
+        let angle = std::f64::consts::PI / 3.0;  // 60 degrees
+        circuit.crz(control_qubit, target_start, angle);
+        Ok(())
+    }
+    
+    // === MEASUREMENT AND PHASE ESTIMATION ===
+    
+    async function measure_and_estimate_phase(
+        &self,
+        circuit: &QuantumCircuit,
+        precision_qubits: usize,
+        num_measurements: usize,
+    ) -> PhaseEstimationResult {
+        log(f"📊 Performing {} measurements for phase estimation", num_measurements);
+        
+        let mut measurement_counts = std::collections::HashMap::new();
+        
+        // Perform measurements on precision qubits only
+        for _ in 0..num_measurements {
+            let full_measurement = circuit.measure_all();
+            let precision_measurement: Vec<bool> = full_measurement[0..precision_qubits].to_vec();
+            let measured_value = self.measurement_to_integer(&precision_measurement);
+            
+            *measurement_counts.entry(measured_value).or_insert(0) += 1;
+        }
+        
+        // Find most probable measurement outcome
+        let (&most_probable_value, &max_count) = measurement_counts
+            .iter()
+            .max_by_key(|&(_, count)| count)
+            .unwrap_or((&0, &0));
+        
+        // Convert measurement to phase estimate
+        let max_value = 1u64 << precision_qubits;
+        let estimated_phase = most_probable_value as f64 / max_value as f64;
+        
+        // Calculate confidence based on measurement distribution
+        let confidence = max_count as f64 / num_measurements as f64;
+        
+        // Determine precision in bits
+        let precision_bits = self.calculate_achieved_precision(&measurement_counts, precision_qubits);
+        
+        log(f"📏 Most probable measurement: {} (phase ≈ {:.6})", most_probable_value, estimated_phase);
+        
+        PhaseEstimationResult {
+            estimated_phase,
+            confidence,
+            precision_bits,
+            measurement_distribution: measurement_counts,
+            most_probable_measurement: most_probable_value,
+        }
+    }
+    
+    // === ANALYSIS METHODS ===
+    
+    function calculate_achieved_precision(&self, measurements: &std::collections::HashMap<u64, usize>, max_precision: usize) -> usize {
+        // Calculate how many bits of precision we actually achieved
+        // based on the spread of measurements
+        
+        let total_measurements: usize = measurements.values().sum();
+        let mut entropy = 0.0;
+        
+        for &count in measurements.values() {
+            if count > 0 {
+                let probability = count as f64 / total_measurements as f64;
+                entropy -= probability * probability.log2();
+            }
+        }
+        
+        // Convert entropy to effective precision bits
+        let effective_precision = max_precision as f64 - entropy;
+        effective_precision.max(1.0) as usize
+    }
+    
+    function calculate_theoretical_precision(&self, precision_qubits: usize) -> f64 {
+        // Theoretical precision is 2^(-precision_qubits)
+        1.0 / (1u64 << precision_qubits) as f64
+    }
+    
+    function phase_to_eigenvalue(&self, phase: f64) -> ComplexNumber {
+        // Convert phase to eigenvalue: e^(2πi*φ)
+        let angle = 2.0 * std::f64::consts::PI * phase;
+        ComplexNumber {
+            real: angle.cos(),
+            imaginary: angle.sin(),
+        }
+    }
+    
+    function measurement_to_integer(&self, measurements: &[bool]) -> u64 {
+        let mut result = 0u64;
+        for (i, &bit) in measurements.iter().enumerate() {
+            if bit {
+                result |= 1 << i;
+            }
+        }
+        result
+    }
+    
+    // === OPTIMIZATION METHODS ===
+    
+    function optimize_basic(&self, params: AlgorithmParameters) -> AlgorithmParameters {
+        let mut optimized = params.clone();
+        
+        // Set reasonable defaults
+        if !optimized.has_parameter("num_measurements") {
+            optimized.set_integer("num_measurements", 1000);
+        }
+        
+        if !optimized.has_parameter("eigenstate_preparation") {
+            optimized.set_string("eigenstate_preparation", "computational_basis".to_string());
+        }
+        
+        optimized
+    }
+    
+    function optimize_advanced(&self, params: AlgorithmParameters) -> AlgorithmParameters {
+        let mut optimized = self.optimize_basic(params);
+        
+        // Optimize precision vs resources trade-off
+        if let Some(precision_qubits) = optimized.get_integer("precision_qubits") {
+            if precision_qubits > 8 {
+                // For high precision, increase measurements
+                let enhanced_measurements = optimized.get_integer("num_measurements").unwrap_or(1000) * 2;
+                optimized.set_integer("num_measurements", enhanced_measurements);
+                
+                // Enable error mitigation
+                optimized.set_boolean("use_error_mitigation", true);
+            }
+        }
+        
+        optimized
+    }
+    
+    function optimize_adaptive(&self, params: AlgorithmParameters, history: &ExecutionHistory) -> AlgorithmParameters {
+        let mut optimized = self.optimize_advanced(params);
+        
+        // Learn from historical confidence levels
+        if let Some(avg_confidence) = history.average_confidence() {
+            if avg_confidence < 0.8 {
+                // Low confidence - increase measurements
+                let current_measurements = optimized.get_integer("num_measurements").unwrap_or(1000);
+                optimized.set_integer("num_measurements", current_measurements * 2);
+            }
+        }
+        
+        // Adjust precision based on historical accuracy
+        if let Some(avg_precision) = history.average_precision_achieved() {
+            let target_precision = optimized.get_integer("precision_qubits").unwrap_or(4);
+            if avg_precision as u64 > target_precision {
+                // We're achieving better precision than needed
+                optimized.set_integer("precision_qubits", target_precision - 1);
+            }
+        }
+        
+        optimized
+    }
+}
+
+// === SPECIALIZED PHASE ESTIMATION VARIANTS ===
+
+impl PhaseEstimation {
+    // Iterative Phase Estimation (requires fewer qubits)
+    async function iterative_phase_estimation(
+        &self,
+        precision_bits: usize,
+        unitary_name: &str,
+        eigenstate_qubits: usize,
+    ) -> Result<f64, String> {
+        log("🔄 Running iterative phase estimation");
+        
+        let mut estimated_phase = 0.0;
+        let mut circuit = QuantumCircuit::new(1 + eigenstate_qubits);  // One ancilla + eigenstate
+        
+        for bit_position in 0..precision_bits {
+            // Prepare eigenstate
+            circuit.x(1);  // Prepare |1⟩ in eigenstate qubit
+            
+            // Create superposition in ancilla
+            circuit.h(0);
+            
+            // Apply controlled unitary 2^bit_position times
+            let repetitions = 1 << bit_position;
+            for _ in 0..repetitions {
+                self.apply_controlled_unitary(&mut circuit, 0, 1, eigenstate_qubits, unitary_name)?;
+            }
+            
+            // Apply phase correction based on previous bits
+            let phase_correction = -2.0 * std::f64::consts::PI * estimated_phase;
+            circuit.rz(0, phase_correction);
+            
+            // Apply Hadamard and measure
+            circuit.h(0);
+            let measurement = circuit.measure(0);
+            
+            // Update phase estimate
+            if measurement {
+                estimated_phase += 1.0 / (1 << (bit_position + 1)) as f64;
+            }
+            
+            // Reset for next iteration
+            circuit.reset();
+        }
+        
+        Ok(estimated_phase)
+    }
+    
+    // Bayesian Phase Estimation (adaptive precision)
+    async function bayesian_phase_estimation(
+        &self,
+        max_experiments: usize,
+        target_precision: f64,
+        unitary_name: &str,
+    ) -> Result<f64, String> {
+        log("🧠 Running Bayesian phase estimation");
+        
+        let mut phase_distribution = BayesianPhaseDistribution::uniform();
+        let mut experiments_used = 0;
+        
+        while experiments_used < max_experiments && phase_distribution.precision() > target_precision {
+            // Choose optimal experiment based on current distribution
+            let optimal_time = phase_distribution.choose_optimal_experiment_time();
+            
+            // Run single-shot phase estimation experiment
+            let measurement = self.single_shot_phase_experiment(optimal_time, unitary_name).await?;
+            
+            // Update Bayesian posterior
+            phase_distribution.update_with_measurement(optimal_time, measurement);
+            
+            experiments_used += 1;
+            
+            log(f"🔬 Experiment {}: precision = {:.6}", experiments_used, phase_distribution.precision());
+        }
+        
+        Ok(phase_distribution.mean_estimate())
+    }
+    
+    async function single_shot_phase_experiment(&self, evolution_time: f64, unitary_name: &str) -> Result<bool, String> {
+        // Simplified single-shot experiment
+        // In practice would implement full ramsey interferometry
+        Ok(rand::random())  // Placeholder
+    }
+}
+
+// === SUPPORTING TYPES ===
+
+#[derive(Debug)]
+struct PhaseEstimationResult {
+    estimated_phase: f64,
+    confidence: f64,
+    precision_bits: usize,
+    measurement_distribution: std::collections::HashMap<u64, usize>,
+    most_probable_measurement: u64,
+}
+
+#[derive(Debug, Clone)]
+struct ComplexNumber {
+    real: f64,
+    imaginary: f64,
+}
+
+struct BayesianPhaseDistribution {
+    // Simplified representation
+    mean: f64,
+    variance: f64,
+}
+
+impl BayesianPhaseDistribution {
+    function uniform() -> Self {
+        BayesianPhaseDistribution {
+            mean: 0.5,
+            variance: 1.0 / 12.0,  // Uniform distribution variance
+        }
+    }
+    
+    function precision(&self) -> f64 {
+        self.variance.sqrt()
+    }
+    
+    function choose_optimal_experiment_time(&self) -> f64 {
+        // Choose time to maximize information gain
+        1.0 / (2.0 * self.variance.sqrt())
+    }
+    
+    function update_with_measurement(&mut self, _time: f64, _measurement: bool) {
+        // Bayesian update (simplified)
+        self.variance *= 0.9;  // Reduce uncertainty
+    }
+    
+    function mean_estimate(&self) -> f64 {
+        self.mean
+    }
+}
+
+log("📏 Quantum Phase Estimation implementation loaded");
+log("🎯 Ready for precise eigenvalue estimation");

@@ -1,0 +1,481 @@
+// TITAN QUANTUM ALGORITHM LIBRARIES
+// Comprehensive quantum computing toolkit for AEONMI
+// Integrates with Mother AI for intelligent quantum programming
+// Written in hybrid AEONMI syntax
+
+import { QuantumCircuit, Qubit, Gate } from "../src/core/quantum_core";
+import { ShorAlgorithm } from "./algorithms/shor";
+import { GroverAlgorithm } from "./algorithms/grover";
+import { QuantumFourierTransform } from "./algorithms/qft";
+import { PhaseEstimation } from "./algorithms/phase_estimation";
+import { QuantumMachineLearning } from "./algorithms/quantum_ml";
+import { VQE } from "./algorithms/vqe";
+import { QAOA } from "./algorithms/qaoa";
+import { QuantumTeleportation } from "./algorithms/teleportation";
+
+// === TITAN LIBRARY MAIN CLASS ===
+quantum library TitanLibrary {
+    
+    // Core quantum algorithms
+    shor_algorithm: ShorAlgorithm;
+    grover_algorithm: GroverAlgorithm;
+    qft: QuantumFourierTransform;
+    phase_estimation: PhaseEstimation;
+    quantum_ml: QuantumMachineLearning;
+    vqe: VQE;
+    qaoa: QAOA;
+    teleportation: QuantumTeleportation;
+    
+    // Algorithm registry for dynamic loading
+    algorithm_registry: Map<String, Box<dyn QuantumAlgorithm>>;
+    
+    // Performance metrics
+    execution_metrics: ExecutionMetrics;
+    
+    // Integration with Mother AI
+    mother_ai_bridge: Option<MotherAIBridge>;
+    
+    function new() -> Self {
+        log("🚀 Initializing Titan Quantum Algorithm Libraries");
+        
+        TitanLibrary {
+            shor_algorithm: ShorAlgorithm::new(),
+            grover_algorithm: GroverAlgorithm::new(),
+            qft: QuantumFourierTransform::new(),
+            phase_estimation: PhaseEstimation::new(),
+            quantum_ml: QuantumMachineLearning::new(),
+            vqe: VQE::new(),
+            qaoa: QAOA::new(),
+            teleportation: QuantumTeleportation::new(),
+            algorithm_registry: Map::new(),
+            execution_metrics: ExecutionMetrics::new(),
+            mother_ai_bridge: None,
+        }
+    }
+    
+    // === ALGORITHM ACCESS METHODS ===
+    
+    // Get algorithm by name with intelligent suggestions
+    function get_algorithm(&self, name: &str) -> Result<&dyn QuantumAlgorithm, TitanError> {
+        match name.to_lowercase().as_str() {
+            "shor" | "shors" | "factoring" => Ok(&self.shor_algorithm),
+            "grover" | "grovers" | "search" => Ok(&self.grover_algorithm),
+            "qft" | "fourier" | "transform" => Ok(&self.qft),
+            "phase" | "estimation" | "phase_estimation" => Ok(&self.phase_estimation),
+            "ml" | "machine_learning" | "quantum_ml" => Ok(&self.quantum_ml),
+            "vqe" | "variational" | "eigenvalue" => Ok(&self.vqe),
+            "qaoa" | "optimization" | "approximate" => Ok(&self.qaoa),
+            "teleportation" | "teleport" | "quantum_teleportation" => Ok(&self.teleportation),
+            _ => {
+                // Try registry for custom algorithms
+                if let Some(algorithm) = self.algorithm_registry.get(name) {
+                    Ok(algorithm.as_ref())
+                } else {
+                    // Use AI to suggest similar algorithms
+                    let suggestions = self.suggest_algorithms(name);
+                    Err(TitanError::AlgorithmNotFound {
+                        name: name.to_string(),
+                        suggestions,
+                    })
+                }
+            }
+        }
+    }
+    
+    // Get all available algorithms
+    function list_algorithms(&self) -> Vec<AlgorithmInfo> {
+        vec![
+            AlgorithmInfo {
+                name: "Shor's Algorithm".to_string(),
+                description: "Quantum factoring algorithm for cryptography".to_string(),
+                aliases: vec!["shor", "shors", "factoring"],
+                category: AlgorithmCategory::Cryptography,
+                quantum_advantage: QuantumAdvantage::Exponential,
+                complexity: Complexity::High,
+            },
+            AlgorithmInfo {
+                name: "Grover's Algorithm".to_string(),
+                description: "Quantum search algorithm for unsorted databases".to_string(),
+                aliases: vec!["grover", "grovers", "search"],
+                category: AlgorithmCategory::Search,
+                quantum_advantage: QuantumAdvantage::Quadratic,
+                complexity: Complexity::Medium,
+            },
+            AlgorithmInfo {
+                name: "Quantum Fourier Transform".to_string(),
+                description: "Quantum version of discrete Fourier transform".to_string(),
+                aliases: vec!["qft", "fourier", "transform"],
+                category: AlgorithmCategory::Foundation,
+                quantum_advantage: QuantumAdvantage::Exponential,
+                complexity: Complexity::Medium,
+            },
+            AlgorithmInfo {
+                name: "Phase Estimation".to_string(),
+                description: "Estimates eigenvalues of unitary operators".to_string(),
+                aliases: vec!["phase", "estimation", "phase_estimation"],
+                category: AlgorithmCategory::Foundation,
+                quantum_advantage: QuantumAdvantage::Exponential,
+                complexity: Complexity::High,
+            },
+            AlgorithmInfo {
+                name: "Quantum Machine Learning".to_string(),
+                description: "Quantum-enhanced machine learning algorithms".to_string(),
+                aliases: vec!["ml", "machine_learning", "quantum_ml"],
+                category: AlgorithmCategory::MachineLearning,
+                quantum_advantage: QuantumAdvantage::Variable,
+                complexity: Complexity::High,
+            },
+            AlgorithmInfo {
+                name: "Variational Quantum Eigensolver".to_string(),
+                description: "Hybrid algorithm for finding ground state energies".to_string(),
+                aliases: vec!["vqe", "variational", "eigenvalue"],
+                category: AlgorithmCategory::Chemistry,
+                quantum_advantage: QuantumAdvantage::Problem_Specific,
+                complexity: Complexity::High,
+            },
+            AlgorithmInfo {
+                name: "Quantum Approximate Optimization".to_string(),
+                description: "Hybrid algorithm for combinatorial optimization".to_string(),
+                aliases: vec!["qaoa", "optimization", "approximate"],
+                category: AlgorithmCategory::Optimization,
+                quantum_advantage: QuantumAdvantage::Variable,
+                complexity: Complexity::High,
+            },
+            AlgorithmInfo {
+                name: "Quantum Teleportation".to_string(),
+                description: "Transfer quantum states using entanglement".to_string(),
+                aliases: vec!["teleportation", "teleport", "quantum_teleportation"],
+                category: AlgorithmCategory::Communication,
+                quantum_advantage: QuantumAdvantage::Fundamental,
+                complexity: Complexity::Medium,
+            },
+        ]
+    }
+    
+    // === INTELLIGENT ALGORITHM SELECTION ===
+    
+    // AI-powered algorithm recommendation
+    function recommend_algorithm(&self, problem_description: &str) -> Vec<AlgorithmRecommendation> {
+        log(f"🤖 Analyzing problem: {}", problem_description);
+        
+        let keywords = extract_keywords(problem_description);
+        let mut recommendations = Vec::new();
+        
+        // Factoring/Cryptography problems
+        if keywords.iter().any(|k| ["factor", "cryptography", "rsa", "prime", "decrypt"].contains(&k.as_str())) {
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "shor".to_string(),
+                confidence: 0.95,
+                reason: "Shor's algorithm is optimal for integer factorization".to_string(),
+                quantum_advantage: "Exponential speedup over classical factoring".to_string(),
+            });
+        }
+        
+        // Search problems
+        if keywords.iter().any(|k| ["search", "find", "database", "unsorted", "lookup"].contains(&k.as_str())) {
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "grover".to_string(),
+                confidence: 0.90,
+                reason: "Grover's algorithm provides quadratic speedup for search".to_string(),
+                quantum_advantage: "O(√N) vs classical O(N) search time".to_string(),
+            });
+        }
+        
+        // Optimization problems
+        if keywords.iter().any(|k| ["optimize", "minimize", "maximize", "combinatorial", "traveling", "graph"].contains(&k.as_str())) {
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "qaoa".to_string(),
+                confidence: 0.85,
+                reason: "QAOA is designed for combinatorial optimization problems".to_string(),
+                quantum_advantage: "Potential advantage for NP-hard problems".to_string(),
+            });
+        }
+        
+        // Chemistry/Physics problems
+        if keywords.iter().any(|k| ["molecule", "chemistry", "energy", "ground", "state", "eigenvalue"].contains(&k.as_str())) {
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "vqe".to_string(),
+                confidence: 0.88,
+                reason: "VQE is specialized for quantum chemistry calculations".to_string(),
+                quantum_advantage: "Exponential reduction in classical simulation complexity".to_string(),
+            });
+        }
+        
+        // Machine learning problems
+        if keywords.iter().any(|k| ["learning", "classification", "training", "neural", "pattern", "recognition"].contains(&k.as_str())) {
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "quantum_ml".to_string(),
+                confidence: 0.80,
+                reason: "Quantum ML algorithms can provide advantages for certain problems".to_string(),
+                quantum_advantage: "Potential exponential speedup for specific ML tasks".to_string(),
+            });
+        }
+        
+        // Communication/Information problems
+        if keywords.iter().any(|k| ["teleport", "transfer", "communication", "entanglement", "state"].contains(&k.as_str())) {
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "teleportation".to_string(),
+                confidence: 0.92,
+                reason: "Quantum teleportation for quantum state transfer".to_string(),
+                quantum_advantage: "Fundamental quantum communication protocol".to_string(),
+            });
+        }
+        
+        // Sort by confidence
+        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        
+        if recommendations.is_empty() {
+            // Provide general recommendations
+            recommendations.push(AlgorithmRecommendation {
+                algorithm: "grover".to_string(),
+                confidence: 0.60,
+                reason: "Grover's algorithm is versatile for many search-based problems".to_string(),
+                quantum_advantage: "Quadratic speedup for unstructured search".to_string(),
+            });
+        }
+        
+        log(f"💡 Generated {} algorithm recommendations", recommendations.len());
+        recommendations
+    }
+    
+    // === EXECUTION AND OPTIMIZATION ===
+    
+    // Execute algorithm with automatic optimization
+    async function execute_algorithm(
+        &mut self,
+        algorithm_name: &str,
+        parameters: AlgorithmParameters,
+        optimization_level: OptimizationLevel,
+    ) -> Result<AlgorithmResult, TitanError> {
+        log(f"⚡ Executing algorithm: {}", algorithm_name);
+        
+        let start_time = std::time::Instant::now();
+        
+        // Get algorithm
+        let algorithm = self.get_algorithm(algorithm_name)?;
+        
+        // Pre-execution optimization
+        let optimized_params = self.optimize_parameters(algorithm, parameters, optimization_level);
+        
+        // Execute with monitoring
+        let result = self.execute_with_monitoring(algorithm, optimized_params).await?;
+        
+        // Record metrics
+        let execution_time = start_time.elapsed();
+        self.execution_metrics.record_execution(
+            algorithm_name,
+            execution_time,
+            result.success_rate,
+            result.quantum_resources_used,
+        );
+        
+        log(f"✅ Algorithm {} completed in {:?}", algorithm_name, execution_time);
+        Ok(result)
+    }
+    
+    // === MOTHER AI INTEGRATION ===
+    
+    // Connect to Mother AI for intelligent coordination
+    function connect_to_mother_ai(&mut self, mother_ai: MotherAIBridge) {
+        log("🧠 Connecting Titan Libraries to Mother AI");
+        self.mother_ai_bridge = Some(mother_ai);
+        
+        // Register Titan capabilities with Mother AI
+        if let Some(ref bridge) = self.mother_ai_bridge {
+            bridge.register_quantum_capabilities(self.list_algorithms());
+            bridge.register_execution_handler(Box::new(|algo, params| {
+                // This allows Mother AI to execute Titan algorithms directly
+                self.execute_algorithm(algo, params, OptimizationLevel::Adaptive)
+            }));
+        }
+        
+        log("✅ Titan Libraries integrated with Mother AI consciousness");
+    }
+    
+    // Get AI-enhanced algorithm insights
+    function get_algorithm_insights(&self, algorithm_name: &str) -> Option<AlgorithmInsights> {
+        if let Some(ref bridge) = self.mother_ai_bridge {
+            bridge.analyze_algorithm_usage(
+                algorithm_name,
+                &self.execution_metrics.get_algorithm_history(algorithm_name)
+            )
+        } else {
+            None
+        }
+    }
+    
+    // === UTILITY METHODS ===
+    
+    function suggest_algorithms(&self, input: &str) -> Vec<String> {
+        let all_algorithms = self.list_algorithms();
+        let mut suggestions = Vec::new();
+        
+        // Simple fuzzy matching
+        for algo in all_algorithms {
+            if algo.name.to_lowercase().contains(&input.to_lowercase()) ||
+               algo.aliases.iter().any(|alias| alias.contains(&input.to_lowercase())) {
+                suggestions.push(algo.name);
+            }
+        }
+        
+        if suggestions.is_empty() {
+            suggestions.push("grover".to_string());
+            suggestions.push("shor".to_string());
+            suggestions.push("qft".to_string());
+        }
+        
+        suggestions
+    }
+    
+    function optimize_parameters(
+        &self,
+        algorithm: &dyn QuantumAlgorithm,
+        params: AlgorithmParameters,
+        level: OptimizationLevel,
+    ) -> AlgorithmParameters {
+        match level {
+            OptimizationLevel::None => params,
+            OptimizationLevel::Basic => algorithm.optimize_basic(params),
+            OptimizationLevel::Advanced => algorithm.optimize_advanced(params),
+            OptimizationLevel::Adaptive => {
+                // Use historical data to optimize
+                let history = self.execution_metrics.get_algorithm_history(algorithm.name());
+                algorithm.optimize_adaptive(params, history)
+            }
+        }
+    }
+    
+    async function execute_with_monitoring(
+        &self,
+        algorithm: &dyn QuantumAlgorithm,
+        params: AlgorithmParameters,
+    ) -> Result<AlgorithmResult, TitanError> {
+        // Monitor quantum resource usage
+        let resource_monitor = QuantumResourceMonitor::new();
+        resource_monitor.start_monitoring();
+        
+        // Execute algorithm
+        let result = algorithm.execute(params).await;
+        
+        // Stop monitoring and add resource info
+        let resources_used = resource_monitor.stop_monitoring();
+        
+        match result {
+            Ok(mut res) => {
+                res.quantum_resources_used = resources_used;
+                Ok(res)
+            }
+            Err(e) => Err(TitanError::ExecutionError(e)),
+        }
+    }
+}
+
+// === SUPPORTING TYPES ===
+
+#[derive(Debug, Clone)]
+quantum enum AlgorithmCategory {
+    Cryptography,
+    Search,
+    Foundation,
+    MachineLearning,
+    Chemistry,
+    Optimization,
+    Communication,
+    Custom,
+}
+
+#[derive(Debug, Clone)]
+quantum enum QuantumAdvantage {
+    Exponential,
+    Quadratic,
+    Variable,
+    Problem_Specific,
+    Fundamental,
+}
+
+#[derive(Debug, Clone)]
+quantum enum Complexity {
+    Low,
+    Medium,
+    High,
+    Expert,
+}
+
+#[derive(Debug, Clone)]
+quantum struct AlgorithmInfo {
+    name: String,
+    description: String,
+    aliases: Vec<&'static str>,
+    category: AlgorithmCategory,
+    quantum_advantage: QuantumAdvantage,
+    complexity: Complexity,
+}
+
+#[derive(Debug, Clone)]
+quantum struct AlgorithmRecommendation {
+    algorithm: String,
+    confidence: f64,
+    reason: String,
+    quantum_advantage: String,
+}
+
+#[derive(Debug, Clone)]
+quantum enum OptimizationLevel {
+    None,
+    Basic,
+    Advanced,
+    Adaptive,
+}
+
+#[derive(Debug)]
+quantum enum TitanError {
+    AlgorithmNotFound { name: String, suggestions: Vec<String> },
+    ExecutionError(String),
+    ParameterError(String),
+    ResourceError(String),
+}
+
+// === ALGORITHM TRAIT ===
+quantum trait QuantumAlgorithm {
+    function name(&self) -> &str;
+    function description(&self) -> &str;
+    function required_qubits(&self, params: &AlgorithmParameters) -> usize;
+    function estimated_depth(&self, params: &AlgorithmParameters) -> usize;
+    
+    async function execute(&self, params: AlgorithmParameters) -> Result<AlgorithmResult, String>;
+    
+    function optimize_basic(&self, params: AlgorithmParameters) -> AlgorithmParameters;
+    function optimize_advanced(&self, params: AlgorithmParameters) -> AlgorithmParameters;
+    function optimize_adaptive(&self, params: AlgorithmParameters, history: &ExecutionHistory) -> AlgorithmParameters;
+}
+
+// Global Titan instance for easy access
+static TITAN: LazyLock<Mutex<TitanLibrary>> = LazyLock::new(|| {
+    Mutex::new(TitanLibrary::new())
+});
+
+// Convenient access functions
+function titan() -> &'static Mutex<TitanLibrary> {
+    &TITAN
+}
+
+function extract_keywords(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split_whitespace()
+        .filter(|word| word.len() > 3)
+        .map(|word| word.trim_matches(|c: char| !c.is_alphanumeric()))
+        .map(String::from)
+        .collect()
+}
+
+// Easy algorithm execution
+async function run_quantum_algorithm(
+    algorithm: &str,
+    params: AlgorithmParameters,
+) -> Result<AlgorithmResult, TitanError> {
+    let mut titan = titan().lock().unwrap();
+    titan.execute_algorithm(algorithm, params, OptimizationLevel::Adaptive).await
+}
+
+log("🚀 Titan Quantum Algorithm Libraries initialized");
+log("💫 Ready for quantum computing excellence");

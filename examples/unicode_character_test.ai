@@ -1,0 +1,3 @@
+// Test if we can create characters that use Unicode
+let simple = "Unicode test ⟩";
+log(simple);

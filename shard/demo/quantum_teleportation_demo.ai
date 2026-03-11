@@ -1,0 +1,298 @@
+// SHARD DEMO: Quantum Teleportation Algorithm
+// Demonstrates The Shard compiler capabilities
+// Written in hybrid AEONMI syntax
+
+// === QUANTUM TELEPORTATION CIRCUIT ===
+quantum circuit QuantumTeleportation {
+    qubits: [
+        alice_qubit: 1,      // Alice's qubit to teleport
+        ancilla_qubit: 1,    // Ancilla qubit for entanglement
+        bob_qubit: 1         // Bob's receiving qubit
+    ];
+    
+    operations: [
+        // Step 1: Create Bell pair between ancilla and Bob
+        H(ancilla_qubit),
+        CNOT(ancilla_qubit, bob_qubit),
+        
+        // Step 2: Alice performs Bell measurement
+        CNOT(alice_qubit, ancilla_qubit),
+        H(alice_qubit),
+        
+        // Step 3: Measure Alice's qubits
+        measure(alice_qubit),
+        measure(ancilla_qubit),
+        
+        // Step 4: Bob applies conditional operations based on measurements
+        // (In real implementation, this would be controlled by measurement results)
+        X(bob_qubit),  // Conditional on ancilla measurement
+        Z(bob_qubit)   // Conditional on alice measurement
+    ];
+}
+
+// === QUANTUM TELEPORTATION FUNCTION ===
+quantum function quantum_teleport(
+    initial_state: QuantumState,
+    alice_qubit: Qubit,
+    ancilla_qubit: Qubit,
+    bob_qubit: Qubit
+) -> MeasurementResult {
+    log("🔮 Starting quantum teleportation protocol");
+    
+    // Prepare Alice's qubit in the desired state
+    if initial_state == |1⟩ {
+        X(alice_qubit);
+    } else if initial_state == |+⟩ {
+        H(alice_qubit);
+    }
+    
+    // Create entangled Bell pair
+    H(ancilla_qubit);
+    CNOT(ancilla_qubit, bob_qubit);
+    
+    log("✅ Bell pair created between ancilla and Bob");
+    
+    // Alice's Bell measurement
+    CNOT(alice_qubit, ancilla_qubit);
+    H(alice_qubit);
+    
+    let alice_measurement = measure(alice_qubit);
+    let ancilla_measurement = measure(ancilla_qubit);
+    
+    log(f"📊 Alice measured: |{alice_measurement}{ancilla_measurement}⟩");
+    
+    // Bob's conditional operations
+    if ancilla_measurement == 1 {
+        X(bob_qubit);
+        log("🔄 Applied X correction to Bob's qubit");
+    }
+    
+    if alice_measurement == 1 {
+        Z(bob_qubit);
+        log("🔄 Applied Z correction to Bob's qubit");
+    }
+    
+    log("✅ Quantum teleportation complete!");
+    
+    return MeasurementResult {
+        alice_bits: [alice_measurement, ancilla_measurement],
+        success: true,
+        final_state: measure(bob_qubit)
+    };
+}
+
+// === QUANTUM SUPERPOSITION DEMO ===
+quantum function create_superposition_demo() -> QuantumState {
+    log("🌊 Creating quantum superposition demonstration");
+    
+    // Create a complex superposition state
+    let |ψ⟩ = α|0⟩ + β|1⟩;
+    
+    // Where α = 1/√2 and β = 1/√2 for equal superposition
+    let alpha = 1.0 / 2.0.sqrt();
+    let beta = 1.0 / 2.0.sqrt();
+    
+    log(f"📐 Amplitude α = {alpha:.3}");
+    log(f"📐 Amplitude β = {beta:.3}");
+    
+    return |ψ⟩;
+}
+
+// === QUANTUM ENTANGLEMENT DEMO ===
+quantum function create_bell_state(qubit1: Qubit, qubit2: Qubit) -> QuantumState {
+    log("🔗 Creating maximally entangled Bell state");
+    
+    // Create |Φ+⟩ = (|00⟩ + |11⟩)/√2
+    H(qubit1);
+    CNOT(qubit1, qubit2);
+    
+    log("✅ Bell state |Φ+⟩ created");
+    
+    return |Φ+⟩;
+}
+
+// === QUANTUM ALGORITHM: GROVER'S SEARCH ===
+quantum function grovers_search(
+    database_size: usize,
+    target_item: usize,
+    qubits: Qubit[]
+) -> usize {
+    log(f"🔍 Starting Grover's search for item {target_item} in database of size {database_size}");
+    
+    let n_qubits = (database_size as f64).log2().ceil() as usize;
+    let iterations = (π / 4.0 * (database_size as f64).sqrt()).floor() as usize;
+    
+    log(f"📊 Using {n_qubits} qubits, {iterations} iterations");
+    
+    // Initialize superposition
+    for i in 0..n_qubits {
+        H(qubits[i]);
+    }
+    
+    log("✅ Initial superposition created");
+    
+    // Grover iterations
+    for iteration in 0..iterations {
+        log(f"🔄 Grover iteration {iteration + 1}/{iterations}");
+        
+        // Oracle: mark target item
+        oracle_mark_target(qubits, target_item);
+        
+        // Diffusion operator
+        grover_diffusion(qubits);
+    }
+    
+    log("🎯 Grover's algorithm complete");
+    
+    // Measure result
+    let result = measure_all(qubits);
+    log(f"📊 Measurement result: {result}");
+    
+    return result;
+}
+
+quantum function oracle_mark_target(qubits: Qubit[], target: usize) {
+    // Simplified oracle - in practice this would be more complex
+    if target % 2 == 1 {
+        Z(qubits[0]);
+    }
+    if (target / 2) % 2 == 1 {
+        Z(qubits[1]);
+    }
+    // Continue for all qubits based on binary representation of target
+}
+
+quantum function grover_diffusion(qubits: Qubit[]) {
+    // Apply Hadamard gates
+    for qubit in qubits {
+        H(qubit);
+    }
+    
+    // Apply conditional phase shift
+    for qubit in qubits {
+        X(qubit);
+    }
+    
+    // Multi-controlled Z gate (simplified)
+    if qubits.len() > 1 {
+        Toffoli(qubits[0], qubits[1], qubits[2]);
+    }
+    
+    // Undo X gates
+    for qubit in qubits {
+        X(qubit);
+    }
+    
+    // Apply Hadamard gates again
+    for qubit in qubits {
+        H(qubit);
+    }
+}
+
+// === MAIN DEMONSTRATION FUNCTION ===
+quantum function main() {
+    log("🔮 SHARD QUANTUM COMPILER DEMONSTRATION");
+    log("=====================================");
+    log("");
+    
+    // Demonstrate quantum teleportation
+    log("🚀 Demo 1: Quantum Teleportation");
+    let alice = Qubit::new();
+    let ancilla = Qubit::new();
+    let bob = Qubit::new();
+    
+    let teleport_result = quantum_teleport(|+⟩, alice, ancilla, bob);
+    
+    if teleport_result.success {
+        log("✅ Teleportation successful!");
+    }
+    
+    log("");
+    
+    // Demonstrate superposition
+    log("🚀 Demo 2: Quantum Superposition");
+    let superposition_state = create_superposition_demo();
+    log(f"📊 Created state: {superposition_state}");
+    
+    log("");
+    
+    // Demonstrate entanglement
+    log("🚀 Demo 3: Quantum Entanglement");
+    let q1 = Qubit::new();
+    let q2 = Qubit::new();
+    let bell_state = create_bell_state(q1, q2);
+    log(f"🔗 Entangled state: {bell_state}");
+    
+    log("");
+    
+    // Demonstrate Grover's algorithm
+    log("🚀 Demo 4: Grover's Search Algorithm");
+    let search_qubits = [Qubit::new(), Qubit::new(), Qubit::new()];
+    let found_item = grovers_search(8, 5, search_qubits);
+    log(f"🎯 Found item at index: {found_item}");
+    
+    log("");
+    log("🎉 SHARD demonstration complete!");
+    log("✨ The world's first self-hosting quantum compiler in action!");
+}
+
+// === COMPLEX QUANTUM COMPUTATION ===
+quantum class QuantumProcessor {
+    qubits: Qubit[];
+    classical_memory: bool[];
+    
+    constructor(num_qubits: usize) {
+        this.qubits = vec![Qubit::new(); num_qubits];
+        this.classical_memory = vec![false; num_qubits];
+    }
+    
+    function apply_quantum_fourier_transform() {
+        log("🌊 Applying Quantum Fourier Transform");
+        
+        let n = this.qubits.len();
+        
+        for i in 0..n {
+            H(this.qubits[i]);
+            
+            for j in (i+1)..n {
+                let angle = π / 2.0_f64.powi((j - i) as i32);
+                controlled_phase(this.qubits[j], this.qubits[i], angle);
+            }
+        }
+        
+        // Reverse qubit order
+        for i in 0..(n/2) {
+            swap(this.qubits[i], this.qubits[n-1-i]);
+        }
+        
+        log("✅ QFT complete");
+    }
+    
+    function measure_all() -> Vec<bool> {
+        let mut results = vec![];
+        
+        for (i, qubit) in this.qubits.iter().enumerate() {
+            let result = measure(qubit);
+            this.classical_memory[i] = result;
+            results.push(result);
+        }
+        
+        results
+    }
+}
+
+// Custom quantum gates
+quantum function controlled_phase(control: Qubit, target: Qubit, angle: f64) {
+    // Controlled phase gate implementation
+    RZ(angle / 2.0, control);
+    CNOT(control, target);
+    RZ(-angle / 2.0, target);
+    CNOT(control, target);
+    RZ(angle / 2.0, target);
+}
+
+quantum function swap(qubit1: Qubit, qubit2: Qubit) {
+    CNOT(qubit1, qubit2);
+    CNOT(qubit2, qubit1);
+    CNOT(qubit1, qubit2);
+}

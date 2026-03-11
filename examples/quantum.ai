@@ -1,0 +1,32 @@
+// quantum.ai — Aeonmi Quantum Simulation Demo
+// Demonstrates: qubit creation, superposition, gate application, measurement
+
+// Create a qubit and put it in superposition
+qubit q;
+log("=== Quantum Simulation Demo ===");
+
+// Apply Hadamard gate (creates superposition)
+superpose(q);
+log("Qubit in superposition |+⟩ = (|0⟩ + |1⟩)/√2");
+
+// Measure — should randomly produce 0 or 1
+let result = measure(q);
+log("Measurement result: " + result);
+
+// Create another qubit and apply gates
+qubit q2;
+apply_gate(q2, H);     // Hadamard
+apply_gate(q2, X);     // Pauli-X (bit flip)
+let result2 = measure(q2);
+log("After H then X: " + result2);
+
+// Entangle two qubits
+qubit a;
+qubit b;
+superpose(a);
+entangle(a, b);
+let ma = measure(a);
+let mb = measure(b);
+log("Entangled pair: a=" + ma + " b=" + mb);
+
+log("=== Demo Complete ===");

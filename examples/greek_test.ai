@@ -1,0 +1,15 @@
+// P1-15: Greek letter identifier test
+let α = 1;
+let β = 2;
+let ψ = 0;
+let θ = 3;
+
+log(α + β);           // 3
+log(α + β + θ);      // 6
+
+function hadamard(ψ) {
+    return ψ + 1;
+}
+
+let result = hadamard(α + β);
+log(result);           // 4

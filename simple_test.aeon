@@ -1,0 +1,21 @@
+// Simple quantum AST test - basic constructs
+let result = |0⟩;
+let state = |1⟩;
+
+// Basic quantum function
+function test_func(a, b) {
+    return a;
+}
+
+// Basic loop
+for i in range(3) {
+    let x = i;
+}
+
+// Basic conditional
+if true {
+    let y = 1;
+}
+
+// Simple assignment
+let z = 42;

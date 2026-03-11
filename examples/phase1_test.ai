@@ -1,0 +1,38 @@
+// Phase 1 syntax test
+
+// 1. Struct declaration
+struct Point { x, y }
+
+// 2. Array literal
+let coords = [1, 2, 3];
+log(coords);
+
+// 3. Match expression
+let val = 2;
+match val {
+    1 => log("one"),
+    2 => log("two"),
+    * => log("other"),
+}
+
+// 4. Null literal
+let nothing = null;
+
+// 5. Quantum function (parse only)
+quantum function apply_hadamard(q) {
+    return q;
+}
+
+// 6. Async function (parse only)
+async function fetch_data(url) {
+    return url;
+}
+
+// 7. Import (parse only — no execution)
+import { log } from "./core";
+
+// 8. Basic operations still work
+let name = "World";
+log(name);
+
+log("phase1 ok");

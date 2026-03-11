@@ -1,0 +1,6 @@
+// hello.ai
+let x = 42;
+log(x);
+
+
+

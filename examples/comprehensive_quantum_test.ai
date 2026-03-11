@@ -1,0 +1,22 @@
+// Comprehensive quantum state literal test with full Unicode support
+let zero_state = |0⟩;
+let one_state = |1⟩;
+let plus_state = |+⟩;
+let minus_state = |-⟩;
+
+// Test quantum state outputs
+log("Zero state:", zero_state);
+log("One state:", one_state);
+log("Plus state:", plus_state);
+log("Minus state:", minus_state);
+
+// Test with quantum variables and hieroglyphic operators
+𓀀 qbit_a = |0⟩;
+𓀁 qbit_b = |1⟩;
+𓀂 qbit_c = |+⟩;
+𓀃 qbit_d = |-⟩;
+
+log("Quantum variable A (zero):", qbit_a);
+log("Quantum variable B (one):", qbit_b);
+log("Quantum variable C (plus):", qbit_c);
+log("Quantum variable D (minus):", qbit_d);

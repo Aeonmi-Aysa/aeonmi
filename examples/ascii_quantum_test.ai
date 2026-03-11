@@ -1,0 +1,3 @@
+// Test basic quantum state with ASCII bracket
+let test = |0>;
+log(test);

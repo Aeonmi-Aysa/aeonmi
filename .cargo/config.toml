@@ -1,0 +1,10 @@
+[build]
+# Forces the build folder to stay right here in the project
+target-dir = "target"
+
+[env]
+# Prevents Windows from snatching files to other drives
+CARGO_TARGET_DIR = { value = "target", relative = true }
+
+# Tells Rust exactly which Python to use
+PYO3_PYTHON = "python"

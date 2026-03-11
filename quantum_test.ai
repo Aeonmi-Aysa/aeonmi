@@ -1,0 +1,19 @@
+⍝ AEONMI Quantum Algorithm Test
+⍝ Testing Grover's Search Algorithm
+
+print("=== Quantum Algorithm Test ===");
+
+⍝ Basic quantum state test
+let qubit_state = "|0⟩";
+print("Initial qubit state:", qubit_state);
+
+⍝ Simulate Grover's algorithm setup
+let search_space = 8;
+let target_item = 5;
+print("Searching for item", target_item, "in space of size", search_space);
+
+⍝ Grover iterations calculation
+let iterations = 2; ⍝ approximately sqrt(8)/4 * π
+print("Running", iterations, "Grover iterations");
+
+print("Quantum algorithm test completed!");
