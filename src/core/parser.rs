@@ -836,10 +836,10 @@ impl Parser {
                 // subscript: expr[index]
                 let index = self.parse_expression()?;
                 self.consume(TokenKind::CloseBracket, "Expected ']' after subscript")?;
-                expr = ASTNode::MethodCall {
-                    object: Box::new(expr),
-                    method: "__index__".to_string(),
-                    args: vec![index],
+                expr = ASTNode::QuantumIndexAccess {
+                    array: Box::new(expr),
+                    index: Box::new(index),
+                    is_quantum_index: false,
                 };
             } else if self.match_token(&[TokenKind::Question]) {
                 // Postfix `?` — error propagation / Option unwrap

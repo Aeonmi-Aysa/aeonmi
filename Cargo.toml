@@ -40,7 +40,7 @@ strip = true
 
 [features]
 # Unified AEONMI ecosystem features
-default = ["full-suite"]
+default = ["quantum", "mother-ai", "titan-libraries"]
 full-suite = ["quantum", "mother-ai", "titan-libraries", "holographic", "voice"]
 quantum = ["nalgebra", "num-complex"]
 mother-ai = ["tokio", "reqwest"]

@@ -169,6 +169,14 @@ impl Interpreter {
                 f: builtin_len,
             }),
         );
+        env.define(
+            "__index_access".into(),
+            Value::Builtin(Builtin {
+                name: "__index_access",
+                arity: 2,
+                f: builtin_index_access,
+            }),
+        );
         
         // Add quantum built-ins
         env.define(
@@ -1185,6 +1193,54 @@ fn builtin_len(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeE
         Value::Object(map) => Ok(Value::Number(map.len() as f64)),
         Value::Null => Ok(Value::Number(0.0)),
         other => Err(err(format!("len unsupported for value: {:?}", other))),
+    }
+}
+
+fn builtin_index_access(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err(format!(
+            "__index_access expects 2 arguments (collection, index), got {}",
+            args.len()
+        )));
+    }
+    let mut it = args.into_iter();
+    let collection = it.next().unwrap();
+    let index = it.next().unwrap();
+    match collection {
+        Value::Array(items) => {
+            let idx = match index {
+                Value::Number(n) => n as isize,
+                other => return Err(err(format!("array index must be a number, got {:?}", other))),
+            };
+            let len = items.len() as isize;
+            let real_idx = if idx < 0 { len + idx } else { idx };
+            if real_idx < 0 || real_idx >= len {
+                return Err(err(format!("array index {} out of bounds (len {})", idx, len)));
+            }
+            Ok(items.into_iter().nth(real_idx as usize).unwrap())
+        }
+        Value::String(s) => {
+            let idx = match index {
+                Value::Number(n) => n as isize,
+                other => return Err(err(format!("string index must be a number, got {:?}", other))),
+            };
+            let chars: Vec<char> = s.chars().collect();
+            let len = chars.len() as isize;
+            let real_idx = if idx < 0 { len + idx } else { idx };
+            if real_idx < 0 || real_idx >= len {
+                return Err(err(format!("string index {} out of bounds (len {})", idx, len)));
+            }
+            Ok(Value::String(chars[real_idx as usize].to_string()))
+        }
+        Value::Object(map) => {
+            let key = match index {
+                Value::String(k) => k,
+                Value::Number(n) => n.to_string(),
+                other => return Err(err(format!("object key must be a string or number, got {:?}", other))),
+            };
+            Ok(map.get(&key).cloned().unwrap_or(Value::Null))
+        }
+        other => Err(err(format!("indexing unsupported for value: {:?}", other))),
     }
 }
 
