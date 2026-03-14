@@ -89,6 +89,12 @@ pub enum Stmt {
         step: Option<Box<Stmt>>, // Stmt so assignment steps (i = i + 1) execute correctly
         body: Block,
     },
+    ForIn {
+        // `for var in iterable { body }` — iterate over array elements.
+        var: String,
+        iterable: Expr,
+        body: Block,
+    },
     Let {
         name: String,
         value: Option<Expr>,

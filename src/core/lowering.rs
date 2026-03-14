@@ -97,13 +97,30 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
         }
     }
 
-    // Create main function if there are any statements
-    if !main_stmts.is_empty() {
+    // Create main function if there are any statements.
+    // But only if there is no explicit `function main()` already declared — otherwise
+    // we would create a duplicate that overwrites it, breaking forward references.
+    let has_explicit_main = decls.iter().any(|d| d.name() == "main");
+    if !main_stmts.is_empty() && !has_explicit_main {
         decls.push(Decl::Fn(FnDecl {
             name: "main".to_string(),
             params: vec![],
             body: Block { stmts: main_stmts },
         }));
+    } else if !main_stmts.is_empty() && has_explicit_main {
+        // There is an explicit main and also top-level statements (like `main();`).
+        // Append the top-level stmts into the explicit main's body so they run after
+        // function definitions are processed.  This avoids the duplicate-main trap.
+        if let Some(Decl::Fn(ref mut explicit_main)) = decls.iter_mut().find(|d| d.name() == "main") {
+            for s in main_stmts {
+                // Skip bare `main()` self-calls to prevent infinite recursion
+                let is_self_call = matches!(&s, Stmt::Expr(Expr::Call { callee, args })
+                    if matches!(**callee, Expr::Ident(ref n) if n == "main") && args.is_empty());
+                if !is_self_call {
+                    explicit_main.body.stmts.push(s);
+                }
+            }
+        }
     }
 
     let mut m = Module { name: name.to_string(), imports, decls };
@@ -167,6 +184,12 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
                 body: lower_block_ast(body)?,
             }
         }
+
+        A::ForIn { var, iterable, body } => Stmt::ForIn {
+            var: var.clone(),
+            iterable: lower_expr_ast(iterable)?,
+            body: lower_block_ast(body)?,
+        },
 
         // Decls at statement position
     A::VariableDecl { name, value, .. } => Stmt::Let {
@@ -516,6 +539,33 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
         }
     }
 
+    // Phase 1.5 — Genesis Glyphs
+    A::GlyphArray(elements) => {
+        let lowered: Result<Vec<Expr>, _> = elements.iter().map(lower_expr_ast).collect();
+        Stmt::Expr(Expr::Array(lowered?))
+    }
+    A::SpreadExpr(inner) => {
+        Stmt::Expr(Expr::Call {
+            callee: Box::new(Expr::Ident("__spread".to_string())),
+            args: vec![lower_expr_ast(inner)?],
+        })
+    }
+    A::SliceExpr { array, low, high } => {
+        let arr = lower_expr_ast(array)?;
+        let start = low.as_ref().map(|e| lower_expr_ast(e)).transpose()?.unwrap_or(Expr::Lit(Lit::Number(0.0)));
+        let end = high.as_ref().map(|e| lower_expr_ast(e)).transpose()?.unwrap_or(Expr::Lit(Lit::Null));
+        Stmt::Expr(Expr::Call {
+            callee: Box::new(Expr::Member { object: Box::new(arr), property: "slice".to_string() }),
+            args: vec![start, end],
+        })
+    }
+    A::BindingProjection { name, expr } => {
+        Stmt::Let {
+            name: name.clone(),
+            value: Some(lower_expr_ast(expr)?),
+        }
+    }
+
     // Catch-all for truly unimplemented nodes (should shrink toward zero)
     _ => Stmt::Expr(Expr::Object(vec![])),
     })
@@ -632,6 +682,7 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
         | A::If { .. }
         | A::While { .. }
         | A::For { .. }
+        | A::ForIn { .. }
         | A::Function { .. }
         | A::VariableDecl { .. }
         | A::Return(_)
@@ -705,6 +756,25 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
                 }
             }
         }
+        // Phase 1.5 — Genesis Glyphs (expression context)
+        A::GlyphArray(elements) => {
+            let lowered: Result<Vec<Expr>, _> = elements.iter().map(lower_expr_ast).collect();
+            Expr::Array(lowered?)
+        }
+        A::SpreadExpr(inner) => Expr::Call {
+            callee: Box::new(Expr::Ident("__spread".to_string())),
+            args: vec![lower_expr_ast(inner)?],
+        },
+        A::SliceExpr { array, low, high } => {
+            let arr = lower_expr_ast(array)?;
+            let start = low.as_ref().map(|e| lower_expr_ast(e)).transpose()?.unwrap_or(Expr::Lit(Lit::Number(0.0)));
+            let end = high.as_ref().map(|e| lower_expr_ast(e)).transpose()?.unwrap_or(Expr::Lit(Lit::Null));
+            Expr::Call {
+                callee: Box::new(Expr::Member { object: Box::new(arr), property: "slice".to_string() }),
+                args: vec![start, end],
+            }
+        }
+        A::BindingProjection { expr, .. } => lower_expr_ast(expr)?,
         // Keep existing wildcard for any remaining unimplemented nodes
         _ => Expr::Lit(Lit::String("/* Quantum AST node not yet implemented in lowering */".to_string())),
     })

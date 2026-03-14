@@ -373,6 +373,80 @@ impl Interpreter {
                 f: builtin_to_number,
             }),
         );
+        env.define(
+            "read_file".into(),
+            Value::Builtin(Builtin {
+                name: "read_file",
+                arity: 1,
+                f: builtin_read_file,
+            }),
+        );
+        env.define(
+            "write_file".into(),
+            Value::Builtin(Builtin {
+                name: "write_file",
+                arity: 2,
+                f: builtin_write_file,
+            }),
+        );
+        env.define(
+            "file_exists".into(),
+            Value::Builtin(Builtin {
+                name: "file_exists",
+                arity: 1,
+                f: builtin_file_exists,
+            }),
+        );
+        env.define(
+            "__index_access".into(),
+            Value::Builtin(Builtin {
+                name: "__index_access",
+                arity: 2,
+                f: |_i, args| {
+                    let idx = match args.get(1) {
+                        Some(Value::Number(n)) => *n as usize,
+                        _ => return Ok(Value::Null),
+                    };
+                    match args.into_iter().next().unwrap_or(Value::Null) {
+                        Value::Array(a) => Ok(a.into_iter().nth(idx).unwrap_or(Value::Null)),
+                        Value::String(s) => Ok(s.chars().nth(idx)
+                            .map(|c| Value::String(c.to_string()))
+                            .unwrap_or(Value::Null)),
+                        _ => Ok(Value::Null),
+                    }
+                },
+            }),
+        );
+        env.define(
+            "__quantum_index".into(),
+            Value::Builtin(Builtin {
+                name: "__quantum_index",
+                arity: 2,
+                f: |_i, args| {
+                    let idx = match args.get(1) {
+                        Some(Value::Number(n)) => *n as usize,
+                        _ => return Ok(Value::Null),
+                    };
+                    match args.into_iter().next().unwrap_or(Value::Null) {
+                        Value::Array(a) | Value::QuantumArray(a, _) =>
+                            Ok(a.into_iter().nth(idx).unwrap_or(Value::Null)),
+                        _ => Ok(Value::Null),
+                    }
+                },
+            }),
+        );
+        env.define(
+            "__spread".into(),
+            Value::Builtin(Builtin {
+                name: "__spread",
+                arity: 1,
+                f: |_i, args| {
+                    // __spread wraps a value for spread context; returns it as-is
+                    // Actual spreading is handled by concat / array construction
+                    Ok(args.into_iter().next().unwrap_or(Value::Null))
+                },
+            }),
+        );
         
         Self { 
             env,
@@ -503,6 +577,7 @@ impl Interpreter {
                 }
             }
         }
+
         // If there is a `main` fn with zero params, run it.
         if let Some(Value::Function(_)) = self.env.get("main") {
             debug_log!("vm: calling main()");
@@ -544,7 +619,18 @@ impl Interpreter {
                 }
                 // New scope with closure base
                 let saved = self.env.clone();
-                self.env = fun.env.clone();
+                let mut call_env = fun.env.clone();
+                // Inject global-scope names into the closure so that forward references
+                // and mutually-recursive functions work regardless of declaration order.
+                // Names already in the closure (captured via let/inner function) take
+                // precedence; globals only fill in gaps.
+                if let Some(global_frame) = saved.frames.first() {
+                    let base = call_env.frames.first_mut().expect("call_env has a frame");
+                    for (k, v) in global_frame {
+                        base.entry(k.clone()).or_insert_with(|| v.clone());
+                    }
+                }
+                self.env = call_env;
                 self.env.push();
                 for (p, v) in fun.params.iter().zip(args.into_iter()) {
                     self.env.define(p.clone(), v);
@@ -674,6 +760,27 @@ impl Interpreter {
                             other => return other,
                         }
                     }
+                }
+                ControlFlow::Ok
+            }
+            ForIn { var, iterable, body } => {
+                let coll = match self.eval_expr(iterable) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Err(e),
+                };
+                let items: Vec<Value> = match coll {
+                    Value::Array(a) => a,
+                    Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
+                    other => vec![other], // single value — iterate once
+                };
+                for item in items {
+                    self.env.push();
+                    self.env.define(var.clone(), item);
+                    match self.exec_block(body) {
+                        ControlFlow::Ok => {}
+                        other => { self.env.pop(); return other; }
+                    }
+                    self.env.pop();
                 }
                 ControlFlow::Ok
             }
@@ -869,6 +976,12 @@ impl Interpreter {
                                         }
                                     }
                                     Value::Array(base)
+                                }
+                                "is_empty" | "isEmpty" => {
+                                    match obj_val {
+                                        Value::Array(ref a) => Value::Bool(a.is_empty()),
+                                        _ => Value::Bool(true),
+                                    }
                                 }
                                 other_method => {
                                     return Err(err(format!("Array has no method '{}'", other_method)));
@@ -1797,4 +1910,47 @@ fn builtin_to_number(_interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
         _ => f64::NAN,
     };
     Ok(Value::Number(n))
+}
+
+fn builtin_read_file(_interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("read_file expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        other => display(other),
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(content) => Ok(Value::String(content)),
+        Err(e) => Err(err(format!("read_file: cannot read '{}': {}", path, e))),
+    }
+}
+
+fn builtin_write_file(_interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("write_file expects 2 arguments: path, content".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        other => display(other),
+    };
+    let content = match &args[1] {
+        Value::String(s) => s.clone(),
+        other => display(other),
+    };
+    match std::fs::write(&path, &content) {
+        Ok(()) => Ok(Value::Bool(true)),
+        Err(e) => Err(err(format!("write_file: cannot write '{}': {}", path, e))),
+    }
+}
+
+fn builtin_file_exists(_interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("file_exists expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        other => display(other),
+    };
+    Ok(Value::Bool(std::path::Path::new(&path).exists()))
 }

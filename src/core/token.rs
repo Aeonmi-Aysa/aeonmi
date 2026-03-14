@@ -133,6 +133,13 @@ pub enum TokenKind {
     
     // Special
     EOF,
+
+    // Phase 1.5 — Genesis Glyphs
+    GlyphArrayOpen,  // ⧉  (U+29C9) array literal open delimiter
+    GlyphArrayClose, // ⧉  same codepoint used for close (parser tracks state)
+    ElemSep,         // ‥  (U+2025) element separator / range
+    Spread,          // …  (U+2026) spread operator
+    Bind,            // ↦  (U+21A6) binding/projection glyph
 }
 
 #[derive(Debug, Clone)]
@@ -281,6 +288,12 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Dod => "dod",
             TokenKind::HieroglyphicOp(_) => "hieroglyphic",
             TokenKind::EOF => "end of file",
+            // Genesis Glyphs
+            TokenKind::GlyphArrayOpen => "⧉",
+            TokenKind::GlyphArrayClose => "⧉",
+            TokenKind::ElemSep => "‥",
+            TokenKind::Spread => "…",
+            TokenKind::Bind => "↦",
         };
         write!(f, "{}", name)
     }

@@ -233,7 +233,10 @@ impl Parser {
         if self.match_token(&[TokenKind::Colon]) {
             self.skip_param_type_annotation_until_equals();
         }
-        self.consume(TokenKind::Equals, "Expected '=' in variable declaration")?;
+        // Accept both `=` and `↦` as the binding operator
+        if !self.match_token(&[TokenKind::Equals, TokenKind::Bind]) {
+            return Err(self.err_here("Expected '=' in variable declaration"));
+        }
         let value = self.parse_expression()?;
         let _ = self.match_token(&[TokenKind::Semicolon]);
         Ok(ASTNode::new_variable_decl_at(&name, value, line, column))
@@ -433,12 +436,11 @@ impl Parser {
             self.consume(TokenKind::In, "Expected 'in'")?;
             let iterable = self.parse_expression()?;
             let body = self.parse_statement()?;
-            // Lower to: for (let __i = 0; __i < collection.length; __i++) { let var = collection[__i]; body }
-            // For now, emit as a block the VM/codegen can handle
-            Ok(ASTNode::Block(vec![
-                ASTNode::new_variable_decl_at(&var_name, iterable.clone(), 0, 0),
-                body,
-            ]))
+            Ok(ASTNode::ForIn {
+                var: var_name,
+                iterable: Box::new(iterable),
+                body: Box::new(body),
+            })
         } else {
             // C-style: for (init; cond; incr) { ... }
             let has_paren = self.match_token(&[TokenKind::OpenParen]);
@@ -520,7 +522,19 @@ impl Parser {
     }
 
     /* ── Precedence ───────────────────────────────────────── */
-    pub fn parse_expression(&mut self) -> Result<ASTNode, ParserError> { self.parse_logical_or() }
+    pub fn parse_expression(&mut self) -> Result<ASTNode, ParserError> {
+        let expr = self.parse_logical_or()?;
+        // Genesis: name ↦ expr  (BindingProjection)
+        if self.match_token(&[TokenKind::Bind]) {
+            let rhs = self.parse_logical_or()?;
+            let name = match &expr {
+                ASTNode::Identifier(n) | ASTNode::IdentifierSpanned { name: n, .. } => n.clone(),
+                _ => "__binding".to_string(),
+            };
+            return Ok(ASTNode::BindingProjection { name, expr: Box::new(rhs) });
+        }
+        Ok(expr)
+    }
 
     // logical_or: logical_and ( '||' logical_and )*
     fn parse_logical_or(&mut self) -> Result<ASTNode, ParserError> {
@@ -695,6 +709,11 @@ impl Parser {
                 if s == "mut" { self.advance(); }
             }
             return self.parse_unary();
+        }
+        // Genesis: …expr (spread operator)
+        if self.match_token(&[TokenKind::Spread]) {
+            let inner = self.parse_unary()?;
+            return Ok(ASTNode::SpreadExpr(Box::new(inner)));
         }
         self.parse_call()
     }
@@ -990,11 +1009,30 @@ impl Parser {
                 Ok(ASTNode::ArrayLiteral(elems))
             }
 
+            // Genesis: ⧉expr‥expr‥expr⧉ — glyph array literal
+            // Note: ⧉ (U+29C9) is used for BOTH open AND close since it is a symmetric
+            // bracket glyph. The lexer maps it to GlyphArrayOpen; the parser tracks depth
+            // by consuming the next GlyphArrayOpen token as the closing delimiter.
+            TokenKind::GlyphArrayOpen => {
+                let mut elems = Vec::new();
+                // Parse elements separated by ‥ (ElemSep), closed by ⧉ (GlyphArrayOpen)
+                while !self.check(&TokenKind::GlyphArrayOpen) && !self.is_at_end() {
+                    elems.push(self.parse_expression()?);
+                    // ElemSep ‥ separates elements; stop at close ⧉
+                    if self.check(&TokenKind::GlyphArrayOpen) { break; }
+                    if !self.match_token(&[TokenKind::ElemSep]) { break; }
+                }
+                if self.check(&TokenKind::GlyphArrayOpen) { self.advance(); } // consume closing ⧉
+                Ok(ASTNode::GlyphArray(elems))
+            }
+
             // f-string: f"text {var}"
             TokenKind::FString => {
-                // Lexer already tokenized it; treat as StringLiteral for now
-                // Full interpolation requires lexer support — emit as-is
-                Ok(ASTNode::FStringLiteral(vec![FStringPart::Literal(tok.lexeme.clone())]))
+                // The lexer puts the raw string content (without surrounding quotes) into
+                // tok.lexeme.  Parse it here by splitting on `{...}` interpolation segments.
+                let raw = tok.lexeme.clone();
+                let parts = parse_fstring_parts(&raw);
+                Ok(ASTNode::FStringLiteral(parts))
             }
 
             // await expr
@@ -2226,4 +2264,73 @@ fn is_quantum_variable_symbol(symbol: &str) -> bool {
         "𓀈" |  // Egyptian hieroglyph A009 - quantum variable type 9
         "𓀉"    // Egyptian hieroglyph A010 - quantum variable type 10
     )
+}
+
+/// Parse an f-string raw content (without surrounding quotes) into `FStringPart` segments.
+/// Handles `{expr}` interpolation where `expr` is a simple identifier or dotted path.
+/// Nested braces and complex expressions are left as literal text for robustness.
+pub(crate) fn parse_fstring_parts(raw: &str) -> Vec<FStringPart> {
+    let mut parts = Vec::new();
+    let mut literal = String::new();
+    let chars: Vec<char> = raw.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '{' {
+            // Handle escaped `{{` → literal `{`
+            if i + 1 < chars.len() && chars[i + 1] == '{' {
+                literal.push('{');
+                i += 2;
+                continue;
+            }
+            // Start of interpolation segment
+            if !literal.is_empty() {
+                parts.push(FStringPart::Literal(literal.clone()));
+                literal.clear();
+            }
+            i += 1; // skip '{'
+            let mut expr_src = String::new();
+            let mut depth = 1usize;
+            while i < chars.len() {
+                match chars[i] {
+                    '{' => { depth += 1; expr_src.push('{'); i += 1; }
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 { i += 1; break; }
+                        expr_src.push('}');
+                        i += 1;
+                    }
+                    c => { expr_src.push(c); i += 1; }
+                }
+            }
+            let expr_src = expr_src.trim().to_string();
+            // Try to parse the expression with a mini-parser; fall back to literal on failure.
+            let node = if expr_src.is_empty() {
+                FStringPart::Literal(String::new())
+            } else {
+                use crate::core::lexer::Lexer;
+                match Lexer::from_str(&expr_src).tokenize() {
+                    Ok(tokens) => {
+                        let mut p = Parser::new(tokens);
+                        match p.parse_expression() {
+                            Ok(ast) => FStringPart::Expr(ast),
+                            Err(_) => FStringPart::Literal(format!("{{{}}}", expr_src)),
+                        }
+                    }
+                    Err(_) => FStringPart::Literal(format!("{{{}}}", expr_src)),
+                }
+            };
+            parts.push(node);
+        } else if chars[i] == '}' && i + 1 < chars.len() && chars[i + 1] == '}' {
+            // Escaped `}}` → literal `}`
+            literal.push('}');
+            i += 2;
+        } else {
+            literal.push(chars[i]);
+            i += 1;
+        }
+    }
+    if !literal.is_empty() {
+        parts.push(FStringPart::Literal(literal));
+    }
+    parts
 }
