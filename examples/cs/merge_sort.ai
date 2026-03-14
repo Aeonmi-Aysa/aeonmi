@@ -1,0 +1,57 @@
+// merge_sort.ai
+// Merge sort: O(n log n) stable divide-and-conquer sort.
+
+fn merge(left, right) {
+  let result = [];
+  let i = 0;
+  let j = 0;
+
+  while (i < len(left) && j < len(right)) {
+    if (left[i] <= right[j]) {
+      result = push(result, left[i]);
+      i = i + 1;
+    } else {
+      result = push(result, right[j]);
+      j = j + 1;
+    }
+  }
+
+  // Append any remaining elements from left
+  while (i < len(left)) {
+    result = push(result, left[i]);
+    i = i + 1;
+  }
+
+  // Append any remaining elements from right
+  while (j < len(right)) {
+    result = push(result, right[j]);
+    j = j + 1;
+  }
+
+  return result;
+}
+
+fn merge_sort(arr) {
+  let n = len(arr);
+  if (n <= 1) {
+    return arr;
+  }
+
+  let mid = n / 2;
+  let left  = slice(arr, 0, mid);
+  let right = slice(arr, mid, n);
+
+  let sorted_left  = merge_sort(left);
+  let sorted_right = merge_sort(right);
+
+  return merge(sorted_left, sorted_right);
+}
+
+fn main() {
+  let data = [38, 27, 43, 3, 9, 82, 10];
+  let sorted = merge_sort(data);
+  print("input:  " + data);
+  print("sorted: " + sorted);  // [3, 9, 10, 27, 38, 43, 82]
+}
+
+return main();

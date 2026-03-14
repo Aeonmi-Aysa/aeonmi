@@ -1,0 +1,91 @@
+// linked_list.ai
+// Singly linked list implemented in Aeonmi using arrays as node storage.
+//
+// Each node is stored as a two-element array: [value, next_index].
+// A "null" pointer is represented as -1.
+// The list state is carried as a pair [nodes, head].
+
+// ── Node helpers ──────────────────────────────────────
+
+fn node_val(nodes, idx)  { return nodes[idx][0]; }
+fn node_next(nodes, idx) { return nodes[idx][1]; }
+
+// ── List operations ───────────────────────────────────
+
+// Returns [nodes, head] for an empty list.
+fn list_new() {
+  return [[], -1];
+}
+
+// Prepend a value — O(1).
+fn list_prepend(list, val) {
+  let nodes = list[0];
+  let head  = list[1];
+  let new_node = [val, head];
+  nodes = push(nodes, new_node);
+  let new_head = len(nodes) - 1;
+  return [nodes, new_head];
+}
+
+// Append a value — O(n).
+fn list_append(list, val) {
+  let nodes = list[0];
+  let head  = list[1];
+
+  let new_node = [val, -1];
+  nodes = push(nodes, new_node);
+  let new_idx = len(nodes) - 1;
+
+  if (head == -1) {
+    return [nodes, new_idx];
+  }
+
+  // Walk to the last node
+  let cur = head;
+  while (node_next(nodes, cur) != -1) {
+    cur = node_next(nodes, cur);
+  }
+
+  // Update next pointer of last node
+  nodes[cur] = [node_val(nodes, cur), new_idx];
+  return [nodes, head];
+}
+
+// Compute list length — O(n).
+fn list_len(list) {
+  let nodes = list[0];
+  let cur   = list[1];
+  let count = 0;
+  while (cur != -1) {
+    count = count + 1;
+    cur = node_next(nodes, cur);
+  }
+  return count;
+}
+
+// Collect all values into an array — O(n).
+fn list_to_array(list) {
+  let nodes = list[0];
+  let cur   = list[1];
+  let out   = [];
+  while (cur != -1) {
+    out = push(out, node_val(nodes, cur));
+    cur = node_next(nodes, cur);
+  }
+  return out;
+}
+
+// ── Demo ──────────────────────────────────────────────
+
+fn main() {
+  let lst = list_new();
+  lst = list_append(lst, 1);
+  lst = list_append(lst, 2);
+  lst = list_append(lst, 3);
+  lst = list_prepend(lst, 0);
+
+  print("length: " + list_len(lst));          // 4
+  print("values: " + list_to_array(lst));     // [0, 1, 2, 3]
+}
+
+return main();

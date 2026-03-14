@@ -1,0 +1,109 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "QUBE",
+  "scopeName": "source.qube",
+  "fileTypes": ["qube"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#gates" },
+    { "include": "#qubit_literals" },
+    { "include": "#numbers" },
+    { "include": "#operators" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.qube",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.line.therefore.qube",
+          "match": "∴.*$"
+        },
+        {
+          "name": "comment.line.because.qube",
+          "match": "∵.*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.qube",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.qube",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.qube",
+          "match": "\\b(state|apply|collapse|assert|log|print)\\b"
+        }
+      ]
+    },
+    "gates": {
+      "patterns": [
+        {
+          "name": "support.function.gate.qube",
+          "match": "\\b(H|X|Y|Z|S|T|CNOT|CZ|SWAP|Rx|Ry|Rz)\\b"
+        }
+      ]
+    },
+    "qubit_literals": {
+      "patterns": [
+        {
+          "name": "constant.language.qubit.qube",
+          "match": "\\|[^|⟩>]*[⟩>]"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.qube",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.qube",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.qube",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.set-member.qube",
+          "match": "∈"
+        },
+        {
+          "name": "keyword.operator.comparison.qube",
+          "match": "==|!="
+        },
+        {
+          "name": "keyword.operator.arithmetic.qube",
+          "match": "\\+|-"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.qube",
+          "match": "\\b[a-zA-Z_α-ωΑ-Ω][a-zA-Z0-9_α-ωΑ-Ω]*\\b"
+        }
+      ]
+    }
+  }
+}

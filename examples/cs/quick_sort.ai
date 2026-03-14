@@ -1,0 +1,45 @@
+// quick_sort.ai
+// Quick sort: O(n log n) average, O(n²) worst-case in-place-style sort.
+// This version builds new arrays (functional style) to stay idiomatic in Aeonmi.
+
+fn quick_sort(arr) {
+  let n = len(arr);
+  if (n <= 1) {
+    return arr;
+  }
+
+  // Pivot: middle element
+  let pivot = arr[n / 2];
+
+  // Partition into three groups
+  let less    = [];
+  let equal   = [];
+  let greater = [];
+  let i = 0;
+
+  while (i < n) {
+    let v = arr[i];
+    if (v < pivot) {
+      less = push(less, v);
+    } else if (v == pivot) {
+      equal = push(equal, v);
+    } else {
+      greater = push(greater, v);
+    }
+    i = i + 1;
+  }
+
+  let sorted_less    = quick_sort(less);
+  let sorted_greater = quick_sort(greater);
+
+  return concat(concat(sorted_less, equal), sorted_greater);
+}
+
+fn main() {
+  let data = [3, 6, 8, 10, 1, 2, 1];
+  let sorted = quick_sort(data);
+  print("input:  " + data);
+  print("sorted: " + sorted);  // [1, 1, 2, 3, 6, 8, 10]
+}
+
+return main();
