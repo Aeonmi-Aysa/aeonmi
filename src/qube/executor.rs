@@ -1,10 +1,234 @@
 //! QUBE Executor — runs QubeProgram against the quantum simulator backend.
 //!
-//! Uses Aeonmi's existing quantum types (nalgebra + num-complex) when available,
-//! falls back to pure-Rust simulation when those features are not compiled.
+//! Uses a pure-Rust joint state-vector simulator for multi-qubit correctness
+//! (Phase 2 — P2-8).  Single-qubit ops update the per-qubit `QubitState` for
+//! backward-compatible display; multi-qubit ops (CNOT/CZ/SWAP) use the proper
+//! 2^N joint state-vector so entanglement and interference are mathematically
+//! correct.
 
 use std::collections::HashMap;
 use crate::qube::ast::*;
+
+// ─── Joint multi-qubit state-vector (P2-8) ───────────────────────────────────
+
+/// Complex amplitude as (real, imag) pair.
+type Cx = (f64, f64);
+
+/// Multiply two complex numbers.
+#[inline]
+fn cmul(a: Cx, b: Cx) -> Cx {
+    (a.0 * b.0 - a.1 * b.1, a.0 * b.1 + a.1 * b.0)
+}
+
+/// Add two complex numbers.
+#[inline]
+fn cadd(a: Cx, b: Cx) -> Cx {
+    (a.0 + b.0, a.1 + b.1)
+}
+
+/// |amplitude|²
+#[inline]
+fn norm_sq(a: Cx) -> f64 {
+    a.0 * a.0 + a.1 * a.1
+}
+
+/// Lightweight LCG used for Born-rule measurements.
+#[inline]
+fn lcg_rand(seed: u64) -> f64 {
+    let s = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33;
+    (s as f64) / (u32::MAX as f64)
+}
+
+/// Joint state vector for N named qubits.
+///
+/// `qubit_order[k]` is qubit k; bit k of a basis-state index gives its value.
+/// So `amplitudes[i]` is the amplitude for the basis state where qubit k has
+/// value `(i >> k) & 1`.
+#[derive(Debug, Clone)]
+pub struct JointState {
+    /// Names of qubits in order (qubit_order[0] = LSB).
+    pub qubit_order: Vec<String>,
+    /// 2^N complex amplitudes.
+    pub amplitudes: Vec<Cx>,
+}
+
+impl JointState {
+    /// Create a 1-qubit joint state from an individual `QubitState`.
+    pub fn from_single(name: String, q: &QubitState) -> Self {
+        Self {
+            qubit_order: vec![name],
+            amplitudes:  vec![(q.alpha, 0.0), (q.beta, 0.0)],
+        }
+    }
+
+    /// Number of qubits tracked.
+    pub fn n(&self) -> usize { self.qubit_order.len() }
+
+    /// 2^N
+    pub fn dim(&self) -> usize { 1 << self.n() }
+
+    /// Position (bit index) of `name` in this system, if present.
+    pub fn pos_of(&self, name: &str) -> Option<usize> {
+        self.qubit_order.iter().position(|q| q == name)
+    }
+
+    /// Tensor product: `self ⊗ other`.  `self` qubits remain LSBs, `other`
+    /// qubits become the next higher bits.
+    pub fn tensor(self, other: JointState) -> Self {
+        let dim_a = self.dim();
+        let dim_b = other.dim();
+        let dim_out = dim_a * dim_b;
+        let mut amplitudes = vec![(0.0f64, 0.0f64); dim_out];
+        // Index encoding: self qubits are low bits, other qubits are high bits.
+        // combined_index = a_index | (b_index << self.n())
+        for (b_idx, b_amp) in other.amplitudes.iter().enumerate() {
+            for (a_idx, a_amp) in self.amplitudes.iter().enumerate() {
+                let out_idx = a_idx | (b_idx << self.n());
+                amplitudes[out_idx] = cmul(*a_amp, *b_amp);
+            }
+        }
+        let mut qubit_order = self.qubit_order;
+        qubit_order.extend(other.qubit_order);
+        Self { qubit_order, amplitudes }
+    }
+
+    /// Apply a 2×2 unitary to qubit at bit-position `pos`.
+    /// `u` = [[u00, u01], [u10, u11]], each entry is a `Cx`.
+    pub fn apply_single(&mut self, pos: usize, u00: Cx, u01: Cx, u10: Cx, u11: Cx) {
+        let mask = 1usize << pos;
+        let n    = self.dim();
+        let mut new_amps = self.amplitudes.clone();
+        let mut i = 0usize;
+        while i < n {
+            if (i & mask) == 0 {
+                let j = i | mask;           // same state but qubit `pos` = 1
+                let a0 = self.amplitudes[i]; // amplitude for bit=0
+                let a1 = self.amplitudes[j]; // amplitude for bit=1
+                new_amps[i] = cadd(cmul(u00, a0), cmul(u01, a1));
+                new_amps[j] = cadd(cmul(u10, a0), cmul(u11, a1));
+            }
+            i += 1;
+        }
+        self.amplitudes = new_amps;
+    }
+
+    // ── Gate helpers ──────────────────────────────────────────────────────────
+
+    pub fn apply_h(&mut self, pos: usize) {
+        let s: f64 = std::f64::consts::FRAC_1_SQRT_2;
+        self.apply_single(pos, (s, 0.0), (s, 0.0), (s, 0.0), (-s, 0.0));
+    }
+    pub fn apply_x(&mut self, pos: usize) {
+        self.apply_single(pos, (0.0, 0.0), (1.0, 0.0), (1.0, 0.0), (0.0, 0.0));
+    }
+    pub fn apply_y(&mut self, pos: usize) {
+        self.apply_single(pos, (0.0, 0.0), (0.0, -1.0), (0.0, 1.0), (0.0, 0.0));
+    }
+    pub fn apply_z(&mut self, pos: usize) {
+        self.apply_single(pos, (1.0, 0.0), (0.0, 0.0), (0.0, 0.0), (-1.0, 0.0));
+    }
+    pub fn apply_s(&mut self, pos: usize) {
+        // S: |0⟩→|0⟩, |1⟩→i|1⟩
+        self.apply_single(pos, (1.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 1.0));
+    }
+    pub fn apply_t(&mut self, pos: usize) {
+        // T gate: |0⟩→|0⟩, |1⟩→e^(iπ/4)|1⟩ = cos(π/4)|1⟩ + i*sin(π/4)|1⟩
+        // Both cos(π/4) and sin(π/4) equal 1/√2.
+        let t_phase = std::f64::consts::FRAC_1_SQRT_2; // cos(π/4) = sin(π/4) = 1/√2
+        self.apply_single(pos, (1.0, 0.0), (0.0, 0.0), (0.0, 0.0), (t_phase, t_phase));
+    }
+
+    /// CNOT: if ctrl bit is |1⟩, flip tgt bit.
+    pub fn apply_cnot(&mut self, ctrl_pos: usize, tgt_pos: usize) {
+        let ctrl_mask = 1usize << ctrl_pos;
+        let tgt_mask  = 1usize << tgt_pos;
+        let n = self.dim();
+        let mut new_amps = vec![(0.0f64, 0.0f64); n];
+        for i in 0..n {
+            let out = if (i & ctrl_mask) != 0 { i ^ tgt_mask } else { i };
+            new_amps[out] = self.amplitudes[i];
+        }
+        self.amplitudes = new_amps;
+    }
+
+    /// CZ: multiply by -1 if both ctrl and tgt are |1⟩.
+    pub fn apply_cz(&mut self, ctrl_pos: usize, tgt_pos: usize) {
+        let ctrl_mask = 1usize << ctrl_pos;
+        let tgt_mask  = 1usize << tgt_pos;
+        for i in 0..self.dim() {
+            if (i & ctrl_mask) != 0 && (i & tgt_mask) != 0 {
+                let (r, im) = self.amplitudes[i];
+                self.amplitudes[i] = (-r, -im);
+            }
+        }
+    }
+
+    /// SWAP: exchange the two qubit indices.
+    pub fn apply_swap(&mut self, pos_a: usize, pos_b: usize) {
+        if pos_a == pos_b { return; }
+        let mask_a = 1usize << pos_a;
+        let mask_b = 1usize << pos_b;
+        let n = self.dim();
+        let mut new_amps = self.amplitudes.clone();
+        for i in 0..n {
+            let bit_a = (i >> pos_a) & 1;
+            let bit_b = (i >> pos_b) & 1;
+            if bit_a != bit_b {
+                // Swap the two bit positions
+                let j = (i & !(mask_a | mask_b)) | (bit_b << pos_a) | (bit_a << pos_b);
+                new_amps[j] = self.amplitudes[i];
+            }
+        }
+        self.amplitudes = new_amps;
+    }
+
+    /// Measure qubit at `pos` using Born rule, collapse state, return 0 or 1.
+    pub fn measure(&mut self, pos: usize, seed: u64) -> u64 {
+        let mask = 1usize << pos;
+        let n    = self.dim();
+        // Compute P(outcome=0) = sum |α_i|² for all i with bit pos = 0
+        let prob_zero: f64 = (0..n)
+            .filter(|i| (i & mask) == 0)
+            .map(|i| norm_sq(self.amplitudes[i]))
+            .sum();
+        let r       = lcg_rand(seed);
+        let outcome = if r < prob_zero { 0u64 } else { 1u64 };
+        // Collapse: zero out inconsistent amplitudes, renormalise
+        let keep_bit = outcome as usize;
+        let norm_sq_sum: f64 = (0..n)
+            .filter(|i| ((i >> pos) & 1) == keep_bit)
+            .map(|i| norm_sq(self.amplitudes[i]))
+            .sum();
+        let norm = norm_sq_sum.sqrt().max(1e-14);
+        for i in 0..n {
+            if ((i >> pos) & 1) != keep_bit {
+                self.amplitudes[i] = (0.0, 0.0);
+            } else {
+                let (r, im) = self.amplitudes[i];
+                self.amplitudes[i] = (r / norm, im / norm);
+            }
+        }
+        outcome
+    }
+
+    /// P(qubit at `pos` = 0) from the marginal distribution.
+    pub fn marginal_prob_zero(&self, pos: usize) -> f64 {
+        let mask = 1usize << pos;
+        (0..self.dim())
+            .filter(|i| (i & mask) == 0)
+            .map(|i| norm_sq(self.amplitudes[i]))
+            .sum()
+    }
+
+    /// Extract a per-qubit `QubitState` approximation from the marginal.
+    pub fn marginal_qubit(&self, pos: usize) -> QubitState {
+        let p0 = self.marginal_prob_zero(pos).max(0.0).min(1.0);
+        QubitState { alpha: p0.sqrt(), beta: (1.0 - p0).sqrt() }
+    }
+}
 
 // ─── Qubit state representation ──────────────────────────────────────────────
 
@@ -101,8 +325,11 @@ impl QubitState {
 
 #[derive(Debug)]
 pub struct QubeEnv {
-    /// Named qubit states.
+    /// Named qubit states (used for single-qubit display and initial state).
     pub qubits: HashMap<String, QubitState>,
+    /// Joint multi-qubit state-vector systems (P2-8).
+    /// Each entry owns a group of entangled qubits as a single state vector.
+    pub joint_states: Vec<JointState>,
     /// Classical measurement results (name → 0 or 1).
     pub classical: HashMap<String, u64>,
     /// Variable bindings (name → f64).
@@ -126,6 +353,7 @@ impl QubeEnv {
     pub fn new() -> Self {
         Self {
             qubits: HashMap::new(),
+            joint_states: Vec::new(),
             classical: HashMap::new(),
             vars: HashMap::new(),
             seed: 0x4AE0_4D5E_1337_BEEF_u64,
@@ -147,6 +375,112 @@ impl QubeEnv {
             QubeAmplitude::Number(n) => *n,
             QubeAmplitude::Implied => 1.0,
             QubeAmplitude::Variable(name) => *self.vars.get(name).unwrap_or(&1.0),
+        }
+    }
+
+    // ── Joint state helpers (P2-8) ────────────────────────────────────────────
+
+    /// Find which joint system (if any) owns `name`, returning (system_index, qubit_pos).
+    pub fn find_joint(&self, name: &str) -> Option<(usize, usize)> {
+        for (sys_idx, js) in self.joint_states.iter().enumerate() {
+            if let Some(pos) = js.pos_of(name) {
+                return Some((sys_idx, pos));
+            }
+        }
+        None
+    }
+
+    /// Ensure `name1` and `name2` are in the same joint system.
+    /// Creates / merges systems as needed.  Returns the system index.
+    pub fn ensure_joint_pair(&mut self, name1: &str, name2: &str) -> Result<usize, String> {
+        let loc1 = self.find_joint(name1);
+        let loc2 = self.find_joint(name2);
+
+        match (loc1, loc2) {
+            (Some((i, _)), Some((j, _))) if i == j => {
+                // Already in the same system
+                Ok(i)
+            }
+            (Some((i, _)), Some((j, _))) => {
+                // Two different systems — merge them
+                let (keep, remove) = if i < j { (i, j) } else { (j, i) };
+                let removed = self.joint_states.remove(remove);
+                let kept    = self.joint_states.remove(keep);
+                let merged  = kept.tensor(removed);
+                self.joint_states.push(merged);
+                Ok(self.joint_states.len() - 1)
+            }
+            (Some((i, _)), None) => {
+                // name2 is a solo qubit — absorb into system i
+                let q2 = self.qubits.get(name2)
+                    .ok_or_else(|| format!("Undefined qubit '{}'", name2))?
+                    .clone();
+                let js2 = JointState::from_single(name2.to_string(), &q2);
+                let js  = self.joint_states.remove(i);
+                let merged = js.tensor(js2);
+                self.joint_states.push(merged);
+                Ok(self.joint_states.len() - 1)
+            }
+            (None, Some((j, _))) => {
+                // name1 is a solo qubit — absorb into system j
+                let q1 = self.qubits.get(name1)
+                    .ok_or_else(|| format!("Undefined qubit '{}'", name1))?
+                    .clone();
+                let js1 = JointState::from_single(name1.to_string(), &q1);
+                let js  = self.joint_states.remove(j);
+                let merged = js1.tensor(js);
+                self.joint_states.push(merged);
+                Ok(self.joint_states.len() - 1)
+            }
+            (None, None) => {
+                // Both are solo qubits — create a new joint system
+                let q1 = self.qubits.get(name1)
+                    .ok_or_else(|| format!("Undefined qubit '{}'", name1))?
+                    .clone();
+                let q2 = self.qubits.get(name2)
+                    .ok_or_else(|| format!("Undefined qubit '{}'", name2))?
+                    .clone();
+                let js1 = JointState::from_single(name1.to_string(), &q1);
+                let js2 = JointState::from_single(name2.to_string(), &q2);
+                let merged = js1.tensor(js2);
+                self.joint_states.push(merged);
+                Ok(self.joint_states.len() - 1)
+            }
+        }
+    }
+
+    /// Apply a single-qubit gate (via closure) to `name`, using the joint state
+    /// if the qubit belongs to one, otherwise updating the individual `QubitState`.
+    pub fn apply_single_gate<F>(&mut self, name: &str, joint_fn: F, solo_fn: fn(&mut QubitState))
+    where F: Fn(&mut JointState, usize)
+    {
+        if let Some((sys_idx, pos)) = self.find_joint(name) {
+            joint_fn(&mut self.joint_states[sys_idx], pos);
+            // Sync marginal back to the individual qubit display state
+            let marginal = self.joint_states[sys_idx].marginal_qubit(pos);
+            if let Some(q) = self.qubits.get_mut(name) { *q = marginal; }
+        } else if let Some(q) = self.qubits.get_mut(name) {
+            solo_fn(q);
+        }
+    }
+
+    /// Measure qubit `name` using Born rule, collapse state, return 0 or 1.
+    pub fn measure_qubit(&mut self, name: &str) -> Option<u64> {
+        let seed = self.tick_seed();
+        if let Some((sys_idx, pos)) = self.find_joint(name) {
+            let bit = self.joint_states[sys_idx].measure(pos, seed);
+            // Sync collapsed individual qubit state
+            let marginal = self.joint_states[sys_idx].marginal_qubit(pos);
+            if let Some(q) = self.qubits.get_mut(name) { *q = marginal; }
+            Some(bit)
+        } else if let Some(q) = self.qubits.get(name).cloned() {
+            let bit = q.measure(seed);
+            if let Some(q2) = self.qubits.get_mut(name) {
+                if bit == 0 { *q2 = QubitState::zero(); } else { *q2 = QubitState::one(); }
+            }
+            Some(bit)
+        } else {
+            None
         }
     }
 }
@@ -198,18 +532,10 @@ impl QubeExecutor {
             }
 
             QubeStmt::Collapse { qubit, result } => {
-                let q = self.env.qubits.get(qubit)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", qubit))?
-                    .clone();
-                let seed = self.env.tick_seed();
-                let bit = q.measure(seed);
+                // Use joint state measurement when the qubit belongs to a joint system (P2-8)
+                let bit = self.env.measure_qubit(qubit)
+                    .ok_or_else(|| format!("Undefined qubit '{}'", qubit))?;
                 self.env.classical.insert(result.clone(), bit);
-                // Collapse the qubit to the measured state
-                if bit == 0 {
-                    self.env.qubits.insert(qubit.clone(), QubitState::zero());
-                } else {
-                    self.env.qubits.insert(qubit.clone(), QubitState::one());
-                }
                 self.env.log.push(format!("collapse {} → {} = {}", qubit, result, bit));
             }
 
@@ -299,9 +625,11 @@ impl QubeExecutor {
                     .cloned()
                     .ok_or_else(|| format!("Undefined state '{}'", name))
             }
-            QuantumStateExpr::TensorProduct(a, _b) => {
-                // For a single-qubit executor, tensor product creates the first qubit.
-                // Full multi-qubit sim is Phase 2 extension.
+            QuantumStateExpr::TensorProduct(a, b) => {
+                // Evaluate both sub-expressions and return the first qubit state.
+                // The joint state vector for both qubits is created lazily on the
+                // first multi-qubit gate (P2-8); here we just return the first qubit.
+                let _ = self.eval_state_expr(b)?; // validate but discard for display
                 self.eval_state_expr(a)
             }
         }
@@ -310,84 +638,106 @@ impl QubeExecutor {
     fn apply_gate(&mut self, gate: &QuantumGate, targets: &[String]) -> Result<(), String> {
         match gate {
             QuantumGate::H => {
-                let name = targets.first().ok_or("H gate requires 1 target")?;
-                let q = self.env.qubits.get_mut(name)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", name))?;
-                q.apply_h();
+                let name = targets.first().ok_or("H gate requires 1 target")?.clone();
+                if self.env.qubits.get(&name).is_none() {
+                    return Err(format!("Undefined qubit '{}'", name));
+                }
+                self.env.apply_single_gate(&name, |js, pos| js.apply_h(pos), QubitState::apply_h);
                 self.env.log.push(format!("apply H → {}", name));
             }
             QuantumGate::X => {
-                let name = targets.first().ok_or("X gate requires 1 target")?;
-                let q = self.env.qubits.get_mut(name)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", name))?;
-                q.apply_x();
+                let name = targets.first().ok_or("X gate requires 1 target")?.clone();
+                if self.env.qubits.get(&name).is_none() {
+                    return Err(format!("Undefined qubit '{}'", name));
+                }
+                self.env.apply_single_gate(&name, |js, pos| js.apply_x(pos), QubitState::apply_x);
                 self.env.log.push(format!("apply X → {}", name));
             }
             QuantumGate::Y => {
-                let name = targets.first().ok_or("Y gate requires 1 target")?;
-                let q = self.env.qubits.get_mut(name)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", name))?;
-                q.apply_y();
+                let name = targets.first().ok_or("Y gate requires 1 target")?.clone();
+                if self.env.qubits.get(&name).is_none() {
+                    return Err(format!("Undefined qubit '{}'", name));
+                }
+                self.env.apply_single_gate(&name, |js, pos| js.apply_y(pos), QubitState::apply_y);
                 self.env.log.push(format!("apply Y → {}", name));
             }
             QuantumGate::Z => {
-                let name = targets.first().ok_or("Z gate requires 1 target")?;
-                let q = self.env.qubits.get_mut(name)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", name))?;
-                q.apply_z();
+                let name = targets.first().ok_or("Z gate requires 1 target")?.clone();
+                if self.env.qubits.get(&name).is_none() {
+                    return Err(format!("Undefined qubit '{}'", name));
+                }
+                self.env.apply_single_gate(&name, |js, pos| js.apply_z(pos), QubitState::apply_z);
                 self.env.log.push(format!("apply Z → {}", name));
             }
-            QuantumGate::S | QuantumGate::T => {
-                let name = targets.first().ok_or("S/T gate requires 1 target")?;
-                if let Some(q) = self.env.qubits.get_mut(name) {
-                    if matches!(gate, QuantumGate::S) { q.apply_s(); } else { q.apply_t(); }
+            QuantumGate::S => {
+                let name = targets.first().ok_or("S gate requires 1 target")?.clone();
+                if self.env.qubits.get(&name).is_none() {
+                    return Err(format!("Undefined qubit '{}'", name));
                 }
-                self.env.log.push(format!("apply {:?} → {}", gate, name));
+                self.env.apply_single_gate(&name, |js, pos| js.apply_s(pos), QubitState::apply_s);
+                self.env.log.push(format!("apply S → {}", name));
+            }
+            QuantumGate::T => {
+                let name = targets.first().ok_or("T gate requires 1 target")?.clone();
+                if self.env.qubits.get(&name).is_none() {
+                    return Err(format!("Undefined qubit '{}'", name));
+                }
+                self.env.apply_single_gate(&name, |js, pos| js.apply_t(pos), QubitState::apply_t);
+                self.env.log.push(format!("apply T → {}", name));
             }
             QuantumGate::CNOT => {
+                // Real CNOT on joint state-vector (P2-8, P2-9)
                 if targets.len() < 2 {
                     return Err("CNOT requires 2 targets (control, target)".to_string());
                 }
                 let ctrl_name = targets[0].clone();
                 let tgt_name  = targets[1].clone();
-                let ctrl_state = self.env.qubits.get(&ctrl_name)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", ctrl_name))?
-                    .clone();
-                // If control is |1⟩ (prob_one close to 1), apply X to target
-                if ctrl_state.prob_one() > 0.5 {
-                    let tgt = self.env.qubits.get_mut(&tgt_name)
-                        .ok_or_else(|| format!("Undefined qubit '{}'", tgt_name))?;
-                    tgt.apply_x();
-                }
-                self.env.log.push(format!("apply CNOT → ({}, {})", ctrl_name, tgt_name));
+                let sys_idx = self.env.ensure_joint_pair(&ctrl_name, &tgt_name)?;
+                let ctrl_pos = self.env.joint_states[sys_idx].pos_of(&ctrl_name)
+                    .ok_or_else(|| format!("'{}'  not found in joint system", ctrl_name))?;
+                let tgt_pos = self.env.joint_states[sys_idx].pos_of(&tgt_name)
+                    .ok_or_else(|| format!("'{}' not found in joint system", tgt_name))?;
+                self.env.joint_states[sys_idx].apply_cnot(ctrl_pos, tgt_pos);
+                // Sync marginals to individual qubit display states
+                let mc = self.env.joint_states[sys_idx].marginal_qubit(ctrl_pos);
+                let mt = self.env.joint_states[sys_idx].marginal_qubit(tgt_pos);
+                if let Some(q) = self.env.qubits.get_mut(&ctrl_name) { *q = mc; }
+                if let Some(q) = self.env.qubits.get_mut(&tgt_name)  { *q = mt; }
+                self.env.log.push(format!("apply CNOT → ({}, {}) [joint state-vector]", ctrl_name, tgt_name));
             }
             QuantumGate::SWAP => {
+                // Real SWAP on joint state-vector (P2-8)
                 if targets.len() < 2 { return Err("SWAP requires 2 targets".to_string()); }
                 let a = targets[0].clone();
                 let b = targets[1].clone();
-                // Swap the two qubit states
-                let qa = self.env.qubits.get(&a).cloned()
-                    .ok_or_else(|| format!("Undefined qubit '{}'", a))?;
-                let qb = self.env.qubits.get(&b).cloned()
-                    .ok_or_else(|| format!("Undefined qubit '{}'", b))?;
-                self.env.qubits.insert(a.clone(), qb);
-                self.env.qubits.insert(b.clone(), qa);
-                self.env.log.push(format!("apply SWAP → ({}, {})", a, b));
+                let sys_idx = self.env.ensure_joint_pair(&a, &b)?;
+                let pos_a = self.env.joint_states[sys_idx].pos_of(&a)
+                    .ok_or_else(|| format!("'{}' not found in joint system", a))?;
+                let pos_b = self.env.joint_states[sys_idx].pos_of(&b)
+                    .ok_or_else(|| format!("'{}' not found in joint system", b))?;
+                self.env.joint_states[sys_idx].apply_swap(pos_a, pos_b);
+                let ma = self.env.joint_states[sys_idx].marginal_qubit(pos_a);
+                let mb = self.env.joint_states[sys_idx].marginal_qubit(pos_b);
+                if let Some(q) = self.env.qubits.get_mut(&a) { *q = ma; }
+                if let Some(q) = self.env.qubits.get_mut(&b) { *q = mb; }
+                self.env.log.push(format!("apply SWAP → ({}, {}) [joint state-vector]", a, b));
             }
             QuantumGate::CZ => {
-                // CZ: applies Z to target if control is |1⟩
+                // Real CZ on joint state-vector (P2-8)
                 if targets.len() < 2 { return Err("CZ requires 2 targets".to_string()); }
                 let ctrl_name = targets[0].clone();
                 let tgt_name  = targets[1].clone();
-                let ctrl_state = self.env.qubits.get(&ctrl_name)
-                    .ok_or_else(|| format!("Undefined qubit '{}'", ctrl_name))?
-                    .clone();
-                if ctrl_state.prob_one() > 0.5 {
-                    let tgt = self.env.qubits.get_mut(&tgt_name)
-                        .ok_or_else(|| format!("Undefined qubit '{}'", tgt_name))?;
-                    tgt.apply_z();
-                }
-                self.env.log.push(format!("apply CZ → ({}, {})", ctrl_name, tgt_name));
+                let sys_idx = self.env.ensure_joint_pair(&ctrl_name, &tgt_name)?;
+                let ctrl_pos = self.env.joint_states[sys_idx].pos_of(&ctrl_name)
+                    .ok_or_else(|| format!("'{}' not found in joint system", ctrl_name))?;
+                let tgt_pos = self.env.joint_states[sys_idx].pos_of(&tgt_name)
+                    .ok_or_else(|| format!("'{}' not found in joint system", tgt_name))?;
+                self.env.joint_states[sys_idx].apply_cz(ctrl_pos, tgt_pos);
+                let mc = self.env.joint_states[sys_idx].marginal_qubit(ctrl_pos);
+                let mt = self.env.joint_states[sys_idx].marginal_qubit(tgt_pos);
+                if let Some(q) = self.env.qubits.get_mut(&ctrl_name) { *q = mc; }
+                if let Some(q) = self.env.qubits.get_mut(&tgt_name)  { *q = mt; }
+                self.env.log.push(format!("apply CZ → ({}, {}) [joint state-vector]", ctrl_name, tgt_name));
             }
             QuantumGate::Custom(name) => {
                 self.env.log.push(format!("apply {} [custom, no-op] → {:?}", name, targets));

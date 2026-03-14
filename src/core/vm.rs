@@ -373,6 +373,56 @@ impl Interpreter {
                 f: builtin_to_number,
             }),
         );
+
+        // File I/O built-ins (P3-4)
+        env.define(
+            "read_file".into(),
+            Value::Builtin(Builtin {
+                name: "read_file",
+                arity: 1,
+                f: builtin_read_file,
+            }),
+        );
+        env.define(
+            "write_file".into(),
+            Value::Builtin(Builtin {
+                name: "write_file",
+                arity: 2,
+                f: builtin_write_file,
+            }),
+        );
+        env.define(
+            "append_file".into(),
+            Value::Builtin(Builtin {
+                name: "append_file",
+                arity: 2,
+                f: builtin_append_file,
+            }),
+        );
+        env.define(
+            "file_exists".into(),
+            Value::Builtin(Builtin {
+                name: "file_exists",
+                arity: 1,
+                f: builtin_file_exists,
+            }),
+        );
+        env.define(
+            "read_lines".into(),
+            Value::Builtin(Builtin {
+                name: "read_lines",
+                arity: 1,
+                f: builtin_read_lines,
+            }),
+        );
+        env.define(
+            "delete_file".into(),
+            Value::Builtin(Builtin {
+                name: "delete_file",
+                arity: 1,
+                f: builtin_delete_file,
+            }),
+        );
         
         Self { 
             env,
@@ -545,6 +595,20 @@ impl Interpreter {
                 // New scope with closure base
                 let saved = self.env.clone();
                 self.env = fun.env.clone();
+                // Merge top-level globals (frame[0] of the caller's env) into the
+                // function's base frame so that all top-level names (functions,
+                // constants defined after this function) remain accessible.
+                // The function's own captured bindings take precedence; globals
+                // only fill gaps, avoiding accidental shadowing.
+                if let Some(global_frame) = saved.frames.first() {
+                    if let Some(fn_base_frame) = self.env.frames.first_mut() {
+                        for (k, v) in global_frame {
+                            if !fn_base_frame.contains_key(k.as_str()) {
+                                fn_base_frame.insert(k.clone(), v.clone());
+                            }
+                        }
+                    }
+                }
                 self.env.push();
                 for (p, v) in fun.params.iter().zip(args.into_iter()) {
                     self.env.define(p.clone(), v);
@@ -740,7 +804,16 @@ impl Interpreter {
                     let argv = collect_vals(self, args)?;
                     match obj_val {
                         Value::Object(ref map) => {
-                            if let Some(func) = map.get(property.as_str()).cloned() {
+                            // obj["key"] — string key access on object.
+                            // Missing keys return Null (consistent with JS undefined semantics).
+                            if property == "__index__" {
+                                let key = match argv.first() {
+                                    Some(Value::String(s)) => s.clone(),
+                                    Some(v) => display(v),
+                                    None => return Err(err("Object index requires a key".into())),
+                                };
+                                map.get(key.as_str()).cloned().unwrap_or(Value::Null)
+                            } else if let Some(func) = map.get(property.as_str()).cloned() {
                                 self.call_value(func, argv)?
                             } else {
                                 // Try global lookup: TypeName_method pattern
@@ -765,6 +838,32 @@ impl Interpreter {
                                 None
                             };
                             match property.as_str() {
+                                "__index__" => {
+                                    // arr[idx] — zero-based element access
+                                    let idx = match argv.first() {
+                                        Some(Value::Number(n)) => *n as usize,
+                                        _ => return Err(err("Array index must be a number".into())),
+                                    };
+                                    match obj_val {
+                                        Value::Array(ref a) => {
+                                            if idx < a.len() {
+                                                a[idx].clone()
+                                            } else {
+                                                return Err(err(format!("Array index {} out of bounds (len={})", idx, a.len())));
+                                            }
+                                        }
+                                        Value::String(ref s) => {
+                                            // character access on strings
+                                            let chars: Vec<char> = s.chars().collect();
+                                            if idx < chars.len() {
+                                                Value::String(chars[idx].to_string())
+                                            } else {
+                                                return Err(err(format!("String index {} out of bounds (len={})", idx, chars.len())));
+                                            }
+                                        }
+                                        _ => return Err(err("Index access requires array or string".into())),
+                                    }
+                                }
                                 "push" => {
                                     // Mutate array in env; return new length.
                                     if let Some(ref var_name) = arr_ident {
@@ -878,6 +977,24 @@ impl Interpreter {
                         Value::String(_) => {
                             // String built-in methods
                             match property.as_str() {
+                                "__index__" => {
+                                    // str[idx] — character access
+                                    let idx = match argv.first() {
+                                        Some(Value::Number(n)) => *n as usize,
+                                        _ => return Err(err("String index must be a number".into())),
+                                    };
+                                    match obj_val {
+                                        Value::String(ref s) => {
+                                            let chars: Vec<char> = s.chars().collect();
+                                            if idx < chars.len() {
+                                                Value::String(chars[idx].to_string())
+                                            } else {
+                                                return Err(err(format!("String index {} out of bounds (len={})", idx, chars.len())));
+                                            }
+                                        }
+                                        _ => Value::Null,
+                                    }
+                                }
                                 "length" => match obj_val {
                                     Value::String(ref s) => Value::Number(s.chars().count() as f64),
                                     _ => Value::Null,
@@ -1006,6 +1123,8 @@ impl Interpreter {
                 (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
                 (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, display(&b)))),
                 (a, Value::String(b)) => Ok(Value::String(format!("{}{}", display(&a), b))),
+                // Array concatenation: [1,2] + [3,4] → [1,2,3,4]
+                (Value::Array(mut a), Value::Array(b)) => { a.extend(b); Ok(Value::Array(a)) }
                 (a, b) => Err(err(format!("`+` on incompatible types: {:?}, {:?}", a, b))),
             },
             Sub => num2(l, r, |a, b| a - b),
@@ -1797,4 +1916,119 @@ fn builtin_to_number(_interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
         _ => f64::NAN,
     };
     Ok(Value::Number(n))
+}
+
+// ─── File I/O built-ins (P3-4) ────────────────────────────────────────────────
+
+/// read_file(path: String) -> String
+/// Reads the entire contents of a file and returns it as a string.
+fn builtin_read_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("read_file expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("read_file: path must be a string".into())),
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(content) => Ok(Value::String(content)),
+        Err(e) => Err(err(format!("read_file: cannot read '{}': {}", path, e))),
+    }
+}
+
+/// write_file(path: String, content: String) -> Bool
+/// Writes content to a file (creates or overwrites). Returns true on success.
+fn builtin_write_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("write_file expects 2 arguments: path, content".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("write_file: path must be a string".into())),
+    };
+    let content = match &args[1] {
+        Value::String(s) => s.clone(),
+        other => display(other),
+    };
+    match std::fs::write(&path, content) {
+        Ok(()) => Ok(Value::Bool(true)),
+        Err(e) => Err(err(format!("write_file: cannot write '{}': {}", path, e))),
+    }
+}
+
+/// append_file(path: String, content: String) -> Bool
+/// Appends content to a file. Creates the file if it doesn't exist.
+fn builtin_append_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("append_file expects 2 arguments: path, content".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("append_file: path must be a string".into())),
+    };
+    let content = match &args[1] {
+        Value::String(s) => s.clone(),
+        other => display(other),
+    };
+    use std::io::Write;
+    let result = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .and_then(|mut f| f.write_all(content.as_bytes()));
+    match result {
+        Ok(()) => Ok(Value::Bool(true)),
+        Err(e) => Err(err(format!("append_file: cannot append to '{}': {}", path, e))),
+    }
+}
+
+/// file_exists(path: String) -> Bool
+/// Returns true if the path exists on the filesystem.
+fn builtin_file_exists(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("file_exists expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("file_exists: path must be a string".into())),
+    };
+    Ok(Value::Bool(std::path::Path::new(&path).exists()))
+}
+
+/// read_lines(path: String) -> Array<String>
+/// Reads a file and returns an array of lines (newlines stripped).
+fn builtin_read_lines(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("read_lines expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("read_lines: path must be a string".into())),
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(content) => {
+            let lines: Vec<Value> = content
+                .lines()
+                .map(|l| Value::String(l.to_string()))
+                .collect();
+            Ok(Value::Array(lines))
+        }
+        Err(e) => Err(err(format!("read_lines: cannot read '{}': {}", path, e))),
+    }
+}
+
+/// delete_file(path: String) -> Bool
+/// Deletes a file. Returns true on success.
+fn builtin_delete_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("delete_file expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("delete_file: path must be a string".into())),
+    };
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(Value::Bool(true)),
+        Err(e) => Err(err(format!("delete_file: cannot delete '{}': {}", path, e))),
+    }
 }
