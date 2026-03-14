@@ -1,9 +1,6 @@
 use colored::Colorize;
 use std::path::PathBuf;
 
-use super::compile::compile_pipeline;
-use crate::cli::EmitKind;
-
 // Native interpreter pieces
 use crate::core::lexer::Lexer;
 use crate::core::parser::{Parser as AeParser, ParserError};
@@ -18,6 +15,7 @@ pub fn run_native(
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
+    println!("native: executing {}", input.display());
     let source = std::fs::read_to_string(input)?;
     // Lex
     let mut lexer = Lexer::from_str(&source);
@@ -94,49 +92,10 @@ pub fn run_native(
 
 pub fn main_with_opts(
     input: PathBuf,
-    out: Option<PathBuf>,
+    _out: Option<PathBuf>,
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
-    // Force native interpreter path if env requests or if node missing
-    let force_native = std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1");
-    let node_available = std::process::Command::new("node")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
-    if force_native || !node_available {
-        if !node_available && !force_native {
-            println!("(node not found — falling back to native interpreter)");
-        }
-        return run_native(&input, pretty, no_sema);
-    }
-
-    let out_path = out.unwrap_or_else(|| PathBuf::from("aeonmi.run.js"));
-    compile_pipeline(
-        Some(input.clone()),
-        EmitKind::Js,
-        out_path.clone(),
-        false,
-        false,
-        pretty,
-        no_sema,
-        false,
-    )?;
-    match std::process::Command::new("node").arg(&out_path).status() {
-        Ok(status) if !status.success() => eprintln!(
-            "{} JS runtime exited with status: {}",
-            "warn:".yellow().bold(),
-            status
-        ),
-        Err(err) => eprintln!(
-            "{} Could not launch Node.js: {} (compiled output is at '{}')",
-            "warn:".yellow().bold(),
-            err,
-            out_path.display()
-        ),
-        _ => {}
-    }
-    Ok(())
+    // Shard always runs natively — no Node.js, no .js temp files.
+    run_native(&input, pretty, no_sema)
 }

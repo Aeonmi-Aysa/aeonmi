@@ -7,6 +7,7 @@ use std::sync::{
 };
 
 use super::compile::compile_pipeline;
+use super::run;
 use crate::cli::EmitKind;
 use crate::config::{default_config_path, ensure_parent_dir}; // <- config helpers
 use crate::core::qpoly::QPolyMap;
@@ -117,12 +118,10 @@ pub fn main(
                     break;
                 }
                 ":compile" => {
-                    // default to JS out unless you want to toggle like the TUI does
-                    let out = PathBuf::from("output.js");
-                    // compile_pipeline now takes an extra bool — pass false
+                    let out = PathBuf::from("output.ai");
                     compile_pipeline(
                         Some(filepath.clone()),
-                        EmitKind::Js,
+                        EmitKind::Ai,
                         out,
                         false,
                         false,
@@ -132,22 +131,7 @@ pub fn main(
                     )?;
                 }
                 ":run" => {
-                    let out = PathBuf::from("aeonmi.run.js");
-                    compile_pipeline(
-                        Some(filepath.clone()),
-                        EmitKind::Js,
-                        out.clone(),
-                        false,
-                        false,
-                        /*pretty*/ true,
-                        /*skip_sema*/ false,
-                        /*debug_titan*/ false,
-                    )?;
-                    match std::process::Command::new("node").arg(&out).status() {
-                        Ok(s) if !s.success() => eprintln!("(warn) node exit: {s}"),
-                        Err(e) => eprintln!("(warn) node not available: {e}"),
-                        _ => {}
-                    }
+                    run::run_native(&filepath, /*pretty*/ true, /*no_sema*/ false)?;
                 }
                 other if other.starts_with(":o ") => {
                     let p = other[3..].trim();
