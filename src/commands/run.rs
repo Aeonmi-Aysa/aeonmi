@@ -15,6 +15,7 @@ pub fn run_native(
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
+    println!("native: executing {}", input.display());
     let source = std::fs::read_to_string(input)?;
     // Lex
     let mut lexer = Lexer::from_str(&source);
@@ -75,7 +76,6 @@ pub fn run_native(
         println!("note: semantic analysis skipped (native)");
     }
     // Lower & interpret
-    println!("native: executing {}", input.display());
     match lower_ast_to_ir(&ast, "main") {
         Ok(module) => {
             let mut interp = Interpreter::new();
@@ -96,7 +96,6 @@ pub fn main_with_opts(
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
-    // Aeonmi .ai files always run with the native VM interpreter.
-    // No JavaScript emission or Node.js dependency.
+    // Shard always runs natively — no Node.js, no .js temp files.
     run_native(&input, pretty, no_sema)
 }
