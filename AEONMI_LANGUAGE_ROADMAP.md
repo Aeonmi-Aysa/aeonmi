@@ -866,16 +866,18 @@ Work through these in order. Don't skip ahead.
 *This roadmap is factual. Every checked item has been tested and verified. Every unchecked item maps to a specific code change. The language is real. The Shard lives.*
 ---
 
-## SERIOUS DEVELOPMENT IDEAS — PHASE 5+
+## SERIOUS DEVELOPMENT IDEAS — PHASE 5+ ✅ IMPLEMENTED
 
 > Brainstormed at end of Phase 2+3 completion session. These build directly on
 > the language capabilities: joint state-vector quantum simulation (P2-8/P2-9),
 > real file I/O (P3-4), self-hosting Shard compiler (P3-5..P3-8), QUBE circuits,
 > `.ai` syntax with f-strings/for-in/genesis glyphs, and the web2+web3 runtime.
+>
+> **Status: All 3 ideas implemented and tested (Phase 5 completion).**
 
 ---
 
-### IDEA 1: AeonMI Smart-Contract Verifier (`aeonmi verify <contract.ai>`)
+### IDEA 1: AeonMI Smart-Contract Verifier (`aeonmi verify <contract.ai>`) ✅
 
 **What:** A static analysis + quantum-assisted verification tool for `.ai`
 smart contracts that targets EVM (Ethereum), Solana SVM, and Cosmos CosmWasm.
@@ -900,9 +902,15 @@ smart contracts that targets EVM (Ethereum), Solana SVM, and Cosmos CosmWasm.
 **Immediate first step:** Add a `Stmt::Assert` lowering pass that emits
 quantum constraints into a `JointSystem` and measures invariant satisfaction.
 
+**Implementation:** `src/verifier/mod.rs` — Deutsch-Jozsa-inspired static analysis
+classifying functions as constant (pure) vs balanced (stateful). Detects re-entrancy
+risks, unchecked external calls, and infinite recursion. Outputs human-readable
+reports and JSON ABI. CLI: `aeonmi verify <file> [--json] [--out report.json]`.
+Tests: 5 unit + 4 integration tests.
+
 ---
 
-### IDEA 2: AeonMI Reactive Web Framework (`aeonmi serve <app.ai>`)
+### IDEA 2: AeonMI Reactive Web Framework (`aeonmi serve <app.ai>`) ✅
 
 **What:** A lightweight reactive web server and UI framework written entirely in
 `.ai` syntax, bridging web2 (HTTP/JSON) and web3 (wallet/NFT/chain events).
@@ -930,9 +938,15 @@ quantum constraints into a `JointSystem` and measures invariant satisfaction.
 **Immediate first step:** Add `http_listen(port, handler_fn)` and
 `http_response(status, body)` built-ins to `vm.rs` backed by `tokio::net`.
 
+**Implementation:** `src/web/mod.rs` — HTTP server with request parsing, response
+formatting, route table, static file serving, and MIME type detection. VM built-ins:
+`http_response`, `http_get`, `http_post`, `http_json`. Backed by `std::net::TcpListener`.
+CLI: `aeonmi serve [app.ai] [--port N] [--static dir]`.
+Tests: 9 unit + 4 integration tests.
+
 ---
 
-### IDEA 3: AeonMI Genesis Glyph NFT Marketplace (`aeonmi market`)
+### IDEA 3: AeonMI Genesis Glyph NFT Marketplace (`aeonmi market`) ✅
 
 **What:** A CLI + web UI that lets developers mint, list, buy, and trade
 **Genesis Glyph NFTs** — the 12 quantum glyph operators (G-1..G-12) and
@@ -967,4 +981,11 @@ user-defined QUBE circuit diagrams — on any EVM-compatible chain.
 **Immediate first step:** Add `aeonmi market list` subcommand that walks the
 workspace for `.qube` files, renders circuit diagrams, and prints a table of
 mintable glyphs with estimated quantum complexity scores.
+
+**Implementation:** `src/market/mod.rs` — Marketplace scanner that walks workspace
+for `.qube` files, analyzes quantum circuits (qubit count, gate count, entangled
+pairs), computes quantum complexity scores, generates NFT metadata with source
+hashes and quantum signatures. Includes the 12 Genesis Glyphs (G-1..G-12).
+CLI: `aeonmi market list|info|mint|glyphs [--json]`.
+Tests: 8 unit + 6 integration tests.
 

@@ -311,8 +311,15 @@ impl ContractVerifier {
                 let mut writes_state = false;
                 let mut has_recursion = false;
 
+                // Track local scope: parameters and locally-declared variables
+                let mut locals: HashSet<String> = params.iter().map(|p| p.name.clone()).collect();
+
                 for stmt in body {
-                    self.scan_function_body(stmt, name, &mut calls, &mut reads_state, &mut writes_state, &mut has_recursion);
+                    self.scan_function_body(stmt, name, &locals, &mut calls, &mut reads_state, &mut writes_state, &mut has_recursion);
+                    // Track variable declarations as local
+                    if let ASTNode::VariableDecl { name: vname, .. } = stmt {
+                        locals.insert(vname.clone());
+                    }
                 }
 
                 // Classify: a function is Balanced (stateful) if it writes state
@@ -349,6 +356,7 @@ impl ContractVerifier {
         &self,
         node: &ASTNode,
         fn_name: &str,
+        locals: &HashSet<String>,
         calls: &mut Vec<String>,
         reads_state: &mut bool,
         writes_state: &mut bool,
@@ -369,50 +377,52 @@ impl ContractVerifier {
                     calls.push(name);
                 }
                 for arg in args {
-                    self.scan_function_body(arg, fn_name, calls, reads_state, writes_state, has_recursion);
+                    self.scan_function_body(arg, fn_name, locals, calls, reads_state, writes_state, has_recursion);
                 }
             }
-            ASTNode::Assignment { .. } => {
-                // Assignments to variables not in params could be state mutation
-                *writes_state = true;
+            ASTNode::Assignment { name, .. } => {
+                // Only flag as state mutation if assigning to a non-local variable
+                if !locals.contains(name) {
+                    *writes_state = true;
+                }
             }
             ASTNode::Block(stmts) => {
                 for s in stmts {
-                    self.scan_function_body(s, fn_name, calls, reads_state, writes_state, has_recursion);
+                    self.scan_function_body(s, fn_name, locals, calls, reads_state, writes_state, has_recursion);
                 }
             }
             ASTNode::If { condition, then_branch, else_branch } => {
-                self.scan_function_body(condition, fn_name, calls, reads_state, writes_state, has_recursion);
-                self.scan_function_body(then_branch, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(condition, fn_name, locals, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(then_branch, fn_name, locals, calls, reads_state, writes_state, has_recursion);
                 if let Some(eb) = else_branch {
-                    self.scan_function_body(eb, fn_name, calls, reads_state, writes_state, has_recursion);
+                    self.scan_function_body(eb, fn_name, locals, calls, reads_state, writes_state, has_recursion);
                 }
             }
             ASTNode::While { condition, body } => {
-                self.scan_function_body(condition, fn_name, calls, reads_state, writes_state, has_recursion);
-                self.scan_function_body(body, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(condition, fn_name, locals, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(body, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             ASTNode::For { init, condition, increment, body } => {
-                if let Some(i) = init { self.scan_function_body(i, fn_name, calls, reads_state, writes_state, has_recursion); }
-                if let Some(c) = condition { self.scan_function_body(c, fn_name, calls, reads_state, writes_state, has_recursion); }
-                if let Some(inc) = increment { self.scan_function_body(inc, fn_name, calls, reads_state, writes_state, has_recursion); }
-                self.scan_function_body(body, fn_name, calls, reads_state, writes_state, has_recursion);
+                if let Some(i) = init { self.scan_function_body(i, fn_name, locals, calls, reads_state, writes_state, has_recursion); }
+                if let Some(c) = condition { self.scan_function_body(c, fn_name, locals, calls, reads_state, writes_state, has_recursion); }
+                if let Some(inc) = increment { self.scan_function_body(inc, fn_name, locals, calls, reads_state, writes_state, has_recursion); }
+                self.scan_function_body(body, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             ASTNode::Return(expr) => {
-                self.scan_function_body(expr, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(expr, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             ASTNode::Log(expr) => {
-                self.scan_function_body(expr, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(expr, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             ASTNode::VariableDecl { value, .. } => {
-                self.scan_function_body(value, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(value, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             ASTNode::BinaryExpr { left, right, .. } => {
-                self.scan_function_body(left, fn_name, calls, reads_state, writes_state, has_recursion);
-                self.scan_function_body(right, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(left, fn_name, locals, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(right, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             ASTNode::UnaryExpr { expr, .. } => {
-                self.scan_function_body(expr, fn_name, calls, reads_state, writes_state, has_recursion);
+                self.scan_function_body(expr, fn_name, locals, calls, reads_state, writes_state, has_recursion);
             }
             _ => {}
         }

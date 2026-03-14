@@ -102,21 +102,28 @@ fn parse_query_string(qs: &str) -> HashMap<String, String> {
 }
 
 fn url_decode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut chars = s.chars();
-    while let Some(c) = chars.next() {
-        if c == '%' {
-            let hex: String = chars.by_ref().take(2).collect();
-            if let Ok(byte) = u8::from_str_radix(&hex, 16) {
-                result.push(byte as char);
+    let mut bytes = Vec::with_capacity(s.len());
+    let mut chars = s.as_bytes().iter();
+    while let Some(&b) = chars.next() {
+        if b == b'%' {
+            let hex: Vec<u8> = chars.by_ref().take(2).copied().collect();
+            if hex.len() == 2 {
+                if let Ok(decoded) = u8::from_str_radix(
+                    &String::from_utf8_lossy(&hex), 16
+                ) {
+                    bytes.push(decoded);
+                    continue;
+                }
             }
-        } else if c == '+' {
-            result.push(' ');
+            bytes.push(b);
+            bytes.extend_from_slice(&hex);
+        } else if b == b'+' {
+            bytes.push(b' ');
         } else {
-            result.push(c);
+            bytes.push(b);
         }
     }
-    result
+    String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).to_string())
 }
 
 // ── HTTP Response ────────────────────────────────────────────────────────────
