@@ -2080,7 +2080,10 @@ fn builtin_http_response(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value
     };
     let body = match &args[1] {
         Value::String(s) => s.clone(),
-        other => format!("{:?}", other),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
+        _ => return Err(err("http_response: body must be a string or primitive".into())),
     };
     Ok(Value::String(format!("HTTP {} | {}", status, body)))
 }
@@ -2113,7 +2116,10 @@ fn builtin_http_post(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, Ru
     };
     let body = match &args[1] {
         Value::String(s) => s.clone(),
-        other => format!("{:?}", other),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
+        _ => return Err(err("http_post: body must be a string or primitive".into())),
     };
     let mut obj = std::collections::HashMap::new();
     obj.insert("method".to_string(), Value::String("POST".to_string()));
@@ -2134,7 +2140,10 @@ fn builtin_http_json(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, Ru
     };
     let body = match &args[1] {
         Value::String(s) => s.clone(),
-        other => format!("{:?}", other),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
+        _ => return Err(err("http_json: body must be a string or primitive".into())),
     };
     Ok(Value::String(format!("JSON {} | {}", status, body)))
 }
