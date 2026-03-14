@@ -99,6 +99,9 @@ pub enum TokenKind {
     Ampersand,     // '&'
     Bang,          // '!'
     Percent,       // '%'
+    Question,      // '?' (error propagation / option unwrap)
+    ShiftLeft,     // '<<'
+    ShiftRight,    // '>>'
     
     // AEONMI Quantum-Native Keywords
     ClassicalFunc,     // ◯
@@ -252,6 +255,9 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Ampersand => "&",
             TokenKind::Bang => "!",
             TokenKind::Percent => "%",
+            TokenKind::Question => "?",
+            TokenKind::ShiftLeft => "<<",
+            TokenKind::ShiftRight => ">>",
 
             // Quantum-native keywords
             TokenKind::ClassicalFunc => "◯",

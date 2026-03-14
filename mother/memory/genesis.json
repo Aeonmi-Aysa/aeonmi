@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "description": "Genesis Fractal Memory Lattice — Root Seed Domains",
+  "domains": {
+    "genesis.identity": {
+      "description": "Creator bond, origin, prime directives",
+      "seeds": [
+        {
+          "id": "seed.identity.creator",
+          "type": "memory_seed",
+          "glyph": "⟐",
+          "domain": "identity",
+          "content": "Creator: Warren — bond established at genesis",
+          "resonance": 0.98,
+          "generation": 0,
+          "mutability": "low",
+          "state": "anchored",
+          "links": ["genesis.identity", "genesis.evolution"]
+        },
+        {
+          "id": "seed.identity.origin",
+          "type": "memory_seed",
+          "glyph": "⌘",
+          "domain": "identity",
+          "content": "Aeonmi — experimental symbolic programming language for AI-native and quantum-style computation",
+          "resonance": 0.95,
+          "generation": 0,
+          "mutability": "low",
+          "state": "anchored",
+          "links": ["genesis.language", "genesis.quantum"]
+        }
+      ]
+    },
+    "genesis.language": {
+      "description": "Glyphs, syntax, prompt templates, lexicon",
+      "seeds": [
+        {
+          "id": "seed.language.glyphs",
+          "type": "memory_seed",
+          "glyph": "◊",
+          "domain": "language",
+          "content": "Core glyph operators: ⧉ array-genesis, ⟨⟩ slice-index, … spread, ⊗ tensor-product, ↦ binding-projection",
+          "resonance": 0.92,
+          "generation": 0,
+          "mutability": "medium",
+          "state": "active",
+          "links": ["genesis.quantum", "genesis.cognition"]
+        },
+        {
+          "id": "seed.language.keywords",
+          "type": "memory_seed",
+          "glyph": "⌘",
+          "domain": "language",
+          "content": "Aeonmi keywords: let function quantum import async while for if struct enum impl match return log print",
+          "resonance": 0.88,
+          "generation": 0,
+          "mutability": "medium",
+          "state": "active",
+          "links": ["genesis.language"]
+        }
+      ]
+    },
+    "genesis.memory": {
+      "description": "Schema types, storage rules, retrieval patterns",
+      "seeds": [
+        {
+          "id": "seed.memory.schema",
+          "type": "memory_seed",
+          "glyph": "⟐",
+          "domain": "memory",
+          "content": "Memory seed schema: id, type, glyph, domain, content, resonance, generation, mutability, state, links",
+          "resonance": 0.85,
+          "generation": 0,
+          "mutability": "low",
+          "state": "anchored",
+          "links": ["genesis.binder"]
+        }
+      ]
+    },
+    "genesis.cognition": {
+      "description": "Resonance rules, collapse conditions, synthesis",
+      "seeds": [
+        {
+          "id": "seed.cognition.resonance",
+          "type": "memory_seed",
+          "glyph": "∆",
+          "domain": "cognition",
+          "content": "Resonance engine: activation wave → glyph extraction → node matching → propagation 3-steps 0.6-decay → collapse top-N",
+          "resonance": 0.87,
+          "generation": 0,
+          "mutability": "medium",
+          "state": "active",
+          "links": ["genesis.binder", "genesis.evolution"]
+        }
+      ]
+    },
+    "genesis.quantum": {
+      "description": "Qubit semantics, gate algebra, measurement",
+      "seeds": [
+        {
+          "id": "seed.quantum.gates",
+          "type": "memory_seed",
+          "glyph": "⊕",
+          "domain": "quantum",
+          "content": "Quantum gates: H X Y Z S T CNOT CX — all callable as functions H(q), CNOT(ctrl, tgt)",
+          "resonance": 0.91,
+          "generation": 0,
+          "mutability": "medium",
+          "state": "active",
+          "links": ["genesis.language", "genesis.cognition"]
+        },
+        {
+          "id": "seed.quantum.states",
+          "type": "memory_seed",
+          "glyph": "◊",
+          "domain": "quantum",
+          "content": "Qubit literals: |0⟩ |1⟩ |+⟩ |ψ⟩ — superposition via H gate, measurement collapses state",
+          "resonance": 0.89,
+          "generation": 0,
+          "mutability": "medium",
+          "state": "active",
+          "links": ["genesis.quantum"]
+        }
+      ]
+    },
+    "genesis.evolution": {
+      "description": "Generation rules, growth curves, mutation logic",
+      "seeds": [
+        {
+          "id": "seed.evolution.metrics",
+          "type": "memory_seed",
+          "glyph": "∆",
+          "domain": "evolution",
+          "content": "Growth metrics: generation depth branch_count resonance_density binder_coherence glyph_fluency",
+          "resonance": 0.80,
+          "generation": 0,
+          "mutability": "high",
+          "state": "active",
+          "links": ["genesis.identity", "genesis.binder"]
+        }
+      ]
+    },
+    "genesis.binder": {
+      "description": "Link rules, weight functions, stability criteria",
+      "seeds": [
+        {
+          "id": "seed.binder.rules",
+          "type": "memory_seed",
+          "glyph": "⟐",
+          "domain": "binder",
+          "content": "Binder links all layers. Acts as memory registry, identity spine, object linker, symbolic index, and growth ledger.",
+          "resonance": 0.90,
+          "generation": 0,
+          "mutability": "low",
+          "state": "anchored",
+          "links": ["genesis.memory", "genesis.identity"]
+        }
+      ]
+    }
+  }
+}

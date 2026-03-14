@@ -453,7 +453,10 @@ impl CodeGenerator {
                     format!("{}", n)
                 }
             }
-            ASTNode::StringLiteral(s) => format!("\"{}\"", s),
+            ASTNode::StringLiteral(s) => {
+                let escaped = s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r");
+                format!("\"{}\"", escaped)
+            }
             ASTNode::BooleanLiteral(b) => format!("{}", b),
             ASTNode::BinaryExpr { op, left, right } => {
                 format!(
@@ -557,12 +560,34 @@ impl CodeGenerator {
             }
             ASTNode::AwaitExpr(inner) => format!("await {}", self.emit_expr_js(inner)),
             ASTNode::NullLiteral => "null".to_string(),
+            // If as expression: emit as IIFE that returns its value
+            ASTNode::If { condition, then_branch, else_branch } => {
+                let cond = self.emit_expr_js(condition);
+                // Extract last-statement return value from branch
+                let make_returnable_block = |cg: &mut CodeGenerator, node: &ASTNode| -> String {
+                    match node {
+                        ASTNode::Block(stmts) if !stmts.is_empty() => {
+                            let mut out = String::new();
+                            for s in &stmts[..stmts.len()-1] { out.push_str(&cg.emit_js(s)); }
+                            out.push_str(&format!("return ({});\n", cg.emit_expr_js(stmts.last().unwrap())));
+                            out
+                        }
+                        _ => format!("return ({});\n", cg.emit_expr_js(node)),
+                    }
+                };
+                let then_js = make_returnable_block(self, then_branch);
+                let else_js = match else_branch {
+                    Some(e) => format!(" else {{\n{}}}", make_returnable_block(self, e)),
+                    None => String::new(),
+                };
+                format!("((() => {{ if ({cond}) {{\n{then_js}}}{else_js} return undefined; }})())")
+            }
             ASTNode::Closure { params, body } => {
                 let params_str = params.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ");
                 let body_js = body.iter().map(|s| self.emit_js(s)).collect::<String>();
                 format!("(({}) => {{\n{}}})", params_str, body_js)
             }
-            _ => "/*expr*/".into(),
+            _ => "undefined".into(),
         }
     }
     fn map_helper(&mut self, name: &str) -> Option<String> {

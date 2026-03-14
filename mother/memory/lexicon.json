@@ -1,0 +1,76 @@
+{
+  "version": "1.0",
+  "description": "Glyph Lexicon — semantic dictionary mapping glyphs to meanings and domains",
+  "glyphs": {
+    "⌘": {
+      "name": "directive",
+      "meanings": ["intention", "command", "directive", "initiate"],
+      "domain": "cognition",
+      "semantic_vector": [1.0, 0.0, 0.5, 0.8],
+      "resonance_base": 0.85
+    },
+    "◊": {
+      "name": "possibility",
+      "meanings": ["superposition", "unresolved-state", "possibility", "potential"],
+      "domain": "quantum",
+      "semantic_vector": [0.5, 1.0, 0.8, 0.3],
+      "resonance_base": 0.80
+    },
+    "∆": {
+      "name": "transformation",
+      "meanings": ["transform", "change", "evolve", "delta", "mutation"],
+      "domain": "evolution",
+      "semantic_vector": [0.3, 0.5, 1.0, 0.7],
+      "resonance_base": 0.82
+    },
+    "⟐": {
+      "name": "bind",
+      "meanings": ["seal", "bind", "anchor", "persist", "commit"],
+      "domain": "memory",
+      "semantic_vector": [0.8, 0.3, 0.4, 1.0],
+      "resonance_base": 0.90
+    },
+    "⊕": {
+      "name": "merge",
+      "meanings": ["merge", "combine", "entangle", "xor", "superpose"],
+      "domain": "quantum",
+      "semantic_vector": [0.6, 0.9, 0.6, 0.5],
+      "resonance_base": 0.78
+    },
+    "⧉": {
+      "name": "array-genesis",
+      "meanings": ["array", "collection", "genesis", "birth", "initialize"],
+      "domain": "language",
+      "semantic_vector": [0.7, 0.4, 0.3, 0.6],
+      "resonance_base": 0.75
+    },
+    "⟨⟩": {
+      "name": "slice-index",
+      "meanings": ["index", "slice", "access", "retrieve", "subscript"],
+      "domain": "language",
+      "semantic_vector": [0.5, 0.2, 0.2, 0.8],
+      "resonance_base": 0.72
+    },
+    "…": {
+      "name": "spread",
+      "meanings": ["spread", "expand", "distribute", "unpack", "rest"],
+      "domain": "language",
+      "semantic_vector": [0.4, 0.6, 0.5, 0.3],
+      "resonance_base": 0.70
+    },
+    "⊗": {
+      "name": "tensor-product",
+      "meanings": ["tensor", "product", "compose", "kronecker", "entangle"],
+      "domain": "quantum",
+      "semantic_vector": [0.6, 0.8, 0.7, 0.6],
+      "resonance_base": 0.88
+    },
+    "↦": {
+      "name": "binding-projection",
+      "meanings": ["bind", "map", "project", "assign", "arrow"],
+      "domain": "language",
+      "semantic_vector": [0.8, 0.5, 0.4, 0.7],
+      "resonance_base": 0.76
+    }
+  }
+}

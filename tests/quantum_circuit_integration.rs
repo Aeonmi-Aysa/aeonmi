@@ -1,9 +1,9 @@
 /// AEONMI Quantum Circuit Integration Tests
 /// Comprehensive testing of circuit builder, visualization, and compilation
 
-use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGateType};
-use crate::core::circuit_visualization::{CircuitVisualizer, VisualizationStyle};
-use crate::core::circuit_compiler::{QuantumCircuitCompiler, CompilationOptions, CompilationTarget};
+use aeonmi_project::core::circuit_builder::{QuantumCircuitBuilder, QuantumGateType};
+use aeonmi_project::core::circuit_visualization::{CircuitVisualizer, VisualizationStyle};
+use aeonmi_project::core::circuit_compiler::{QuantumCircuitCompiler, CompilationOptions, CompilationTarget};
 
 #[cfg(test)]
 mod circuit_integration_tests {
@@ -238,7 +238,7 @@ mod circuit_integration_tests {
         assert_eq!(circuit.qubit_count(), 3);
         
         // Test all compilation targets
-        let targets = vec![
+        let targets: Vec<CompilationTarget> = vec![
             CompilationTarget::OpenQASM2,
             CompilationTarget::Qiskit,
             CompilationTarget::JavaScript,
@@ -347,6 +347,7 @@ mod circuit_integration_tests {
             
             match compiler.compile(&circuit) {
                 Ok(code) => {
+                    let code: String = code;
                     println!("✅ {} compilation successful ({} characters)", 
                             name, code.len());
                     
@@ -364,6 +365,7 @@ mod circuit_integration_tests {
         let json_repr = visualizer.visualize_json(&circuit);
         match json_repr {
             Ok(json) => {
+                let json: String = json;
                 println!("✅ JSON export successful ({} characters)", json.len());
                 
                 // Validate JSON structure

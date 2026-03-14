@@ -368,6 +368,10 @@ impl Lexer {
                 self.advance_char();
                 self.lex_line_comment();
                 continue;
+            } else if ch == '#' {
+                // Python/Rust-style `#` line comments (e.g. `#[derive(...)]`, `# comment`)
+                self.lex_line_comment();
+                continue;
             } else if ch == self.options.markers.line_comment {
                 self.lex_line_comment();
                 continue;
@@ -422,6 +426,8 @@ impl Lexer {
                 self.lex_number()
             } else if ch == '"' {
                 self.lex_string().map(Some)
+            } else if ch == '\'' {
+                self.lex_char_literal().map(Some)
             } else if is_identifier_start(ch) {
                 Ok(Some(self.lex_identifier()))
             } else {
@@ -582,6 +588,11 @@ impl Lexer {
                 num_str.push(ch);
                 self.advance_char();
             } else if ch == '.' && !has_decimal {
+                // Don't consume '.' if followed by another '.' (range operator `..`)
+                let next_is_dot = if let Some((idx, _)) = self.current {
+                    self.normalized[idx..].chars().nth(1) == Some('.')
+                } else { false };
+                if next_is_dot { break; }
                 has_decimal = true;
                 num_str.push(ch);
                 self.advance_char();
@@ -591,7 +602,25 @@ impl Lexer {
         }
         num_str
             .parse::<f64>()
-            .map(|n| Token::new(TokenKind::NumberLiteral(n), num_str.clone(), line, col))
+            .map(|n| {
+                // Skip optional Rust-style numeric type suffix: _f64, _i32, _u8, _usize, etc.
+                if let Some((_, '_')) = self.current {
+                    // Peek ahead: if `_` followed by alpha chars, it's a type suffix
+                    let mut tmp = self.current;
+                    let mut suffix = String::from('_');
+                    self.advance_char();
+                    while let Some((_, sc)) = self.current {
+                        if sc.is_ascii_alphanumeric() || sc == '_' {
+                            suffix.push(sc);
+                            self.advance_char();
+                        } else {
+                            break;
+                        }
+                    }
+                    let _ = suffix; // discard suffix
+                }
+                Token::new(TokenKind::NumberLiteral(n), num_str.clone(), line, col)
+            })
             .map_err(|_| LexerError::InvalidNumber(num_str, line, col))
     }
     fn lex_glyph_number(&mut self) -> Result<Token, LexerError> {
@@ -620,6 +649,11 @@ impl Lexer {
                 num_str.push(ch);
                 self.advance_char();
             } else if ch == '.' && !has_decimal {
+                // Don't consume '.' if followed by another '.' (range operator `..`)
+                let next_is_dot = if let Some((idx, _)) = self.current {
+                    self.normalized[idx..].chars().nth(1) == Some('.')
+                } else { false };
+                if next_is_dot { break; }
                 has_decimal = true;
                 num_str.push(ch);
                 self.advance_char();
@@ -641,6 +675,36 @@ impl Lexer {
             .parse::<f64>()
             .map(|n| Token::new(TokenKind::NumberLiteral(n), ascii_str.clone(), line, col))
             .map_err(|_| LexerError::InvalidNumber(ascii_str, line, col))
+    }
+    fn lex_char_literal(&mut self) -> Result<Token, LexerError> {
+        let (line, col) = self.pos();
+        self.advance_char(); // consume opening '
+        let mut content = String::new();
+        // Handle optional escape sequence
+        if let Some((_, '\\')) = self.current {
+            self.advance_char(); // consume '\'
+            let esc_ch = match self.current.map(|(_, c)| c) {
+                Some('n')  => { self.advance_char(); '\n' }
+                Some('t')  => { self.advance_char(); '\t' }
+                Some('r')  => { self.advance_char(); '\r' }
+                Some('\\') => { self.advance_char(); '\\' }
+                Some('\'') => { self.advance_char(); '\'' }
+                Some('0')  => { self.advance_char(); '\0' }
+                Some(other) => { self.advance_char(); other }
+                None => return Err(LexerError::UnterminatedString(line, col)),
+            };
+            content.push(esc_ch);
+        } else if let Some((_, ch)) = self.current {
+            if ch != '\'' {
+                content.push(ch);
+                self.advance_char();
+            }
+        }
+        // Consume closing '
+        if let Some((_, '\'')) = self.current {
+            self.advance_char();
+        }
+        Ok(Token::new(TokenKind::StringLiteral(content.clone()), content, line, col))
     }
     fn lex_string(&mut self) -> Result<Token, LexerError> {
         let (line, col) = self.pos();
@@ -819,7 +883,9 @@ impl Lexer {
             ('=', Some('=')) => Some(TokenKind::DoubleEquals),
             ('!', Some('=')) => Some(TokenKind::NotEquals),
             ('<', Some('=')) => Some(TokenKind::LessEqual),
+            ('<', Some('<')) => Some(TokenKind::ShiftLeft),
             ('>', Some('=')) => Some(TokenKind::GreaterEqual),
+            ('>', Some('>')) => Some(TokenKind::ShiftRight),
             (':', Some('=')) => Some(TokenKind::ColonEquals),
             (':', Some(':')) => Some(TokenKind::ColonColon),
             ('&', Some('&')) => Some(TokenKind::AndAnd),
@@ -852,6 +918,7 @@ impl Lexer {
             ':' => Some(TokenKind::Colon),
             '&' => Some(TokenKind::Ampersand),
             '!' => Some(TokenKind::Bang),
+            '?' => Some(TokenKind::Question),
             '%' => Some(TokenKind::Percent),
 
             // AI/Brain emoji for AI functions
