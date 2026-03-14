@@ -330,6 +330,58 @@ impl QuantumSimulator {
         }
     }
     
+    /// Apply S gate (phase gate, Z^1/2) to a qubit: multiplies |1⟩ amplitude by i
+    pub fn phase_s(&mut self, qubit_name: &str) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // S gate: |0⟩ → |0⟩, |1⟩ → i|1⟩
+            // For single qubit state: amplitudes[0] = |0⟩, amplitudes[1] = |1⟩
+            let a1 = state.amplitudes[1];
+            state.amplitudes[1] = Complex::new(-a1.imag, a1.real); // multiply by i
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+        }
+    }
+
+    /// Apply T gate (π/8 gate, Z^1/4) to a qubit: multiplies |1⟩ amplitude by e^(iπ/4)
+    pub fn phase_t(&mut self, qubit_name: &str) -> Result<()> {
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // T gate: |0⟩ → |0⟩, |1⟩ → e^(iπ/4)|1⟩
+            let a1 = state.amplitudes[1];
+            let cos45 = std::f64::consts::FRAC_1_SQRT_2;
+            let sin45 = std::f64::consts::FRAC_1_SQRT_2;
+            state.amplitudes[1] = Complex::new(
+                a1.real * cos45 - a1.imag * sin45,
+                a1.real * sin45 + a1.imag * cos45,
+            );
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+        }
+    }
+
+    /// Apply CNOT gate: flips target qubit if control qubit is in |1⟩ (or superposed).
+    /// This is a single-qubit-pair approximation; full multi-qubit tensor product is Phase 2.
+    pub fn apply_cnot(&mut self, control_name: &str, target_name: &str) -> Result<()> {
+        if !self.qubits.contains_key(control_name) {
+            return Err(anyhow::anyhow!("Control qubit '{}' not found", control_name));
+        }
+        if !self.qubits.contains_key(target_name) {
+            return Err(anyhow::anyhow!("Target qubit '{}' not found", target_name));
+        }
+        // Track entanglement
+        self.entangle(control_name, target_name)?;
+        // If control is in |1⟩ state (prob > 0.5), flip target
+        let p1 = {
+            let ctrl = &self.qubits[control_name];
+            1.0 - ctrl.get_probability(0)
+        };
+        if p1 > 0.5 {
+            self.pauli_x(target_name)?;
+        }
+        Ok(())
+    }
+
     /// Measure a qubit, collapsing its state
     pub fn measure(&mut self, qubit_name: &str) -> Result<u8> {
         if let Some(state) = self.qubits.get_mut(qubit_name) {

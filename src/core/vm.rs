@@ -326,14 +326,17 @@ impl Interpreter {
             }),
         );
         
-        // Quantum gate constants — so scripts can write: apply_gate(q, H)
-        env.define("H".into(), Value::String("H".into()));
-        env.define("X".into(), Value::String("X".into()));
-        env.define("Y".into(), Value::String("Y".into()));
-        env.define("Z".into(), Value::String("Z".into()));
-        env.define("CNOT".into(), Value::String("CNOT".into()));
-        env.define("HADAMARD".into(), Value::String("H".into()));
-        env.define("NOT".into(), Value::String("X".into()));
+        // Quantum gate builtins — callable as H(q), X(q), CNOT(q1, q2) or apply_gate(q, H)
+        env.define("H".into(), Value::Builtin(Builtin { name: "H", arity: 1, f: gate_h }));
+        env.define("X".into(), Value::Builtin(Builtin { name: "X", arity: 1, f: gate_x }));
+        env.define("Y".into(), Value::Builtin(Builtin { name: "Y", arity: 1, f: gate_y }));
+        env.define("Z".into(), Value::Builtin(Builtin { name: "Z", arity: 1, f: gate_z }));
+        env.define("S".into(), Value::Builtin(Builtin { name: "S", arity: 1, f: gate_s }));
+        env.define("T".into(), Value::Builtin(Builtin { name: "T", arity: 1, f: gate_t }));
+        env.define("CNOT".into(), Value::Builtin(Builtin { name: "CNOT", arity: 2, f: gate_cnot }));
+        env.define("CX".into(),   Value::Builtin(Builtin { name: "CX",   arity: 2, f: gate_cnot }));
+        env.define("HADAMARD".into(), Value::Builtin(Builtin { name: "H", arity: 1, f: gate_h }));
+        env.define("NOT".into(),      Value::Builtin(Builtin { name: "X", arity: 1, f: gate_x }));
         
         // Hieroglyphic glyph operations — called when scripts use Unicode symbols like 𓀀(x, y)
         env.define(
@@ -1332,7 +1335,8 @@ fn builtin_apply_gate(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
     
     let gate_name = match &args[1] {
         Value::String(name) => name.to_uppercase(),
-        _ => return Err(err("apply_gate second argument must be a gate name string (\"H\", \"X\", \"Y\", \"Z\", \"CNOT\")".into())),
+        Value::Builtin(b) => b.name.to_uppercase(),
+        _ => return Err(err("apply_gate second argument must be a gate name string or gate builtin (H, X, Y, Z, S, T, CNOT)".into())),
     };
     
     // Create qubit if it doesn't exist
@@ -1357,15 +1361,100 @@ fn builtin_apply_gate(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
             interp.quantum_sim.pauli_y(&qubit_name)
                 .map_err(|e| err(format!("Quantum error applying Y: {}", e)))?;
         }
-        "CNOT" => {
-            return Err(err("CNOT requires 2 qubits: use entangle(q1, q2) instead".into()));
+        "S" => {
+            interp.quantum_sim.phase_s(&qubit_name)
+                .map_err(|e| err(format!("Quantum error applying S: {}", e)))?;
+        }
+        "T" => {
+            interp.quantum_sim.phase_t(&qubit_name)
+                .map_err(|e| err(format!("Quantum error applying T: {}", e)))?;
+        }
+        "CNOT" | "CX" => {
+            return Err(err("CNOT/CX requires 2 qubits: use CNOT(control, target) or entangle(q1, q2)".into()));
         }
         other => {
-            return Err(err(format!("Unknown gate '{}'. Supported: H, X, Y, Z, CNOT", other)));
+            return Err(err(format!("Unknown gate '{}'. Supported: H, X, Y, Z, S, T, CNOT, CX", other)));
         }
     }
     
     Ok(Value::QubitReference(qubit_name))
+}
+
+// ── Individual gate built-in functions ──────────────────────────────────────
+// These allow scripts to write: H(q), X(q), CNOT(q1, q2), etc.
+
+/// Helper: resolve qubit name from a Value
+fn resolve_qubit_name(v: &Value) -> Result<String, RuntimeError> {
+    match v {
+        Value::QubitReference(n) | Value::String(n) => Ok(n.clone()),
+        _ => Err(err("Gate argument must be a qubit reference or name".into())),
+    }
+}
+
+/// Helper: ensure qubit exists in simulator, creating it if necessary
+fn ensure_qubit(interp: &mut Interpreter, name: &str) {
+    if !interp.quantum_sim.qubits.contains_key(name) {
+        interp.quantum_sim.create_qubit(name.to_string());
+    }
+}
+
+fn gate_h(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("H expects 1 qubit argument".into())); }
+    let q = resolve_qubit_name(&args[0])?;
+    ensure_qubit(interp, &q);
+    interp.quantum_sim.superpose(&q).map_err(|e| err(format!("H gate error: {}", e)))?;
+    Ok(Value::QubitReference(q))
+}
+
+fn gate_x(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("X expects 1 qubit argument".into())); }
+    let q = resolve_qubit_name(&args[0])?;
+    ensure_qubit(interp, &q);
+    interp.quantum_sim.pauli_x(&q).map_err(|e| err(format!("X gate error: {}", e)))?;
+    Ok(Value::QubitReference(q))
+}
+
+fn gate_y(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("Y expects 1 qubit argument".into())); }
+    let q = resolve_qubit_name(&args[0])?;
+    ensure_qubit(interp, &q);
+    interp.quantum_sim.pauli_y(&q).map_err(|e| err(format!("Y gate error: {}", e)))?;
+    Ok(Value::QubitReference(q))
+}
+
+fn gate_z(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("Z expects 1 qubit argument".into())); }
+    let q = resolve_qubit_name(&args[0])?;
+    ensure_qubit(interp, &q);
+    interp.quantum_sim.pauli_z(&q).map_err(|e| err(format!("Z gate error: {}", e)))?;
+    Ok(Value::QubitReference(q))
+}
+
+fn gate_s(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("S expects 1 qubit argument".into())); }
+    let q = resolve_qubit_name(&args[0])?;
+    ensure_qubit(interp, &q);
+    interp.quantum_sim.phase_s(&q).map_err(|e| err(format!("S gate error: {}", e)))?;
+    Ok(Value::QubitReference(q))
+}
+
+fn gate_t(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("T expects 1 qubit argument".into())); }
+    let q = resolve_qubit_name(&args[0])?;
+    ensure_qubit(interp, &q);
+    interp.quantum_sim.phase_t(&q).map_err(|e| err(format!("T gate error: {}", e)))?;
+    Ok(Value::QubitReference(q))
+}
+
+fn gate_cnot(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("CNOT/CX expects 2 qubit arguments: CNOT(control, target)".into())); }
+    let ctrl = resolve_qubit_name(&args[0])?;
+    let tgt  = resolve_qubit_name(&args[1])?;
+    ensure_qubit(interp, &ctrl);
+    ensure_qubit(interp, &tgt);
+    interp.quantum_sim.apply_cnot(&ctrl, &tgt)
+        .map_err(|e| err(format!("CNOT gate error: {}", e)))?;
+    Ok(Value::QubitReference(ctrl))
 }
 
 // AEONMI Quantum Algorithm Built-in Functions

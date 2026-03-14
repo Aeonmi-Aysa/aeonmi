@@ -14,6 +14,7 @@ pub mod tui;
 pub mod vault;
 pub mod glyph;             // Glyph Identity System (MGK/UGST/GDF/Vault/Ceremony)
 pub mod mother;            // Mother AI — Quantum Consciousness + Embryo Loop
+pub mod ai;                // AI provider registry (OpenRouter, Claude, etc.)
 pub mod qube;              // QUBE (.qube) quantum symbolic reasoning format
 pub mod mint;              // Web3 minting — NFT metadata + Anchor stub generation
 pub mod quantum_ast_tests; // Quantum AST integration tests

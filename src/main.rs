@@ -625,13 +625,13 @@ fn main() -> anyhow::Result<()> {
                         }
                         return Ok(());
                     }
-                    let prov_name = provider.or_else(|| reg.list().first().map(|s| s.to_string()));
+                    let prov_name: Option<String> = provider.or_else(|| reg.list().first().map(|s: &&str| s.to_string()));
                     if prov_name.is_none() {
                         println!("No AI providers enabled. Build with feature flags (e.g. --features ai-openai)");
                         return Ok(());
                     }
                     let chosen = prov_name.unwrap();
-                    let prov = match reg.get(&chosen) {
+                    let prov: &dyn crate::ai::AiProvider = match reg.get(&chosen) {
                         Some(p) => p,
                         None => {
                             println!(

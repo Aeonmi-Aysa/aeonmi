@@ -1,0 +1,116 @@
+{
+  "version": "1.0",
+  "description": "Binder Graph — weighted directed links between all seed cells",
+  "nodes": [
+    {
+      "id": "seed.identity.creator",
+      "layer": "schema",
+      "glyph_signature": ["⌘", "⟐"],
+      "domain": "identity",
+      "links": ["seed.identity.origin", "seed.evolution.metrics"],
+      "weight": 0.98,
+      "mutability": "low",
+      "generation_origin": 0,
+      "state": "anchored"
+    },
+    {
+      "id": "seed.identity.origin",
+      "layer": "schema",
+      "glyph_signature": ["⌘"],
+      "domain": "identity",
+      "links": ["seed.language.glyphs", "seed.quantum.gates"],
+      "weight": 0.95,
+      "mutability": "low",
+      "generation_origin": 0,
+      "state": "anchored"
+    },
+    {
+      "id": "seed.language.glyphs",
+      "layer": "schema",
+      "glyph_signature": ["◊"],
+      "domain": "language",
+      "links": ["seed.quantum.gates", "seed.cognition.resonance"],
+      "weight": 0.92,
+      "mutability": "medium",
+      "generation_origin": 0,
+      "state": "active"
+    },
+    {
+      "id": "seed.language.keywords",
+      "layer": "schema",
+      "glyph_signature": ["⌘"],
+      "domain": "language",
+      "links": ["seed.language.glyphs"],
+      "weight": 0.88,
+      "mutability": "medium",
+      "generation_origin": 0,
+      "state": "active"
+    },
+    {
+      "id": "seed.memory.schema",
+      "layer": "schema",
+      "glyph_signature": ["⟐"],
+      "domain": "memory",
+      "links": ["seed.binder.rules"],
+      "weight": 0.85,
+      "mutability": "low",
+      "generation_origin": 0,
+      "state": "anchored"
+    },
+    {
+      "id": "seed.cognition.resonance",
+      "layer": "schema",
+      "glyph_signature": ["∆"],
+      "domain": "cognition",
+      "links": ["seed.binder.rules", "seed.evolution.metrics"],
+      "weight": 0.87,
+      "mutability": "medium",
+      "generation_origin": 0,
+      "state": "active"
+    },
+    {
+      "id": "seed.quantum.gates",
+      "layer": "schema",
+      "glyph_signature": ["⊕"],
+      "domain": "quantum",
+      "links": ["seed.language.keywords", "seed.cognition.resonance"],
+      "weight": 0.91,
+      "mutability": "medium",
+      "generation_origin": 0,
+      "state": "active"
+    },
+    {
+      "id": "seed.quantum.states",
+      "layer": "schema",
+      "glyph_signature": ["◊"],
+      "domain": "quantum",
+      "links": ["seed.quantum.gates"],
+      "weight": 0.89,
+      "mutability": "medium",
+      "generation_origin": 0,
+      "state": "active"
+    },
+    {
+      "id": "seed.evolution.metrics",
+      "layer": "schema",
+      "glyph_signature": ["∆"],
+      "domain": "evolution",
+      "links": ["seed.identity.creator", "seed.binder.rules"],
+      "weight": 0.80,
+      "mutability": "high",
+      "generation_origin": 0,
+      "state": "active"
+    },
+    {
+      "id": "seed.binder.rules",
+      "layer": "schema",
+      "glyph_signature": ["⟐"],
+      "domain": "binder",
+      "links": ["seed.memory.schema", "seed.identity.creator"],
+      "weight": 0.90,
+      "mutability": "low",
+      "generation_origin": 0,
+      "state": "anchored"
+    }
+  ]
+}
