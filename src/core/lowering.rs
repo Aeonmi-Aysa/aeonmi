@@ -168,6 +168,17 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             }
         }
 
+        // P1-34: for var in iterable { body } → IR ForIn
+        A::ForIn { var, iterable, body } => {
+            let iter_expr = lower_expr_ast(iterable)?;
+            let body_block = lower_block_ast(body)?;
+            Stmt::ForIn {
+                var: var.clone(),
+                iter: iter_expr,
+                body: body_block,
+            }
+        }
+
         // Decls at statement position
     A::VariableDecl { name, value, .. } => Stmt::Let {
             name: name.clone(),
@@ -517,6 +528,51 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
     }
 
     // Catch-all for truly unimplemented nodes (should shrink toward zero)
+    // ── Genesis Glyphs (G-9) ──────────────────────────────────────────────────
+    // GlyphArray: ⧉e1‥e2‥e3⧉ → lowers to a regular Array IR node
+    A::GlyphArray(elements) => {
+        // Expand SpreadExpr inside by flattening via __spread builtin
+        let mut exprs: Vec<Expr> = Vec::new();
+        for elem in elements {
+            match elem {
+                A::SpreadExpr(inner) => {
+                    let inner_e = lower_expr_ast(inner)?;
+                    // __spread(arr) returns each element; at IR level represent as call
+                    exprs.push(Expr::Call {
+                        callee: Box::new(Expr::Ident("__spread".into())),
+                        args: vec![inner_e],
+                    });
+                }
+                other => exprs.push(lower_expr_ast(other)?),
+            }
+        }
+        Stmt::Expr(Expr::Array(exprs))
+    }
+    // SpreadExpr at statement level — just evaluate inner
+    A::SpreadExpr(inner) => {
+        let inner_e = lower_expr_ast(inner)?;
+        Stmt::Expr(Expr::Call {
+            callee: Box::new(Expr::Ident("__spread".into())),
+            args: vec![inner_e],
+        })
+    }
+    // SliceExpr: base⟨low‥high⟩ → __slice(base, low, high)
+    A::SliceExpr { base, low, high } => {
+        let base_e = lower_expr_ast(base)?;
+        let low_e = if let Some(l) = low { lower_expr_ast(l)? } else { Expr::Lit(Lit::Number(0.0)) };
+        let high_e = if let Some(h) = high { lower_expr_ast(h)? } else { Expr::Lit(Lit::Null) };
+        Stmt::Expr(Expr::Call {
+            callee: Box::new(Expr::Ident("__slice".into())),
+            args: vec![base_e, low_e, high_e],
+        })
+    }
+    // BindingProjection: name ↦ expr → let name = expr  (symbolic binding)
+    A::BindingProjection { name, value } => {
+        Stmt::Let {
+            name: name.clone(),
+            value: Some(lower_expr_ast(value)?),
+        }
+    }
     _ => Stmt::Expr(Expr::Object(vec![])),
     })
 }
@@ -632,6 +688,7 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
         | A::If { .. }
         | A::While { .. }
         | A::For { .. }
+        | A::ForIn { .. }
         | A::Function { .. }
         | A::VariableDecl { .. }
         | A::Return(_)
@@ -706,6 +763,42 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
             }
         }
         // Keep existing wildcard for any remaining unimplemented nodes
+        // Genesis glyph expression nodes
+        A::GlyphArray(elements) => {
+            let mut exprs: Vec<Expr> = Vec::new();
+            for elem in elements {
+                match elem {
+                    A::SpreadExpr(inner) => {
+                        let inner_e = lower_expr_ast(inner)?;
+                        exprs.push(Expr::Call {
+                            callee: Box::new(Expr::Ident("__spread".into())),
+                            args: vec![inner_e],
+                        });
+                    }
+                    other => exprs.push(lower_expr_ast(other)?),
+                }
+            }
+            Expr::Array(exprs)
+        }
+        A::SpreadExpr(inner) => {
+            Expr::Call {
+                callee: Box::new(Expr::Ident("__spread".into())),
+                args: vec![lower_expr_ast(inner)?],
+            }
+        }
+        A::SliceExpr { base, low, high } => {
+            let base_e = lower_expr_ast(base)?;
+            let low_e = if let Some(l) = low { lower_expr_ast(l)? } else { Expr::Lit(Lit::Number(0.0)) };
+            let high_e = if let Some(h) = high { lower_expr_ast(h)? } else { Expr::Lit(Lit::Null) };
+            Expr::Call {
+                callee: Box::new(Expr::Ident("__slice".into())),
+                args: vec![base_e, low_e, high_e],
+            }
+        }
+        A::BindingProjection { name, value } => {
+            // In expression context: evaluate to the value (binding is a side-effect)
+            lower_expr_ast(value)?
+        }
         _ => Expr::Lit(Lit::String("/* Quantum AST node not yet implemented in lowering */".to_string())),
     })
 }

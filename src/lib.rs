@@ -17,6 +17,9 @@ pub mod mother;            // Mother AI — Quantum Consciousness + Embryo Loop
 pub mod ai;                // AI provider registry (OpenRouter, Claude, etc.)
 pub mod qube;              // QUBE (.qube) quantum symbolic reasoning format
 pub mod mint;              // Web3 minting — NFT metadata + Anchor stub generation
+pub mod verifier;          // Smart-contract verifier — static analysis + quantum-assisted verification
+pub mod web;               // Reactive web framework — HTTP server + routing
+pub mod market;            // Genesis Glyph NFT marketplace — list/mint/inspect .qube circuits
 pub mod quantum_ast_tests; // Quantum AST integration tests
 // Optional: expose GUI bridge commands if building with that feature
 #[cfg(any())]

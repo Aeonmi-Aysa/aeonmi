@@ -348,6 +348,12 @@ impl Lexer {
                 '✓' => Some(TokenKind::Success),           // quantum success
                 '⏰' | '⏱' => Some(TokenKind::TimeBlock),   // time block
                 
+                // ── Genesis Glyphs (G-1 through G-4) ──────────────────────────
+                '⧉' => Some(TokenKind::GlyphArrayDelim),   // array literal delimiter
+                '‥' => Some(TokenKind::GlyphSep),          // element separator / range
+                '…' => Some(TokenKind::GlyphSpread),       // spread operator
+                '↦' => Some(TokenKind::GlyphBind),         // binding / projection
+                
                 _ => None,
             } {
                 let (line, col) = self.pos();
@@ -834,14 +840,16 @@ impl Lexer {
                 if ident == "f" {
                     if let Some((_, '"')) = self.current {
                         // Lex as f-string: f"text {expr} more"
+                        // Produce an FString token carrying the raw content so the parser
+                        // can split on {…} interpolations.
                         return match self.lex_string() {
                             Ok(tok) => {
-                                // Wrap the string content in an FString token
                                 let content = match tok.kind {
                                     TokenKind::StringLiteral(s) => s,
                                     _ => String::new(),
                                 };
-                                Token::new(TokenKind::StringLiteral(content), tok.lexeme, line, col)
+                                // Use the raw content as the lexeme so the parser has it.
+                                Token::new(TokenKind::FString, content, line, col)
                             }
                             Err(_) => Token::new(TokenKind::Identifier(ident.clone()), ident, line, col),
                         };

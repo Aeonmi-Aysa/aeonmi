@@ -8,7 +8,12 @@ use crate::commands;
 use crate::commands::compile::compile_pipeline;
 
 pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> anyhow::Result<()> {
-    banner();
+    // P4-15: main banner is already shown by run_glyph_startup() in main.rs.
+    // Only show the prompt hint here.
+    println!("  {} {}",
+        "⟦AEONMI SHARD⟧".truecolor(255, 240, 0).bold(),
+        "type 'help' for shell commands".truecolor(130, 0, 200),
+    );
 
     let mut cwd = std::env::current_dir()?;
     loop {
@@ -411,21 +416,6 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
     }
 
     Ok(())
-}
-
-fn banner() {
-    println!(
-        "\n{}  \n{}  \n",
-        "╔══════════════════════════════════════════════════╗".truecolor(225, 0, 180),
-        "║                A e o n m i   S h a r d          ║"
-            .truecolor(255, 240, 0)
-            .bold(),
-    );
-    println!(
-        "{}  {}",
-        "╚══════════════════════════════════════════════════╝".truecolor(225, 0, 180),
-        "type 'help' for commands".truecolor(130, 0, 200)
-    );
 }
 
 fn print_help() {
