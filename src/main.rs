@@ -183,18 +183,18 @@ fn main() -> anyhow::Result<()> {
         let input = args.input_pos.or(args.input_opt).unwrap();
 
         let emit_kind = match args.emit_legacy.as_deref() {
-            None | Some("js") => EmitKind::Js,
-            Some("ai") => EmitKind::Ai,
+            None | Some("ai") => EmitKind::Ai,
+            Some("js") => EmitKind::Js,
             Some(other) => {
                 eprintln!("Unsupported --emit kind: {}", other);
                 proc_exit(2);
             }
         };
 
-        let default_out = if matches!(emit_kind, EmitKind::Ai) {
-            "output.ai"
-        } else {
+        let default_out = if matches!(emit_kind, EmitKind::Js) {
             "output.js"
+        } else {
+            "output.ai"
         };
 
         let out = args
@@ -1116,153 +1116,96 @@ fn main() -> anyhow::Result<()> {
                     .to_lowercase();
                 match ext.as_str() {
                     "ai" => {
-                        let force_native =
-                            std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1");
-                        let node_available = std::process::Command::new("node")
-                            .arg("--version")
-                            .output()
-                            .map(|o| o.status.success())
-                            .unwrap_or(false);
-                        if force_native || !node_available {
-                            if no_run {
-                                // Even in native/ no node environment, honor --no-run by producing JS artifact for tests.
-                                let out_js = PathBuf::from("__exec_tmp.js");
-                                commands::compile::compile_pipeline(
-                                    Some(file.clone()),
-                                    EmitKind::Js,
-                                    out_js.clone(),
-                                    false,
-                                    false,
-                                    pretty,
-                                    skip_sema,
-                                    debug_titan,
-                                )?;
-                                if !keep_temp {
-                                    let _ = std::fs::remove_file(&out_js);
-                                }
-                                Ok(())
-                            } else {
-                                // Native interpretation path
-    
-                                use crate::core::diagnostics::{
-                                    emit_json_error, print_error, Span,
-                                };
-                                use crate::core::lexer::Lexer;
-                                use crate::core::lexer::LexerError;
-                                use crate::core::lowering::lower_ast_to_ir;
-                                use crate::core::parser::{Parser as AeParser, ParserError};
-                                use crate::core::vm::Interpreter;
-                                let src = match std::fs::read_to_string(file) {
-                                    Ok(s) => s,
-                                    Err(e) => anyhow::bail!("read error: {e}"),
-                                };
-                                let mut lexer = Lexer::from_str(&src);
-                                let tokens = match lexer.tokenize() {
-                                    Ok(t) => t,
-                                    Err(e) => {
-                                        if pretty {
-                                            match e {
-                                                LexerError::UnexpectedCharacter(_, line, col)
-                                                | LexerError::UnterminatedString(line, col)
-                                                | LexerError::InvalidNumber(_, line, col)
-                                                | LexerError::InvalidQubitLiteral(_, line, col)
-                                                | LexerError::UnterminatedComment(line, col) => {
-                                                    emit_json_error(
-                                                        &file.display().to_string(),
-                                                        &format!("{}", e),
-                                                        &Span::single(line, col),
-                                                    );
-                                                    print_error(
-                                                        &file.display().to_string(),
-                                                        &src,
-                                                        &format!("{}", e),
-                                                        Span::single(line, col),
-                                                    );
-                                                }
-                                                _ => eprintln!("lex error: {e}"),
-                                            }
-                                        } else {
-                                            eprintln!("lex error: {e}");
-                                        }
-                                        return Ok(());
-                                    }
-                                };
-                                let mut parser = AeParser::new(tokens.clone());
-                                let ast = match parser.parse() {
-                                    Ok(a) => a,
-                                    Err(ParserError {
-                                        message,
-                                        line,
-                                        column,
-                                    }) => {
-                                        if pretty {
+                        // Always use native VM interpreter — Aeonmi .ai files are
+                        // first-class citizens and never require Node.js to run.
+                        use crate::core::diagnostics::{
+                            emit_json_error, print_error, Span,
+                        };
+                        use crate::core::lexer::Lexer;
+                        use crate::core::lexer::LexerError;
+                        use crate::core::lowering::lower_ast_to_ir;
+                        use crate::core::parser::{Parser as AeParser, ParserError};
+                        use crate::core::vm::Interpreter;
+                        let src = match std::fs::read_to_string(file) {
+                            Ok(s) => s,
+                            Err(e) => anyhow::bail!("read error: {e}"),
+                        };
+                        let mut lexer = Lexer::from_str(&src);
+                        let tokens = match lexer.tokenize() {
+                            Ok(t) => t,
+                            Err(e) => {
+                                if pretty {
+                                    match e {
+                                        LexerError::UnexpectedCharacter(_, line, col)
+                                        | LexerError::UnterminatedString(line, col)
+                                        | LexerError::InvalidNumber(_, line, col)
+                                        | LexerError::InvalidQubitLiteral(_, line, col)
+                                        | LexerError::UnterminatedComment(line, col) => {
                                             emit_json_error(
                                                 &file.display().to_string(),
-                                                &format!("Parsing error: {message}"),
-                                                &Span::single(line, column),
+                                                &format!("{}", e),
+                                                &Span::single(line, col),
                                             );
                                             print_error(
                                                 &file.display().to_string(),
                                                 &src,
-                                                &format!("Parsing error: {message}"),
-                                                Span::single(line, column),
+                                                &format!("{}", e),
+                                                Span::single(line, col),
                                             );
-                                        } else {
-                                            eprintln!("parse error: {message}");
                                         }
-                                        return Ok(());
+                                        _ => eprintln!("lex error: {e}"),
                                     }
-                                };
-                                if skip_sema {
-                                    println!("note: semantic analysis skipped (native)");
+                                } else {
+                                    eprintln!("lex error: {e}");
                                 }
-                                match lower_ast_to_ir(&ast, "main") {
-                                    Ok(module) => {
-                                        let mut interp = Interpreter::new();
-                                        interp.base_dir = file.parent().map(|p| p.to_path_buf());
-                                        if !no_run {
-                                            if let Err(e) = interp.run_module(&module) {
-                                                eprintln!("TEST ERROR: {}", e.message);
-                                            }
-                                        }
-                                    }
-                                    Err(e) => eprintln!("lowering error: {e}"),
-                                }
-                                Ok(())
+                                return Ok(());
                             }
-                        } else {
-                            let out_js = PathBuf::from("__exec_tmp.js");
-                            commands::compile::compile_pipeline(
-                                Some(file.clone()),
-                                EmitKind::Js,
-                                out_js.clone(),
-                                false,
-                                false,
-                                pretty,
-                                skip_sema,
-                                debug_titan,
-                            )?;
-                            // If user only wants compilation (--no-run) and didn't request keep-temp, remove temp now
-                            if no_run {
-                                if !keep_temp {
-                                    let _ = std::fs::remove_file(&out_js);
+                        };
+                        let mut parser = AeParser::new(tokens.clone());
+                        let ast = match parser.parse() {
+                            Ok(a) => a,
+                            Err(ParserError {
+                                message,
+                                line,
+                                column,
+                            }) => {
+                                if pretty {
+                                    emit_json_error(
+                                        &file.display().to_string(),
+                                        &format!("Parsing error: {message}"),
+                                        &Span::single(line, column),
+                                    );
+                                    print_error(
+                                        &file.display().to_string(),
+                                        &src,
+                                        &format!("Parsing error: {message}"),
+                                        Span::single(line, column),
+                                    );
+                                } else {
+                                    eprintln!("parse error: {message}");
                                 }
-                            } else {
-                                let status = std::process::Command::new("node")
-                                    .arg(&out_js)
-                                    .args(passthrough)
-                                    .status();
-                                match status {
-                                    Ok(s) if s.success() => {}
-                                    Ok(s) => anyhow::bail!("node exited with status {}", s),
-                                    Err(e) => anyhow::bail!("failed to execute node: {e}"),
-                                }
-                                if !keep_temp {
-                                    let _ = std::fs::remove_file(&out_js);
-                                }
+                                return Ok(());
                             }
-                            Ok(())
+                        };
+                        if skip_sema {
+                            println!("note: semantic analysis skipped (native)");
                         }
+                        if no_run {
+                            // Compilation-only requested — parse succeeded, nothing to run.
+                            return Ok(());
+                        }
+                        println!("native: executing {}", file.display());
+                        match lower_ast_to_ir(&ast, "main") {
+                            Ok(module) => {
+                                let mut interp = Interpreter::new();
+                                interp.base_dir = file.parent().map(|p| p.to_path_buf());
+                                if let Err(e) = interp.run_module(&module) {
+                                    eprintln!("runtime error: {}", e.message);
+                                }
+                            }
+                            Err(e) => eprintln!("lowering error: {e}"),
+                        }
+                        Ok(())
                     }
                     "js" => {
                         if no_run {

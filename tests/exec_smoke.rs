@@ -1,25 +1,35 @@
-use std::fs;use std::process::Command;use std::path::Path;
+use std::fs;
+use std::process::Command;
 
 #[test]
-fn exec_ai_compiles_and_runs() {
-    // Use a tiny AI source copied into a temp file to avoid modifying examples.
-    let ai_src = "let x = 1;\nlog(x);\n"; // minimal program updated to current syntax
+fn exec_ai_runs_with_native_vm() {
+    // .ai files always execute via the native VM — no temp .js artifact.
+    let ai_src = "let x = 1;\nlog(x);\n";
     let file = "temp_exec_test.ai";
     fs::write(file, ai_src).expect("write ai file");
-    let status = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
-        .args(["exec", file, "--keep-temp"])
-        .status()
+    let output = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .args(["exec", file])
+        .output()
         .expect("spawn exec ai");
-    assert!(status.success(), "exec ai should succeed");
-    assert!(Path::new("__exec_tmp.js").exists(), "temp compiled js should exist");
-    let _ = fs::remove_file("__exec_tmp.js"); // Clean up
+    assert!(output.status.success(), "exec ai should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("native: executing"),
+        "expected native execution marker in stdout: {stdout}"
+    );
+    // Confirm no JS artifact was created
+    assert!(
+        !std::path::Path::new("__exec_tmp.js").exists(),
+        "exec .ai should never produce __exec_tmp.js"
+    );
+    let _ = fs::remove_file(file);
 }
 
 #[test]
 fn exec_js_runs_directly() {
     let js_src = "console.log('ok');";
     let file = "temp_exec_test.js";
-    fs::write(&file, js_src).expect("write js file");
+    fs::write(file, js_src).expect("write js file");
     let status = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
         .args(["exec", file])
         .status()
@@ -32,7 +42,6 @@ fn exec_js_runs_directly() {
 
 #[test]
 fn native_run_env() {
-    use std::process::Command;
     let output = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
         .env("AEONMI_NATIVE", "1")
         .arg("run")
@@ -45,7 +54,7 @@ fn native_run_env() {
 
 #[test]
 fn shard_native_run_command() {
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
     let mut child = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

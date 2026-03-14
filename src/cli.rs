@@ -5,11 +5,11 @@ use crate::cli_vault::VaultCommand as VaultSubcommand;
 
 #[derive(Copy, Clone, Debug, ValueEnum, Default)]
 pub enum EmitKind {
-    #[clap(alias = "js")]
-    #[default]
-    Js,
     #[clap(alias = "ai")]
+    #[default]
     Ai,
+    #[clap(alias = "js")]
+    Js,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -84,7 +84,7 @@ pub enum Command {
         input: PathBuf,
 
         /// Output format (alias: --format)
-        #[arg(long = "emit", value_enum, default_value_t = EmitKind::Js, visible_alias = "format")]
+        #[arg(long = "emit", value_enum, default_value_t = EmitKind::Ai, visible_alias = "format")]
         emit: EmitKind,
 
         /// Output file path (short: -o). Defaults by format.
@@ -92,8 +92,8 @@ pub enum Command {
             short = 'o',
             long = "out",
             value_name = "FILE",
-            default_value = "output.js",
-            default_value_if("emit", "ai", "output.ai")
+            default_value = "output.ai",
+            default_value_if("emit", "js", "output.js")
         )]
         out: PathBuf,
 
@@ -189,7 +189,7 @@ pub enum Command {
         /// Open TUI editor after creating
         #[arg(long = "tui", action = ArgAction::SetTrue)]
         tui: bool,
-        /// Compile immediately after creating (saves to output.js or output.ai depending on --emit js default)
+        /// Compile immediately after creating (saves to output.ai or output.js depending on --emit ai default)
         #[arg(long = "compile", action = ArgAction::SetTrue)]
         compile: bool,
         /// Run (implies JS target) after creation (compiles then runs with node)
