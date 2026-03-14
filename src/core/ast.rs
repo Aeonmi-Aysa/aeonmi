@@ -43,6 +43,12 @@ pub enum ASTNode {
         increment: Option<Box<ASTNode>>,
         body: Box<ASTNode>,
     },
+    /// P1-34: `for var in iterable { body }` — proper iterator loop.
+    ForIn {
+        var: String,
+        iterable: Box<ASTNode>,
+        body: Box<ASTNode>,
+    },
     // Expressions
     Assignment {
         name: String,
@@ -222,6 +228,23 @@ pub enum ASTNode {
         body: Vec<ASTNode>,
     },
     
+    // ── Genesis Glyphs (G-5 through G-8) ─────────────────────────────────────
+    /// `⧉expr‥expr⧉` — genesis array literal
+    GlyphArray(Vec<ASTNode>),
+    /// `…expr` — spread expression
+    SpreadExpr(Box<ASTNode>),
+    /// `expr⟨low‥high⟩` — slice / view expression
+    SliceExpr {
+        base: Box<ASTNode>,
+        low: Option<Box<ASTNode>>,
+        high: Option<Box<ASTNode>>,
+    },
+    /// `name ↦ expr` — binding / projection
+    BindingProjection {
+        name: String,
+        value: Box<ASTNode>,
+    },
+
     // Special
     #[allow(dead_code)]
     Error(String),

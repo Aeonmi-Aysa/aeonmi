@@ -513,7 +513,69 @@ impl Interpreter {
         Ok(())
     }
 
+    /// Like `run_module` but returns the value produced by calling `main()`.
+    /// Used in tests to inspect the return value of a top-level program.
+    pub fn run_module_return(&mut self, m: &Module) -> Result<Value, RuntimeError> {
+        for imp in &m.imports {
+            self.resolve_import(&imp.path)?;
+        }
+        for d in &m.decls {
+            match d {
+                Decl::Const(c) => {
+                    let v = self.eval_expr(&c.value)?;
+                    self.env.define(c.name.clone(), v);
+                }
+                Decl::Let(l) => {
+                    let v = if let Some(e) = &l.value { self.eval_expr(e)? } else { Value::Null };
+                    self.env.define(l.name.clone(), v);
+                }
+                Decl::Fn(f) => {
+                    let func = Value::Function(Function {
+                        params: f.params.clone(),
+                        body: f.body.clone(),
+                        env: self.env.clone(),
+                    });
+                    self.env.define(f.name.clone(), func);
+                }
+            }
+        }
+        if let Some(Value::Function(_)) = self.env.get("main") {
+            self.call_ident("main", vec![])
+        } else {
+            Ok(Value::Null)
+        }
+    }
+
     fn call_ident(&mut self, name: &str, args: Vec<Value>) -> Result<Value, RuntimeError> {
+        // G-9: Genesis glyph runtime helpers (not registered as environment builtins)
+        match name {
+            // __spread(array) — identity for array elements; expands when concatenating arrays
+            "__spread" => {
+                return Ok(match args.into_iter().next().unwrap_or(Value::Null) {
+                    v @ Value::Array(_) => v,
+                    other => Value::Array(vec![other]),
+                });
+            }
+            // __slice(array, low, high) — zero-copy view (array slice)
+            "__slice" => {
+                let (arr, low, high) = match args.len() {
+                    0 => (Value::Null, Value::Number(0.0), Value::Null),
+                    1 => (args[0].clone(), Value::Number(0.0), Value::Null),
+                    2 => (args[0].clone(), args[1].clone(), Value::Null),
+                    _ => (args[0].clone(), args[1].clone(), args[2].clone()),
+                };
+                let items = match arr {
+                    Value::Array(a) => a,
+                    Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
+                    _ => return Err(err("__slice: expected array or string".to_string())),
+                };
+                let len = items.len();
+                let lo = match low { Value::Number(n) => (n as isize).max(0) as usize, _ => 0 };
+                let hi = match high { Value::Number(n) => (n as isize).max(0) as usize, Value::Null => len, _ => len };
+                return Ok(Value::Array(items[lo.min(len)..hi.min(len)].to_vec()));
+            }
+            _ => {}
+        }
         let callee = self
             .env
             .get(name)
@@ -674,6 +736,43 @@ impl Interpreter {
                             other => return other,
                         }
                     }
+                }
+                ControlFlow::Ok
+            }
+            // P1-34: for var in iterable { body } — iterate arrays, strings, or objects.
+            ForIn { var, iter, body } => {
+                let collection = match self.eval_expr(iter) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Err(e),
+                };
+                let items: Vec<Value> = match collection {
+                    Value::Array(arr) => arr,
+                    Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
+                    Value::Object(kvs) => kvs.into_iter().map(|(k, _)| Value::String(k)).collect(),
+                    Value::Null => vec![],
+                    other => return ControlFlow::Err(err(format!(
+                        "for-in: cannot iterate over {:?}", other
+                    ))),
+                };
+                for item in items {
+                    // Create a dedicated scope for the loop variable so it does NOT
+                    // persist after the loop (proper block-scoped semantics).
+                    self.env.push();
+                    self.env.define(var.clone(), item);
+                    // exec_block pushes another child scope for the body statements;
+                    // `var` is visible from the body via scope chain lookup.
+                    match self.exec_block(body) {
+                        ControlFlow::Ok => {}
+                        ControlFlow::Return(v) => {
+                            self.env.pop();
+                            return ControlFlow::Return(v);
+                        }
+                        other => {
+                            self.env.pop();
+                            return other;
+                        }
+                    }
+                    self.env.pop();
                 }
                 ControlFlow::Ok
             }
@@ -870,6 +969,13 @@ impl Interpreter {
                                     }
                                     Value::Array(base)
                                 }
+                                // P1-19: is_empty method for arrays
+                                "is_empty" | "isEmpty" => {
+                                    match obj_val {
+                                        Value::Array(ref a) => Value::Bool(a.is_empty()),
+                                        _ => Value::Bool(true),
+                                    }
+                                }
                                 other_method => {
                                     return Err(err(format!("Array has no method '{}'", other_method)));
                                 }
@@ -962,7 +1068,16 @@ impl Interpreter {
             Array(items) => {
                 let mut out = Vec::with_capacity(items.len());
                 for it in items {
-                    out.push(self.eval_expr(it)?);
+                    let val = self.eval_expr(it)?;
+                    // Genesis glyph: flatten __spread() results into the array
+                    if is_spread_call(it) {
+                        match val {
+                            Value::Array(arr) => out.extend(arr),
+                            other => out.push(other),
+                        }
+                    } else {
+                        out.push(val);
+                    }
                 }
                 Value::Array(out)
             }
@@ -1055,6 +1170,13 @@ impl From<RuntimeError> for ControlFlow {
 
 fn err(msg: String) -> RuntimeError {
     RuntimeError { message: msg }
+}
+
+/// Returns true if `e` is a `__spread(...)` call expression.
+/// Used to flatten spread results when building array literals.
+fn is_spread_call(e: &Expr) -> bool {
+    matches!(e, Expr::Call { callee, .. }
+        if matches!(&**callee, Expr::Ident(n) if n == "__spread"))
 }
 
 fn collect_vals(i: &mut Interpreter, es: &[Expr]) -> Result<Vec<Value>, RuntimeError> {

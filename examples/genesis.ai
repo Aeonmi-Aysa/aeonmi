@@ -1,0 +1,50 @@
+// genesis.ai
+// Demonstrates Phase 4 / G-series genesis glyph features.
+// Run with: aeonmi run examples/genesis.ai
+
+// ── G-1 / G-5: ⧉ Genesis array literal ─────────────────────────────────────
+let primes = ⧉2‥3‥5‥7‥11‥13⧉;
+log(primes);
+
+// ── G-3/G-6: …spread inside genesis array ───────────────────────────────────
+let more = ⧉…primes‥17‥19⧉;
+log(more);
+
+// ── G-4 / G-8: binding projection ───────────────────────────────────────────
+x ↦ 42;
+log(x);
+
+greeting ↦ f"The answer is {x}!";
+log(greeting);
+
+// ── P1-33: f-string interpolation ───────────────────────────────────────────
+let name = "Aeonmi";
+let version = 1;
+let banner = f"Welcome to {name} v{version} — quantum language runtime";
+log(banner);
+
+let a = 3;
+let b = 7;
+let result = a + b;
+log(f"{a} + {b} = {result}");
+
+// ── P1-34: for x in collection ──────────────────────────────────────────────
+log("Primes:");
+for p in primes {
+    log(p);
+}
+
+// Iterating over a string
+let word = "shard";
+log("Characters:");
+for ch in word {
+    log(ch);
+}
+
+// ── Combine all features ─────────────────────────────────────────────────────
+let atoms = ⧉"H"‥"He"‥"Li"‥"Be"‥"B"‥"C"‥"N"‥"O"⧉;
+let idx = 0;
+for atom in atoms {
+    log(f"  [{idx}] {atom}");
+    idx = idx + 1;
+}
