@@ -43,6 +43,11 @@ pub enum ASTNode {
         increment: Option<Box<ASTNode>>,
         body: Box<ASTNode>,
     },
+    ForIn {
+        var: String,
+        iterable: Box<ASTNode>,
+        body: Box<ASTNode>,
+    },
     // Expressions
     Assignment {
         name: String,
@@ -225,6 +230,23 @@ pub enum ASTNode {
     // Special
     #[allow(dead_code)]
     Error(String),
+
+    // Phase 1.5 — Genesis Glyphs
+    /// ⧉expr‥expr‥expr⧉  — glyph array literal
+    GlyphArray(Vec<ASTNode>),
+    /// …expr  — spread operator
+    SpreadExpr(Box<ASTNode>),
+    /// expr⟨low‥high⟩  — zero-copy slice
+    SliceExpr {
+        array: Box<ASTNode>,
+        low: Option<Box<ASTNode>>,
+        high: Option<Box<ASTNode>>,
+    },
+    /// name ↦ expr  — binding/projection
+    BindingProjection {
+        name: String,
+        expr: Box<ASTNode>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

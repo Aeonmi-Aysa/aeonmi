@@ -274,169 +274,368 @@ impl QuantumGates {
     }
 }
 
-/// Quantum simulator managing multiple qubits
+/// Quantum simulator managing multiple qubits.
+/// Phase 2: joint state-vector model.  When two qubits are entangled they
+/// share a single multi-qubit `QuantumState`.  CNOT operates on the joint
+/// state so interference and Bell-state preparation work correctly.
 #[derive(Debug)]
 pub struct QuantumSimulator {
+    /// Per-qubit state for standalone (un-entangled) qubits.
     pub qubits: HashMap<String, QuantumState>,
-    pub entangled_systems: Vec<Vec<String>>, // Track entangled qubit groups
+    /// Joint state-vector systems: each entry is a group of qubit names that
+    /// share a single multi-qubit state, plus that state.
+    pub joint_systems: Vec<JointSystem>,
+    /// Legacy entangled_systems field kept for compatibility.
+    pub entangled_systems: Vec<Vec<String>>,
+}
+
+/// A joint quantum state shared by multiple named qubits.
+#[derive(Debug, Clone)]
+pub struct JointSystem {
+    /// Qubit names in order (qubit[0] = most-significant bit, qubit[n-1] = least).
+    pub names: Vec<String>,
+    /// The combined state vector (length = 2^names.len()).
+    pub state: QuantumState,
+}
+
+impl JointSystem {
+    /// Create a joint system for two qubits already in separate single-qubit states.
+    pub fn from_two(name0: &str, s0: &QuantumState, name1: &str, s1: &QuantumState) -> Self {
+        // Tensor product |s0⟩ ⊗ |s1⟩  →  4-element state vector
+        let mut amplitudes = vec![Complex::new(0.0, 0.0); 4];
+        for (i, a) in s0.amplitudes.iter().enumerate() {
+            for (j, b) in s1.amplitudes.iter().enumerate() {
+                amplitudes[i * 2 + j] = *a * *b;
+            }
+        }
+        JointSystem {
+            names: vec![name0.to_string(), name1.to_string()],
+            state: QuantumState { amplitudes, num_qubits: 2 },
+        }
+    }
+
+    /// Return the index of `qubit_name` in this joint system, or None.
+    pub fn index_of(&self, name: &str) -> Option<usize> {
+        self.names.iter().position(|n| n == name)
+    }
+
+    /// Apply a single-qubit gate (given as a 2×2 matrix in row-major order) to
+    /// the qubit at `qubit_idx` within this joint system.
+    pub fn apply_single_gate(&mut self, qubit_idx: usize, gate: [[Complex; 2]; 2]) {
+        let n = self.names.len();
+        let num_states = 1 << n;
+        let mut new_amps = vec![Complex::new(0.0, 0.0); num_states];
+        for state_idx in 0..num_states {
+            let bit = (state_idx >> (n - 1 - qubit_idx)) & 1;
+            // partner state: flip bit at qubit_idx
+            let partner = state_idx ^ (1 << (n - 1 - qubit_idx));
+            let (row0, row1) = if bit == 0 {
+                // |0⟩ component: new[state_idx] += gate[0][0]*amp[state_idx] + gate[0][1]*amp[partner]
+                (0usize, 1usize)
+            } else {
+                (1usize, 0usize)
+            };
+            new_amps[state_idx] = new_amps[state_idx]
+                + gate[row0][0] * self.state.amplitudes[state_idx]
+                + gate[row0][1] * self.state.amplitudes[partner];
+            let _ = row1; // used via symmetry below
+        }
+        // The loop above double-counts each pair; compensate by halving is wrong.
+        // Use the correct approach: iterate over pairs.
+        let mut corrected = vec![Complex::new(0.0, 0.0); num_states];
+        for state_idx in 0..num_states {
+            let bit = (state_idx >> (n - 1 - qubit_idx)) & 1;
+            if bit == 0 {
+                let partner = state_idx ^ (1 << (n - 1 - qubit_idx));
+                let a0 = self.state.amplitudes[state_idx];
+                let a1 = self.state.amplitudes[partner];
+                corrected[state_idx]  = gate[0][0] * a0 + gate[0][1] * a1;
+                corrected[partner]    = gate[1][0] * a0 + gate[1][1] * a1;
+            }
+        }
+        self.state.amplitudes = corrected;
+    }
+
+    /// Apply CNOT with control at `ctrl_idx` and target at `tgt_idx`.
+    pub fn apply_cnot(&mut self, ctrl_idx: usize, tgt_idx: usize) {
+        let n = self.names.len();
+        let num_states = 1 << n;
+        let mut new_amps = self.state.amplitudes.clone();
+        for state_idx in 0..num_states {
+            let ctrl_bit = (state_idx >> (n - 1 - ctrl_idx)) & 1;
+            if ctrl_bit == 1 {
+                // Flip target bit
+                let flipped = state_idx ^ (1 << (n - 1 - tgt_idx));
+                new_amps[flipped] = self.state.amplitudes[state_idx];
+                new_amps[state_idx] = self.state.amplitudes[flipped];
+            }
+        }
+        self.state.amplitudes = new_amps;
+    }
+
+    /// Measure a single qubit within the joint system, collapsing the state.
+    /// Returns 0 or 1.
+    pub fn measure_qubit(&mut self, qubit_idx: usize) -> u8 {
+        let n = self.names.len();
+        let num_states = 1 << n;
+        // Compute probability of outcome 0
+        let mut p0 = 0.0f64;
+        for state_idx in 0..num_states {
+            let bit = (state_idx >> (n - 1 - qubit_idx)) & 1;
+            if bit == 0 {
+                p0 += self.state.amplitudes[state_idx].magnitude_squared();
+            }
+        }
+        let outcome = if rand::random::<f64>() < p0 { 0u8 } else { 1u8 };
+        // Collapse state
+        let norm_sq: f64 = self.state.amplitudes.iter().enumerate().map(|(idx, a)| {
+            let bit = (idx >> (n - 1 - qubit_idx)) & 1;
+            if (bit == 0) == (outcome == 0) { a.magnitude_squared() } else { 0.0 }
+        }).sum();
+        let norm = norm_sq.sqrt();
+        for state_idx in 0..num_states {
+            let bit = (state_idx >> (n - 1 - qubit_idx)) & 1;
+            if (bit == 0) == (outcome == 0) {
+                if norm > 1e-15 {
+                    self.state.amplitudes[state_idx] = self.state.amplitudes[state_idx] * (1.0 / norm);
+                }
+            } else {
+                self.state.amplitudes[state_idx] = Complex::new(0.0, 0.0);
+            }
+        }
+        outcome
+    }
 }
 
 impl QuantumSimulator {
     pub fn new() -> Self {
         Self {
             qubits: HashMap::new(),
+            joint_systems: Vec::new(),
             entangled_systems: Vec::new(),
         }
     }
-    
+
+    /// Return the joint system that contains `name`, if any.
+    fn joint_system_for(&self, name: &str) -> Option<usize> {
+        self.joint_systems.iter().position(|js| js.names.contains(&name.to_string()))
+    }
+
     /// Create a new qubit in |0⟩ state
     pub fn create_qubit(&mut self, name: String) {
         self.qubits.insert(name, QuantumState::new(1));
     }
-    
+
     /// Apply superposition (Hadamard) to a qubit
     pub fn superpose(&mut self, qubit_name: &str) -> Result<()> {
+        let sqrt_half = 1.0 / 2.0_f64.sqrt();
+        let h = [[Complex::real(sqrt_half), Complex::real(sqrt_half)],
+                 [Complex::real(sqrt_half), Complex::new(-sqrt_half, 0.0)]];
+        if let Some(js_idx) = self.joint_system_for(qubit_name) {
+            let q_idx = self.joint_systems[js_idx].index_of(qubit_name).unwrap();
+            self.joint_systems[js_idx].apply_single_gate(q_idx, h);
+            return Ok(());
+        }
         if let Some(state) = self.qubits.get_mut(qubit_name) {
             QuantumGates::hadamard(state, 0)
         } else {
             Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
-    
+
+    fn apply_single_gate_to_qubit(&mut self, qubit_name: &str, gate: [[Complex; 2]; 2]) -> Result<()> {
+        if let Some(js_idx) = self.joint_system_for(qubit_name) {
+            let q_idx = self.joint_systems[js_idx].index_of(qubit_name).unwrap();
+            self.joint_systems[js_idx].apply_single_gate(q_idx, gate);
+            return Ok(());
+        }
+        if let Some(state) = self.qubits.get_mut(qubit_name) {
+            // Use the existing per-qubit gate application
+            let tmp_state = state.clone();
+            let a0 = tmp_state.amplitudes[0];
+            let a1 = tmp_state.amplitudes[1];
+            state.amplitudes[0] = gate[0][0] * a0 + gate[0][1] * a1;
+            state.amplitudes[1] = gate[1][0] * a0 + gate[1][1] * a1;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
+        }
+    }
+
     /// Apply Pauli-X gate to a qubit
     pub fn pauli_x(&mut self, qubit_name: &str) -> Result<()> {
-        if let Some(state) = self.qubits.get_mut(qubit_name) {
-            QuantumGates::pauli_x(state, 0)
-        } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
-        }
+        let x = [[Complex::new(0.0, 0.0), Complex::real(1.0)],
+                 [Complex::real(1.0), Complex::new(0.0, 0.0)]];
+        self.apply_single_gate_to_qubit(qubit_name, x)
     }
-    
+
     /// Apply Pauli-Y gate to a qubit
     pub fn pauli_y(&mut self, qubit_name: &str) -> Result<()> {
-        if let Some(state) = self.qubits.get_mut(qubit_name) {
-            QuantumGates::pauli_y(state, 0)
-        } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
-        }
+        let y = [[Complex::new(0.0, 0.0), Complex::new(0.0, -1.0)],
+                 [Complex::new(0.0, 1.0), Complex::new(0.0, 0.0)]];
+        self.apply_single_gate_to_qubit(qubit_name, y)
     }
-    
-    /// Apply Pauli-Z gate to a qubit  
+
+    /// Apply Pauli-Z gate to a qubit
     pub fn pauli_z(&mut self, qubit_name: &str) -> Result<()> {
-        if let Some(state) = self.qubits.get_mut(qubit_name) {
-            QuantumGates::pauli_z(state, 0)
-        } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
-        }
+        let z = [[Complex::real(1.0), Complex::new(0.0, 0.0)],
+                 [Complex::new(0.0, 0.0), Complex::new(-1.0, 0.0)]];
+        self.apply_single_gate_to_qubit(qubit_name, z)
     }
-    
-    /// Apply S gate (phase gate, Z^1/2) to a qubit: multiplies |1⟩ amplitude by i
+
+    /// Apply S gate (phase gate)
     pub fn phase_s(&mut self, qubit_name: &str) -> Result<()> {
-        if let Some(state) = self.qubits.get_mut(qubit_name) {
-            // S gate: |0⟩ → |0⟩, |1⟩ → i|1⟩
-            // For single qubit state: amplitudes[0] = |0⟩, amplitudes[1] = |1⟩
-            let a1 = state.amplitudes[1];
-            state.amplitudes[1] = Complex::new(-a1.imag, a1.real); // multiply by i
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
-        }
+        let s = [[Complex::real(1.0), Complex::new(0.0, 0.0)],
+                 [Complex::new(0.0, 0.0), Complex::new(0.0, 1.0)]];
+        self.apply_single_gate_to_qubit(qubit_name, s)
     }
 
-    /// Apply T gate (π/8 gate, Z^1/4) to a qubit: multiplies |1⟩ amplitude by e^(iπ/4)
+    /// Apply T gate
     pub fn phase_t(&mut self, qubit_name: &str) -> Result<()> {
-        if let Some(state) = self.qubits.get_mut(qubit_name) {
-            // T gate: |0⟩ → |0⟩, |1⟩ → e^(iπ/4)|1⟩
-            let a1 = state.amplitudes[1];
-            let cos45 = std::f64::consts::FRAC_1_SQRT_2;
-            let sin45 = std::f64::consts::FRAC_1_SQRT_2;
-            state.amplitudes[1] = Complex::new(
-                a1.real * cos45 - a1.imag * sin45,
-                a1.real * sin45 + a1.imag * cos45,
-            );
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
-        }
+        let cos45 = std::f64::consts::FRAC_1_SQRT_2;
+        let t = [[Complex::real(1.0), Complex::new(0.0, 0.0)],
+                 [Complex::new(0.0, 0.0), Complex::new(cos45, cos45)]];
+        self.apply_single_gate_to_qubit(qubit_name, t)
     }
 
-    /// Apply CNOT gate: flips target qubit if control qubit is in |1⟩ (or superposed).
-    /// This is a single-qubit-pair approximation; full multi-qubit tensor product is Phase 2.
+    /// Apply CNOT gate using the joint state-vector model (P2-8/P2-9).
+    /// If the two qubits are not already in a joint system, they are merged first.
     pub fn apply_cnot(&mut self, control_name: &str, target_name: &str) -> Result<()> {
-        if !self.qubits.contains_key(control_name) {
-            return Err(anyhow::anyhow!("Control qubit '{}' not found", control_name));
-        }
-        if !self.qubits.contains_key(target_name) {
-            return Err(anyhow::anyhow!("Target qubit '{}' not found", target_name));
-        }
-        // Track entanglement
-        self.entangle(control_name, target_name)?;
-        // If control is in |1⟩ state (prob > 0.5), flip target
-        let p1 = {
-            let ctrl = &self.qubits[control_name];
-            1.0 - ctrl.get_probability(0)
-        };
-        if p1 > 0.5 {
-            self.pauli_x(target_name)?;
+        // Check both qubits exist
+        let ctrl_in_joint = self.joint_system_for(control_name);
+        let tgt_in_joint = self.joint_system_for(target_name);
+
+        match (ctrl_in_joint, tgt_in_joint) {
+            (Some(ci), Some(ti)) if ci == ti => {
+                // Already in the same joint system
+                let js = &mut self.joint_systems[ci];
+                let ctrl_idx = js.index_of(control_name).unwrap();
+                let tgt_idx = js.index_of(target_name).unwrap();
+                js.apply_cnot(ctrl_idx, tgt_idx);
+            }
+            (Some(_), Some(_)) => {
+                // In different joint systems — merging is complex; handle simple cases
+                return Err(anyhow::anyhow!(
+                    "CNOT between qubits in different joint systems not yet supported"
+                ));
+            }
+            (None, None) => {
+                // Both are standalone — merge them into a joint system
+                let s0 = self.qubits.remove(control_name).ok_or_else(||
+                    anyhow::anyhow!("Control qubit '{}' not found", control_name))?;
+                let s1 = self.qubits.remove(target_name).ok_or_else(||
+                    anyhow::anyhow!("Target qubit '{}' not found", target_name))?;
+                let mut js = JointSystem::from_two(control_name, &s0, target_name, &s1);
+                js.apply_cnot(0, 1); // ctrl=0, tgt=1 in the joint system
+                self.joint_systems.push(js);
+                // Track in legacy entangled_systems
+                self.entangle_tracking(control_name, target_name);
+            }
+            (Some(ci), None) => {
+                // Control is in a joint system, target is standalone
+                let s1 = self.qubits.remove(target_name).ok_or_else(||
+                    anyhow::anyhow!("Target qubit '{}' not found", target_name))?;
+                let js = &mut self.joint_systems[ci];
+                let old_n = js.names.len();
+                // Extend joint state: new_state = old_state ⊗ |s1⟩
+                let mut new_amps = vec![Complex::new(0.0, 0.0); js.state.amplitudes.len() * 2];
+                for (idx, a) in js.state.amplitudes.iter().enumerate() {
+                    new_amps[idx * 2]     = *a * s1.amplitudes[0];
+                    new_amps[idx * 2 + 1] = *a * s1.amplitudes[1];
+                }
+                js.state = QuantumState { amplitudes: new_amps, num_qubits: old_n + 1 };
+                js.names.push(target_name.to_string());
+                let ctrl_idx = js.index_of(control_name).unwrap();
+                let tgt_idx = js.names.len() - 1;
+                js.apply_cnot(ctrl_idx, tgt_idx);
+            }
+            (None, Some(ti)) => {
+                // Target is in a joint system, control is standalone
+                let s0 = self.qubits.remove(control_name).ok_or_else(||
+                    anyhow::anyhow!("Control qubit '{}' not found", control_name))?;
+                let js = &mut self.joint_systems[ti];
+                let old_n = js.names.len();
+                // Prepend control: new_state = |s0⟩ ⊗ old_state
+                let mut new_amps = vec![Complex::new(0.0, 0.0); js.state.amplitudes.len() * 2];
+                for (idx, a) in js.state.amplitudes.iter().enumerate() {
+                    new_amps[idx]                                          = s0.amplitudes[0] * *a;
+                    new_amps[idx + js.state.amplitudes.len()] = s0.amplitudes[1] * *a;
+                }
+                js.state = QuantumState { amplitudes: new_amps, num_qubits: old_n + 1 };
+                js.names.insert(0, control_name.to_string());
+                let ctrl_idx = 0;
+                let tgt_idx = js.index_of(target_name).unwrap();
+                js.apply_cnot(ctrl_idx, tgt_idx);
+            }
         }
         Ok(())
     }
 
+    fn entangle_tracking(&mut self, q1: &str, q2: &str) {
+        for system in self.entangled_systems.iter_mut() {
+            let has1 = system.contains(&q1.to_string());
+            let has2 = system.contains(&q2.to_string());
+            if has1 || has2 {
+                if !has1 { system.push(q1.to_string()); }
+                if !has2 { system.push(q2.to_string()); }
+                return;
+            }
+        }
+        self.entangled_systems.push(vec![q1.to_string(), q2.to_string()]);
+    }
+
     /// Measure a qubit, collapsing its state
     pub fn measure(&mut self, qubit_name: &str) -> Result<u8> {
+        if let Some(js_idx) = self.joint_system_for(qubit_name) {
+            let q_idx = self.joint_systems[js_idx].index_of(qubit_name).unwrap();
+            return Ok(self.joint_systems[js_idx].measure_qubit(q_idx));
+        }
         if let Some(state) = self.qubits.get_mut(qubit_name) {
             Ok(state.measure() as u8)
         } else {
             Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
-    
+
     /// Get the probability of measuring |0⟩ for a qubit
     pub fn get_zero_probability(&self, qubit_name: &str) -> Result<f64> {
+        if let Some(js_idx) = self.joint_system_for(qubit_name) {
+            let js = &self.joint_systems[js_idx];
+            let q_idx = js.index_of(qubit_name).unwrap();
+            let n = js.names.len();
+            let p0: f64 = js.state.amplitudes.iter().enumerate()
+                .filter(|(idx, _)| (idx >> (n - 1 - q_idx)) & 1 == 0)
+                .map(|(_, a)| a.magnitude_squared())
+                .sum();
+            return Ok(p0);
+        }
         if let Some(state) = self.qubits.get(qubit_name) {
             Ok(state.get_probability(0))
         } else {
             Err(anyhow::anyhow!("Qubit '{}' not found", qubit_name))
         }
     }
-    
-    /// Create entanglement between two qubits (simplified)
+
+    /// Create entanglement between two qubits using the real CNOT model.
+    /// For `entangle(q1, q2)` from Aeonmi scripts we apply H then CNOT to
+    /// produce a Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2.
     pub fn entangle(&mut self, qubit1: &str, qubit2: &str) -> Result<()> {
-        // For now, just track that these qubits are entangled
-        // A full implementation would merge their state spaces
-        
-        if !self.qubits.contains_key(qubit1) {
+        if !self.qubits.contains_key(qubit1) && self.joint_system_for(qubit1).is_none() {
             return Err(anyhow::anyhow!("Qubit '{}' not found", qubit1));
         }
-        if !self.qubits.contains_key(qubit2) {
+        if !self.qubits.contains_key(qubit2) && self.joint_system_for(qubit2).is_none() {
             return Err(anyhow::anyhow!("Qubit '{}' not found", qubit2));
         }
-        
-        // Find or create entangled system
-        let mut found_system = None;
-        for (i, system) in self.entangled_systems.iter_mut().enumerate() {
-            if system.contains(&qubit1.to_string()) || system.contains(&qubit2.to_string()) {
-                if !system.contains(&qubit1.to_string()) {
-                    system.push(qubit1.to_string());
-                }
-                if !system.contains(&qubit2.to_string()) {
-                    system.push(qubit2.to_string());
-                }
-                found_system = Some(i);
-                break;
-            }
-        }
-        
-        if found_system.is_none() {
-            self.entangled_systems.push(vec![qubit1.to_string(), qubit2.to_string()]);
-        }
-        
+        // Apply H to qubit1, then CNOT(qubit1, qubit2) to create a Bell state
+        self.superpose(qubit1)?;
+        self.apply_cnot(qubit1, qubit2)?;
         Ok(())
     }
-    
+
     /// Reset simulator state
     pub fn reset(&mut self) {
         self.qubits.clear();
+        self.joint_systems.clear();
         self.entangled_systems.clear();
     }
 }

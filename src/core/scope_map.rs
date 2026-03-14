@@ -155,6 +155,23 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             for gate in gates { visit(gate, sm, stack, current); }
         }
         NumberLiteral(_) | StringLiteral(_) | BooleanLiteral(_) | Error(_) => {}
+        ForIn { var, iterable, body } => {
+            record(sm, var, 0, 0, *stack.last().unwrap(), true);
+            visit(iterable, sm, stack, current);
+            visit(body, sm, stack, current);
+        }
+        // Phase 1.5 — Genesis Glyphs
+        GlyphArray(elements) => { for e in elements { visit(e, sm, stack, current); } }
+        SpreadExpr(inner) => visit(inner, sm, stack, current),
+        SliceExpr { array, low, high } => {
+            visit(array, sm, stack, current);
+            if let Some(l) = low { visit(l, sm, stack, current); }
+            if let Some(h) = high { visit(h, sm, stack, current); }
+        }
+        BindingProjection { name, expr } => {
+            record(sm, name, 0, 0, *stack.last().unwrap(), true);
+            visit(expr, sm, stack, current);
+        }
     }
 }
 
