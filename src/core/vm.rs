@@ -1217,7 +1217,7 @@ fn builtin_index_access(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value,
             if real_idx < 0 || real_idx >= len {
                 return Err(err(format!("array index {} out of bounds (len {})", idx, len)));
             }
-            Ok(items.into_iter().nth(real_idx as usize).unwrap())
+            Ok(items[real_idx as usize].clone())
         }
         Value::String(s) => {
             let idx = match index {
