@@ -32,8 +32,10 @@ pub mod perplexity;
 #[cfg(feature = "ai-deepseek")]
 pub mod deepseek;
 
-// OpenRouter and Claude are always compiled; runtime key detection decides availability.
+// OpenRouter and Claude are feature-gated so reqwest is only pulled in when needed.
+#[cfg(feature = "ai-openrouter")]
 pub mod openrouter;
+#[cfg(feature = "ai-claude")]
 pub mod claude;
 
 pub struct AiRegistry {
@@ -50,9 +52,11 @@ impl AiRegistry {
     /// OpenRouter is checked first; Claude is the fallback.
     pub fn from_env() -> Self {
         let mut r = Self { providers: Vec::new() };
+        #[cfg(feature = "ai-openrouter")]
         if let Some(p) = openrouter::OpenRouter::from_env() {
             r.providers.push(Box::new(p));
         }
+        #[cfg(feature = "ai-claude")]
         if let Some(p) = claude::Claude::from_env() {
             r.providers.push(Box::new(p));
         }

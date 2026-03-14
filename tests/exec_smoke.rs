@@ -6,13 +6,15 @@ fn exec_ai_compiles_and_runs() {
     let ai_src = "let x = 1;\nlog(x);\n"; // minimal program updated to current syntax
     let file = "temp_exec_test.ai";
     fs::write(file, ai_src).expect("write ai file");
-    let status = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
-        .args(["exec", file, "--keep-temp"])
-        .status()
+    let output = Command::new(env!("CARGO_BIN_EXE_aeonmi_project"))
+        .args(["exec", file])
+        .output()
         .expect("spawn exec ai");
-    assert!(status.success(), "exec ai should succeed");
-    assert!(Path::new("__exec_tmp.js").exists(), "temp compiled js should exist");
-    let _ = fs::remove_file("__exec_tmp.js"); // Clean up
+    assert!(output.status.success(), "exec ai should succeed");
+    // Shard executes .ai natively — no JS temp file is produced
+    assert!(!Path::new("__exec_tmp.js").exists(), "Shard must not emit __exec_tmp.js for .ai files");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("native: executing"), "exec .ai should use native interpreter");
 }
 
 #[test]

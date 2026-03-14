@@ -6,9 +6,9 @@ use crate::cli_vault::VaultCommand as VaultSubcommand;
 #[derive(Copy, Clone, Debug, ValueEnum, Default)]
 pub enum EmitKind {
     #[clap(alias = "js")]
-    #[default]
     Js,
     #[clap(alias = "ai")]
+    #[default]
     Ai,
 }
 
@@ -84,7 +84,7 @@ pub enum Command {
         input: PathBuf,
 
         /// Output format (alias: --format)
-        #[arg(long = "emit", value_enum, default_value_t = EmitKind::Js, visible_alias = "format")]
+        #[arg(long = "emit", value_enum, default_value_t = EmitKind::Ai, visible_alias = "format")]
         emit: EmitKind,
 
         /// Output file path (short: -o). Defaults by format.
@@ -92,8 +92,8 @@ pub enum Command {
             short = 'o',
             long = "out",
             value_name = "FILE",
-            default_value = "output.js",
-            default_value_if("emit", "ai", "output.ai")
+            default_value = "output.ai",
+            default_value_if("emit", "js", "output.js")
         )]
         out: PathBuf,
 
