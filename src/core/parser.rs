@@ -129,7 +129,7 @@ impl Parser {
             
             _ => {
                 let expr = self.parse_expression()?;
-                let _ = self.match_token(&[TokenKind::Semicolon]); // optional semicolon
+                let _ = self.match_token(&[TokenKind::Semicolon, TokenKind::Comma]); // optional terminator
                 Ok(expr)
             }
         }
@@ -149,6 +149,11 @@ impl Parser {
         self.consume(TokenKind::Let, "Expected 'let'")?;
         let line = self.peek().line;
         let column = self.peek().column;
+
+        // Skip optional `mut` modifier: `let mut x = ...`
+        if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+            if s == "mut" { self.advance(); }
+        }
 
         // Destructuring: let (a, b) = expr;
         if self.check(&TokenKind::OpenParen) {
@@ -176,7 +181,7 @@ impl Parser {
             return Ok(ASTNode::Block(stmts));
         }
 
-        let name = self.consume_identifier("Expected variable name")?;
+        let name = self.consume_identifier_or_keyword("Expected variable name")?;
         // Optional type annotation: let x: Type = value;
         if self.match_token(&[TokenKind::Colon]) {
             self.skip_param_type_annotation_until_equals();
@@ -255,6 +260,22 @@ impl Parser {
 
     fn parse_if(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::If, "Expected 'if'")?;
+        // Support `if let Pattern = expr` — skip the binding, use RHS as condition
+        if self.match_token(&[TokenKind::Let]) {
+            // skip over the pattern tokens until we find '='
+            while !self.is_at_end() && !self.check(&TokenKind::Equals) {
+                self.advance();
+            }
+            self.consume(TokenKind::Equals, "Expected '=' in if let")?;
+            let cond = self.parse_expression()?;
+            let then_branch = self.parse_statement()?;
+            let else_branch = if self.match_token(&[TokenKind::Else]) {
+                Some(self.parse_statement()?)
+            } else {
+                None
+            };
+            return Ok(ASTNode::new_if(cond, then_branch, else_branch));
+        }
         // Support both C-style if (cond) and Rust-style if cond {
         let has_paren = self.match_token(&[TokenKind::OpenParen]);
         let cond = self.parse_expression()?;
@@ -283,6 +304,53 @@ impl Parser {
 
     fn parse_for(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::For, "Expected 'for'")?;
+
+        // Check for destructuring for-in: for (a, b) in collection { ... }
+        let is_destructuring_for_in = if self.check(&TokenKind::OpenParen) {
+            // Scan ahead to see if we have '(' ids ')' 'in'
+            let mut j = self.pos + 1;
+            let mut depth = 1usize;
+            while j < self.tokens.len() {
+                match &self.tokens[j].kind {
+                    TokenKind::OpenParen => { depth += 1; j += 1; }
+                    TokenKind::CloseParen => {
+                        depth -= 1;
+                        j += 1;
+                        if depth == 0 { break; }
+                    }
+                    _ => { j += 1; }
+                }
+            }
+            j < self.tokens.len() && matches!(self.tokens[j].kind, TokenKind::In)
+        } else {
+            false
+        };
+
+        if is_destructuring_for_in {
+            // for (a, b) in collection { ... }
+            self.advance(); // consume '('
+            let mut bindings = Vec::new();
+            while !self.check(&TokenKind::CloseParen) && !self.is_at_end() {
+                bindings.push(self.consume_identifier("Expected variable name")?);
+                if !self.match_token(&[TokenKind::Comma]) { break; }
+            }
+            self.consume(TokenKind::CloseParen, "Expected ')' after bindings")?;
+            self.consume(TokenKind::In, "Expected 'in'")?;
+            let iterable = self.parse_expression()?;
+            let body = self.parse_statement()?;
+            // Emit as: for __item in iterable { let a = __item[0]; let b = __item[1]; body }
+            let var = "__for_item";
+            let mut stmts = vec![ASTNode::new_variable_decl_at(var, iterable, 0, 0)];
+            for (i, name) in bindings.iter().enumerate() {
+                stmts.push(ASTNode::new_variable_decl_at(
+                    name,
+                    ASTNode::NumberLiteral(i as f64),
+                    0, 0,
+                ));
+            }
+            stmts.push(body);
+            return Ok(ASTNode::Block(stmts));
+        }
 
         // Check for Rust-style: for x in collection { ... }
         // Detect: next is Identifier and token after that is 'in'
@@ -403,6 +471,30 @@ impl Parser {
     // assignment: Identifier '=' assignment | field.access '=' assignment | equality
     fn parse_assignment(&mut self) -> Result<ASTNode, ParserError> {
         let expr = self.parse_equality()?;
+        // Compound assignment: `+=`, `-=`, `*=`, `/=` (lexed as two tokens: op + `=`)
+        let is_compound = matches!(self.peek().kind, TokenKind::Plus | TokenKind::Minus | TokenKind::Star | TokenKind::Slash)
+            && self.pos + 1 < self.tokens.len()
+            && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equals);
+        if is_compound {
+            let op = self.advance().kind.clone(); // consume op
+            self.advance(); // consume '='
+            let rhs = self.parse_assignment()?;
+            // Desugar: lhs op= rhs  →  lhs = lhs op rhs
+            let combined = ASTNode::new_binary_expr(op, expr.clone(), rhs);
+            return match expr {
+                ASTNode::Identifier(name) => {
+                    let line = self.previous().line; let column = self.previous().column;
+                    Ok(ASTNode::new_assignment_at(&name, combined, line, column))
+                }
+                ASTNode::IdentifierSpanned { name, line: id_line, column: id_col, .. } => {
+                    Ok(ASTNode::new_assignment_at(&name, combined, id_line, id_col))
+                }
+                ASTNode::FieldAccess { object, field } => {
+                    Ok(ASTNode::FieldAssign { object, field, value: Box::new(combined) })
+                }
+                _ => Ok(combined),
+            };
+        }
         if self.match_token(&[TokenKind::Equals]) {
             let value = self.parse_assignment()?;
             match expr {
@@ -484,7 +576,13 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<ASTNode, ParserError> {
         let mut expr = self.parse_factor()?;
-        while self.match_token(&[TokenKind::Plus, TokenKind::Minus]) {
+        loop {
+            // Don't consume `+` or `-` if followed by `=` (compound assignment `+=` / `-=`)
+            let is_compound = matches!(self.peek().kind, TokenKind::Plus | TokenKind::Minus)
+                && self.pos + 1 < self.tokens.len()
+                && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equals);
+            if is_compound { break; }
+            if !self.match_token(&[TokenKind::Plus, TokenKind::Minus]) { break; }
             let op = self.previous().kind.clone();
             let right = self.parse_factor()?;
             expr = ASTNode::new_binary_expr(op, expr, right);
@@ -494,7 +592,13 @@ impl Parser {
 
     fn parse_factor(&mut self) -> Result<ASTNode, ParserError> {
         let mut expr = self.parse_unary()?;
-        while self.match_token(&[TokenKind::Star, TokenKind::Slash]) {
+        loop {
+            // Don't consume `*` or `/` if followed by `=` (compound assignment `*=` / `/=`)
+            let is_compound = matches!(self.peek().kind, TokenKind::Star | TokenKind::Slash)
+                && self.pos + 1 < self.tokens.len()
+                && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equals);
+            if is_compound { break; }
+            if !self.match_token(&[TokenKind::Star, TokenKind::Slash]) { break; }
             let op = self.previous().kind.clone();
             let right = self.parse_unary()?;
             expr = ASTNode::new_binary_expr(op, expr, right);
@@ -508,6 +612,10 @@ impl Parser {
             let right = self.parse_unary()?;
             return Ok(ASTNode::new_unary_expr(op, right));
         }
+        // Reference operator `&expr` — treat as identity (no real borrow tracking)
+        if self.match_token(&[TokenKind::Ampersand]) {
+            return self.parse_unary();
+        }
         self.parse_call()
     }
 
@@ -515,7 +623,33 @@ impl Parser {
     fn parse_call(&mut self) -> Result<ASTNode, ParserError> {
         let mut expr = self.parse_primary()?;
         loop {
-            if self.match_token(&[TokenKind::OpenParen]) {
+            if self.check(&TokenKind::Bang) && self.pos + 1 < self.tokens.len()
+                && matches!(self.tokens[self.pos + 1].kind, TokenKind::OpenBracket | TokenKind::OpenParen)
+            {
+                // Macro call: vec![], format!(...), panic!(...)
+                self.advance(); // consume '!'
+                if self.match_token(&[TokenKind::OpenBracket]) {
+                    // vec![...] style
+                    let mut elems = Vec::new();
+                    while !self.check(&TokenKind::CloseBracket) && !self.is_at_end() {
+                        if self.check(&TokenKind::CloseBracket) { break; }
+                        elems.push(self.parse_expression()?);
+                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                    }
+                    self.consume(TokenKind::CloseBracket, "Expected ']' in macro invocation")?;
+                    expr = ASTNode::ArrayLiteral(elems);
+                } else {
+                    // macro!(...) style — treat as regular call
+                    self.advance(); // consume '('
+                    let mut args = Vec::new();
+                    while !self.check(&TokenKind::CloseParen) && !self.is_at_end() {
+                        args.push(self.parse_expression()?);
+                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                    }
+                    self.consume(TokenKind::CloseParen, "Expected ')' in macro invocation")?;
+                    expr = ASTNode::new_call(expr, args);
+                }
+            } else if self.match_token(&[TokenKind::OpenParen]) {
                 // regular call: expr(...)
                 let mut args = Vec::new();
                 if !self.check(&TokenKind::CloseParen) {
@@ -529,6 +663,21 @@ impl Parser {
                 self.consume(TokenKind::CloseParen, "Expected ')' after arguments")?;
                 expr = ASTNode::new_call(expr, args);
             } else if self.match_token(&[TokenKind::Dot]) {
+                // Check for `..` range operator: lhs..rhs or lhs..
+                if self.check(&TokenKind::Dot) {
+                    self.advance(); // consume second dot
+                    // Parse RHS if one exists (skip for open-ended ranges like `start..`)
+                    let has_rhs = !matches!(self.peek().kind,
+                        TokenKind::CloseBracket | TokenKind::CloseParen |
+                        TokenKind::Semicolon | TokenKind::Comma |
+                        TokenKind::FatArrow | TokenKind::EOF);
+                    if has_rhs {
+                        let rhs = self.parse_equality()?;
+                        // Represent range as array [start, end] for runtime compatibility
+                        expr = ASTNode::ArrayLiteral(vec![expr, rhs]);
+                    }
+                    break; // range is a complete expression — end postfix chain
+                }
                 // dot access: expr.field or expr.method(...)
                 let member = self.consume_identifier("Expected field or method name after '.'")?.clone();
                 if self.check(&TokenKind::OpenParen) {
@@ -584,6 +733,65 @@ impl Parser {
                 } else {
                     expr = ASTNode::FieldAccess { object: Box::new(expr), field: method };
                 }
+            } else if self.match_token(&[TokenKind::OpenBracket]) {
+                // subscript: expr[index]
+                let index = self.parse_expression()?;
+                self.consume(TokenKind::CloseBracket, "Expected ']' after subscript")?;
+                expr = ASTNode::MethodCall {
+                    object: Box::new(expr),
+                    method: "__index__".to_string(),
+                    args: vec![index],
+                };
+            } else if self.check(&TokenKind::OpenBrace) {
+                // Struct literal: TypeName { field: value, ... }
+                // Only when expr is an uppercase type name AND the body looks like struct fields
+                let is_type_name = match &expr {
+                    ASTNode::Identifier(n) |
+                    ASTNode::IdentifierSpanned { name: n, .. } => {
+                        n.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+                    }
+                    ASTNode::FieldAccess { field, .. } => {
+                        field.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+                    }
+                    _ => false,
+                };
+                if is_type_name && self.looks_like_struct_literal_body() {
+                    self.advance(); // consume '{'
+                    let mut fields = Vec::new();
+                    while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+                        // Skip comment and punctuation tokens
+                        if matches!(self.peek().kind,
+                            TokenKind::QuantumComment | TokenKind::BecauseComment | TokenKind::NoteComment
+                        ) { self.advance(); continue; }
+                        if self.check(&TokenKind::CloseBrace) { break; }
+                        let fname = self.consume_identifier_or_keyword("Expected field name in struct literal")?;
+                        let fval = if self.match_token(&[TokenKind::Colon]) {
+                            self.parse_expression()?
+                        } else {
+                            // shorthand: `field` = `field` identifier
+                            ASTNode::new_identifier_spanned(&fname, 0, 0, fname.len())
+                        };
+                        fields.push((fname, fval));
+                        let _ = self.match_token(&[TokenKind::Comma]);
+                    }
+                    self.consume(TokenKind::CloseBrace, "Expected '}' after struct literal")?;
+                    // Represent as a call to typename(field_vals...)
+                    let type_name = match &expr {
+                        ASTNode::Identifier(n) => n.clone(),
+                        ASTNode::IdentifierSpanned { name, .. } => name.clone(),
+                        ASTNode::FieldAccess { field, .. } => field.clone(),
+                        _ => "__struct__".to_string(),
+                    };
+                    let field_vals: Vec<ASTNode> = fields.into_iter()
+                        .map(|(_, v)| v)
+                        .collect();
+                    expr = ASTNode::new_call(
+                        ASTNode::new_identifier_spanned(&type_name, 0, 0, type_name.len()),
+                        field_vals,
+                    );
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
@@ -598,6 +806,14 @@ impl Parser {
             TokenKind::StringLiteral(s) => Ok(ASTNode::StringLiteral(s)),
             TokenKind::BooleanLiteral(b) => Ok(ASTNode::BooleanLiteral(b)),
             TokenKind::Identifier(name) => Ok(ASTNode::new_identifier_spanned(&name, tok.line, tok.column, name.len())),
+            TokenKind::This => Ok(ASTNode::new_identifier_spanned("this", tok.line, tok.column, 4)),
+            TokenKind::Self_ => Ok(ASTNode::new_identifier_spanned("self", tok.line, tok.column, 4)),
+            // `if` as an expression: let x = if cond { a } else { b }
+            TokenKind::If => {
+                // Put the If token back and delegate to parse_if
+                self.pos -= 1;
+                self.parse_if()
+            }
             
             // Quantum state literals: |0⟩, |1⟩, |+⟩, etc.
             TokenKind::QubitLiteral(literal) => {
@@ -616,7 +832,7 @@ impl Parser {
                 Ok(ASTNode::new_quantum_state(&formatted_state, None))
             }
             
-            // Traditional parentheses or unit value ()
+            // Traditional parentheses, tuple literals, or unit value ()
             TokenKind::OpenParen => {
                 // Empty parens () = unit/void value
                 if self.check(&TokenKind::CloseParen) {
@@ -624,6 +840,18 @@ impl Parser {
                     return Ok(ASTNode::NullLiteral);
                 }
                 let expr = self.parse_expression()?;
+                // Tuple: (a, b, ...) → treat as array literal
+                if self.match_token(&[TokenKind::Comma]) {
+                    let mut elems = vec![expr];
+                    if !self.check(&TokenKind::CloseParen) {
+                        loop {
+                            elems.push(self.parse_expression()?);
+                            if !self.match_token(&[TokenKind::Comma]) { break; }
+                        }
+                    }
+                    self.consume(TokenKind::CloseParen, "Expected ')' after tuple")?;
+                    return Ok(ASTNode::ArrayLiteral(elems));
+                }
                 self.consume(TokenKind::CloseParen, "Expected ')'")?;
                 Ok(expr)
             }
@@ -633,6 +861,7 @@ impl Parser {
                 let mut elems = Vec::new();
                 if !self.check(&TokenKind::CloseBracket) {
                     loop {
+                        if self.check(&TokenKind::CloseBracket) { break; } // trailing comma
                         elems.push(self.parse_expression()?);
                         if !self.match_token(&[TokenKind::Comma]) { break; }
                     }
@@ -827,6 +1056,20 @@ impl Parser {
         }
     }
 
+    /// Like `consume_identifier` but also accepts any keyword token as a variable name.
+    fn consume_identifier_or_keyword(&mut self, msg: &str) -> Result<String, ParserError> {
+        let name = self.peek().kind.to_string().to_string();
+        match &self.peek().kind {
+            TokenKind::Identifier(n) => { let n = n.clone(); self.advance(); Ok(n) }
+            TokenKind::EOF | TokenKind::OpenParen | TokenKind::CloseParen |
+            TokenKind::OpenBrace | TokenKind::CloseBrace | TokenKind::Semicolon |
+            TokenKind::Comma | TokenKind::Equals | TokenKind::Colon => {
+                Err(self.err_at(msg, self.peek().line, self.peek().column))
+            }
+            _ => { self.advance(); Ok(name) }
+        }
+    }
+
     fn is_at_end(&self) -> bool {
         matches!(self.peek().kind, TokenKind::EOF)
     }
@@ -841,6 +1084,43 @@ impl Parser {
             line,
             column,
         }
+    }
+
+    /// Lookahead heuristic: does the `{` that follows look like a struct literal body
+    /// (rather than a regular block)?  Scans ahead for `identifier :` (typed field)
+    /// within the next 30 tokens; stops early on statement keywords or dot-access.
+    fn looks_like_struct_literal_body(&self) -> bool {
+        // self.pos is pointing at '{'
+        let mut i = self.pos + 1;
+        let limit = (i + 30).min(self.tokens.len().saturating_sub(1));
+        while i < limit {
+            let cur = &self.tokens[i].kind;
+            let nxt = if i + 1 < self.tokens.len() { &self.tokens[i + 1].kind } else { &TokenKind::EOF };
+            // Determine if current token looks like a potential field name
+            let cur_is_name = matches!(cur,
+                TokenKind::Identifier(_) |
+                TokenKind::Qubit | TokenKind::Quantum | TokenKind::Measure |
+                TokenKind::This | TokenKind::Self_
+            );
+            match (cur_is_name, nxt) {
+                // name followed by ':' → struct field with explicit value
+                (true, TokenKind::Colon) => return true,
+                // name followed by ',' or '}' → shorthand struct field (e.g. { qubit })
+                (true, TokenKind::Comma) | (true, TokenKind::CloseBrace) => return true,
+                _ => {}
+            }
+            match cur {
+                // dot after something → looks like method call, probably a block
+                TokenKind::Dot => return false,
+                // statement-starting keywords → it's a block
+                TokenKind::If | TokenKind::While | TokenKind::For
+                | TokenKind::Let | TokenKind::Return => return false,
+                // close brace before finding anything matching → block or empty struct
+                TokenKind::CloseBrace => return false,
+                _ => { i += 1; }
+            }
+        }
+        false
     }
     
     // AEONMI Quantum-Native Parsing Functions
@@ -1148,6 +1428,13 @@ impl Parser {
                         } else {
                             false
                         };
+                        // Peek: if Identifier followed by '(', parse as method/constructor decl
+                        let is_method = if let TokenKind::Identifier(_) = self.peek().kind {
+                            self.pos + 1 < self.tokens.len()
+                                && matches!(self.tokens[self.pos + 1].kind, TokenKind::OpenParen)
+                        } else {
+                            false
+                        };
                         if is_field {
                             let line = self.peek().line;
                             let col = self.peek().column;
@@ -1163,6 +1450,28 @@ impl Parser {
                             };
                             let _ = self.match_token(&[TokenKind::Semicolon]);
                             body.push(ASTNode::new_variable_decl_at(&fname, value, line, col));
+                        } else if is_method {
+                            // Parse constructor(params) { body } or method(params) { body }
+                            let line = self.peek().line;
+                            let col = self.peek().column;
+                            let mname = self.consume_identifier("method name")?;
+                            self.consume(TokenKind::OpenParen, "Expected '('")?;
+                            let mut params = Vec::new();
+                            if !self.check(&TokenKind::CloseParen) {
+                                loop {
+                                    let pname = self.consume_identifier("Expected parameter name")?;
+                                    self.skip_param_type_annotation();
+                                    params.push(FunctionParam { name: pname, line, column: col });
+                                    if !self.match_token(&[TokenKind::Comma]) { break; }
+                                }
+                            }
+                            self.consume(TokenKind::CloseParen, "Expected ')' after method params")?;
+                            if self.match_token(&[TokenKind::Arrow]) { self.skip_type_annotation(); }
+                            let mbody = match self.parse_block()? {
+                                ASTNode::Block(stmts) => stmts,
+                                _ => return Err(self.err_here("Expected method body block")),
+                            };
+                            body.push(ASTNode::new_function_at(&mname, line, col, params, mbody));
                         } else {
                             body.push(self.parse_statement()?);
                         }
@@ -1204,6 +1513,37 @@ impl Parser {
         self.consume(TokenKind::OpenBrace, "Expected '{' in struct")?;
         let mut fields = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            // Skip `function` method declarations inside structs
+            if self.check(&TokenKind::Function) {
+                let _ = self.parse_function_decl()?;
+                continue;
+            }
+            // Skip `constructor(...)` / `methodName(...)` method-like declarations
+            let is_method = if let TokenKind::Identifier(_) = self.peek().kind {
+                self.pos + 1 < self.tokens.len()
+                    && matches!(self.tokens[self.pos + 1].kind, TokenKind::OpenParen)
+            } else {
+                false
+            };
+            if is_method {
+                let line = self.peek().line;
+                let col = self.peek().column;
+                let mname = self.consume_identifier("method name")?;
+                self.consume(TokenKind::OpenParen, "Expected '('")?;
+                let mut params = Vec::new();
+                if !self.check(&TokenKind::CloseParen) {
+                    loop {
+                        let pname = self.consume_identifier("Expected parameter name")?;
+                        self.skip_param_type_annotation();
+                        params.push(FunctionParam { name: pname, line, column: col });
+                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                    }
+                }
+                self.consume(TokenKind::CloseParen, "Expected ')' after method params")?;
+                if self.match_token(&[TokenKind::Arrow]) { self.skip_type_annotation(); }
+                let _ = self.parse_block()?; // parse and discard method body
+                continue;
+            }
             let fname = self.consume_identifier("Expected field name")?;
             let ftype = if self.match_token(&[TokenKind::Colon]) {
                 self.consume_type_name()
@@ -1211,7 +1551,7 @@ impl Parser {
                 "Any".to_string()
             };
             fields.push(crate::core::ast::FieldDecl { name: fname, type_name: ftype });
-            let _ = self.match_token(&[TokenKind::Comma]);
+            let _ = self.match_token(&[TokenKind::Comma, TokenKind::Semicolon]);
         }
         self.consume(TokenKind::CloseBrace, "Expected '}' after struct fields")?;
         Ok(ASTNode::StructDecl { name, fields, is_quantum })
@@ -1299,6 +1639,13 @@ impl Parser {
         let mut arms = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
             let pattern = self.parse_match_pattern()?;
+            // Consume OR alternatives: Pattern | Pattern | Pattern
+            while self.check(&TokenKind::Pipe) {
+                self.advance(); // consume '|'
+                // If next is '=>', this was a trailing pipe — stop
+                if self.check(&TokenKind::FatArrow) { break; }
+                let _ = self.parse_match_pattern()?; // parse and discard extra patterns
+            }
             // Optional match guard: pattern if condition => body
             let guard = if self.match_token(&[TokenKind::If]) {
                 Some(Box::new(self.parse_expression()?))
@@ -1320,13 +1667,26 @@ impl Parser {
                 self.advance();
                 // Could be EnumVariant::Binding or just an identifier
                 if self.match_token(&[TokenKind::ColonColon]) {
+                    // Consume variant name — may be any identifier or keyword token
+                    let variant_name: Option<String> = match self.peek().kind.clone() {
+                        TokenKind::Identifier(vn) => { self.advance(); Some(vn) }
+                        TokenKind::EOF | TokenKind::FatArrow | TokenKind::Pipe | TokenKind::CloseBrace => None,
+                        _ => { let s = self.peek().kind.to_string(); self.advance(); Some(s) }
+                    };
+                    let variant = variant_name.unwrap_or(name.clone());
                     let binding = if self.check(&TokenKind::OpenParen) {
                         self.advance();
-                        let b = self.consume_identifier("Expected binding name")?;
-                        self.consume(TokenKind::CloseParen, "Expected ')'")?;
-                        Some(b)
+                        // Allow empty parens ()
+                        if self.check(&TokenKind::CloseParen) {
+                            self.advance();
+                            None
+                        } else {
+                            let b = self.consume_identifier("Expected binding name")?;
+                            self.consume(TokenKind::CloseParen, "Expected ')'")?;
+                            Some(b)
+                        }
                     } else { None };
-                    Ok(MatchPattern::EnumVariant { name, binding })
+                    Ok(MatchPattern::EnumVariant { name: variant, binding })
                 } else {
                     Ok(MatchPattern::Identifier(name))
                 }
