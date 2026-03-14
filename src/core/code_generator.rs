@@ -180,6 +180,15 @@ impl CodeGenerator {
                 s.push('\n');
                 s
             }
+            // P1-34: for var in iterable — emit as JS for...of
+            ASTNode::ForIn { var, iterable, body } => {
+                let iter_s = self.emit_expr_js(iterable);
+                let mut s = String::new();
+                s.push_str(&format!("for (const {} of {}) ", var, iter_s));
+                s.push_str(&self.wrap_stmt_js(body));
+                s.push('\n');
+                s
+            }
             ASTNode::BinaryExpr { .. }
             | ASTNode::UnaryExpr { .. }
             | ASTNode::Identifier(_)
