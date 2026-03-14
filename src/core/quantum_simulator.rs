@@ -324,50 +324,39 @@ impl JointSystem {
     pub fn apply_single_gate(&mut self, qubit_idx: usize, gate: [[Complex; 2]; 2]) {
         let n = self.names.len();
         let num_states = 1 << n;
+        // Iterate over pairs (|0⟩ component, |1⟩ component) for this qubit.
+        // Only process pairs where this qubit is |0⟩ to avoid double-counting.
         let mut new_amps = vec![Complex::new(0.0, 0.0); num_states];
-        for state_idx in 0..num_states {
-            let bit = (state_idx >> (n - 1 - qubit_idx)) & 1;
-            // partner state: flip bit at qubit_idx
-            let partner = state_idx ^ (1 << (n - 1 - qubit_idx));
-            let (row0, row1) = if bit == 0 {
-                // |0⟩ component: new[state_idx] += gate[0][0]*amp[state_idx] + gate[0][1]*amp[partner]
-                (0usize, 1usize)
-            } else {
-                (1usize, 0usize)
-            };
-            new_amps[state_idx] = new_amps[state_idx]
-                + gate[row0][0] * self.state.amplitudes[state_idx]
-                + gate[row0][1] * self.state.amplitudes[partner];
-            let _ = row1; // used via symmetry below
-        }
-        // The loop above double-counts each pair; compensate by halving is wrong.
-        // Use the correct approach: iterate over pairs.
-        let mut corrected = vec![Complex::new(0.0, 0.0); num_states];
         for state_idx in 0..num_states {
             let bit = (state_idx >> (n - 1 - qubit_idx)) & 1;
             if bit == 0 {
                 let partner = state_idx ^ (1 << (n - 1 - qubit_idx));
                 let a0 = self.state.amplitudes[state_idx];
                 let a1 = self.state.amplitudes[partner];
-                corrected[state_idx]  = gate[0][0] * a0 + gate[0][1] * a1;
-                corrected[partner]    = gate[1][0] * a0 + gate[1][1] * a1;
+                new_amps[state_idx] = gate[0][0] * a0 + gate[0][1] * a1;
+                new_amps[partner]   = gate[1][0] * a0 + gate[1][1] * a1;
             }
         }
-        self.state.amplitudes = corrected;
+        self.state.amplitudes = new_amps;
     }
 
     /// Apply CNOT with control at `ctrl_idx` and target at `tgt_idx`.
+    /// Reads from a snapshot of the original state to avoid interference between pairs.
     pub fn apply_cnot(&mut self, ctrl_idx: usize, tgt_idx: usize) {
         let n = self.names.len();
         let num_states = 1 << n;
-        let mut new_amps = self.state.amplitudes.clone();
+        // Use original amplitudes as read-source so swaps within a single pass are correct.
+        let original = self.state.amplitudes.clone();
+        let mut new_amps = original.clone();
         for state_idx in 0..num_states {
             let ctrl_bit = (state_idx >> (n - 1 - ctrl_idx)) & 1;
             if ctrl_bit == 1 {
-                // Flip target bit
                 let flipped = state_idx ^ (1 << (n - 1 - tgt_idx));
-                new_amps[flipped] = self.state.amplitudes[state_idx];
-                new_amps[state_idx] = self.state.amplitudes[flipped];
+                // Only process the pair once (lower index wins)
+                if state_idx < flipped {
+                    new_amps[flipped]    = original[state_idx];
+                    new_amps[state_idx]  = original[flipped];
+                }
             }
         }
         self.state.amplitudes = new_amps;

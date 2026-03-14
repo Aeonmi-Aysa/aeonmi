@@ -258,3 +258,35 @@ With no assertion failures.
 
 *This spec is honest. Every construct maps to a specific parser rule and runtime behavior.*
 *Nothing here is aspirational labeling.*
+
+---
+
+## PHASE 2 COMPLETION STATUS
+
+### P2-8: Joint Multi-Qubit State-Vector Simulator ✅ (Completed)
+
+The `QuantumSimulator` now uses a **joint state-vector model** (`JointSystem`) for
+entangled qubit pairs:
+
+- Individual qubits use single-qubit `QuantumState` vectors
+- When `CNOT(ctrl, tgt)` or `entangle(q1, q2)` is called, the two qubits are merged
+  into a `JointSystem` with a 2^n combined state vector
+- Gates applied to qubits in a joint system operate on the correct multi-qubit basis states
+- Measurement of one qubit in a joint system collapses the entire joint state correctly
+
+### P2-9: Real CNOT in `entangle()` ✅ (Completed)
+
+`entangle(q1, q2)` now applies H then CNOT to produce a true Bell state |Φ+⟩:
+
+```
+|Φ+⟩ = (|00⟩ + |11⟩) / √2
+```
+
+After `entangle(q1, q2)`:
+- Measuring `q1` and `q2` always yield the same result (both 0 or both 1)
+- The joint state vector correctly represents quantum entanglement
+
+### P2-7: `.qube` Import _(Planned)_
+
+The `import circuit from "./file.qube"` syntax will be implemented in a future phase
+once `src/core/qube_parser.rs` and `src/core/qube_executor.rs` are built.

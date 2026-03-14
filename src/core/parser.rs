@@ -233,7 +233,10 @@ impl Parser {
         if self.match_token(&[TokenKind::Colon]) {
             self.skip_param_type_annotation_until_equals();
         }
-        self.consume(TokenKind::Equals, "Expected '=' in variable declaration")?;
+        // Accept both `=` and `↦` as the binding operator
+        if !self.match_token(&[TokenKind::Equals, TokenKind::Bind]) {
+            return Err(self.err_here("Expected '=' in variable declaration"));
+        }
         let value = self.parse_expression()?;
         let _ = self.match_token(&[TokenKind::Semicolon]);
         Ok(ASTNode::new_variable_decl_at(&name, value, line, column))
@@ -1007,9 +1010,12 @@ impl Parser {
             }
 
             // Genesis: ⧉expr‥expr‥expr⧉ — glyph array literal
+            // Note: ⧉ (U+29C9) is used for BOTH open AND close since it is a symmetric
+            // bracket glyph. The lexer maps it to GlyphArrayOpen; the parser tracks depth
+            // by consuming the next GlyphArrayOpen token as the closing delimiter.
             TokenKind::GlyphArrayOpen => {
                 let mut elems = Vec::new();
-                // Parse elements separated by ‥ (ElemSep), closed by ⧉ (GlyphArrayOpen reused as close)
+                // Parse elements separated by ‥ (ElemSep), closed by ⧉ (GlyphArrayOpen)
                 while !self.check(&TokenKind::GlyphArrayOpen) && !self.is_at_end() {
                     elems.push(self.parse_expression()?);
                     // ElemSep ‥ separates elements; stop at close ⧉

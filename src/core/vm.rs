@@ -577,6 +577,7 @@ impl Interpreter {
                 }
             }
         }
+
         // If there is a `main` fn with zero params, run it.
         if let Some(Value::Function(_)) = self.env.get("main") {
             debug_log!("vm: calling main()");
@@ -618,7 +619,18 @@ impl Interpreter {
                 }
                 // New scope with closure base
                 let saved = self.env.clone();
-                self.env = fun.env.clone();
+                let mut call_env = fun.env.clone();
+                // Inject global-scope names into the closure so that forward references
+                // and mutually-recursive functions work regardless of declaration order.
+                // Names already in the closure (captured via let/inner function) take
+                // precedence; globals only fill in gaps.
+                if let Some(global_frame) = saved.frames.first() {
+                    let base = call_env.frames.first_mut().expect("call_env has a frame");
+                    for (k, v) in global_frame {
+                        base.entry(k.clone()).or_insert_with(|| v.clone());
+                    }
+                }
+                self.env = call_env;
                 self.env.push();
                 for (p, v) in fun.params.iter().zip(args.into_iter()) {
                     self.env.define(p.clone(), v);

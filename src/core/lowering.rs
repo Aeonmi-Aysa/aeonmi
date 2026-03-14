@@ -97,13 +97,30 @@ pub fn lower_ast_to_ir(program: &crate::core::ast::ASTNode, name: &str) -> Resul
         }
     }
 
-    // Create main function if there are any statements
-    if !main_stmts.is_empty() {
+    // Create main function if there are any statements.
+    // But only if there is no explicit `function main()` already declared — otherwise
+    // we would create a duplicate that overwrites it, breaking forward references.
+    let has_explicit_main = decls.iter().any(|d| d.name() == "main");
+    if !main_stmts.is_empty() && !has_explicit_main {
         decls.push(Decl::Fn(FnDecl {
             name: "main".to_string(),
             params: vec![],
             body: Block { stmts: main_stmts },
         }));
+    } else if !main_stmts.is_empty() && has_explicit_main {
+        // There is an explicit main and also top-level statements (like `main();`).
+        // Append the top-level stmts into the explicit main's body so they run after
+        // function definitions are processed.  This avoids the duplicate-main trap.
+        if let Some(Decl::Fn(ref mut explicit_main)) = decls.iter_mut().find(|d| d.name() == "main") {
+            for s in main_stmts {
+                // Skip bare `main()` self-calls to prevent infinite recursion
+                let is_self_call = matches!(&s, Stmt::Expr(Expr::Call { callee, args })
+                    if matches!(**callee, Expr::Ident(ref n) if n == "main") && args.is_empty());
+                if !is_self_call {
+                    explicit_main.body.stmts.push(s);
+                }
+            }
+        }
     }
 
     let mut m = Module { name: name.to_string(), imports, decls };
