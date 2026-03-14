@@ -186,9 +186,8 @@ See:
 
 See:
 
-* `AEONMI_LANGUAGE_ROADMAP.md`
 * `Q.U.B.E.md`
-* `test_suite.md`
+* `docs/language_spec.md`
 
 ---
 
@@ -261,21 +260,7 @@ This section describes the top-level contents of the repository.
 | `LICENSE` | Project license |
 | `CONTRIBUTING.md` | Contribution guidelines and repository hygiene rules |
 | `SECURITY.md` | Security policy and vulnerability reporting procedure |
-| `BUILD_STATUS.md` | Current build and feature completion status across all phases |
-| `AEONMI_LANGUAGE_ROADMAP.md` | Language development roadmap with factual phase tracking |
 | `Q.U.B.E.md` | QUBE tutorial and comprehensive language guide |
-| `QUANTUM_ROADMAP_2.0.md` | Quantum feature roadmap version 2.0 |
-| `QUANTUM_GAPS_ANALYSIS.md` | Analysis of current gaps in the quantum implementation |
-| `SHARD_STRATEGY.md` | Strategic plan for the Shard self-hosting compiler |
-| `SHARD_STATUS.md` | Current implementation status of the Shard compiler |
-| `MOTHER_AI_ARCHITECTURE.md` | Architecture documentation for the Mother AI system |
-| `MOTHER_AI_STATUS.md` | Current implementation status of the Mother AI module |
-| `TITAN_INTEGRATION_STATUS.md` | Integration status of the Titan algorithm libraries |
-| `SEAMLESS_INTEGRATION_CONFIRMED.md` | Record of confirmed cross-subsystem integration milestones |
-| `NEW_SESSION_PROMPT.md` | Session startup prompt for continuing development in a new AI session |
-| `array_genesis.md` | Documentation for the Array Genesis (`⧉`) glyph and symbolic arrays |
-| `roadmap.md` | High-level project roadmap |
-| `test_suite.md` | Test suite overview and coverage summary |
 | `Aeonmi_Glyph_Identity_Spec_and_Manual.odg` | Glyph identity specification and visual design manual (LibreOffice Draw) |
 
 ### Build and Run Scripts
