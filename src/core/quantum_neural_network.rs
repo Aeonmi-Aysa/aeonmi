@@ -127,8 +127,8 @@ const HADAMARD: [[f64; 2]; 2] = [[std::f64::consts::FRAC_1_SQRT_2, std::f64::con
                                    [std::f64::consts::FRAC_1_SQRT_2, -std::f64::consts::FRAC_1_SQRT_2]];
 
 fn apply_single_gate(re: &mut Vec<f64>, im: &mut Vec<f64>, qubit: usize, gate: &[[f64; 2]; 2]) {
-    let n = (re.len().trailing_zeros()) as usize;
-    let half = re.len() / 2;
+    let _n = (re.len().trailing_zeros()) as usize;
+    let _half = re.len() / 2;
     for i in 0..re.len() {
         if (i >> qubit) & 1 == 0 {
             let j = i | (1 << qubit);

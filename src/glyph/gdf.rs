@@ -190,7 +190,7 @@ mod tests {
         let seed = test_seed();
         let mut p = GlyphParams::from_seed(&seed);
         let orig_hue = p.color.hue;
-        let orig_hz = p.frequency_hz;
+        let _orig_hz = p.frequency_hz;
         p.distort();
         assert!(p.distorted);
         assert_ne!(p.color.hue, orig_hue, "Distortion should change hue");

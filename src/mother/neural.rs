@@ -48,7 +48,6 @@ pub struct NeuralLayer {
 impl NeuralLayer {
     /// Create a layer with random (Xavier) initialization.
     pub fn new(input_size: usize, output_size: usize, activation: Activation) -> Self {
-        use std::f64::consts::PI;
         // Simple deterministic pseudo-random init using linear congruential generator
         let mut seed = (input_size * 31 + output_size * 17) as u64;
         let mut rand_f64 = move || {

@@ -1,8 +1,8 @@
 //! Parser for Aeonmi/QUBE/Titan with precedence parsing + spanned errors.
 
 use crate::core::ast::{
-    ASTNode, EnumVariant, FieldDecl, FStringPart, FunctionParam,
-    MatchArm, MatchPattern, QuantumBindingType, QuantumFunctionType,
+    ASTNode, FStringPart, FunctionParam,
+    MatchPattern, QuantumBindingType, QuantumFunctionType,
 };
 use crate::core::token::{Token, TokenKind};
 

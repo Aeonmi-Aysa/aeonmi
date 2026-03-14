@@ -19,7 +19,7 @@ use std::io::{self, BufRead, Write};
 
 use crate::mother::{
     emotional_core::{EmotionalCore, Interaction},
-    language_evolution::{ConversationContext, LanguageEvolutionCore},
+    language_evolution::LanguageEvolutionCore,
     quantum_core::{CreatorSignature, MotherQuantumCore},
     quantum_attention::QuantumAttentionMechanism,
 };
