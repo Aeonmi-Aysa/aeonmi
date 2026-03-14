@@ -537,8 +537,88 @@ pub enum Command {
         #[arg(long = "dur", value_name = "NS")]
         dur: u128,
     },
+
+    /// Verify a .ai smart contract (static analysis + quantum-assisted verification)
+    ///
+    /// Examples:
+    ///   aeonmi verify contract.ai
+    ///   aeonmi verify contract.ai --json
+    ///   aeonmi verify contract.ai --out report.json
+    Verify {
+        /// Source .ai file to verify
+        #[arg(value_name = "FILE")]
+        file: std::path::PathBuf,
+        /// Output JSON report instead of human-readable summary
+        #[arg(long = "json", action = ArgAction::SetTrue)]
+        json: bool,
+        /// Write report to file
+        #[arg(long = "out", value_name = "FILE")]
+        out: Option<std::path::PathBuf>,
+    },
+
+    /// Start a reactive web server from an .ai application
+    ///
+    /// Examples:
+    ///   aeonmi serve app.ai
+    ///   aeonmi serve app.ai --port 8080
+    ///   aeonmi serve --static ./public --port 3000
+    Serve {
+        /// Source .ai file defining routes/handlers
+        #[arg(value_name = "FILE")]
+        file: Option<std::path::PathBuf>,
+        /// Port to listen on (default: 3000)
+        #[arg(long = "port", value_name = "PORT", default_value_t = 3000)]
+        port: u16,
+        /// Directory for static file serving
+        #[arg(long = "static", value_name = "DIR")]
+        static_dir: Option<std::path::PathBuf>,
+    },
+
+    /// Genesis Glyph NFT Marketplace
+    ///
+    /// Examples:
+    ///   aeonmi market list
+    ///   aeonmi market info circuit.qube
+    ///   aeonmi market mint circuit.qube
+    ///   aeonmi market glyphs
+    Market {
+        #[command(subcommand)]
+        action: MarketAction,
+    },
 }
 
+#[derive(Subcommand, Debug, Clone)]
+pub enum MarketAction {
+    /// List all .qube circuits in the workspace with quantum complexity scores
+    List {
+        /// Workspace directory to scan (default: current directory)
+        #[arg(value_name = "DIR")]
+        dir: Option<std::path::PathBuf>,
+        /// Output JSON instead of table
+        #[arg(long = "json", action = ArgAction::SetTrue)]
+        json: bool,
+    },
+    /// Show detailed info about a specific .qube circuit
+    Info {
+        /// .qube file to inspect
+        #[arg(value_name = "FILE")]
+        file: std::path::PathBuf,
+        /// Output JSON
+        #[arg(long = "json", action = ArgAction::SetTrue)]
+        json: bool,
+    },
+    /// Generate NFT metadata for a .qube circuit
+    Mint {
+        /// .qube file to mint
+        #[arg(value_name = "FILE")]
+        file: std::path::PathBuf,
+        /// Write NFT metadata JSON to file
+        #[arg(long = "out", value_name = "FILE")]
+        out: Option<std::path::PathBuf>,
+    },
+    /// Display the 12 Genesis Glyphs (G-1..G-12)
+    Glyphs,
+}
 #[derive(Subcommand, Debug, Clone)]
 pub enum VmAction {
     Start,
