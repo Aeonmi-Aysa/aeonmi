@@ -1,9 +1,7 @@
 /// AEONMI Quantum Circuit Visualization
 /// Provides ASCII art circuit diagrams, LaTeX output, and interactive visualization
 
-use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType, QubitId};
-use std::collections::HashMap;
-use std::fmt;
+use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType};
 
 /// Circuit visualization configuration
 #[derive(Debug, Clone)]
@@ -85,7 +83,7 @@ impl CircuitVisualizer {
     /// Generate the main circuit diagram
     fn generate_circuit_diagram(&self, circuit: &QuantumCircuitBuilder) -> String {
         let mut lines: Vec<String> = Vec::new();
-        let qubit_count = circuit.qubits.len();
+        let _qubit_count = circuit.qubits.len();
         
         // Initialize qubit lines
         for (i, qubit) in circuit.qubits.iter().enumerate() {

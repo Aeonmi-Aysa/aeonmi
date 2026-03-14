@@ -331,8 +331,8 @@ impl CodeGenerator {
                 format!("// import {{ {} }} from \"{}\"\n", names.join(", "), path)
             }
             // Phase 1: struct decl
-            ASTNode::StructDecl { name, fields, is_quantum } => {
-                let fields_js = fields.iter().map(|f| format!("{}:undefined", f.name)).collect::<Vec<_>>().join(", ");
+            ASTNode::StructDecl { name, fields, is_quantum: _ } => {
+                let _fields_js = fields.iter().map(|f| format!("{}:undefined", f.name)).collect::<Vec<_>>().join(", ");
                 let params_js = fields.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(", ");
                 let assigns = fields.iter().map(|f| format!("this.{} = {};", f.name, f.name)).collect::<Vec<_>>().join(" ");
                 format!("function {}({}) {{ {} }}\n", name, params_js, assigns)

@@ -299,7 +299,7 @@ impl QubeExecutor {
                     .cloned()
                     .ok_or_else(|| format!("Undefined state '{}'", name))
             }
-            QuantumStateExpr::TensorProduct(a, b) => {
+            QuantumStateExpr::TensorProduct(a, _b) => {
                 // For a single-qubit executor, tensor product creates the first qubit.
                 // Full multi-qubit sim is Phase 2 extension.
                 self.eval_state_expr(a)

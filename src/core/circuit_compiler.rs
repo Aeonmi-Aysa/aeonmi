@@ -401,7 +401,7 @@ impl QuantumCircuitCompiler {
         }
     }
     
-    fn gate_to_aeonmi(&self, gate: &QuantumGate, circuit: &QuantumCircuitBuilder) -> Result<String, CompilationError> {
+    fn gate_to_aeonmi(&self, gate: &QuantumGate, _circuit: &QuantumCircuitBuilder) -> Result<String, CompilationError> {
         let qubit_names: Vec<String> = gate.qubits.iter().map(|q| q.name.clone()).collect();
         
         match &gate.gate_type {
