@@ -1,0 +1,92 @@
+name: Apply Branch Protection Rules
+
+# This workflow sets minimum branch-protection rules on the default branch
+# (main) and the Aeonmi-copilot branch so that only Aeonmi-Aysa (the repo
+# owner) and the github-copilot app can push or merge to them.
+#
+# Token requirements
+# ------------------
+# Updating branch-protection rules requires a token with repo/administration
+# write access.  The built-in GITHUB_TOKEN works when the workflow has
+# `administration: write` declared (GitHub Enterprise or personal repos with
+# that permission enabled).  If the default token is insufficient, store a
+# Personal Access Token with `repo` scope in a repository secret named
+# BRANCH_ADMIN_TOKEN and the workflow will prefer that automatically.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  administration: write
+  contents: read
+
+jobs:
+  protect-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply protection rules
+        uses: actions/github-script@v7
+        with:
+          # Prefer an explicitly provided PAT; fall back to the built-in token.
+          github-token: ${{ secrets.BRANCH_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            /**
+             * Apply branch-protection rules to a single branch.
+             * Tries with push `restrictions` first (org repos); falls back to
+             * PR-review-only protection for personal repos where the API does
+             * not support `restrictions`.
+             */
+            async function protect(branch) {
+              // Verify the branch exists before trying to protect it.
+              try {
+                await github.rest.repos.getBranch({ owner, repo, branch });
+              } catch {
+                console.warn(`⚠️  Branch '${branch}' not found – skipping.`);
+                return;
+              }
+
+              const baseConfig = {
+                owner,
+                repo,
+                branch,
+                required_status_checks: null,
+                enforce_admins: false,
+                required_pull_request_reviews: {
+                  dismiss_stale_reviews: true,
+                  require_code_owner_reviews: false,
+                  required_approving_review_count: 1,
+                  bypass_pull_request_allowances: {
+                    users: ['Aeonmi-Aysa'],
+                    teams: [],
+                    apps: ['github-copilot']
+                  }
+                },
+                restrictions: {
+                  users: ['Aeonmi-Aysa'],
+                  teams: [],
+                  apps: ['github-copilot']
+                }
+              };
+
+              try {
+                await github.rest.repos.updateBranchProtection(baseConfig);
+                console.log(`✅ Protection applied to '${branch}' (with push restrictions).`);
+              } catch (err) {
+                // restrictions are only available for organisation-owned repos;
+                // fall back to PR-review-only protection for personal repos.
+                console.warn(`⚠️  Could not apply push restrictions: ${err.message}`);
+                console.warn('Retrying without restrictions field …');
+                const { restrictions, ...fallback } = baseConfig;
+                await github.rest.repos.updateBranchProtection(fallback);
+                console.log(`✅ Protection applied to '${branch}' (PR reviews required).`);
+              }
+            }
+
+            await protect('main');
+            await protect('copilot/aeonmi-copilot');
