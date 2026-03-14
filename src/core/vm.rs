@@ -755,18 +755,24 @@ impl Interpreter {
                     ))),
                 };
                 for item in items {
-                    // Define the loop variable in the current scope so it's visible
-                    // from within exec_block's child scope.
+                    // Create a dedicated scope for the loop variable so it does NOT
+                    // persist after the loop (proper block-scoped semantics).
+                    self.env.push();
                     self.env.define(var.clone(), item);
+                    // exec_block pushes another child scope for the body statements;
+                    // `var` is visible from the body via scope chain lookup.
                     match self.exec_block(body) {
                         ControlFlow::Ok => {}
                         ControlFlow::Return(v) => {
+                            self.env.pop();
                             return ControlFlow::Return(v);
                         }
                         other => {
+                            self.env.pop();
                             return other;
                         }
                     }
+                    self.env.pop();
                 }
                 ControlFlow::Ok
             }
@@ -1064,9 +1070,7 @@ impl Interpreter {
                 for it in items {
                     let val = self.eval_expr(it)?;
                     // Genesis glyph: flatten __spread() results into the array
-                    let is_spread = matches!(it, Expr::Call { callee, .. }
-                        if matches!(&**callee, Expr::Ident(n) if n == "__spread"));
-                    if is_spread {
+                    if is_spread_call(it) {
                         match val {
                             Value::Array(arr) => out.extend(arr),
                             other => out.push(other),
@@ -1166,6 +1170,13 @@ impl From<RuntimeError> for ControlFlow {
 
 fn err(msg: String) -> RuntimeError {
     RuntimeError { message: msg }
+}
+
+/// Returns true if `e` is a `__spread(...)` call expression.
+/// Used to flatten spread results when building array literals.
+fn is_spread_call(e: &Expr) -> bool {
+    matches!(e, Expr::Call { callee, .. }
+        if matches!(&**callee, Expr::Ident(n) if n == "__spread"))
 }
 
 fn collect_vals(i: &mut Interpreter, es: &[Expr]) -> Result<Vec<Value>, RuntimeError> {
