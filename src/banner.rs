@@ -84,11 +84,15 @@ pub fn state_hash_color(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
     let hash = hasher.finalize();
+    // SHA-256 always produces exactly 32 bytes. The assertion guards against
+    // any future change to the hash length.
+    debug_assert_eq!(hash.len(), 32, "SHA-256 must produce 32 bytes");
 
-    // Build a minimal 64-byte seed from the 32-byte SHA-256 hash
+    // Build a minimal 64-byte seed from the 32-byte SHA-256 hash.
+    // upper half = raw bytes, lower half = simple diffusion.
     let mut seed = [0u8; 64];
-    for (i, b) in hash.iter().enumerate() {
-        seed[i] = *b;
+    for (i, &b) in hash.iter().take(32).enumerate() {
+        seed[i] = b;
         seed[i + 32] = b.wrapping_mul(7).wrapping_add(13);
     }
 
