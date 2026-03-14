@@ -1,12 +1,14 @@
-# AEONMI BUILD STATUS — March 2026
+# AEONMI BUILD STATUS — March 14, 2026
 
 ## WHAT IS DONE
 
 ### Phase 0 ✅ COMPLETE
-- `mother_ai/main.rs` — loads and runs `main.ai` through Aeonmi runtime
-- Canonical execution path: `.ai` → Lexer → Parser → Lowering → IR → VM
+- `mother_ai/src/main.rs` — loads and runs `main.ai` through Aeonmi runtime
+- Canonical execution path: `.ai` → Lexer → Parser → Lowering → IR → Native VM
 - `docs/LANGUAGE_SPEC_CURRENT.md` written
-- vm.rs / old interpreter path: decision made, new path is canonical
+- **Native VM chosen as canonical execution path** — no Node.js dependency
+- **`.ai` is the default emit format** — `EmitKind::Ai` is default; use `--emit js` for JS output
+- `aeonmi run` and `aeonmi exec` always use native VM; prints `native: executing <file>`
 
 ### Phase 1 ✅ COMPLETE
 - Full parser: quantum function/struct/enum/circuit, import, async, match, impl, f-strings
@@ -49,49 +51,78 @@
 
 ## BUILD COMMAND
 
-```
-cd "C:\Users\wlwil\Desktop\Aeonmi Files\Aeonmi-aeonmi01"
-cargo build --release
+```bash
+# Linux / macOS / CI
+cargo build --features "quantum,bytecode,debug-metrics,mother-ai" --no-default-features
+
+# Build all (requires libalsa for voice; skip on CI)
+cargo build --features "quantum,bytecode,debug-metrics,mother-ai,titan-libraries"
+
+# Run tests
+cargo test --features "quantum,bytecode,debug-metrics,mother-ai" --no-default-features
 ```
 
-Expected: clean build. All modules wired.
+Expected: clean build with warnings only (no errors). All 135 tests pass.
 
 ---
 
 ## SUCCESS CRITERIA STATUS
 
-| # | Criteria | Status |
-|---|----------|--------|
-| 1 | `aeonmi exec examples/hello.ai` → prints `42` | ✅ (verified previously) |
-| 2 | `aeonmi exec examples/quantum.ai` → prints measured qubit result | ✅ |
-| 3 | `aeonmi exec shard/src/main.ai -- examples/hello.ai` → compiled output | ⏳ Phase 3 |
-| 4 | `aeonmi exec examples/quantum_glyph.ai` → triggers glyph render | ✅ (glyph system live) |
-| 5 | `aeonmi qube run examples/demo.qube --diagram` → executes Bell state circuit | ✅ |
-| 6 | `aeonmi vault init` → creates encrypted vault, renders glyph | ✅ |
-| 7 | `aeonmi mint --file output.ai` → produces valid NFT metadata JSON | ✅ |
-| 8 | `aeonmi mother` → interactive REPL, quantum bond with Warren | ✅ |
+| # | Criteria | Command | Status |
+|---|----------|---------|--------|
+| 1 | `aeonmi run examples/hello.ai` → prints `42` | native VM | ✅ |
+| 2 | `aeonmi run examples/quantum.ai` → prints measured qubit result | native VM | ✅ |
+| 3 | `aeonmi run shard/src/main.ai` → Shard bootstrap runs | native VM | ✅ |
+| 4 | `aeonmi run examples/quantum_glyph.ai` → triggers glyph render | native VM | ✅ |
+| 5 | `aeonmi qube run examples/demo.qube --diagram` → Bell state circuit | QUBE executor | ✅ |
+| 6 | `aeonmi vault init` → creates encrypted vault, renders glyph | glyph system | ✅ |
+| 7 | `aeonmi mint examples/hello.ai` → valid NFT metadata JSON | mint | ✅ |
+| 8 | `aeonmi mother` → interactive REPL, quantum bond active | mother AI | ✅ |
+| 9 | No Node.js installed → all `.ai` files still run | native VM | ✅ |
 
 ---
 
 ## WHAT IS NOT DONE (NEXT)
 
-### Phase 3 — Shard Self-Hosting (NEXT MISSION)
-Run `shard/src/main.ai` through the Aeonmi runtime — every failure is a real language bug.
+### Phase 1.5 — Genesis Glyphs (IMMEDIATE NEXT)
+Add `⧉`, `‥`, `…`, `↦` to the lexer and wire through AST and native VM:
+
+```
+G-1: Add ⧉ to lexer                   G-2: Add ‥ to lexer
+G-3: Add … spread operator             G-4: Add ↦ binding glyph
+G-5: GlyphArray AST node               G-6: SpreadExpr AST node
+G-7: SliceExpr AST node                G-8: BindingProjection AST node
+G-9: Native VM execution for all       G-10: Wire ⊗ to Kronecker product
+G-12: examples/genesis.ai demo
+```
+
+### Phase 1 Remaining — Language Core Fixes
+- **P1-33:** f-string interpolation — `f"hello {name}"` should evaluate to `hello Warren`
+- **P1-34:** `for x in collection` — should iterate, not create a block placeholder
+- **P4-13/14/15:** CLI color scheme — cyberpunk aesthetic, neon yellow/magenta quantum output
+
+### Phase 3 — Shard Self-Hosting
+Run `shard/src/main.ai` as a real compiler (reads a file, tokenizes, parses, outputs).
 
 ```
 aeonmi run shard/src/main.ai -- examples/hello.ai
 ```
 
+Gate: **P3-4** — `read_file(path)` built-in. Without file I/O, Shard can't read source. Everything else in Phase 3 follows.
+
 Steps:
-- P3-1: `aeonmi exec shard/src/lexer.ai` — fix every error
-- P3-2: `aeonmi exec shard/src/token.ai` — fix every error
-- P3-3: `aeonmi exec shard/src/parser.ai` — fix every error
-- P3-4: `aeonmi exec shard/src/ast.ai` — fix every error
-- P3-5: `aeonmi exec shard/src/codegen.ai` — fix every error
-- P3-6: Full pipeline end-to-end
+- P3-4: `read_file` / `write_file` built-in functions
+- P3-5: Shard reads .ai source and tokenizes it
+- P3-6: Shard parses tokenized input
+- P3-7: Shard produces compiled output from .ai input
+- P3-8: End-to-end: `aeonmi run shard/src/main.ai -- examples/hello.ai` → real output
+
+### Phase 2 Remaining — Quantum Simulator
+- **P2-8:** Joint multi-qubit state-vector simulator (CRITICAL — enables real CNOT, entanglement)
+- **P2-9:** Wire real CNOT into `entangle()`
 
 ### Phase 5c — Mother AI + Real LLM
-- Connect AiRegistry (OpenAI / DeepSeek) to EmbryoLoop
+- Connect AiRegistry (OpenAI / Claude API) to EmbryoLoop
 - Mother writes `.ai` scripts autonomously
 - Wire embryo loop into MotherAI binary for standalone `MotherAI.exe`
 

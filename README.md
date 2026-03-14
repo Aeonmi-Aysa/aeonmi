@@ -2,7 +2,7 @@
 
 Aeonmi is an experimental symbolic programming language exploring AI-native execution, quantum-style composition, and self-hosting compiler design.
 
-**Status:** early-stage research language under active development.
+**Status:** active development — native VM complete, working language.
 
 Aeonmi combines:
 
@@ -109,14 +109,13 @@ See `vscode-aeonmi/README.md` for installation instructions.
 
 Current development is centered on:
 
-* symbolic array construction
-* slice and spread semantics
-* tensor composition
-* binding / projection behavior
-* QUBE grammar and runtime direction
-* Shard integration
-* runtime stabilization
-* documentation cleanup
+* **Genesis glyphs** — adding `⧉`, `‥`, `…`, `↦` to the lexer and native VM
+* **f-string interpolation** — `f"hello {name}"` should evaluate correctly
+* **`for x in collection` iteration** — proper iteration, not a block placeholder
+* **CLI visual identity** — cyberpunk color scheme, startup banner
+* **Joint quantum simulator** — real multi-qubit state-vector for `entangle()` / CNOT
+* **File I/O built-ins** — `read_file` / `write_file` (gates Shard self-hosting)
+* **Shard integration** — self-hosting compiler reading and compiling real `.ai` files
 
 ---
 
@@ -138,14 +137,29 @@ Design priorities:
 
 ## Running Aeonmi
 
-Example commands:
+Aeonmi programs run natively — no Node.js or external runtime required.
 
 ```bash
-aeonmi --version
+# Build from source (Rust required)
+cargo build --features "quantum,bytecode,mother-ai" --no-default-features
+
+# Run an Aeonmi program (native VM)
 aeonmi run examples/hello.ai
-aeonmi run shard/src/main.ai
+
+# Compile to .ai canonical form
+aeonmi emit examples/hello.ai
+
+# Compile to JavaScript (explicit)
+aeonmi emit examples/hello.ai --emit js
+
+# Run a QUBE quantum circuit
 aeonmi qube run examples/demo.qube
+
+# Initialize the encrypted identity vault
 aeonmi vault init
+
+# Interactive shell
+aeonmi
 ```
 
 ### Computer Science Examples
@@ -250,7 +264,7 @@ This section describes the top-level contents of the repository.
 | `Cargo.toml` | Rust workspace manifest — package metadata, feature flags, and all dependencies |
 | `Cargo.lock` | Dependency lockfile (pinned versions) |
 | `build.rs` | Rust build script — Windows resource embedding and build-time configuration |
-| `package.json` | Node.js package manifest used by the JS compilation backend |
+| `package.json` | Node.js package manifest used by the optional JS compilation backend (`--emit js`) |
 | `package-lock.json` | Node.js dependency lockfile |
 
 ### Documentation

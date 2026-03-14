@@ -21,6 +21,12 @@ workspace_test.log
 tui_crash.log
 .aeonmi_last_search
 
+### Test artifacts written in the working directory
+legacy.js
+legacy.ai
+temp_*.ai
+temp_*.js
+
 ### OS / editor
 *.swp
 *.DS_Store

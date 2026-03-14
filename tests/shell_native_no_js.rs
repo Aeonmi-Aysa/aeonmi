@@ -18,10 +18,10 @@ fn shell_run_native_skips_js_emit() {
         .spawn()
         .expect("failed to start shell");
 
-    // Send run --native command then exit
+    // Shell `run` syntax: run <file> [--native]
     {
         let stdin = child.stdin.as_mut().expect("stdin");
-        writeln!(stdin, "run --native {}", ai_path.display()).unwrap();
+        writeln!(stdin, "run {} --native", ai_path.display()).unwrap();
         writeln!(stdin, "exit").unwrap();
     }
 

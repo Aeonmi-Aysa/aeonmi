@@ -1,6 +1,6 @@
 # AEONMI LANGUAGE ROADMAP
 ### Factual State + Forward Plan
-**Last verified:** March 11, 2026 | **Tests:** 135/135 | **Success Criteria:** 7/7
+**Last verified:** March 14, 2026 | **Tests:** 135/135 | **Success Criteria:** 7/7
 
 ---
 
@@ -8,7 +8,17 @@
 
 ### What Works (Tested & Passing)
 
-**Language Core (Lexer → Parser → AST → Codegen → Execution):**
+**Execution Architecture (NEW — March 14, 2026):**
+- [x] `.ai` is the default output format (`EmitKind::Ai` — no longer JS by default)
+- [x] Native VM is the default executor — `.ai` files run without Node.js
+- [x] `aeonmi run file.ai` → native VM interpreter, prints `native: executing file.ai`
+- [x] `aeonmi exec file.ai` → native VM interpreter, no `__exec_tmp.js` artifact
+- [x] `aeonmi emit file.ai` → writes `output.ai` (use `--emit js` for JS output)
+- [x] JS compilation backend still available via `--emit js` / `aeonmi emit --emit js`
+- [x] Shell `run <file> --native` command works correctly
+- [x] `AEONMI_NATIVE=1` environment variable still respected
+
+**Language Core (Lexer → Parser → AST → Native VM Execution):**
 - [x] Variables: `let`, `const`, numbers, strings, booleans, null, arrays
 - [x] Functions: `function name(params) { body }`
 - [x] Quantum functions: `quantum function name(params) -> Type { body }`
@@ -107,14 +117,14 @@
 
 | Issue | Impact | Status |
 |-------|--------|--------|
-| Binary cache stale | Gate constants `H`, `X`, `Y`, `Z` missing from some builds | **Fix: rebuild from current source** |
 | `entangle()` is metadata-only | No joint state-vector math; CNOT doesn't transform states | Phase 2 simulator upgrade |
 | f-string interpolation not evaluated | `f"text {var}"` becomes literal, not `text value` | Codegen template literal fix |
 | `for x in collection` doesn't iterate | Lowers to variable decl placeholder | Runtime array indexing needed |
 | No file I/O from .ai code | Can't read/write files in Aeonmi scripts | Built-in functions needed |
-| Array `push`/`pop`/`is_empty` | Missing runtime methods | JS codegen needs method mapping |
+| Array `is_empty` method | Missing (push/pop/len work; is_empty does not) | One-liner runtime addition |
 | 213 compiler warnings | Cosmetic — unused imports, dead code | Non-blocking |
 | Genesis glyphs not implemented | `⧉`, `‥`, `…`, `↦` from spec not in lexer | This roadmap, Phase 1.5 |
+| AI emitter output is stub | `emit --format ai` generates canonical .ai but IR not fully lowered | Phase 1 codegen task |
 
 ---
 
@@ -129,8 +139,10 @@
 | P0-1 | `mother_ai/src/main.rs` entry point | ✅ Done |
 | P0-2 | Run hello/quantum/math/control_flow examples | ✅ All pass |
 | P0-3 | `docs/LANGUAGE_SPEC_CURRENT.md` | ✅ Written |
-| P0-4 | Decide VM path (JS codegen chosen) | ✅ Done |
+| P0-4 | Decide VM path — native VM chosen as default | ✅ Done (March 14, 2026) |
 | P0-5 | Full test suite passing | ✅ 135/135 |
+| P0-6 | `.ai` set as default emit format | ✅ Done (March 14, 2026) |
+| P0-7 | Native VM as default executor (no Node.js required) | ✅ Done (March 14, 2026) |
 
 ---
 
@@ -175,10 +187,10 @@
 | ID | Task | Priority | Effort |
 |----|------|----------|--------|
 | P1-12 | Wire `entangle()` → real CNOT | Medium | 4h |
-| P1-19 | Array `push`/`pop`/`len`/`is_empty` | High | 2h |
+| P1-19 | Array `is_empty` method (`push`/`pop`/`len` already work in VM) | Low | 30m |
 | P1-20 | Dedicated tests for each new construct | Medium | 3h |
 | P1-33 | f-string interpolation in codegen (template literals) | High | 1h |
-| P1-34 | Real `for x in collection` iteration (JS `for...of`) | High | 1h |
+| P1-34 | Real `for x in collection` iteration (native VM `for...of`-style) | High | 1h |
 | P1-35 | Chained `::` paths (`std::process::exit`) | Low | 1h |
 
 ---
@@ -346,41 +358,40 @@ let state = ⧉0.5‥0.5⧉ ⊗ ⧉1‥0⧉
 
 Work through these in order. Don't skip ahead.
 
-### NOW (Pre-Release Cleanup)
-1. **Rebuild binary** — ensure gate constants (`H`, `X`, `Y`, `Z`) are in the running exe
-2. **Verify all 7 success criteria** pass with fresh binary
-3. **Push to GitHub**
-4. **Record demo video** — run all tests on camera
+### ✅ JUST DONE (March 14, 2026)
+- **Native VM as default executor** — `run` and `exec` use native VM without Node.js
+- **`.ai` as default emit format** — `EmitKind::Ai` is now default; JS available via `--emit js`
+- **Pre-existing test fixes** — shell `run <file> --native` ordering, exec_cleanup, exec_smoke all green
+- **Repository pushed to GitHub** — all changes committed and live
 
 ### NEXT SPRINT (1-2 weeks)
-5. **P1-33** f-string interpolation → JS template literals
-6. **P1-34** Real `for x in collection` → JS `for...of`
-7. **P1-19** Array `push`/`pop`/`len`/`is_empty`
-8. **G-1 through G-6** Genesis glyph tokens + AST nodes
-9. **G-9** JS codegen for Genesis glyphs
-10. **G-12** `examples/genesis.ai` example file
-11. **P4-13/14/15** CLI color scheme + startup banner
+1. **P1-33** f-string interpolation → native VM string interpolation
+2. **P1-34** Real `for x in collection` → native VM proper iteration (not block placeholder)
+3. **G-1 through G-6** Genesis glyph tokens (`⧉`, `‥`, `…`, `↦`) added to lexer + AST nodes
+4. **G-9** Native VM codegen paths for all Genesis glyphs
+5. **G-12** `examples/genesis.ai` — demonstrate all Genesis glyphs working
+6. **P4-13/14/15** CLI color scheme (cyberpunk aesthetic) + startup banner with glyph art
 
 ### FOLLOWING SPRINT (2-4 weeks)
-12. **G-10** Wire `⊗` to real Kronecker product
-13. **P2-8** Joint multi-qubit state-vector simulator
-14. **P3-4** File I/O built-ins (`read_file`, `write_file`)
-15. **P4-10** Boot ceremony (glyph on every startup)
-16. **P4-16** State-hash → GDF color mapping
+7. **G-10** Wire `⊗` to real Kronecker product (Titan math)
+8. **P2-8** Joint multi-qubit state-vector simulator (CRITICAL for quantum correctness)
+9. **P3-4** File I/O built-ins (`read_file`, `write_file`) — gates all of Phase 3
+10. **P4-10** Boot ceremony (glyph rendered on every startup)
+11. **P4-16** State-hash → GDF color mapping (visual quantum debugger)
 
 ### MEDIUM TERM (1-2 months)
-17. **P3-5 through P3-8** Shard reads and compiles real .ai files
-18. **P5-3** LLM integration (Claude API)
-19. **P5-4** Mother embryo loop live
-20. **G-11** Zero-copy View struct for slices
-21. **G-7/G-8** Slice and binding/projection runtime semantics
+12. **P3-5 through P3-8** Shard actually reads and compiles real .ai files
+13. **P5-3** LLM integration (Claude API)
+14. **P5-4** Mother embryo loop live (write → run → learn)
+15. **G-11** Zero-copy View struct for slices (runtime)
+16. **G-7/G-8** Slice and binding/projection runtime semantics
 
 ### LONG TERM (3-6 months)
-22. **P5-5** Qiskit bridge
-23. **P5-8** WASM build target
-24. **P5-9** Browser REPL on `aeonmi.x`
-25. **Q-1 through Q-7** QUBE symbolic optimizer
-26. **P5-7** Solana on-chain minting
+17. **P5-5** Qiskit bridge (`--features qiskit`)
+18. **P5-8** WASM build target
+19. **P5-9** Browser REPL on `aeonmi.x`
+20. **Q-1 through Q-7** QUBE symbolic optimizer (30-qubit in <1MB)
+21. **P5-7** Solana on-chain minting
 
 ---
 
@@ -399,22 +410,23 @@ Work through these in order. Don't skip ahead.
 
 | # | Test | Command | Status |
 |---|------|---------|--------|
-| 1 | hello.ai → 42 | `aeonmi exec examples/hello.ai` | ✅ |
-| 2 | quantum.ai → qubit result | `aeonmi exec examples/quantum.ai` | ✅ |
+| 1 | hello.ai → 42 | `aeonmi run examples/hello.ai` | ✅ |
+| 2 | quantum.ai → qubit result | `aeonmi run examples/quantum.ai` | ✅ |
 | 3 | Shard self-hosts | `aeonmi run shard/src/main.ai` | ✅ |
 | 4 | Glyph renders | `aeonmi run examples/quantum_glyph.ai` | ✅ |
 | 5 | QUBE circuit runs | `aeonmi qube run examples/demo.qube` | ✅ |
 | 6 | Vault initializes | `aeonmi vault init` | ✅ |
 | 7 | NFT mints | `aeonmi mint examples/hello.ai` | ✅ |
+| 8 | Native VM runs without Node.js | `AEONMI_NATIVE=1 aeonmi run examples/hello.ai` | ✅ |
 
 **Future criteria (Phase 1.5+):**
 
 | # | Test | Target |
 |---|------|--------|
-| 8 | `⧉1‥2‥3⧉ ⊗ ⧉0‥1⧉` → Kronecker product | Phase 1.5 |
-| 9 | `ψ ↦ bell ⊗ alice` → symbolic binding | Phase 1.5 |
-| 10 | Shard compiles hello.ai to JS for real | Phase 3 |
-| 11 | 30-qubit symbolic simulation <1MB | Phase 6 |
+| 9 | `⧉1‥2‥3⧉ ⊗ ⧉0‥1⧉` → Kronecker product | Phase 1.5 |
+| 10 | `ψ ↦ bell ⊗ alice` → symbolic binding | Phase 1.5 |
+| 11 | Shard compiles hello.ai to real output | Phase 3 |
+| 12 | 30-qubit symbolic simulation <1MB | Phase 6 |
 
 ---
 

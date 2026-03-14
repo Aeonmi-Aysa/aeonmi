@@ -20,6 +20,8 @@ fn cli_compiles_basic_file() {
     let output = Command::new(bin())
         .arg("--tokens")
         .arg("--ast")
+        .arg("--emit")
+        .arg("js")
         .arg("--out")
         .arg(out.to_str().unwrap())
         .arg(input.to_str().unwrap())
