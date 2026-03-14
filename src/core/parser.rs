@@ -114,6 +114,19 @@ impl Parser {
                 let _ = self.match_token(&[TokenKind::Semicolon]);
                 Ok(ASTNode::new_variable_decl_at(&name, value, line, col))
             }
+            TokenKind::Type => {
+                // type alias: `type X = SomeType;` — treat like const (skip `= SomeType`, emit NullLiteral)
+                self.advance();
+                let line = self.peek().line; let col = self.peek().column;
+                let name = self.consume_identifier_or_keyword("Expected name after 'type'")?;
+                if self.match_token(&[TokenKind::Equals]) {
+                    let value = self.parse_expression()?;
+                    let _ = self.match_token(&[TokenKind::Semicolon]);
+                    return Ok(ASTNode::new_variable_decl_at(&name, value, line, col));
+                }
+                let _ = self.match_token(&[TokenKind::Semicolon]);
+                Ok(ASTNode::new_variable_decl_at(&name, ASTNode::NullLiteral, line, col))
+            }
 
             // Quantum operations
             TokenKind::Superpose | TokenKind::Entangle | TokenKind::Measure | TokenKind::Dod => {
@@ -136,6 +149,25 @@ impl Parser {
                         self.advance(); // consume 'loop'
                         let body = self.parse_statement()?;
                         return Ok(ASTNode::new_while(ASTNode::BooleanLiteral(true), body));
+                    }
+                    // `static NAME: Type = value;` → treat like const/let
+                    if s == "static" && self.pos + 1 < self.tokens.len()
+                        && matches!(self.tokens[self.pos + 1].kind, TokenKind::Identifier(_))
+                    {
+                        self.advance(); // consume 'static'
+                        let line = self.peek().line; let col = self.peek().column;
+                        let name = self.consume_identifier_or_keyword("Expected variable name after 'static'")?;
+                        // Skip optional `: Type`
+                        if self.match_token(&[TokenKind::Colon]) {
+                            self.skip_type_annotation_until_eq();
+                        }
+                        if self.match_token(&[TokenKind::Equals]) {
+                            let value = self.parse_expression()?;
+                            let _ = self.match_token(&[TokenKind::Semicolon]);
+                            return Ok(ASTNode::new_variable_decl_at(&name, value, line, col));
+                        }
+                        let _ = self.match_token(&[TokenKind::Semicolon]);
+                        return Ok(ASTNode::new_variable_decl_at(&name, ASTNode::NullLiteral, line, col));
                     }
                 }
                 let expr = self.parse_expression()?;
@@ -165,13 +197,18 @@ impl Parser {
             if s == "mut" { self.advance(); }
         }
 
-        // Destructuring: let (a, b) = expr;
+        // Destructuring: let (a, b) = expr; or let (&a, &b) = expr;
         if self.check(&TokenKind::OpenParen) {
             self.advance(); // consume '('
             let mut names = Vec::new();
             while !self.check(&TokenKind::CloseParen) && !self.is_at_end() {
-                names.push(self.consume_identifier("Expected variable name in destructuring")?);
-                if !self.match_token(&[TokenKind::Comma]) { break; }
+                // Skip optional `&` and `mut` prefix in each binding
+                if self.check(&TokenKind::Ampersand) { self.advance(); }
+                if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+                    if s == "mut" { self.advance(); }
+                }
+                names.push(self.consume_identifier_or_keyword("Expected variable name in destructuring")?);
+                if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
             }
             self.consume(TokenKind::CloseParen, "Expected ')' after destructuring pattern")?;
             self.consume(TokenKind::Equals, "Expected '=' after destructuring pattern")?;
@@ -205,7 +242,8 @@ impl Parser {
     fn parse_function_decl(&mut self) -> Result<ASTNode, ParserError> {
     let func_tok = self.consume(TokenKind::Function, "Expected 'function'")?;
     let func_line = func_tok.line; let func_col = func_tok.column;
-    let name = self.consume_identifier("Expected function name")?;
+    // Accept keywords as function names (e.g. `function new(...)`, `function type(...)`)
+    let name = self.consume_identifier_or_keyword("Expected function name")?;
     self.consume(TokenKind::OpenParen, "Expected '(' after function name")?;
         let mut params: Vec<FunctionParam> = Vec::new();
         if !self.check(&TokenKind::CloseParen) {
@@ -213,7 +251,7 @@ impl Parser {
                 let pname = self.consume_param_name("Expected parameter name")?;
                 self.skip_param_type_annotation();
                 params.push(FunctionParam { name: pname, line: func_line, column: func_col });
-                if !self.match_token(&[TokenKind::Comma]) {
+                if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) {
                     break;
                 }
             }
@@ -222,6 +260,10 @@ impl Parser {
         // Skip optional return type annotation: -> Type
         if self.match_token(&[TokenKind::Arrow]) {
             self.skip_type_annotation();
+        }
+        // Abstract/interface method: no body, just `;`
+        if self.match_token(&[TokenKind::Semicolon]) {
+            return Ok(ASTNode::new_function_at(&name, func_line, func_col, params, vec![]));
         }
         let body = match self.parse_block()? {
             ASTNode::Block(stmts) => stmts,
@@ -250,7 +292,7 @@ impl Parser {
         if !self.check(&TokenKind::CloseParen) {
             loop {
                 parts.push(self.parse_expression()?);
-                if !self.match_token(&[TokenKind::Comma]) { break; }
+                if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
             }
         }
         self.consume(TokenKind::CloseParen, "Expected ')' after log args")?;
@@ -337,12 +379,17 @@ impl Parser {
         };
 
         if is_destructuring_for_in {
-            // for (a, b) in collection { ... }
+            // for (a, b) in collection { ... } — also handles (a, &b)
             self.advance(); // consume '('
             let mut bindings = Vec::new();
             while !self.check(&TokenKind::CloseParen) && !self.is_at_end() {
-                bindings.push(self.consume_identifier("Expected variable name")?);
-                if !self.match_token(&[TokenKind::Comma]) { break; }
+                // Skip optional `&` / `mut` prefix
+                if self.check(&TokenKind::Ampersand) { self.advance(); }
+                if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+                    if s == "mut" { self.advance(); }
+                }
+                bindings.push(self.consume_identifier_or_keyword("Expected variable name")?);
+                if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
             }
             self.consume(TokenKind::CloseParen, "Expected ')' after bindings")?;
             self.consume(TokenKind::In, "Expected 'in'")?;
@@ -363,16 +410,26 @@ impl Parser {
         }
 
         // Check for Rust-style: for x in collection { ... }
-        // Detect: next is Identifier and token after that is 'in'
-        let is_for_in = if let TokenKind::Identifier(_) = self.peek().kind {
-            self.pos + 1 < self.tokens.len()
-                && matches!(self.tokens[self.pos + 1].kind, TokenKind::In)
-        } else {
-            false
+        // Detect: next is Identifier/keyword (or `&name`) and token after that is 'in'
+        let is_for_in = {
+            let first_is_name = matches!(self.peek().kind,
+                TokenKind::Identifier(_) | TokenKind::Qubit | TokenKind::This | TokenKind::Self_
+            );
+            let first_is_ref = matches!(self.peek().kind, TokenKind::Ampersand)
+                && self.pos + 1 < self.tokens.len()
+                && matches!(self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Qubit)
+                && self.pos + 2 < self.tokens.len()
+                && matches!(self.tokens[self.pos + 2].kind, TokenKind::In);
+            let name_then_in = first_is_name
+                && self.pos + 1 < self.tokens.len()
+                && matches!(self.tokens[self.pos + 1].kind, TokenKind::In);
+            name_then_in || first_is_ref
         };
 
         if is_for_in {
-            let var_name = self.consume_identifier("Expected loop variable")?;
+            // Skip optional `&` / `mut` prefix on loop variable
+            if self.check(&TokenKind::Ampersand) { self.advance(); }
+            let var_name = self.consume_identifier_or_keyword("Expected loop variable")?;
             self.consume(TokenKind::In, "Expected 'in'")?;
             let iterable = self.parse_expression()?;
             let body = self.parse_statement()?;
@@ -536,7 +593,11 @@ impl Parser {
 
     fn parse_equality(&mut self) -> Result<ASTNode, ParserError> {
         let mut expr = self.parse_comparison()?;
-        while self.match_token(&[TokenKind::DoubleEquals, TokenKind::NotEquals]) {
+        while self.match_token(&[
+            TokenKind::DoubleEquals, TokenKind::NotEquals,
+            // Bitwise OR / AND as low-precedence ops (also handles `matches!(x, A | B)`)
+            TokenKind::Pipe, TokenKind::Ampersand,
+        ]) {
             let op = self.previous().kind.clone();
             let right = self.parse_comparison()?;
             expr = ASTNode::new_binary_expr(op, expr, right);
@@ -608,7 +669,8 @@ impl Parser {
                 && self.pos + 1 < self.tokens.len()
                 && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equals);
             if is_compound { break; }
-            if !self.match_token(&[TokenKind::Star, TokenKind::Slash]) { break; }
+            if !self.match_token(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent,
+                                   TokenKind::ShiftLeft, TokenKind::ShiftRight]) { break; }
             let op = self.previous().kind.clone();
             let right = self.parse_unary()?;
             expr = ASTNode::new_binary_expr(op, expr, right);
@@ -622,8 +684,16 @@ impl Parser {
             let right = self.parse_unary()?;
             return Ok(ASTNode::new_unary_expr(op, right));
         }
-        // Reference operator `&expr` — treat as identity (no real borrow tracking)
+        // Dereference operator `*expr` — treat as identity (no real pointer tracking)
+        if self.match_token(&[TokenKind::Star]) {
+            return self.parse_unary();
+        }
+        // Reference operator `&expr` or `&mut expr` — treat as identity
         if self.match_token(&[TokenKind::Ampersand]) {
+            // Skip optional `mut` keyword after `&`
+            if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+                if s == "mut" { self.advance(); }
+            }
             return self.parse_unary();
         }
         self.parse_call()
@@ -639,12 +709,17 @@ impl Parser {
                 // Macro call: vec![], format!(...), panic!(...)
                 self.advance(); // consume '!'
                 if self.match_token(&[TokenKind::OpenBracket]) {
-                    // vec![...] style
+                    // vec![...] style — also handles vec![value; count]
                     let mut elems = Vec::new();
                     while !self.check(&TokenKind::CloseBracket) && !self.is_at_end() {
                         if self.check(&TokenKind::CloseBracket) { break; }
                         elems.push(self.parse_expression()?);
-                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                        // Handle `vec![value; count]` — skip `;` and count
+                        if self.match_token(&[TokenKind::Semicolon]) {
+                            if !self.check(&TokenKind::CloseBracket) { let _ = self.parse_expression()?; }
+                            break;
+                        }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseBracket) { break; }
                     }
                     self.consume(TokenKind::CloseBracket, "Expected ']' in macro invocation")?;
                     expr = ASTNode::ArrayLiteral(elems);
@@ -654,7 +729,7 @@ impl Parser {
                     let mut args = Vec::new();
                     while !self.check(&TokenKind::CloseParen) && !self.is_at_end() {
                         args.push(self.parse_expression()?);
-                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                     }
                     self.consume(TokenKind::CloseParen, "Expected ')' in macro invocation")?;
                     expr = ASTNode::new_call(expr, args);
@@ -689,14 +764,28 @@ impl Parser {
                     break; // range is a complete expression — end postfix chain
                 }
                 // dot access: expr.field or expr.method(...)
-                let member = self.consume_identifier("Expected field or method name after '.'")?.clone();
+                // Also handle `.await` postfix
+                let member = if self.match_token(&[TokenKind::Await]) {
+                    "await".to_string()
+                } else {
+                    // Accept identifiers AND reserved keywords as field/method names
+                    let tok = self.peek().kind.clone();
+                    match tok {
+                        TokenKind::Identifier(n) => { self.advance(); n }
+                        TokenKind::EOF | TokenKind::Semicolon | TokenKind::Comma |
+                        TokenKind::CloseParen | TokenKind::CloseBrace | TokenKind::CloseBracket => {
+                            return Err(self.err_here("Expected field or method name after '.'"));
+                        }
+                        _ => { let s = tok.to_string(); self.advance(); s }
+                    }
+                };
                 if self.check(&TokenKind::OpenParen) {
                     self.advance(); // consume '('
                     let mut args = Vec::new();
                     if !self.check(&TokenKind::CloseParen) {
                         loop {
                             args.push(self.parse_expression()?);
-                            if !self.match_token(&[TokenKind::Comma]) { break; }
+                            if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                         }
                     }
                     self.consume(TokenKind::CloseParen, "Expected ')' after method args")?;
@@ -714,7 +803,7 @@ impl Parser {
                     while !self.is_at_end() && depth > 0 {
                         match self.peek().kind {
                             TokenKind::LessThan => { depth += 1; self.advance(); }
-                            TokenKind::GreaterThan => { depth -= 1; self.advance(); }
+                            TokenKind::GreaterThan | TokenKind::ShiftRight => { if depth > 1 && matches!(self.tokens[self.pos].kind, TokenKind::ShiftRight) { depth = depth.saturating_sub(2); } else { depth -= 1; } self.advance(); }
                             _ => { self.advance(); }
                         }
                     }
@@ -735,7 +824,7 @@ impl Parser {
                     if !self.check(&TokenKind::CloseParen) {
                         loop {
                             args.push(self.parse_expression()?);
-                            if !self.match_token(&[TokenKind::Comma]) { break; }
+                            if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                         }
                     }
                     self.consume(TokenKind::CloseParen, "Expected ')' after constructor args")?;
@@ -752,6 +841,13 @@ impl Parser {
                     method: "__index__".to_string(),
                     args: vec![index],
                 };
+            } else if self.match_token(&[TokenKind::Question]) {
+                // Postfix `?` — error propagation / Option unwrap
+                // Represent as __try__(expr) for runtime; semantically keep inner value
+                expr = ASTNode::new_call(
+                    ASTNode::new_identifier_spanned("__try__", 0, 0, 7),
+                    vec![expr],
+                );
             } else if self.check(&TokenKind::OpenBrace) {
                 // Struct literal: TypeName { field: value, ... }
                 // Only when expr is an uppercase type name AND the body looks like struct fields
@@ -802,6 +898,15 @@ impl Parser {
                 } else {
                     break;
                 }
+            } else if let TokenKind::Identifier(ref kw) = self.peek().kind.clone() {
+                if kw == "as" {
+                    // `expr as Type` cast — skip type, keep expr
+                    self.advance(); // consume 'as'
+                    let _ = self.consume_type_name(); // skip type
+                    // expr keeps its value unchanged
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
@@ -823,6 +928,11 @@ impl Parser {
                 // Put the If token back and delegate to parse_if
                 self.pos -= 1;
                 self.parse_if()
+            }
+            // `match` as an expression: let x = match val { A => ... }
+            TokenKind::Match => {
+                self.pos -= 1;
+                self.parse_match_expr()
             }
             
             // Quantum state literals: |0⟩, |1⟩, |+⟩, etc.
@@ -856,7 +966,7 @@ impl Parser {
                     if !self.check(&TokenKind::CloseParen) {
                         loop {
                             elems.push(self.parse_expression()?);
-                            if !self.match_token(&[TokenKind::Comma]) { break; }
+                            if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                         }
                     }
                     self.consume(TokenKind::CloseParen, "Expected ')' after tuple")?;
@@ -873,7 +983,7 @@ impl Parser {
                     loop {
                         if self.check(&TokenKind::CloseBracket) { break; } // trailing comma
                         elems.push(self.parse_expression()?);
-                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                     }
                 }
                 self.consume(TokenKind::CloseBracket, "Expected ']' after array elements")?;
@@ -900,6 +1010,20 @@ impl Parser {
             TokenKind::Dod      => Ok(ASTNode::new_identifier_spanned("dod",      tok.line, tok.column, "dod".len())),
 
             // Closure: |params| -> { body } or |params| expr
+            // Also handles: || expr (zero-param closure via OrOr token)
+            TokenKind::OrOr => {
+                // `|| expr` — zero-parameter closure
+                let _ = self.match_token(&[TokenKind::Arrow]); // optional ->
+                let body = if self.check(&TokenKind::OpenBrace) {
+                    match self.parse_block()? {
+                        ASTNode::Block(stmts) => stmts,
+                        other => vec![other],
+                    }
+                } else {
+                    vec![self.parse_expression()?]
+                };
+                Ok(ASTNode::Closure { params: vec![], body })
+            }
             TokenKind::Pipe => {
                 let mut params = Vec::new();
                 if !self.check(&TokenKind::Pipe) {
@@ -907,7 +1031,7 @@ impl Parser {
                         let pname = self.consume_param_name("Expected closure parameter name")?;
                         self.skip_param_type_annotation();
                         params.push(FunctionParam { name: pname, line: tok.line, column: tok.column });
-                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                     }
                 }
                 self.consume(TokenKind::Pipe, "Expected '|' after closure parameters")?;
@@ -931,20 +1055,28 @@ impl Parser {
             
             // AEONMI Quantum-Native Constructs
             
-            // Quantum arrays: [element1, element2, ...] (using traditional brackets for now)
+            // Quantum arrays / JSON-like map objects: { ... }
             TokenKind::OpenBrace => {
                 let mut elements = Vec::new();
                 
                 if !self.check(&TokenKind::CloseBrace) {
                     loop {
-                        elements.push(self.parse_expression()?);
-                        if !self.match_token(&[TokenKind::Comma]) {
+                        let elem = self.parse_expression()?;
+                        if self.match_token(&[TokenKind::Colon]) {
+                            // `key: value` map entry — parse value and push both or skip
+                            let _ = self.parse_expression()?;
+                            // Push key as the element (value is discarded for now)
+                            elements.push(elem);
+                        } else {
+                            elements.push(elem);
+                        }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseBrace) {
                             break;
                         }
                     }
                 }
                 
-                self.consume(TokenKind::CloseBrace, "Expected '}' after array elements")?;
+                self.consume(TokenKind::CloseBrace, "Expected '}' after array/map elements")?;
                 
                 // Check if this is a superposition array (contains quantum states)
                 let is_superposition = elements.iter().any(|elem| {
@@ -974,11 +1106,22 @@ impl Parser {
                 }
             }
             
-            _ => Err(ParserError {
-                message: format!("Unexpected token {:?}", tok.kind),
-                line: tok.line,
-                column: tok.column,
-            }),
+            // Fallback: treat any keyword token as an identifier (e.g. `qubit`, `type`, etc.)
+            _ => {
+                let name = tok.kind.to_string();
+                // Only accept if it looks like a valid identifier name (not punctuation)
+                match tok.kind {
+                    TokenKind::Semicolon | TokenKind::Comma | TokenKind::CloseParen |
+                    TokenKind::CloseBrace | TokenKind::CloseBracket | TokenKind::EOF => {
+                        Err(ParserError {
+                            message: format!("Unexpected token {:?}", tok.kind),
+                            line: tok.line,
+                            column: tok.column,
+                        })
+                    }
+                    _ => Ok(ASTNode::new_identifier_spanned(&name, tok.line, tok.column, name.len())),
+                }
+            }
         }
     }
     
@@ -1089,6 +1232,19 @@ impl Parser {
         if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
             if s == "mut" { self.advance(); }
         }
+        // Handle destructuring param: `(a, b)` or `(_, count)` → skip and return synthetic name
+        if self.check(&TokenKind::OpenParen) {
+            let mut depth = 0usize;
+            while !self.is_at_end() {
+                match self.peek().kind {
+                    TokenKind::CloseParen if depth == 0 => { self.advance(); break; }
+                    TokenKind::OpenParen => { depth += 1; self.advance(); }
+                    TokenKind::CloseParen => { depth -= 1; self.advance(); if depth == 0 { break; } }
+                    _ => { self.advance(); }
+                }
+            }
+            return Ok("__destructured__".to_string());
+        }
         self.consume_identifier_or_keyword(msg)
     }
 
@@ -1118,6 +1274,11 @@ impl Parser {
         while i < limit {
             let cur = &self.tokens[i].kind;
             let nxt = if i + 1 < self.tokens.len() { &self.tokens[i + 1].kind } else { &TokenKind::EOF };
+            // `{ .. }` or `{ field, .. }` — struct wildcard patterns → treat as struct literal
+            if matches!(cur, TokenKind::Dot) {
+                if matches!(nxt, TokenKind::Dot) { return true; } // `..` spread/wildcard (two Dot tokens)
+                return false; // single `.` → method call
+            }
             // Determine if current token looks like a potential field name
             let cur_is_name = matches!(cur,
                 TokenKind::Identifier(_) |
@@ -1132,8 +1293,6 @@ impl Parser {
                 _ => {}
             }
             match cur {
-                // dot after something → looks like method call, probably a block
-                TokenKind::Dot => return false,
                 // statement-starting keywords → it's a block
                 TokenKind::If | TokenKind::While | TokenKind::For
                 | TokenKind::Let | TokenKind::Return => return false,
@@ -1353,7 +1512,7 @@ impl Parser {
         if self.match_token(&[TokenKind::OpenBrace]) {
             while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
                 names.push(self.consume_identifier("Expected name in import list")?);
-                if !self.match_token(&[TokenKind::Comma]) { break; }
+                if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
             }
             self.consume(TokenKind::CloseBrace, "Expected '}' after import list")?;
         } else {
@@ -1386,7 +1545,7 @@ impl Parser {
                         let pname = self.consume_param_name("Expected parameter name")?;
                         self.skip_param_type_annotation();
                         params.push(FunctionParam { name: pname, line, column: col });
-                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                     }
                 }
                 self.consume(TokenKind::CloseParen, "Expected ')'")?;
@@ -1404,6 +1563,11 @@ impl Parser {
                 ))
             }
             TokenKind::Struct => {
+                self.advance();
+                self.parse_struct_decl(true)
+            }
+            TokenKind::Class => {
+                // `quantum class Foo { ... }` → parse as quantum struct
                 self.advance();
                 self.parse_struct_decl(true)
             }
@@ -1436,6 +1600,33 @@ impl Parser {
                     None
                 };
                 let name = block_name.unwrap_or_else(|| tag_name.clone());
+
+                // Skip optional generic type params: `Name<T>`, `Name<T, U>`
+                if self.check(&TokenKind::LessThan) {
+                    let mut depth = 1usize;
+                    self.advance(); // consume '<'
+                    while !self.is_at_end() && depth > 0 {
+                        match self.peek().kind {
+                            TokenKind::LessThan => { depth += 1; self.advance(); }
+                            TokenKind::GreaterThan | TokenKind::ShiftRight => { if depth > 1 && matches!(self.tokens[self.pos].kind, TokenKind::ShiftRight) { depth = depth.saturating_sub(2); } else { depth -= 1; } self.advance(); }
+                            _ => { self.advance(); }
+                        }
+                    }
+                }
+
+                // Skip optional trait/interface clause: `implements Foo`, `extends Bar`
+                while let TokenKind::Identifier(ref kw) = self.peek().kind.clone() {
+                    if kw == "implements" || kw == "extends" {
+                        self.advance(); // consume keyword
+                        // consume the trait/interface name(s)
+                        while let TokenKind::Identifier(_) = self.peek().kind.clone() {
+                            self.advance();
+                            if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
+                        }
+                    } else {
+                        break;
+                    }
+                }
 
                 // If next token is '{', parse as quantum block body
                 if self.check(&TokenKind::OpenBrace) {
@@ -1484,7 +1675,7 @@ impl Parser {
                                     let pname = self.consume_param_name("Expected parameter name")?;
                                     self.skip_param_type_annotation();
                                     params.push(FunctionParam { name: pname, line, column: col });
-                                    if !self.match_token(&[TokenKind::Comma]) { break; }
+                                    if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                                 }
                             }
                             self.consume(TokenKind::CloseParen, "Expected ')' after method params")?;
@@ -1531,7 +1722,19 @@ impl Parser {
         if !is_quantum {
             self.consume(TokenKind::Struct, "Expected 'struct'")?;
         }
-        let name = self.consume_identifier("Expected struct name")?;
+        let name = self.consume_identifier_or_keyword("Expected struct name")?;
+        // Skip optional generic params: `struct Foo<T, U>`
+        if self.check(&TokenKind::LessThan) {
+            let mut depth = 1usize;
+            self.advance(); // consume '<'
+            while !self.is_at_end() && depth > 0 {
+                match self.peek().kind {
+                    TokenKind::LessThan => { depth += 1; self.advance(); }
+                    TokenKind::GreaterThan | TokenKind::ShiftRight => { if depth > 1 && matches!(self.tokens[self.pos].kind, TokenKind::ShiftRight) { depth = depth.saturating_sub(2); } else { depth -= 1; } self.advance(); }
+                    _ => { self.advance(); }
+                }
+            }
+        }
         self.consume(TokenKind::OpenBrace, "Expected '{' in struct")?;
         let mut fields = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
@@ -1558,7 +1761,7 @@ impl Parser {
                         let pname = self.consume_param_name("Expected parameter name")?;
                         self.skip_param_type_annotation();
                         params.push(FunctionParam { name: pname, line, column: col });
-                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                        if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
                     }
                 }
                 self.consume(TokenKind::CloseParen, "Expected ')' after method params")?;
@@ -1592,9 +1795,14 @@ impl Parser {
         self.consume(TokenKind::OpenBrace, "Expected '{' in enum")?;
         let mut variants = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
-            let vname = self.consume_identifier("Expected variant name")?;
+            let vname = self.consume_identifier_or_keyword("Expected variant name")?;
             let payload = if self.match_token(&[TokenKind::OpenParen]) {
                 let t = self.consume_type_name();
+                // Skip additional comma-separated types (multi-field tuple variants)
+                while self.match_token(&[TokenKind::Comma]) {
+                    if self.check(&TokenKind::CloseParen) { break; }
+                    let _ = self.consume_type_name();
+                }
                 self.consume(TokenKind::CloseParen, "Expected ')' after variant type")?;
                 Some(t)
             } else if self.check(&TokenKind::OpenBrace) {
@@ -1623,9 +1831,31 @@ impl Parser {
     }
 
     /// impl Foo { function bar(...) { ... } ... }
+    /// Also handles: impl Trait for Type { ... }
     fn parse_impl_block(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::Impl, "Expected 'impl'")?;
-        let target = self.consume_identifier("Expected type name after 'impl'")?;
+        // Skip optional generic params: impl<T>
+        if self.check(&TokenKind::LessThan) {
+            let mut d = 1usize; self.advance();
+            while !self.is_at_end() && d > 0 {
+                match self.peek().kind {
+                    TokenKind::LessThan => { d += 1; self.advance(); }
+                    TokenKind::GreaterThan => { d -= 1; self.advance(); }
+                    TokenKind::ShiftRight => { d = d.saturating_sub(2); self.advance(); }
+                    _ => { self.advance(); }
+                }
+            }
+        }
+        // Consume type name (may be a path: std::fmt::Display)
+        let target = self.consume_type_name();
+        // Skip `for TypeName` clause (impl Trait for Type)
+        // `for` may be TokenKind::For (keyword) or Identifier("for")
+        let is_for = matches!(self.peek().kind, TokenKind::For)
+            || matches!(&self.peek().kind, TokenKind::Identifier(kw) if kw == "for");
+        if is_for {
+            self.advance(); // consume 'for'
+            let _ = self.consume_type_name(); // consume target type
+        }
         self.consume(TokenKind::OpenBrace, "Expected '{' in impl block")?;
         let mut methods = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
@@ -1660,7 +1890,7 @@ impl Parser {
                 let pname = self.consume_param_name("Expected parameter name")?;
                 self.skip_param_type_annotation();
                 params.push(FunctionParam { name: pname, line, column: col });
-                if !self.match_token(&[TokenKind::Comma]) { break; }
+                if !self.match_token(&[TokenKind::Comma]) || self.check(&TokenKind::CloseParen) { break; }
             }
         }
         self.consume(TokenKind::CloseParen, "Expected ')'")?;
@@ -1706,7 +1936,7 @@ impl Parser {
         match self.peek().kind.clone() {
             TokenKind::Identifier(name) => {
                 self.advance();
-                // Could be EnumVariant::Binding or just an identifier
+                // Could be EnumVariant::Binding, Variant(binding), or just an identifier
                 if self.match_token(&[TokenKind::ColonColon]) {
                     // Consume variant name — may be any identifier or keyword token
                     let variant_name: Option<String> = match self.peek().kind.clone() {
@@ -1717,17 +1947,63 @@ impl Parser {
                     let variant = variant_name.unwrap_or(name.clone());
                     let binding = if self.check(&TokenKind::OpenParen) {
                         self.advance();
-                        // Allow empty parens ()
+                        // Depth-scan to handle nested patterns like Enum::Variant { .. }
                         if self.check(&TokenKind::CloseParen) {
                             self.advance();
                             None
                         } else {
-                            let b = self.consume_identifier("Expected binding name")?;
+                            let mut first_name = String::new();
+                            let mut depth = 0usize;
+                            while !self.is_at_end() {
+                                match self.peek().kind.clone() {
+                                    TokenKind::CloseParen if depth == 0 => break,
+                                    TokenKind::OpenParen | TokenKind::OpenBrace => { depth += 1; self.advance(); }
+                                    TokenKind::CloseParen | TokenKind::CloseBrace => { depth -= 1; self.advance(); }
+                                    TokenKind::Identifier(ref n) if first_name.is_empty() => {
+                                        first_name = n.clone(); self.advance();
+                                    }
+                                    _ => { self.advance(); }
+                                }
+                            }
                             self.consume(TokenKind::CloseParen, "Expected ')'")?;
-                            Some(b)
+                            if first_name.is_empty() { None } else { Some(first_name) }
                         }
+                    } else if self.check(&TokenKind::OpenBrace) {
+                        // Struct pattern: Variant::Name { field, .. } — skip the body
+                        self.skip_brace_block();
+                        None
                     } else { None };
                     Ok(MatchPattern::EnumVariant { name: variant, binding })
+                } else if self.check(&TokenKind::OpenParen) {
+                    // Tuple-style variant without `::`: Ok(binding), Err(msg), Some(x)
+                    // Also handles nested patterns: Statement::Expression(Expression::Gate { .. })
+                    self.advance(); // consume '('
+                    let binding = if self.check(&TokenKind::CloseParen) {
+                        self.advance();
+                        None
+                    } else {
+                        // Scan until matching ')' to skip nested patterns of any depth
+                        let mut first_name = String::new();
+                        let mut depth = 0usize;
+                        while !self.is_at_end() {
+                            match self.peek().kind.clone() {
+                                TokenKind::CloseParen if depth == 0 => break,
+                                TokenKind::OpenParen | TokenKind::OpenBrace => { depth += 1; self.advance(); }
+                                TokenKind::CloseParen | TokenKind::CloseBrace => { depth -= 1; self.advance(); }
+                                TokenKind::Identifier(ref n) if first_name.is_empty() => {
+                                    first_name = n.clone(); self.advance();
+                                }
+                                _ => { self.advance(); }
+                            }
+                        }
+                        self.consume(TokenKind::CloseParen, "Expected ')'")?;
+                        if first_name.is_empty() { None } else { Some(first_name) }
+                    };
+                    Ok(MatchPattern::EnumVariant { name, binding })
+                } else if self.check(&TokenKind::OpenBrace) {
+                    // Struct pattern: Name { field, .. } — skip the body
+                    self.skip_brace_block();
+                    Ok(MatchPattern::Identifier(name))
                 } else {
                     Ok(MatchPattern::Identifier(name))
                 }
@@ -1735,6 +2011,21 @@ impl Parser {
             TokenKind::NumberLiteral(_) | TokenKind::StringLiteral(_) | TokenKind::BooleanLiteral(_) => {
                 let node = self.parse_primary()?;
                 Ok(MatchPattern::Literal(node))
+            }
+            TokenKind::OpenParen => {
+                // Tuple pattern: (pat1, pat2, ...) or (false, false)
+                self.advance(); // consume '('
+                let mut depth = 0usize;
+                while !self.is_at_end() {
+                    match self.peek().kind {
+                        TokenKind::CloseParen if depth == 0 => break,
+                        TokenKind::OpenParen => { depth += 1; self.advance(); }
+                        TokenKind::CloseParen => { depth -= 1; self.advance(); }
+                        _ => { self.advance(); }
+                    }
+                }
+                self.consume(TokenKind::CloseParen, "Expected ')' after tuple pattern")?;
+                Ok(MatchPattern::Wildcard)
             }
             TokenKind::Star => {
                 self.advance();
@@ -1744,6 +2035,24 @@ impl Parser {
                 // fallback: treat as wildcard
                 self.advance();
                 Ok(MatchPattern::Wildcard)
+            }
+        }
+    }
+
+    /// Skip a balanced `{ ... }` block without parsing contents.
+    fn skip_brace_block(&mut self) {
+        if !self.check(&TokenKind::OpenBrace) { return; }
+        let mut depth = 0usize;
+        loop {
+            match self.peek().kind {
+                TokenKind::OpenBrace => { depth += 1; self.advance(); }
+                TokenKind::CloseBrace => {
+                    depth -= 1;
+                    self.advance();
+                    if depth == 0 { break; }
+                }
+                TokenKind::EOF => break,
+                _ => { self.advance(); }
             }
         }
     }
@@ -1773,6 +2082,18 @@ impl Parser {
                 _ => { self.advance(); s }
             }
         };
+        // Handle path types: std::time::SystemTime, serde_json::Value, etc.
+        while self.check(&TokenKind::ColonColon) {
+            self.advance(); // consume '::'
+            let seg = match self.peek().kind.clone() {
+                TokenKind::Identifier(n) => { self.advance(); n }
+                TokenKind::EOF | TokenKind::Semicolon | TokenKind::Comma
+                | TokenKind::CloseParen | TokenKind::CloseBrace => break,
+                _ => { let s = self.peek().kind.to_string(); self.advance(); s }
+            };
+            ty.push_str("::");
+            ty.push_str(&seg);
+        }
         // Generic params: Vec<T>, Option<String>, Result<(), E>
         if self.check(&TokenKind::LessThan) {
             self.advance();
@@ -1783,6 +2104,11 @@ impl Parser {
                 match &tok.kind {
                     TokenKind::LessThan => { depth += 1; ty.push('<'); }
                     TokenKind::GreaterThan => { depth -= 1; if depth > 0 { ty.push('>'); } else { ty.push('>'); } }
+                    TokenKind::ShiftRight => { 
+                        // `>>` closes two depth levels (e.g. HashMap<K, Vec<V>>)
+                        if depth >= 2 { depth -= 2; ty.push_str(">>"); } 
+                        else if depth == 1 { depth = 0; ty.push('>'); }
+                    }
                     TokenKind::Identifier(n) => ty.push_str(n),
                     TokenKind::Comma => ty.push_str(", "),
                     _ => {}
@@ -1808,6 +2134,7 @@ impl Parser {
                 TokenKind::Semicolon if depth == 0 => break,
                 TokenKind::LessThan => { depth += 1; self.advance(); }
                 TokenKind::GreaterThan if depth > 0 => { depth -= 1; self.advance(); }
+                TokenKind::ShiftRight if depth > 0 => { depth = depth.saturating_sub(2); self.advance(); }
                 _ => { self.advance(); }
             }
         }
@@ -1823,8 +2150,24 @@ impl Parser {
                     TokenKind::CloseParen if depth == 0 => break,
                     TokenKind::LessThan => { depth += 1; self.advance(); }
                     TokenKind::GreaterThan if depth > 0 => { depth -= 1; self.advance(); }
+                    TokenKind::ShiftRight if depth > 0 => { depth = depth.saturating_sub(2); self.advance(); }
                     _ => { self.advance(); }
                 }
+            }
+        }
+    }
+
+    /// Skip type annotation tokens until `=` (used for `static NAME: Type = value`)
+    fn skip_type_annotation_until_eq(&mut self) {
+        let mut depth = 0usize;
+        while !self.is_at_end() {
+            match self.peek().kind {
+                TokenKind::Equals if depth == 0 => break,
+                TokenKind::Semicolon | TokenKind::OpenBrace if depth == 0 => break,
+                TokenKind::LessThan => { depth += 1; self.advance(); }
+                TokenKind::GreaterThan if depth > 0 => { depth -= 1; self.advance(); }
+                TokenKind::ShiftRight if depth > 0 => { depth = depth.saturating_sub(2); self.advance(); }
+                _ => { self.advance(); }
             }
         }
     }
@@ -1844,6 +2187,7 @@ impl Parser {
                 }
                 TokenKind::LessThan => { depth += 1; self.advance(); }
                 TokenKind::GreaterThan if depth > 0 => { depth -= 1; self.advance(); }
+                TokenKind::ShiftRight if depth > 0 => { depth = depth.saturating_sub(2); self.advance(); }
                 TokenKind::EOF => return false,
                 _ => { self.advance(); }
             }
@@ -1852,13 +2196,15 @@ impl Parser {
 
     /// Skip a return type annotation after `->` (e.g., `-> Result<()>`)
     fn skip_type_annotation(&mut self) {
-        // consume tokens until we hit '{' or EOF
+        // consume tokens until we hit '{', ';', or EOF
         let mut depth = 0usize;
         while !self.is_at_end() {
             match self.peek().kind {
                 TokenKind::OpenBrace if depth == 0 => break,
+                TokenKind::Semicolon if depth == 0 => break,
                 TokenKind::LessThan => { depth += 1; self.advance(); }
                 TokenKind::GreaterThan if depth > 0 => { depth -= 1; self.advance(); }
+                TokenKind::ShiftRight if depth > 0 => { depth = depth.saturating_sub(2); self.advance(); }
                 _ => { self.advance(); }
             }
         }

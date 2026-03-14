@@ -368,6 +368,10 @@ impl Lexer {
                 self.advance_char();
                 self.lex_line_comment();
                 continue;
+            } else if ch == '#' {
+                // Python/Rust-style `#` line comments (e.g. `#[derive(...)]`, `# comment`)
+                self.lex_line_comment();
+                continue;
             } else if ch == self.options.markers.line_comment {
                 self.lex_line_comment();
                 continue;
@@ -598,7 +602,25 @@ impl Lexer {
         }
         num_str
             .parse::<f64>()
-            .map(|n| Token::new(TokenKind::NumberLiteral(n), num_str.clone(), line, col))
+            .map(|n| {
+                // Skip optional Rust-style numeric type suffix: _f64, _i32, _u8, _usize, etc.
+                if let Some((_, '_')) = self.current {
+                    // Peek ahead: if `_` followed by alpha chars, it's a type suffix
+                    let mut tmp = self.current;
+                    let mut suffix = String::from('_');
+                    self.advance_char();
+                    while let Some((_, sc)) = self.current {
+                        if sc.is_ascii_alphanumeric() || sc == '_' {
+                            suffix.push(sc);
+                            self.advance_char();
+                        } else {
+                            break;
+                        }
+                    }
+                    let _ = suffix; // discard suffix
+                }
+                Token::new(TokenKind::NumberLiteral(n), num_str.clone(), line, col)
+            })
             .map_err(|_| LexerError::InvalidNumber(num_str, line, col))
     }
     fn lex_glyph_number(&mut self) -> Result<Token, LexerError> {
@@ -861,7 +883,9 @@ impl Lexer {
             ('=', Some('=')) => Some(TokenKind::DoubleEquals),
             ('!', Some('=')) => Some(TokenKind::NotEquals),
             ('<', Some('=')) => Some(TokenKind::LessEqual),
+            ('<', Some('<')) => Some(TokenKind::ShiftLeft),
             ('>', Some('=')) => Some(TokenKind::GreaterEqual),
+            ('>', Some('>')) => Some(TokenKind::ShiftRight),
             (':', Some('=')) => Some(TokenKind::ColonEquals),
             (':', Some(':')) => Some(TokenKind::ColonColon),
             ('&', Some('&')) => Some(TokenKind::AndAnd),
@@ -894,6 +918,7 @@ impl Lexer {
             ':' => Some(TokenKind::Colon),
             '&' => Some(TokenKind::Ampersand),
             '!' => Some(TokenKind::Bang),
+            '?' => Some(TokenKind::Question),
             '%' => Some(TokenKind::Percent),
 
             // AI/Brain emoji for AI functions
