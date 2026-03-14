@@ -131,6 +131,16 @@ pub enum TokenKind {
     // Hieroglyphic operations
     HieroglyphicOp(String),
     
+    // ── Genesis Glyphs (Phase 1.5 / G-1 through G-4) ──────────────────────────
+    /// `⧉` (U+29C9) — array literal delimiter
+    GlyphArrayDelim,
+    /// `‥` (U+2025) — element separator / range operator
+    GlyphSep,
+    /// `…` (U+2026) — spread operator
+    GlyphSpread,
+    /// `↦` (U+21A6) — binding / projection glyph
+    GlyphBind,
+
     // Special
     EOF,
 }
@@ -280,6 +290,10 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Measure => "measure",
             TokenKind::Dod => "dod",
             TokenKind::HieroglyphicOp(_) => "hieroglyphic",
+            TokenKind::GlyphArrayDelim => "⧉",
+            TokenKind::GlyphSep => "‥",
+            TokenKind::GlyphSpread => "…",
+            TokenKind::GlyphBind => "↦",
             TokenKind::EOF => "end of file",
         };
         write!(f, "{}", name)
