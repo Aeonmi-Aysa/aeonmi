@@ -169,8 +169,37 @@ impl Parser {
                         let _ = self.match_token(&[TokenKind::Semicolon]);
                         return Ok(ASTNode::new_variable_decl_at(&name, ASTNode::NullLiteral, line, col));
                     }
+                    // G-4/G-8: `name ↦ expr` — binding/projection at statement level
+                    if self.pos + 1 < self.tokens.len()
+                        && matches!(self.tokens[self.pos + 1].kind, TokenKind::GlyphBind)
+                    {
+                        let name = s.clone();
+                        self.advance(); // consume identifier
+                        self.advance(); // consume ↦
+                        let value = self.parse_expression()?;
+                        let _ = self.match_token(&[TokenKind::Semicolon]);
+                        return Ok(ASTNode::BindingProjection {
+                            name,
+                            value: Box::new(value),
+                        });
+                    }
                 }
                 let expr = self.parse_expression()?;
+                // G-4/G-8: `expr ↦ rhs` — binding/projection for non-identifier LHS (e.g. Greek letters)
+                if self.match_token(&[TokenKind::GlyphBind]) {
+                    let rhs = self.parse_expression()?;
+                    let _ = self.match_token(&[TokenKind::Semicolon]);
+                    // Extract name from Identifier or use a generated name
+                    let name = match &expr {
+                        ASTNode::Identifier(n) => n.clone(),
+                        ASTNode::IdentifierSpanned { name, .. } => name.clone(),
+                        _ => "__binding".to_string(),
+                    };
+                    return Ok(ASTNode::BindingProjection {
+                        name,
+                        value: Box::new(rhs),
+                    });
+                }
                 let _ = self.match_token(&[TokenKind::Semicolon, TokenKind::Comma]); // optional terminator
                 Ok(expr)
             }
@@ -433,12 +462,12 @@ impl Parser {
             self.consume(TokenKind::In, "Expected 'in'")?;
             let iterable = self.parse_expression()?;
             let body = self.parse_statement()?;
-            // Lower to: for (let __i = 0; __i < collection.length; __i++) { let var = collection[__i]; body }
-            // For now, emit as a block the VM/codegen can handle
-            Ok(ASTNode::Block(vec![
-                ASTNode::new_variable_decl_at(&var_name, iterable.clone(), 0, 0),
-                body,
-            ]))
+            // P1-34: emit a proper ForIn node that the lowering converts to a real loop
+            Ok(ASTNode::ForIn {
+                var: var_name,
+                iterable: Box::new(iterable),
+                body: Box::new(body),
+            })
         } else {
             // C-style: for (init; cond; incr) { ... }
             let has_paren = self.match_token(&[TokenKind::OpenParen]);
@@ -990,11 +1019,47 @@ impl Parser {
                 Ok(ASTNode::ArrayLiteral(elems))
             }
 
-            // f-string: f"text {var}"
+            // G-1/G-5: ⧉ genesis array literal: ⧉expr‥expr‥expr⧉
+            TokenKind::GlyphArrayDelim => {
+                let mut elems: Vec<ASTNode> = Vec::new();
+                // collect until closing ⧉ (GlyphArrayDelim)
+                loop {
+                    if self.check(&TokenKind::GlyphArrayDelim) {
+                        self.advance(); // consume closing ⧉
+                        break;
+                    }
+                    if self.is_at_end() {
+                        return Err(ParserError {
+                            message: "Expected closing ⧉ in genesis array".into(),
+                            line: tok.line, column: tok.column,
+                        });
+                    }
+                    // Elements separated by ‥ (GlyphSep)
+                    // Allow spread inside: …expr
+                    let elem = if self.check(&TokenKind::GlyphSpread) {
+                        self.advance();
+                        let inner = self.parse_expression()?;
+                        ASTNode::SpreadExpr(Box::new(inner))
+                    } else {
+                        self.parse_expression()?
+                    };
+                    elems.push(elem);
+                    // Consume optional ‥ separator
+                    self.match_token(&[TokenKind::GlyphSep]);
+                }
+                Ok(ASTNode::GlyphArray(elems))
+            }
+
+            // G-3/G-6: …expr spread operator at expression level
+            TokenKind::GlyphSpread => {
+                let inner = self.parse_unary()?;
+                Ok(ASTNode::SpreadExpr(Box::new(inner)))
+            }
+
+            // f-string: f"text {var}" → split on {…} and sub-parse each expression.
             TokenKind::FString => {
-                // Lexer already tokenized it; treat as StringLiteral for now
-                // Full interpolation requires lexer support — emit as-is
-                Ok(ASTNode::FStringLiteral(vec![FStringPart::Literal(tok.lexeme.clone())]))
+                let parts = parse_fstring_parts(&tok.lexeme);
+                Ok(ASTNode::FStringLiteral(parts))
             }
 
             // await expr
@@ -2226,4 +2291,94 @@ fn is_quantum_variable_symbol(symbol: &str) -> bool {
         "𓀈" |  // Egyptian hieroglyph A009 - quantum variable type 9
         "𓀉"    // Egyptian hieroglyph A010 - quantum variable type 10
     )
+}
+
+/// P1-33: Parse f-string raw content into a list of `FStringPart`s.
+///
+/// The lexer stores the raw string content (everything between the outer quotes)
+/// in `tok.lexeme`.  This function splits that content on `{...}` blocks so each
+/// interpolated expression becomes an `FStringPart::Expr` and surrounding text
+/// becomes `FStringPart::Literal`.
+///
+/// Nested braces inside the expression are balanced.  If parsing the inner
+/// expression fails the brace content falls back to a literal string.
+pub fn parse_fstring_parts(raw: &str) -> Vec<FStringPart> {
+    use crate::core::lexer::Lexer;
+
+    let mut parts: Vec<FStringPart> = Vec::new();
+    let mut literal = String::new();
+    let chars: Vec<char> = raw.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == '{' {
+            // Check for escaped `{{` → literal `{`
+            if i + 1 < chars.len() && chars[i + 1] == '{' {
+                literal.push('{');
+                i += 2;
+                continue;
+            }
+
+            // Push accumulated literal part (if any)
+            if !literal.is_empty() {
+                parts.push(FStringPart::Literal(std::mem::take(&mut literal)));
+            }
+
+            // Collect the expression text, balancing nested braces
+            i += 1; // skip opening `{`
+            let mut expr_src = String::new();
+            let mut depth = 1usize;
+            while i < chars.len() {
+                match chars[i] {
+                    '{' => { depth += 1; expr_src.push('{'); i += 1; }
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 { i += 1; break; }
+                        expr_src.push('}');
+                        i += 1;
+                    }
+                    c => { expr_src.push(c); i += 1; }
+                }
+            }
+
+            // Try to parse the inner expression using the Aeonmi lexer + parser
+            let expr_src = expr_src.trim().to_string();
+            if expr_src.is_empty() {
+                // Empty braces → empty literal
+                parts.push(FStringPart::Literal(String::new()));
+                continue;
+            }
+            let parsed = (|| {
+                let mut lex = Lexer::from_str(&expr_src);
+                let tokens = lex.tokenize().ok()?;
+                let mut p = Parser::new(tokens);
+                p.parse_expression().ok()
+            })();
+            match parsed {
+                Some(node) => parts.push(FStringPart::Expr(node)),
+                None => {
+                    // Parsing failed — emit as literal to avoid silent data loss
+                    parts.push(FStringPart::Literal(format!("{{{}}}", expr_src)));
+                }
+            }
+        } else if chars[i] == '}' && i + 1 < chars.len() && chars[i + 1] == '}' {
+            // Escaped `}}` → literal `}`
+            literal.push('}');
+            i += 2;
+        } else {
+            literal.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    if !literal.is_empty() {
+        parts.push(FStringPart::Literal(literal));
+    }
+
+    // Guarantee at least one part
+    if parts.is_empty() {
+        parts.push(FStringPart::Literal(String::new()));
+    }
+
+    parts
 }
