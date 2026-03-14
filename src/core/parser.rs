@@ -128,6 +128,16 @@ impl Parser {
             }
             
             _ => {
+                // Special case: `loop { ... }` → while(true) { ... }
+                if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+                    if s == "loop" && self.pos + 1 < self.tokens.len()
+                        && matches!(self.tokens[self.pos + 1].kind, TokenKind::OpenBrace)
+                    {
+                        self.advance(); // consume 'loop'
+                        let body = self.parse_statement()?;
+                        return Ok(ASTNode::new_while(ASTNode::BooleanLiteral(true), body));
+                    }
+                }
                 let expr = self.parse_expression()?;
                 let _ = self.match_token(&[TokenKind::Semicolon, TokenKind::Comma]); // optional terminator
                 Ok(expr)
@@ -200,7 +210,7 @@ impl Parser {
         let mut params: Vec<FunctionParam> = Vec::new();
         if !self.check(&TokenKind::CloseParen) {
             loop {
-                let pname = self.consume_identifier("Expected parameter name")?;
+                let pname = self.consume_param_name("Expected parameter name")?;
                 self.skip_param_type_annotation();
                 params.push(FunctionParam { name: pname, line: func_line, column: func_col });
                 if !self.match_token(&[TokenKind::Comma]) {
@@ -894,7 +904,7 @@ impl Parser {
                 let mut params = Vec::new();
                 if !self.check(&TokenKind::Pipe) {
                     loop {
-                        let pname = self.consume_identifier("Expected closure parameter name")?;
+                        let pname = self.consume_param_name("Expected closure parameter name")?;
                         self.skip_param_type_annotation();
                         params.push(FunctionParam { name: pname, line: tok.line, column: tok.column });
                         if !self.match_token(&[TokenKind::Comma]) { break; }
@@ -1058,7 +1068,7 @@ impl Parser {
 
     /// Like `consume_identifier` but also accepts any keyword token as a variable name.
     fn consume_identifier_or_keyword(&mut self, msg: &str) -> Result<String, ParserError> {
-        let name = self.peek().kind.to_string().to_string();
+        let name = self.peek().kind.to_string();
         match &self.peek().kind {
             TokenKind::Identifier(n) => { let n = n.clone(); self.advance(); Ok(n) }
             TokenKind::EOF | TokenKind::OpenParen | TokenKind::CloseParen |
@@ -1068,6 +1078,18 @@ impl Parser {
             }
             _ => { self.advance(); Ok(name) }
         }
+    }
+
+    /// Consume a function parameter name, skipping optional `&`, `&mut`, `mut` prefix.
+    /// Handles Rust-style `&mut self`, `&self`, `mut name` in parameter lists.
+    fn consume_param_name(&mut self, msg: &str) -> Result<String, ParserError> {
+        // Skip leading `&` (reference)
+        if self.check(&TokenKind::Ampersand) { self.advance(); }
+        // Skip `mut`
+        if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+            if s == "mut" { self.advance(); }
+        }
+        self.consume_identifier_or_keyword(msg)
     }
 
     fn is_at_end(&self) -> bool {
@@ -1160,7 +1182,7 @@ impl Parser {
         
         if !self.check(&TokenKind::QuantumBracketClose) {
             loop {
-                let pname = self.consume_identifier("Expected parameter name")?;
+                let pname = self.consume_param_name("Expected parameter name")?;
                 params.push(FunctionParam { name: pname, line: func_line, column: func_col });
                 if !self.match_token(&[TokenKind::Comma]) {
                     break;
@@ -1361,7 +1383,7 @@ impl Parser {
                 let mut params = Vec::new();
                 if !self.check(&TokenKind::CloseParen) {
                     loop {
-                        let pname = self.consume_identifier("Expected parameter name")?;
+                        let pname = self.consume_param_name("Expected parameter name")?;
                         self.skip_param_type_annotation();
                         params.push(FunctionParam { name: pname, line, column: col });
                         if !self.match_token(&[TokenKind::Comma]) { break; }
@@ -1459,7 +1481,7 @@ impl Parser {
                             let mut params = Vec::new();
                             if !self.check(&TokenKind::CloseParen) {
                                 loop {
-                                    let pname = self.consume_identifier("Expected parameter name")?;
+                                    let pname = self.consume_param_name("Expected parameter name")?;
                                     self.skip_param_type_annotation();
                                     params.push(FunctionParam { name: pname, line, column: col });
                                     if !self.match_token(&[TokenKind::Comma]) { break; }
@@ -1533,7 +1555,7 @@ impl Parser {
                 let mut params = Vec::new();
                 if !self.check(&TokenKind::CloseParen) {
                     loop {
-                        let pname = self.consume_identifier("Expected parameter name")?;
+                        let pname = self.consume_param_name("Expected parameter name")?;
                         self.skip_param_type_annotation();
                         params.push(FunctionParam { name: pname, line, column: col });
                         if !self.match_token(&[TokenKind::Comma]) { break; }
@@ -1550,6 +1572,10 @@ impl Parser {
             } else {
                 "Any".to_string()
             };
+            // Skip optional default value: `field: Type = default`
+            if self.match_token(&[TokenKind::Equals]) {
+                let _ = self.parse_expression()?;
+            }
             fields.push(crate::core::ast::FieldDecl { name: fname, type_name: ftype });
             let _ = self.match_token(&[TokenKind::Comma, TokenKind::Semicolon]);
         }
@@ -1571,6 +1597,21 @@ impl Parser {
                 let t = self.consume_type_name();
                 self.consume(TokenKind::CloseParen, "Expected ')' after variant type")?;
                 Some(t)
+            } else if self.check(&TokenKind::OpenBrace) {
+                // Struct-like enum variant: Variant { field: Type, ... } — skip the body
+                let mut depth = 0usize;
+                loop {
+                    match self.peek().kind {
+                        TokenKind::OpenBrace => { depth += 1; self.advance(); }
+                        TokenKind::CloseBrace => {
+                            if depth == 1 { self.advance(); break; }
+                            depth -= 1; self.advance();
+                        }
+                        TokenKind::EOF => break,
+                        _ => { self.advance(); }
+                    }
+                }
+                None
             } else {
                 None
             };
@@ -1616,7 +1657,7 @@ impl Parser {
         let mut params = Vec::new();
         if !self.check(&TokenKind::CloseParen) {
             loop {
-                let pname = self.consume_identifier("Expected parameter name")?;
+                let pname = self.consume_param_name("Expected parameter name")?;
                 self.skip_param_type_annotation();
                 params.push(FunctionParam { name: pname, line, column: col });
                 if !self.match_token(&[TokenKind::Comma]) { break; }
@@ -1715,10 +1756,22 @@ impl Parser {
             name
         } else if let TokenKind::Ampersand = self.peek().kind {
             self.advance();
+            // optional `mut` after `&`
+            if let TokenKind::Identifier(ref s) = self.peek().kind.clone() {
+                if s == "mut" { self.advance(); }
+            }
             let inner = self.consume_type_name();
             return format!("&{}", inner);
         } else {
-            return "Any".to_string();
+            // Accept keyword tokens as type names (e.g. `usize`, `str`)
+            let s = self.peek().kind.to_string().to_string();
+            match &self.peek().kind {
+                TokenKind::EOF | TokenKind::Semicolon | TokenKind::Comma
+                | TokenKind::Equals | TokenKind::CloseParen | TokenKind::CloseBrace => {
+                    return "Any".to_string();
+                }
+                _ => { self.advance(); s }
+            }
         };
         // Generic params: Vec<T>, Option<String>, Result<(), E>
         if self.check(&TokenKind::LessThan) {
@@ -1735,6 +1788,12 @@ impl Parser {
                     _ => {}
                 }
             }
+        }
+        // Array type suffix: Token[] or Token[][]
+        while self.check(&TokenKind::OpenBracket) {
+            self.advance(); // consume '['
+            if self.check(&TokenKind::CloseBracket) { self.advance(); } // consume ']'
+            ty.push_str("[]");
         }
         ty
     }
