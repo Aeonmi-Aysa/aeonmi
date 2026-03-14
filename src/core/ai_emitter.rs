@@ -192,6 +192,17 @@ fn write_stmt(dst: &mut String, s: &Stmt, indent: usize) {
             write_block(dst, body, indent);
             dst.push('\n');
         }
+        // P1-34: for var in iterable { body }
+        ForIn { var, iter, body } => {
+            indent_spaces(dst, indent);
+            dst.push_str("for ");
+            dst.push_str(&escape_sym(var));
+            dst.push_str(" in ");
+            write_expr(dst, iter, indent);
+            dst.push(' ');
+            write_block(dst, body, indent);
+            dst.push('\n');
+        }
     }
 }
 

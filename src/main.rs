@@ -1,4 +1,5 @@
 mod ai; // AI provider registry & implementations
+mod banner;   // P4-13/14/15: cyberpunk startup banner + CLI color helpers
 mod cli;
 mod cli_vault;
 mod commands;
@@ -29,40 +30,62 @@ use crate::cli::{AeonmiCli, Command, EmitKind};
 
 use crate::config::resolve_config_path;
 
-/// Attempt glyph boot ceremony on interactive startup.
-/// Only runs when no subcommand is given (interactive/default mode).
-/// If no MGK exists, prompts user to initialize. Passphrase prompt is skippable.
+/// P4-10: Boot ceremony — attempt glyph identity seal on every startup.
+/// Shows the startup banner, then if an MGK exists offers passphrase unlock.
+/// Passphrase prompt is skippable (press Enter). Non-interactive if TTY is absent.
 fn run_glyph_startup() {
     use crate::glyph::mgk::MasterGlyphKey;
+    use colored::Colorize;
+
+    // P4-15: always show the startup banner
+    crate::banner::print_startup_banner();
+
     if MasterGlyphKey::exists() {
-        println!();
-        println!("  ╔══════════════════════════════════════════╗");
-        println!("  ║     AEONMI SHARD — Glyph Identity       ║");
-        println!("  ╚══════════════════════════════════════════╝");
-        match rpassword::prompt_password("  Passphrase (Enter to skip): ") {
-            Ok(pass) if !pass.is_empty() => {
-                match crate::glyph::ceremony::boot(&pass) {
-                    Ok(session) => {
-                        println!("{}", session.glyph.status_line());
-                        println!();
-                    }
-                    Err(e) => {
-                        eprintln!("  ⚠ Boot failed: {}. Check passphrase.", e);
-                        println!();
+        // Only prompt for passphrase when stdin is a TTY (interactive session)
+        if atty_stdin() {
+            match rpassword::prompt_password("  Passphrase (Enter to skip glyph seal): ") {
+                Ok(pass) if !pass.is_empty() => {
+                    match crate::glyph::ceremony::boot(&pass) {
+                        Ok(session) => {
+                            println!("{}", crate::banner::success(&session.glyph.status_line()));
+                            println!();
+                        }
+                        Err(e) => {
+                            eprintln!("  {} Boot failed: {}. Check passphrase.",
+                                "⚠".truecolor(255, 50, 50).bold(), e);
+                            println!();
+                        }
                     }
                 }
+                _ => {
+                    println!("  {} {}",
+                        "◈".truecolor(130, 0, 200),
+                        "(glyph identity skipped — shard running unsigned)".truecolor(130, 0, 200));
+                    println!();
+                }
             }
-            _ => {
-                println!("  (glyph identity skipped — shard running unsigned)");
-                println!();
-            }
+        } else {
+            // Non-interactive (piped/scripted): skip passphrase, just note glyph exists
+            println!("  {} {}",
+                "◈".truecolor(130, 0, 200),
+                "Glyph identity present (non-interactive — skipping seal)".truecolor(130, 0, 200));
+            println!();
         }
     } else {
-        println!();
-        println!("  ◈  No Shard identity found.");
-        println!("  ◈  Run `aeonmi vault init` to generate your Master Glyph Key.");
+        println!("  {} {}",
+            "◈".truecolor(130, 0, 200),
+            "No Shard identity found.".truecolor(130, 0, 200));
+        println!("  {} {}",
+            "◈".truecolor(130, 0, 200),
+            "Run `aeonmi vault init` to generate your Master Glyph Key.".truecolor(255, 240, 0));
         println!();
     }
+}
+
+/// Returns true when stdin is an interactive terminal.
+fn atty_stdin() -> bool {
+    use std::io::IsTerminal;
+    std::io::stdin().is_terminal()
 }
 
 fn set_console_title() {
@@ -89,6 +112,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Early global metrics dump flag (hidden) for automation: --metrics-dump
+    // Skip banner entirely for machine-readable output.
     if args.metrics_dump_flag {
         crate::core::incremental::load_metrics();
         use crate::core::incremental::{
@@ -130,6 +154,15 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // P4-10 / P4-15: Boot ceremony — show banner + glyph identity on interactive startup.
+    // Only runs when stdout is a real terminal (not piped/scripted) to avoid cluttering
+    // machine-readable output in tests and CI.
+    use std::io::IsTerminal;
+    let is_interactive = std::io::stdout().is_terminal();
+    if is_interactive {
+        run_glyph_startup();
+    }
+
     // If *no* subcommand and *no* legacy args: Start unified AEONMI ecosystem
     let no_legacy = args.input_pos.is_none()
         && args.input_opt.is_none()
@@ -139,9 +172,6 @@ fn main() -> anyhow::Result<()> {
         && !args.ast_legacy;
 
     if args.cmd.is_none() && no_legacy {
-        // Boot glyph identity on interactive startup
-        run_glyph_startup();
-
         // Check if we have Mother AI or Titan Libraries features enabled
         #[cfg(any(feature = "mother-ai", feature = "titan-libraries"))]
         {
