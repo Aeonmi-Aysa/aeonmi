@@ -96,6 +96,13 @@ An experimental layer for persistent symbolic identity, cryptographic binding, a
 * `docs/glyph_algebra.md`
 * `docs/grammar_qube.md`
 
+## Editor Support
+
+A VS Code language extension for `.ai` and `.qube` files is available at `vscode-aeonmi/`.
+It provides syntax highlighting, bracket matching, and code snippets.
+
+See `vscode-aeonmi/README.md` for installation instructions.
+
 ---
 
 ## Current Focus
@@ -139,6 +146,18 @@ aeonmi run examples/hello.ai
 aeonmi run shard/src/main.ai
 aeonmi qube run examples/demo.qube
 aeonmi vault init
+```
+
+### Computer Science Examples
+
+Classic algorithms and data structures implemented in Aeonmi are in `examples/cs/`:
+
+```bash
+aeonmi run examples/cs/binary_search.ai
+aeonmi run examples/cs/merge_sort.ai
+aeonmi run examples/cs/quick_sort.ai
+aeonmi run examples/cs/stack_queue.ai
+aeonmi run examples/cs/linked_list.ai
 ```
 
 ---

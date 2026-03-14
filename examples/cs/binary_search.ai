@@ -1,0 +1,40 @@
+// binary_search.ai
+// Classic binary search: O(log n) search in a sorted array.
+//
+// Returns the index of `target` in `arr`, or -1 if not found.
+
+fn binary_search(arr, target) {
+  let low = 0;
+  let high = len(arr) - 1;
+
+  while (low <= high) {
+    let mid = (low + high) / 2;
+    let val = arr[mid];
+
+    if (val == target) {
+      return mid;
+    }
+
+    if (val < target) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return -1;
+}
+
+fn main() {
+  let sorted = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91];
+
+  let idx1 = binary_search(sorted, 23);
+  let idx2 = binary_search(sorted, 72);
+  let idx3 = binary_search(sorted, 10);
+
+  print("search(23) = " + idx1);   // 5
+  print("search(72) = " + idx2);   // 8
+  print("search(10) = " + idx3);   // -1 (not present)
+}
+
+return main();

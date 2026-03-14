@@ -1,0 +1,87 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:args}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define an Aeonmi function"
+  },
+  "Let binding": {
+    "prefix": "let",
+    "body": ["let ${1:name} = ${0};"],
+    "description": "Immutable variable binding"
+  },
+  "If/else": {
+    "prefix": "if",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${2}",
+      "} else {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "If/else block"
+  },
+  "While loop": {
+    "prefix": "while",
+    "body": [
+      "while (${1:condition}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "While loop"
+  },
+  "Qubit": {
+    "prefix": "qubit",
+    "body": ["qubit ${1:name};"],
+    "description": "Declare a qubit"
+  },
+  "Superpose": {
+    "prefix": "superpose",
+    "body": ["superpose(${1:qubit});"],
+    "description": "Apply Hadamard (superposition) to a qubit"
+  },
+  "Entangle": {
+    "prefix": "entangle",
+    "body": ["entangle(${1:q1}, ${2:q2});"],
+    "description": "Entangle two qubits"
+  },
+  "Measure": {
+    "prefix": "measure",
+    "body": ["let ${1:result} = measure(${2:qubit});"],
+    "description": "Measure a qubit"
+  },
+  "Array genesis": {
+    "prefix": "arr",
+    "body": ["⧉${1:a}‥${2:b}‥${3:c}⧉"],
+    "description": "Array genesis glyph"
+  },
+  "Tensor product": {
+    "prefix": "tensor",
+    "body": ["${1:a} ⊗ ${2:b}"],
+    "description": "Tensor product of two expressions"
+  },
+  "Binding": {
+    "prefix": "bind",
+    "body": ["${1:name} ↦ ${0}"],
+    "description": "Symbolic binding"
+  },
+  "Main function": {
+    "prefix": "main",
+    "body": [
+      "fn main() {",
+      "\t${0}",
+      "}",
+      "",
+      "return main();"
+    ],
+    "description": "Main entry point"
+  },
+  "Import": {
+    "prefix": "import",
+    "body": ["import ${2:name} from \"${1:./path}\";"],
+    "description": "Import statement"
+  }
+}

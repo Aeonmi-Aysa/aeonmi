@@ -1,0 +1,62 @@
+{
+  "name": "aeonmi",
+  "displayName": "Aeonmi Language",
+  "description": "Syntax highlighting and language support for Aeonmi (.ai) and QUBE (.qube) files",
+  "version": "0.1.0",
+  "publisher": "aeonmi",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "aeonmi",
+    "qube",
+    "quantum",
+    "symbolic",
+    "glyph"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aeonmi-Aysa/aeonmi"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "aeonmi",
+        "aliases": ["Aeonmi", "aeonmi"],
+        "extensions": [".ai", ".aeon", ".aeonmi"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "qube",
+        "aliases": ["QUBE", "qube"],
+        "extensions": [".qube"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aeonmi",
+        "scopeName": "source.aeonmi",
+        "path": "./syntaxes/aeonmi.tmLanguage.json"
+      },
+      {
+        "language": "qube",
+        "scopeName": "source.qube",
+        "path": "./syntaxes/qube.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "aeonmi",
+        "path": "./snippets/aeonmi.json"
+      },
+      {
+        "language": "qube",
+        "path": "./snippets/qube.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "State declaration": {
+    "prefix": "state",
+    "body": ["state ${1:name} = ${2:|0⟩}"],
+    "description": "Declare a quantum state"
+  },
+  "Superposition state": {
+    "prefix": "super",
+    "body": ["state ${1:ψ} = 0.707|0⟩ + 0.707|1⟩"],
+    "description": "Equal superposition state"
+  },
+  "Apply gate": {
+    "prefix": "apply",
+    "body": ["apply ${1:H} -> ${2:q}"],
+    "description": "Apply a quantum gate"
+  },
+  "Apply CNOT": {
+    "prefix": "cnot",
+    "body": ["apply CNOT(${1:control}, ${2:target})"],
+    "description": "Apply CNOT gate"
+  },
+  "Collapse": {
+    "prefix": "collapse",
+    "body": ["collapse ${1:q} -> ${2:result}"],
+    "description": "Measure (collapse) a quantum state"
+  },
+  "Assert membership": {
+    "prefix": "assert",
+    "body": ["assert ${1:result} ∈ {0, 1}"],
+    "description": "Assert result is in a set"
+  },
+  "Bell state": {
+    "prefix": "bell",
+    "body": [
+      "∴ Bell state",
+      "state ${1:q0} = |0⟩",
+      "state ${2:q1} = |0⟩",
+      "apply H -> ${1:q0}",
+      "apply CNOT(${1:q0}, ${2:q1})",
+      "collapse ${1:q0} -> ${3:r0}",
+      "collapse ${2:q1} -> ${4:r1}",
+      "assert ${3:r0} ∈ {0, 1}",
+      "assert ${4:r1} ∈ {0, 1}",
+      "log(${3:r0})",
+      "log(${4:r1})"
+    ],
+    "description": "Full Bell state circuit"
+  },
+  "Log": {
+    "prefix": "log",
+    "body": ["log(${1:value})"],
+    "description": "Log a value to stdout"
+  }
+}

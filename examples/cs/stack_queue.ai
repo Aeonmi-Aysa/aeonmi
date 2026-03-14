@@ -1,0 +1,99 @@
+// stack_queue.ai
+// Stack (LIFO) and Queue (FIFO) using Aeonmi arrays.
+//
+// Demonstrates fundamental abstract data type patterns
+// using Aeonmi's built-in array operations.
+
+// ── Stack ─────────────────────────────────────────────
+
+fn stack_new() {
+  return [];
+}
+
+fn stack_push(s, val) {
+  return push(s, val);
+}
+
+fn stack_pop(s) {
+  let n = len(s);
+  if (n == 0) {
+    print("ERROR: pop from empty stack");
+    return s;
+  }
+  return slice(s, 0, n - 1);
+}
+
+fn stack_peek(s) {
+  let n = len(s);
+  if (n == 0) {
+    return -1;
+  }
+  return s[n - 1];
+}
+
+fn stack_is_empty(s) {
+  return len(s) == 0;
+}
+
+// ── Queue ─────────────────────────────────────────────
+
+fn queue_new() {
+  return [];
+}
+
+fn queue_enqueue(q, val) {
+  return push(q, val);
+}
+
+fn queue_dequeue(q) {
+  let n = len(q);
+  if (n == 0) {
+    print("ERROR: dequeue from empty queue");
+    return q;
+  }
+  return slice(q, 1, n);
+}
+
+fn queue_front(q) {
+  if (len(q) == 0) {
+    return -1;
+  }
+  return q[0];
+}
+
+fn queue_is_empty(q) {
+  return len(q) == 0;
+}
+
+// ── Demo ──────────────────────────────────────────────
+
+fn demo_stack() {
+  print("--- Stack Demo ---");
+  let s = stack_new();
+  s = stack_push(s, 10);
+  s = stack_push(s, 20);
+  s = stack_push(s, 30);
+  print("peek: " + stack_peek(s));    // 30
+  s = stack_pop(s);
+  print("after pop, peek: " + stack_peek(s));  // 20
+  print("empty? " + stack_is_empty(s));        // false
+}
+
+fn demo_queue() {
+  print("--- Queue Demo ---");
+  let q = queue_new();
+  q = queue_enqueue(q, "a");
+  q = queue_enqueue(q, "b");
+  q = queue_enqueue(q, "c");
+  print("front: " + queue_front(q));   // a
+  q = queue_dequeue(q);
+  print("after dequeue, front: " + queue_front(q));  // b
+  print("empty? " + queue_is_empty(q));               // false
+}
+
+fn main() {
+  demo_stack();
+  demo_queue();
+}
+
+return main();
