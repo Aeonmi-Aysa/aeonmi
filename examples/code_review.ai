@@ -1,0 +1,106 @@
+// code_review.ai — AEONMI static code review tool
+// Reads a source string and reports style/quality findings.
+// Demonstrates string processing, arrays, and reporting in pure .ai.
+//
+// Run: aeonmi run examples/code_review.ai
+
+// ── Finding store ─────────────────────────────────────────────────────────────
+let finding_lines    = [];
+let finding_cats     = [];
+let finding_messages = [];
+
+function add_finding(line_no, category, message) {
+    finding_lines    = push(finding_lines,    line_no);
+    finding_cats     = push(finding_cats,     category);
+    finding_messages = push(finding_messages, message);
+}
+
+// ── Checks ────────────────────────────────────────────────────────────────────
+
+// Check: `let` binding missing semicolon
+function check_let_semicolon(line, line_no) {
+    let trimmed = trim(line);
+    if (starts_with(trimmed, "let ") && !ends_with(trimmed, ";") && !ends_with(trimmed, "{")) {
+        add_finding(line_no, "style", "let binding missing semicolon");
+    }
+}
+
+// Check: bare log (no arguments)
+function check_bare_log(line, line_no) {
+    let trimmed = trim(line);
+    if (trimmed == "log" || trimmed == "log;") {
+        add_finding(line_no, "error", "`log` used without arguments");
+    }
+}
+
+// Check: TODO/FIXME marker
+function check_todo(line, line_no) {
+    let upper = to_upper(line);
+    if (contains(upper, "TODO") || contains(upper, "FIXME") || contains(upper, "HACK")) {
+        add_finding(line_no, "warning", "TODO/FIXME/HACK comment left in source");
+    }
+}
+
+// ── Review a multi-line source string ─────────────────────────────────────────
+function review(source) {
+    // Reset findings
+    finding_lines    = [];
+    finding_cats     = [];
+    finding_messages = [];
+
+    if (trim(source) == "") {
+        add_finding(0, "warning", "file is empty");
+        return;
+    }
+
+    let lines = split_lines(source);
+    let i = 0;
+    while (i < len(lines)) {
+        let ln = lines[i];
+        let no = i + 1;
+        check_let_semicolon(ln, no);
+        check_bare_log(ln, no);
+        check_todo(ln, no);
+        i = i + 1;
+    }
+}
+
+// ── Report ────────────────────────────────────────────────────────────────────
+function print_report(filename) {
+    let count = len(finding_lines);
+    if (count == 0) {
+        print("review: " + filename + " — no issues found ✓");
+        return;
+    }
+    print("review: " + filename + " — " + count + " finding(s)");
+    let i = 0;
+    while (i < count) {
+        if (finding_lines[i] == 0) {
+            print("  [" + finding_cats[i] + "] " + finding_messages[i]);
+        } else {
+            print("  line " + finding_lines[i] + " [" + finding_cats[i] + "] " + finding_messages[i]);
+        }
+        i = i + 1;
+    }
+}
+
+// ── Demo ──────────────────────────────────────────────────────────────────────
+print("=== AEONMI Code Review Tool ===");
+print("");
+
+// Clean file — should report no issues
+let clean_source = "let x = 2 + 3;\nlog(x);\n";
+review(clean_source);
+print_report("clean.ai");
+print("");
+
+// File with style and warning issues
+let noisy_source = "let y = 42\nlog(y);\n// TODO: fix this\nlog;\n";
+review(noisy_source);
+print_report("noisy.ai");
+print("");
+
+// Empty file
+let empty_source = "   ";
+review(empty_source);
+print_report("empty.ai");

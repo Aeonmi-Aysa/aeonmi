@@ -56,7 +56,7 @@ ascii_*_js
 hieroglyphic_fixed
 simple_comprehensive_js
 unicode_*_js
-*.aeonmi
+*.aeonmi      # scratch/test files using the .aeonmi extension
 
 ### OS / editor
 *.swp
