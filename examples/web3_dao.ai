@@ -1,0 +1,216 @@
+// web3_dao.ai — AEONMI DAO Governance
+// Implements member registration, proposal submission, voting,
+// tallying, and execution — in pure .ai.
+//
+// Run: aeonmi run examples/web3_dao.ai
+
+// ── DAO configuration ─────────────────────────────────────────────────────────
+let DAO_NAME   = "AEONMI Protocol DAO";
+let DAO_QUORUM = 51;   // percent of For-votes required to pass
+
+// ── Member registry ───────────────────────────────────────────────────────────
+let member_names  = [];
+let member_power  = [];
+
+function add_member(name, power) {
+    member_names = push(member_names, name);
+    member_power = push(member_power, power);
+    print("👤 Member added: " + name + " (power=" + power + ")");
+}
+
+function member_index(name) {
+    let i = 0;
+    while (i < len(member_names)) {
+        if (member_names[i] == name) { return i; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function get_power(name) {
+    let idx = member_index(name);
+    if (idx == -1) { return 0; }
+    return member_power[idx];
+}
+
+function total_power() {
+    let total = 0;
+    let i = 0;
+    while (i < len(member_power)) {
+        total = total + member_power[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+// ── Proposal store ────────────────────────────────────────────────────────────
+let proposal_ids     = [];
+let proposal_titles  = [];
+let proposal_states  = [];   // "active" | "executed" | "closed"
+let next_proposal_id = 1;
+
+// Votes stored as flat arrays: voter_proposal_id, voter_name, voter_choice
+let vote_pids    = [];
+let vote_members = [];
+let vote_choices = [];   // "for" | "against" | "abstain"
+
+function propose(proposer, title) {
+    let pid = next_proposal_id;
+    next_proposal_id = next_proposal_id + 1;
+    proposal_ids    = push(proposal_ids,    pid);
+    proposal_titles = push(proposal_titles, title);
+    proposal_states = push(proposal_states, "active");
+    print("📋 Proposal #" + pid + " submitted by " + proposer + ": " + title);
+    return pid;
+}
+
+function proposal_state(pid) {
+    let i = 0;
+    while (i < len(proposal_ids)) {
+        if (proposal_ids[i] == pid) { return proposal_states[i]; }
+        i = i + 1;
+    }
+    return "unknown";
+}
+
+function set_proposal_state(pid, new_state) {
+    let i = 0;
+    while (i < len(proposal_ids)) {
+        if (proposal_ids[i] == pid) {
+            proposal_states[i] = new_state;
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+function has_voted(pid, member) {
+    let i = 0;
+    while (i < len(vote_pids)) {
+        if (vote_pids[i] == pid && vote_members[i] == member) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+function vote(pid, member, choice) {
+    if (member_index(member) == -1) {
+        print("❌ Vote failed: " + member + " is not a DAO member");
+        return;
+    }
+    if (proposal_state(pid) != "active") {
+        print("❌ Vote failed: proposal #" + pid + " is not active");
+        return;
+    }
+    if (has_voted(pid, member)) {
+        print("❌ Vote failed: " + member + " already voted on #" + pid);
+        return;
+    }
+    vote_pids    = push(vote_pids,    pid);
+    vote_members = push(vote_members, member);
+    vote_choices = push(vote_choices, choice);
+    print("🗳  " + member + " voted '" + choice + "' on proposal #" + pid);
+}
+
+function tally(pid) {
+    let for_power     = 0;
+    let against_power = 0;
+    let abstain_power = 0;
+
+    let i = 0;
+    while (i < len(vote_pids)) {
+        if (vote_pids[i] == pid) {
+            let pwr = get_power(vote_members[i]);
+            if (vote_choices[i] == "for") {
+                for_power = for_power + pwr;
+            }
+            if (vote_choices[i] == "against") {
+                against_power = against_power + pwr;
+            }
+            if (vote_choices[i] == "abstain") {
+                abstain_power = abstain_power + pwr;
+            }
+        }
+        i = i + 1;
+    }
+
+    let active_votes = for_power + against_power + abstain_power;
+    let for_pct = 0;
+    if (active_votes > 0) {
+        for_pct = (for_power * 100) / active_votes;
+    }
+    let passed = for_pct >= DAO_QUORUM;
+
+    print("📊 Tally for proposal #" + pid + ":");
+    print("   For=" + for_power + "  Against=" + against_power + "  Abstain=" + abstain_power);
+    print("   For %=" + for_pct + "%  Quorum=" + DAO_QUORUM + "%");
+    if (passed) {
+        print("   ✅ PASSED");
+    } else {
+        print("   ❌ FAILED");
+    }
+    return passed;
+}
+
+function execute(pid) {
+    if (proposal_state(pid) != "active") {
+        print("❌ Execute failed: proposal #" + pid + " is not active");
+        return;
+    }
+    let passed = tally(pid);
+    if (passed) {
+        set_proposal_state(pid, "executed");
+        print("⚡ Proposal #" + pid + " executed");
+    } else {
+        print("❌ Proposal #" + pid + " did not pass — cannot execute");
+    }
+}
+
+function close_proposal(pid) {
+    if (proposal_state(pid) != "active") {
+        print("❌ Close failed: proposal #" + pid + " is not active");
+        return;
+    }
+    set_proposal_state(pid, "closed");
+    print("🔒 Proposal #" + pid + " closed");
+}
+
+// ── Demo ──────────────────────────────────────────────────────────────────────
+print("=== AEONMI DAO Governance Demo ===");
+print("DAO: " + DAO_NAME + "  quorum=" + DAO_QUORUM + "%");
+print("");
+
+// Register members with voting power
+add_member("alice", 60);
+add_member("bob",   30);
+add_member("carol", 10);
+print("Total voting power: " + total_power());
+print("");
+
+// Proposal 1 — majority in favour
+let p1 = propose("alice", "Upgrade VM to v2 (MAX_FRAMES=2048)");
+vote(p1, "alice", "for");
+vote(p1, "bob",   "for");
+vote(p1, "carol", "abstain");
+execute(p1);
+print("");
+
+// Proposal 2 — fails (only minority For)
+let p2 = propose("carol", "Remove quantum subsystem");
+vote(p2, "carol", "for");
+vote(p2, "alice", "against");
+vote(p2, "bob",   "against");
+execute(p2);
+print("");
+
+// Proposal 3 — close without executing
+let p3 = propose("bob", "Adjust genesis glyph palette");
+vote(p3, "bob", "for");
+close_proposal(p3);
+print("State of proposal #" + p3 + ": " + proposal_state(p3));
+print("");
+
+// Guard: double-vote rejected
+let p4 = propose("alice", "Double-vote test");
+vote(p4, "alice", "for");
+vote(p4, "alice", "against");

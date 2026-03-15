@@ -326,6 +326,12 @@ impl Lexer {
                 '⇒' => Some(TokenKind::QuantumImplies),     // quantum implies
                 '⟲' => Some(TokenKind::QuantumLoop),        // quantum loop
                 '◊' => Some(TokenKind::QuantumModulo),      // quantum modulo
+
+                // Genesis Glyph Operators (G-1..G-5)
+                '⧉' => Some(TokenKind::ArrayGenesisBracket), // array genesis bracket (open/close)
+                '‥' => Some(TokenKind::GenesisSep),          // genesis separator
+                '…' => Some(TokenKind::GenesisSpread),       // spread/expand
+                '↦' => Some(TokenKind::GenesisBinding),      // binding/projection
                 
                 // Quantum delimiters
                 '⟨' => Some(TokenKind::QuantumBracketOpen),

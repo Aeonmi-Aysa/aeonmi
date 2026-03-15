@@ -1,8 +1,0 @@
-// aeonmi:1
-// hash:0e1961dc0400d57c
-// tool:aeonmi unknown
-
-fn main() {
-  let x = 42;
-  log(x);
-}

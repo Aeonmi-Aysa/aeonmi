@@ -155,6 +155,11 @@ fn visit(node: &ASTNode, sm: &mut ScopeMap, stack: &mut Vec<usize>, current: usi
             for gate in gates { visit(gate, sm, stack, current); }
         }
         NumberLiteral(_) | StringLiteral(_) | BooleanLiteral(_) | Error(_) => {}
+        ForIn { var, iterable, body } => {
+            record(sm, var, 0, 0, *stack.last().unwrap(), true);
+            visit(iterable, sm, stack, current);
+            visit(body, sm, stack, current);
+        }
     }
 }
 

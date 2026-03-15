@@ -1,0 +1,105 @@
+// web3_wallet.ai — AEONMI Web3 Wallet Simulation
+// Demonstrates deterministic address generation, balance ledger,
+// airdrop, and transfer — all coded in pure .ai.
+//
+// Run: aeonmi run examples/web3_wallet.ai
+
+// ── Simple hash helper (djb2-style, deterministic) ──────────────────────────
+function hash_seed(seed) {
+    let h = 5381;
+    let i = 0;
+    while (i < len(seed)) {
+        h = (h * 33) + char_code(seed, i);
+        i = i + 1;
+    }
+    return h;
+}
+
+// ── Derive a wallet address string from a seed ───────────────────────────────
+function derive_address(seed) {
+    let h = hash_seed(seed);
+    return "AEON" + h;
+}
+
+// ── Ledger: balance tracking via parallel arrays ─────────────────────────────
+let ledger_addrs   = [];
+let ledger_bals    = [];
+
+function ledger_index(addr) {
+    let i = 0;
+    while (i < len(ledger_addrs)) {
+        if (ledger_addrs[i] == addr) { return i; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function balance(addr) {
+    let idx = ledger_index(addr);
+    if (idx == -1) { return 0; }
+    return ledger_bals[idx];
+}
+
+function airdrop(addr, amount) {
+    let idx = ledger_index(addr);
+    if (idx == -1) {
+        ledger_addrs = push(ledger_addrs, addr);
+        ledger_bals  = push(ledger_bals,  amount);
+    } else {
+        ledger_bals[idx] = ledger_bals[idx] + amount;
+    }
+    print("💰 Airdropped " + amount + " AEON → " + addr);
+}
+
+function transfer(from_addr, to_addr, amount) {
+    let from_idx = ledger_index(from_addr);
+    if (from_idx == -1) {
+        print("❌ Transfer failed: unknown address " + from_addr);
+        return;
+    }
+    if (ledger_bals[from_idx] < amount) {
+        print("❌ Insufficient funds: " + from_addr + " has " + ledger_bals[from_idx] + " AEON");
+        return;
+    }
+    ledger_bals[from_idx] = ledger_bals[from_idx] - amount;
+    let to_idx = ledger_index(to_addr);
+    if (to_idx == -1) {
+        ledger_addrs = push(ledger_addrs, to_addr);
+        ledger_bals  = push(ledger_bals,  amount);
+    } else {
+        ledger_bals[to_idx] = ledger_bals[to_idx] + amount;
+    }
+    print("✅ Transferred " + amount + " AEON: " + from_addr + " → " + to_addr);
+}
+
+// ── Demo ─────────────────────────────────────────────────────────────────────
+print("=== AEONMI Web3 Wallet Demo ===");
+
+let alice_addr = derive_address("alice");
+let bob_addr   = derive_address("bob");
+let carol_addr = derive_address("carol");
+
+print("Alice address: " + alice_addr);
+print("Bob   address: " + bob_addr);
+print("Carol address: " + carol_addr);
+print("");
+
+airdrop(alice_addr, 1000);
+airdrop(bob_addr,   500);
+print("");
+
+print("Alice balance before: " + balance(alice_addr) + " AEON");
+print("Bob   balance before: " + balance(bob_addr)   + " AEON");
+print("");
+
+transfer(alice_addr, bob_addr, 250);
+transfer(alice_addr, carol_addr, 100);
+print("");
+
+print("Alice balance after: " + balance(alice_addr) + " AEON");
+print("Bob   balance after: " + balance(bob_addr)   + " AEON");
+print("Carol balance after: " + balance(carol_addr) + " AEON");
+print("");
+
+// Demonstrate failed transfer
+transfer(carol_addr, alice_addr, 999);
