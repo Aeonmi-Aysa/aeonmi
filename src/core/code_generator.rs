@@ -470,18 +470,31 @@ impl CodeGenerator {
                 format!("{}{}", self.op_str(op), self.emit_expr_js(expr))
             }
             ASTNode::Call { callee, args } => {
-                let mapped = match &**callee {
-                    ASTNode::Identifier(name) => self.map_helper(name),
-                    ASTNode::IdentifierSpanned { name, .. } => self.map_helper(name),
+                // Check if callee is a hieroglyphic identifier — generate __glyph(name, ...args)
+                let glyph_sym: Option<String> = match &**callee {
+                    ASTNode::Identifier(n) | ASTNode::IdentifierSpanned { name: n, .. }
+                        if n.chars().any(|c| c > '\u{07FF}' && !c.is_ascii()) => Some(n.clone()),
                     _ => None,
                 };
-                let c = mapped.unwrap_or_else(|| self.emit_expr_js(callee));
-                let a = args
-                    .iter()
-                    .map(|x| self.emit_expr_js(x))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("{}({})", c, a)
+
+                if let Some(sym) = glyph_sym {
+                    self.helpers.insert(Helper::GlyphRuntime);
+                    let a = args.iter().map(|x| self.emit_expr_js(x)).collect::<Vec<_>>().join(", ");
+                    format!("__glyph('{}', {})", sym, a)
+                } else {
+                    let mapped = match &**callee {
+                        ASTNode::Identifier(name) => self.map_helper(name),
+                        ASTNode::IdentifierSpanned { name, .. } => self.map_helper(name),
+                        _ => None,
+                    };
+                    let c = mapped.unwrap_or_else(|| self.emit_expr_js(callee));
+                    let a = args
+                        .iter()
+                        .map(|x| self.emit_expr_js(x))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{}({})", c, a)
+                }
             }
             ASTNode::Assignment { name, value, .. } => {
                 format!("{} = {}", name, self.emit_expr_js(value))

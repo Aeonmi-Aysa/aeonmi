@@ -30,6 +30,7 @@ pub enum QuantumGateType {
     CZ,            // CZ - Controlled-Z
     CY,            // CY - Controlled-Y
     SWAP,          // SWAP - Swap two qubits
+    CPhase(f64),   // CP(φ) - Controlled phase gate
     
     // Multi-qubit gates
     Toffoli,       // CCX - Controlled-controlled-X
@@ -37,6 +38,10 @@ pub enum QuantumGateType {
     
     // Measurement
     Measure,       // Measurement operation
+    
+    // Circuit directives
+    Barrier,       // Synchronization barrier
+    Comment(String), // Annotation comment
     
     // Custom gates
     Custom(String, Vec<f64>), // Custom gate with parameters
@@ -258,6 +263,14 @@ impl QuantumCircuitBuilder {
         ))
     }
     
+    /// Apply controlled phase gate with angle
+    pub fn cphase(&mut self, control: &QubitId, target: &QubitId, angle: f64) -> &mut Self {
+        self.add_gate(QuantumGate::new(
+            QuantumGateType::CPhase(angle),
+            vec![control.clone(), target.clone()]
+        ))
+    }
+    
     /// Apply SWAP gate
     pub fn swap(&mut self, qubit1: &QubitId, qubit2: &QubitId) -> &mut Self {
         self.add_gate(QuantumGate::new(
@@ -278,29 +291,48 @@ impl QuantumCircuitBuilder {
     
     // === Measurement Operations ===
     
-    /// Measure a qubit
-    pub fn measure(&mut self, qubit: &QubitId, classical_bit: &str) -> &mut Self {
+    /// Measure a qubit (classical bit name is auto-generated from qubit index)
+    pub fn measure(&mut self, qubit: &QubitId) -> &mut Self {
+        let idx = self.qubits.iter().position(|q| q == qubit).unwrap_or(0);
+        let classical_bit = format!("c[{}]", idx);
         self.add_gate(QuantumGate::new(
             QuantumGateType::Measure,
             vec![qubit.clone()]
-        ).with_classical_bits(vec![classical_bit.to_string()]))
+        ).with_classical_bits(vec![classical_bit]))
     }
     
     /// Measure all qubits
     pub fn measure_all(&mut self) -> &mut Self {
         let qubits = self.qubits.clone();
-        for (i, qubit) in qubits.iter().enumerate() {
-            let classical_bit = format!("c[{}]", i);
-            self.measure(qubit, &classical_bit);
+        for qubit in &qubits {
+            self.measure(qubit);
         }
         self
     }
     
     // === Circuit Composition and Utilities ===
     
-    /// Set circuit parameter
+    /// Set circuit parameter (chainable)
     pub fn set_parameter(&mut self, name: &str, value: f64) -> &mut Self {
         self.parameters.insert(name.to_string(), value);
+        self
+    }
+    
+    /// Add a named circuit parameter (alias for set_parameter)
+    pub fn add_parameter(&mut self, name: &str, value: f64) -> &mut Self {
+        self.parameters.insert(name.to_string(), value);
+        self
+    }
+    
+    /// Add a comment annotation to the circuit.
+    /// Currently a no-op: circuit diagrams and compilers treat comments as non-gates.
+    pub fn comment(&mut self, _text: &str) -> &mut Self {
+        self
+    }
+    
+    /// Add a synchronization barrier between gate layers.
+    /// Currently a no-op: barriers are informational and do not alter circuit semantics.
+    pub fn barrier(&mut self) -> &mut Self {
         self
     }
     
@@ -310,10 +342,27 @@ impl QuantumCircuitBuilder {
         self
     }
     
-    /// Get circuit depth (number of gate layers)
+    /// Get circuit depth (computed as the critical path length through the gate DAG)
     pub fn depth(&self) -> usize {
-        // Simplified depth calculation - could be enhanced with dependency analysis
-        self.gates.len()
+        let n_qubits = self.qubits.len();
+        if n_qubits == 0 || self.gates.is_empty() {
+            return 0;
+        }
+        let mut qubit_depths = vec![0usize; n_qubits];
+        for gate in &self.gates {
+            let involved: Vec<usize> = gate.qubits.iter()
+                .filter_map(|q| self.qubits.iter().position(|qb| qb == q))
+                .collect();
+            if involved.is_empty() {
+                continue;
+            }
+            let max_depth = involved.iter().map(|&i| qubit_depths[i]).max().unwrap_or(0);
+            let new_depth = max_depth + 1;
+            for &i in &involved {
+                qubit_depths[i] = new_depth;
+            }
+        }
+        *qubit_depths.iter().max().unwrap_or(&0)
     }
     
     /// Get total gate count
@@ -376,9 +425,12 @@ impl QuantumCircuitBuilder {
             QuantumGateType::CZ => "cz".to_string(),
             QuantumGateType::CY => "cy".to_string(),
             QuantumGateType::SWAP => "swap".to_string(),
+            QuantumGateType::CPhase(_) => "cp".to_string(),
             QuantumGateType::Toffoli => "ccx".to_string(),
             QuantumGateType::Fredkin => "cswap".to_string(),
             QuantumGateType::Measure => "measure".to_string(),
+            QuantumGateType::Barrier => "barrier".to_string(),
+            QuantumGateType::Comment(_) => "comment".to_string(),
             QuantumGateType::Custom(name, _) => name.clone(),
         }
     }
@@ -390,6 +442,7 @@ impl QuantumCircuitBuilder {
             QuantumGateType::RotationX(angle) => vec![*angle],
             QuantumGateType::RotationY(angle) => vec![*angle],
             QuantumGateType::RotationZ(angle) => vec![*angle],
+            QuantumGateType::CPhase(angle) => vec![*angle],
             QuantumGateType::Custom(_, params) => params.clone(),
             _ => Vec::new(),
         }
