@@ -14,8 +14,9 @@ fn unterminated_string_reports() {
 
 #[test]
 fn bad_qubit_literal_reports() {
-    // starts a qubit literal but never closes with '>'
-    let mut lx = Lexer::from_str("|psi");
+    // '!' is not a valid qubit-literal content character; lexer enters qubit-literal
+    // mode (because '>' is ahead) then fails when it hits the '!'.
+    let mut lx = Lexer::from_str("|psi!>");
     let err = lx.tokenize().unwrap_err();
     let msg = err.to_string();
     assert!(
