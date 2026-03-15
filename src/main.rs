@@ -507,12 +507,11 @@ fn main() -> anyhow::Result<()> {
             }
             if compile || run {
                 if let Some(p) = created_path.clone() {
-                    // Default to AI emit now (user request)
                     let out_ai = PathBuf::from("output.ai");
                     let _ = commands::compile::compile_pipeline(
                         Some(p.clone()),
                         EmitKind::Ai,
-                        out_ai.clone(),
+                        out_ai,
                         false,
                         false,
                         args.pretty_errors,
@@ -520,21 +519,10 @@ fn main() -> anyhow::Result<()> {
                         args.debug_titan,
                     );
                     if run {
-                        // For run we still need JS path: compile JS then execute
-                        let out_js = PathBuf::from("output.js");
-                        let _ = commands::compile::compile_pipeline(
-                            Some(p.clone()),
-                            EmitKind::Js,
-                            out_js.clone(),
-                            false,
-                            false,
-                            args.pretty_errors,
-                            args.no_sema,
-                            args.debug_titan,
-                        );
+                        // Run natively — no JS temp file
                         let _ = commands::run::main_with_opts(
                             p,
-                            Some(out_js),
+                            None,
                             args.pretty_errors,
                             args.no_sema,
                         );
@@ -554,8 +542,8 @@ fn main() -> anyhow::Result<()> {
 
         Some(Command::Tokens { input }) => commands::compile::compile_pipeline(
             Some(input),
-            EmitKind::Js,
-            PathBuf::from("output.js"),
+            EmitKind::Ai,
+            PathBuf::from("output.ai"),
             /*tokens*/ true,
             /*ast*/ false,
             args.pretty_errors,
@@ -565,8 +553,8 @@ fn main() -> anyhow::Result<()> {
 
         Some(Command::Ast { input }) => commands::compile::compile_pipeline(
             Some(input),
-            EmitKind::Js,
-            PathBuf::from("output.js"),
+            EmitKind::Ai,
+            PathBuf::from("output.ai"),
             /*tokens*/ false,
             /*ast*/ true,
             args.pretty_errors,
@@ -1116,96 +1104,11 @@ fn main() -> anyhow::Result<()> {
                     .to_lowercase();
                 match ext.as_str() {
                     "ai" => {
-                        // Always use native VM interpreter — Aeonmi .ai files are
-                        // first-class citizens and never require Node.js to run.
-                        use crate::core::diagnostics::{
-                            emit_json_error, print_error, Span,
-                        };
-                        use crate::core::lexer::Lexer;
-                        use crate::core::lexer::LexerError;
-                        use crate::core::lowering::lower_ast_to_ir;
-                        use crate::core::parser::{Parser as AeParser, ParserError};
-                        use crate::core::vm::Interpreter;
-                        let src = match std::fs::read_to_string(file) {
-                            Ok(s) => s,
-                            Err(e) => anyhow::bail!("read error: {e}"),
-                        };
-                        let mut lexer = Lexer::from_str(&src);
-                        let tokens = match lexer.tokenize() {
-                            Ok(t) => t,
-                            Err(e) => {
-                                if pretty {
-                                    match e {
-                                        LexerError::UnexpectedCharacter(_, line, col)
-                                        | LexerError::UnterminatedString(line, col)
-                                        | LexerError::InvalidNumber(_, line, col)
-                                        | LexerError::InvalidQubitLiteral(_, line, col)
-                                        | LexerError::UnterminatedComment(line, col) => {
-                                            emit_json_error(
-                                                &file.display().to_string(),
-                                                &format!("{}", e),
-                                                &Span::single(line, col),
-                                            );
-                                            print_error(
-                                                &file.display().to_string(),
-                                                &src,
-                                                &format!("{}", e),
-                                                Span::single(line, col),
-                                            );
-                                        }
-                                        _ => eprintln!("lex error: {e}"),
-                                    }
-                                } else {
-                                    eprintln!("lex error: {e}");
-                                }
-                                return Ok(());
-                            }
-                        };
-                        let mut parser = AeParser::new(tokens.clone());
-                        let ast = match parser.parse() {
-                            Ok(a) => a,
-                            Err(ParserError {
-                                message,
-                                line,
-                                column,
-                            }) => {
-                                if pretty {
-                                    emit_json_error(
-                                        &file.display().to_string(),
-                                        &format!("Parsing error: {message}"),
-                                        &Span::single(line, column),
-                                    );
-                                    print_error(
-                                        &file.display().to_string(),
-                                        &src,
-                                        &format!("Parsing error: {message}"),
-                                        Span::single(line, column),
-                                    );
-                                } else {
-                                    eprintln!("parse error: {message}");
-                                }
-                                return Ok(());
-                            }
-                        };
-                        if skip_sema {
-                            println!("note: semantic analysis skipped (native)");
-                        }
                         if no_run {
-                            // Compilation-only requested — parse succeeded, nothing to run.
                             return Ok(());
                         }
-                        println!("native: executing {}", file.display());
-                        match lower_ast_to_ir(&ast, "main") {
-                            Ok(module) => {
-                                let mut interp = Interpreter::new();
-                                interp.base_dir = file.parent().map(|p| p.to_path_buf());
-                                if let Err(e) = interp.run_module(&module) {
-                                    eprintln!("runtime error: {}", e.message);
-                                }
-                            }
-                            Err(e) => eprintln!("lowering error: {e}"),
-                        }
-                        Ok(())
+                        // Shard always executes .ai files natively — no JS temp files.
+                        commands::run::run_native(file, pretty, skip_sema)
                     }
                     "js" => {
                         if no_run {

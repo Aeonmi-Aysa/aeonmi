@@ -14,4 +14,9 @@ fn run_subcommand_executes_with_native_vm() {
         stdout.contains("native: executing"),
         "expected native execution marker in stdout: {stdout}"
     );
+    // Ensure no JS artifact is written
+    assert!(
+        !std::path::Path::new("aeonmi.run.js").exists(),
+        "run must not emit aeonmi.run.js"
+    );
 }
