@@ -478,6 +478,9 @@ impl CodeGenerator {
                 };
                 if let Some(sym) = glyph_name {
                     self.helpers.insert(Helper::GlyphRuntime);
+                    if args.is_empty() {
+                        return format!("__glyph('{}')", sym);
+                    }
                     let a = args
                         .iter()
                         .map(|x| self.emit_expr_js(x))
