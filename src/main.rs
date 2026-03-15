@@ -15,6 +15,7 @@ mod glyph;    // Glyph Identity System
 mod mother;   // Mother AI — Quantum Consciousness + Embryo Loop
 mod qube;     // QUBE (.qube) quantum symbolic reasoning format
 mod mint;     // Web3 minting — NFT metadata + Anchor stub generation
+mod web3;     // Web3 subsystem: wallet, token (ERC-20), DAO governance
 
 use clap::Parser; // trait import enables AeonmiCli::parse()
 use std::path::PathBuf;
@@ -657,6 +658,23 @@ fn main() -> anyhow::Result<()> {
                             }
                             Err(e) => eprintln!("chat error: {e}"),
                         }
+                    }
+                    Ok(())
+                }
+                crate::cli::AiAction::Review { file, suggest, json } => {
+                    use commands::review::{review_file, print_findings, print_findings_json};
+                    let path = match file {
+                        Some(p) => p,
+                        None => {
+                            eprintln!("ai review: --file <FILE> is required");
+                            std::process::exit(1);
+                        }
+                    };
+                    let findings = review_file(&path, suggest)?;
+                    if json {
+                        print_findings_json(&path, &findings);
+                    } else {
+                        print_findings(&path, &findings);
                     }
                     Ok(())
                 }
@@ -1388,6 +1406,127 @@ fn main() -> anyhow::Result<()> {
                 }
                 None => {
                     mother.run_repl()?;
+                }
+            }
+            Ok(())
+        }
+
+        // ── Web3 ─────────────────────────────────────────────────────────────
+
+        Some(Command::Wallet { action }) => {
+            use crate::cli::WalletAction;
+            use crate::web3::wallet::{Wallet, Ledger};
+            // One shared in-memory ledger per process invocation (stateless demo).
+            let mut ledger = Ledger::new();
+            match action {
+                WalletAction::New { seed } => {
+                    let w = Wallet::generate(&seed);
+                    println!("✅ Wallet generated");
+                    println!("   Name:    {}", w.name);
+                    println!("   Address: {}", w.address);
+                    println!("   PubKey:  {}", w.keypair.public_key);
+                }
+                WalletAction::Balance { seed } => {
+                    let w = Wallet::generate(&seed);
+                    println!("Balance of {} ({}): {:.4} AEON", seed, w.address, ledger.balance(&w.address));
+                }
+                WalletAction::Airdrop { seed, amount } => {
+                    let w = Wallet::generate(&seed);
+                    ledger.airdrop(&w.address, amount);
+                    println!("💰 Airdropped {:.4} AEON → {} ({})", amount, seed, w.address);
+                    println!("   New balance: {:.4} AEON", ledger.balance(&w.address));
+                }
+                WalletAction::Transfer { from, to, amount } => {
+                    let w_from = Wallet::generate(&from);
+                    let w_to   = Wallet::generate(&to);
+                    // Seed the sender with enough to demonstrate (demo only)
+                    ledger.airdrop(&w_from.address, amount + 1.0);
+                    match ledger.transfer(&w_from.address, &w_to.address, amount) {
+                        Ok(()) => {
+                            println!("✅ Transferred {:.4} AEON: {} → {}", amount, from, to);
+                            println!("   {} balance: {:.4}", from, ledger.balance(&w_from.address));
+                            println!("   {} balance: {:.4}", to,   ledger.balance(&w_to.address));
+                        }
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        Some(Command::Token { action }) => {
+            use crate::cli::TokenAction;
+            use crate::web3::token::Token;
+            let mut token = Token::new("Genesis Glyph Token", "GGT", 18, 1_000_000_000.0);
+            match action {
+                TokenAction::Info => {
+                    println!("{}", token.summary());
+                }
+                TokenAction::Mint { address, amount } => {
+                    match token.mint(&address, amount) {
+                        Ok(()) => println!("✅ Minted {:.4} GGT → {}", amount, address),
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+                TokenAction::Transfer { from, to, amount } => {
+                    // Pre-seed for demo
+                    token.mint(&from, amount + 1.0).ok();
+                    match token.transfer(&from, &to, amount) {
+                        Ok(()) => println!("✅ Transferred {:.4} GGT: {} → {}", amount, from, to),
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+                TokenAction::Burn { address, amount } => {
+                    // Pre-seed for demo
+                    token.mint(&address, amount + 1.0).ok();
+                    match token.burn(&address, amount) {
+                        Ok(()) => println!("🔥 Burned {:.4} GGT from {}", amount, address),
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+                TokenAction::Balance { address } => {
+                    println!("Balance of {}: {:.4} GGT", address, token.balance_of(&address));
+                }
+            }
+            Ok(())
+        }
+
+        Some(Command::Dao { action }) => {
+            use crate::cli::DaoAction;
+            use crate::web3::dao::{Dao, VoteChoice};
+            let mut dao = Dao::new("AEONMI Protocol DAO", 0.51);
+            dao.add_member("alice", 60);
+            dao.add_member("bob",   40);
+            match action {
+                DaoAction::Propose { title, body } => {
+                    let pid = dao.propose("alice", &title, &body);
+                    println!("📋 Proposal #{} created: {}", pid, title);
+                }
+                DaoAction::Vote { proposal_id, member, choice } => {
+                    let vote = match choice.to_lowercase().as_str() {
+                        "for"     => VoteChoice::For,
+                        "against" => VoteChoice::Against,
+                        _         => VoteChoice::Abstain,
+                    };
+                    match dao.vote(proposal_id, &member, vote) {
+                        Ok(()) => println!("🗳  {} voted on proposal #{}", member, proposal_id),
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+                DaoAction::Tally { proposal_id } => {
+                    match dao.tally(proposal_id) {
+                        Ok(r)  => println!("{}", r),
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+                DaoAction::Execute { proposal_id } => {
+                    match dao.execute(proposal_id) {
+                        Ok(()) => println!("✅ Proposal #{} executed", proposal_id),
+                        Err(e) => { eprintln!("❌ {}", e); std::process::exit(1); }
+                    }
+                }
+                DaoAction::Status => {
+                    println!("{}", dao.summary());
                 }
             }
             Ok(())
