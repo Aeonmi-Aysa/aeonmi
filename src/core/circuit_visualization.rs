@@ -3,6 +3,14 @@
 
 use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType};
 
+/// High-level visualization style selector
+#[derive(Debug, Clone)]
+pub enum VisualizationStyle {
+    Compact,   // Minimal spacing, basic ASCII
+    Academic,  // Unicode box-drawing, full parameters (suitable for papers)
+    Detailed,  // Wide, all parameters, qubit labels
+}
+
 /// Circuit visualization configuration
 #[derive(Debug, Clone)]
 pub struct VisualizationConfig {
@@ -32,20 +40,184 @@ impl Default for VisualizationConfig {
     }
 }
 
+impl VisualizationConfig {
+    fn from_style(style: &VisualizationStyle) -> Self {
+        match style {
+            VisualizationStyle::Compact => Self {
+                show_measurements: true,
+                show_parameters: false,
+                show_qubit_labels: true,
+                ascii_style: AsciiStyle::Compact,
+                max_width: 80,
+            },
+            VisualizationStyle::Academic => Self {
+                show_measurements: true,
+                show_parameters: true,
+                show_qubit_labels: true,
+                ascii_style: AsciiStyle::Unicode,
+                max_width: 80,
+            },
+            VisualizationStyle::Detailed => Self {
+                show_measurements: true,
+                show_parameters: true,
+                show_qubit_labels: true,
+                ascii_style: AsciiStyle::Unicode,
+                max_width: 120,
+            },
+        }
+    }
+}
+
 /// Circuit visualizer for AEONMI quantum circuits
 pub struct CircuitVisualizer {
     config: VisualizationConfig,
 }
 
 impl CircuitVisualizer {
-    pub fn new(config: VisualizationConfig) -> Self {
+    /// Create a visualizer with the given high-level style
+    pub fn new(style: VisualizationStyle) -> Self {
+        Self { config: VisualizationConfig::from_style(&style) }
+    }
+
+    /// Create a visualizer with explicit config
+    pub fn with_config(config: VisualizationConfig) -> Self {
         Self { config }
     }
     
     pub fn default() -> Self {
-        Self::new(VisualizationConfig::default())
+        Self::new(VisualizationStyle::Compact)
     }
     
+    /// Generate ASCII art representation of the circuit (convenience alias for to_ascii)
+    pub fn visualize_ascii(&self, circuit: &QuantumCircuitBuilder) -> String {
+        self.to_ascii(circuit)
+    }
+
+    /// Generate LaTeX (quantikz) representation of the circuit
+    pub fn visualize_latex(&self, circuit: &QuantumCircuitBuilder) -> String {
+        let mut latex = String::new();
+        latex.push_str("\\documentclass{article}\n");
+        latex.push_str("\\usepackage{quantikz}\n");
+        latex.push_str("\\begin{document}\n");
+        latex.push_str("\\begin{quantikz}\n");
+
+        let n_qubits = circuit.qubits.len();
+        if n_qubits == 0 {
+            latex.push_str("\\end{quantikz}\n\\end{document}\n");
+            return latex;
+        }
+
+        // Build a column for each gate per qubit line
+        let mut qubit_lines: Vec<Vec<String>> = Vec::new();
+        for i in 0..n_qubits {
+            qubit_lines.push(vec![format!("\\lstick{{$|q_{}\\rangle$}}", i)]);
+        }
+
+        for gate in &circuit.gates {
+            let qubit_indices: Vec<usize> = gate.qubits.iter()
+                .filter_map(|q| circuit.qubits.iter().position(|qb| qb == q))
+                .collect();
+
+            match &gate.gate_type {
+                QuantumGateType::Hadamard => {
+                    if let Some(&qi) = qubit_indices.first() {
+                        for i in 0..n_qubits {
+                            if i == qi {
+                                qubit_lines[i].push("& \\gate{H}".to_string());
+                            } else {
+                                qubit_lines[i].push("& \\qw".to_string());
+                            }
+                        }
+                    }
+                }
+                QuantumGateType::PauliX => {
+                    if let Some(&qi) = qubit_indices.first() {
+                        for i in 0..n_qubits {
+                            if i == qi { qubit_lines[i].push("& \\gate{X}".to_string()); }
+                            else { qubit_lines[i].push("& \\qw".to_string()); }
+                        }
+                    }
+                }
+                QuantumGateType::PauliY => {
+                    if let Some(&qi) = qubit_indices.first() {
+                        for i in 0..n_qubits {
+                            if i == qi { qubit_lines[i].push("& \\gate{Y}".to_string()); }
+                            else { qubit_lines[i].push("& \\qw".to_string()); }
+                        }
+                    }
+                }
+                QuantumGateType::PauliZ => {
+                    if let Some(&qi) = qubit_indices.first() {
+                        for i in 0..n_qubits {
+                            if i == qi { qubit_lines[i].push("& \\gate{Z}".to_string()); }
+                            else { qubit_lines[i].push("& \\qw".to_string()); }
+                        }
+                    }
+                }
+                QuantumGateType::CNOT => {
+                    if qubit_indices.len() == 2 {
+                        let control = qubit_indices[0];
+                        let target = qubit_indices[1];
+                        let diff = target as i32 - control as i32;
+                        for i in 0..n_qubits {
+                            if i == control {
+                                qubit_lines[i].push(format!("& \\ctrl{{{}}}", diff));
+                            } else if i == target {
+                                qubit_lines[i].push("& \\targ{}".to_string());
+                            } else {
+                                qubit_lines[i].push("& \\qw".to_string());
+                            }
+                        }
+                    }
+                }
+                QuantumGateType::Measure => {
+                    if let Some(&qi) = qubit_indices.first() {
+                        for i in 0..n_qubits {
+                            if i == qi { qubit_lines[i].push("& \\meter{}".to_string()); }
+                            else { qubit_lines[i].push("& \\qw".to_string()); }
+                        }
+                    }
+                }
+                _ => {
+                    let symbol = self.get_gate_symbol(&gate.gate_type);
+                    if let Some(&qi) = qubit_indices.first() {
+                        for i in 0..n_qubits {
+                            if i == qi {
+                                qubit_lines[i].push(format!("& \\gate{{{}}}", symbol));
+                            } else {
+                                qubit_lines[i].push("& \\qw".to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // End each qubit line with \qw
+        for line in &mut qubit_lines {
+            line.push("& \\qw".to_string());
+        }
+
+        // Render rows
+        for (i, line) in qubit_lines.iter().enumerate() {
+            if i < qubit_lines.len() - 1 {
+                latex.push_str(&format!("{} \\\\\n", line.join(" ")));
+            } else {
+                latex.push_str(&format!("{}\n", line.join(" ")));
+            }
+        }
+
+        latex.push_str("\\end{quantikz}\n");
+        latex.push_str("\\end{document}\n");
+        latex
+    }
+
+    /// Generate JSON string representation of the circuit
+    pub fn visualize_json(&self, circuit: &QuantumCircuitBuilder) -> Result<String, String> {
+        let json_value = self.to_json(circuit);
+        serde_json::to_string_pretty(&json_value).map_err(|e| e.to_string())
+    }
+
     /// Generate ASCII art representation of the circuit
     pub fn to_ascii(&self, circuit: &QuantumCircuitBuilder) -> String {
         let mut output = String::new();
@@ -166,9 +338,18 @@ impl CircuitVisualizer {
             QuantumGateType::CZ => "CZ".to_string(),
             QuantumGateType::CY => "CY".to_string(),
             QuantumGateType::SWAP => "×".to_string(),
+            QuantumGateType::CPhase(angle) => {
+                if self.config.show_parameters {
+                    format!("CP({:.2})", angle)
+                } else {
+                    "CP".to_string()
+                }
+            },
             QuantumGateType::Toffoli => "⊕".to_string(),
             QuantumGateType::Fredkin => "×".to_string(),
-            QuantumGateType::Measure => "📊".to_string(),
+            QuantumGateType::Measure => "M".to_string(),
+            QuantumGateType::Barrier => "|".to_string(),
+            QuantumGateType::Comment(_) => "//".to_string(),
             QuantumGateType::Custom(name, _) => name.clone(),
         }
     }
@@ -290,9 +471,9 @@ impl CircuitVisualizer {
         for (i, line) in lines.iter_mut().enumerate() {
             if qubit_indices.contains(&i) {
                 if self.config.show_measurements {
-                    line.push_str("┤📊├");
-                } else {
                     line.push_str("┤ M ├");
+                } else {
+                    line.push_str("─────");
                 }
             } else {
                 line.push_str(&format!("─{}─", self.horizontal_char().repeat(3)));

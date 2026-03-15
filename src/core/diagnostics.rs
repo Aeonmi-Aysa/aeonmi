@@ -3,6 +3,7 @@
 
 use colored::Colorize;
 
+#[derive(Debug, Clone)]
 pub struct Span {
     pub line: usize,
     pub col: usize,
@@ -16,6 +17,7 @@ impl Span {
 }
 
 /// Enhanced error with contextual suggestions
+#[derive(Debug)]
 pub struct QuantumDiagnostic {
     pub title: String,
     pub span: Span,
