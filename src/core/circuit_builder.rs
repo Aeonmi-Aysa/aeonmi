@@ -283,9 +283,13 @@ impl QuantumCircuitBuilder {
     
     // === Measurement Operations ===
     
-    /// Measure a qubit (classical bit name auto-derived from qubit index)
+    /// Measure a qubit (classical bit name auto-derived from qubit index).
+    /// If the qubit is not registered in this circuit, the call is a no-op.
     pub fn measure(&mut self, qubit: &QubitId) -> &mut Self {
-        let idx = self.qubits.iter().position(|q| q == qubit).unwrap_or(0);
+        let idx = match self.qubits.iter().position(|q| q == qubit) {
+            Some(i) => i,
+            None => return self, // qubit not in circuit – skip silently
+        };
         let classical_bit = format!("c[{}]", idx);
         self.add_gate(QuantumGate::new(
             QuantumGateType::Measure,
@@ -324,7 +328,7 @@ impl QuantumCircuitBuilder {
         ))
     }
     
-    /// Add a barrier / synchronisation annotation
+    /// Add a barrier / synchronization annotation
     pub fn barrier(&mut self) -> &mut Self {
         let qubits = self.qubits.clone();
         self.add_gate(QuantumGate::new(QuantumGateType::Barrier, qubits))

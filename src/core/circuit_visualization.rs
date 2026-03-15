@@ -85,7 +85,7 @@ impl CircuitVisualizer {
         self.to_latex_quantikz(circuit)
     }
 
-    /// Serialise the circuit to a JSON string
+    /// Serialize the circuit to a JSON string
     pub fn visualize_json(&self, circuit: &QuantumCircuitBuilder) -> Result<String, serde_json::Error> {
         let value = self.to_json(circuit);
         serde_json::to_string_pretty(&value)
