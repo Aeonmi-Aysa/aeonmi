@@ -3,6 +3,14 @@
 
 use crate::core::circuit_builder::{QuantumCircuitBuilder, QuantumGate, QuantumGateType};
 
+/// Visualization style for circuit output
+#[derive(Debug, Clone, PartialEq)]
+pub enum VisualizationStyle {
+    Compact,   // Minimal spacing
+    Academic,  // Full quantikz-compatible LaTeX style
+    Detailed,  // Verbose with parameters
+}
+
 /// Circuit visualization configuration
 #[derive(Debug, Clone)]
 pub struct VisualizationConfig {
@@ -38,15 +46,52 @@ pub struct CircuitVisualizer {
 }
 
 impl CircuitVisualizer {
-    pub fn new(config: VisualizationConfig) -> Self {
+    /// Create a visualizer using a `VisualizationStyle` shorthand
+    pub fn new(style: VisualizationStyle) -> Self {
+        let (ascii_style, show_parameters) = match style {
+            VisualizationStyle::Compact  => (AsciiStyle::Compact,  false),
+            VisualizationStyle::Academic => (AsciiStyle::Unicode,  true),
+            VisualizationStyle::Detailed => (AsciiStyle::Unicode,  true),
+        };
+        Self {
+            config: VisualizationConfig {
+                show_measurements: true,
+                show_parameters,
+                show_qubit_labels: true,
+                ascii_style,
+                max_width: 80,
+            },
+        }
+    }
+
+    /// Create a visualizer with a custom `VisualizationConfig`
+    pub fn with_config(config: VisualizationConfig) -> Self {
         Self { config }
     }
     
     pub fn default() -> Self {
-        Self::new(VisualizationConfig::default())
+        Self::with_config(VisualizationConfig::default())
     }
-    
+
+    // ── high-level API expected by tests ─────────────────────────────────────
+
     /// Generate ASCII art representation of the circuit
+    pub fn visualize_ascii(&self, circuit: &QuantumCircuitBuilder) -> String {
+        self.to_ascii(circuit)
+    }
+
+    /// Generate a full quantikz LaTeX document for the circuit
+    pub fn visualize_latex(&self, circuit: &QuantumCircuitBuilder) -> String {
+        self.to_latex_quantikz(circuit)
+    }
+
+    /// Serialize the circuit to a JSON string
+    pub fn visualize_json(&self, circuit: &QuantumCircuitBuilder) -> Result<String, serde_json::Error> {
+        let value = self.to_json(circuit);
+        serde_json::to_string_pretty(&value)
+    }
+
+    /// Generate ASCII art representation of the circuit (internal impl)
     pub fn to_ascii(&self, circuit: &QuantumCircuitBuilder) -> String {
         let mut output = String::new();
         
@@ -116,9 +161,11 @@ impl CircuitVisualizer {
         match gate.gate_type {
             QuantumGateType::CNOT => self.add_cnot_to_diagram(lines, &qubit_indices),
             QuantumGateType::CZ => self.add_controlled_gate_to_diagram(lines, &qubit_indices, "Z"),
+            QuantumGateType::CPhase(_) => self.add_controlled_gate_to_diagram(lines, &qubit_indices, "P"),
             QuantumGateType::Toffoli => self.add_toffoli_to_diagram(lines, &qubit_indices),
             QuantumGateType::SWAP => self.add_swap_to_diagram(lines, &qubit_indices),
             QuantumGateType::Measure => self.add_measurement_to_diagram(lines, &qubit_indices),
+            QuantumGateType::Barrier | QuantumGateType::Comment(_) => { /* annotations – no drawing */ },
             _ => self.add_single_gate_to_diagram(lines, &qubit_indices, &gate_symbol),
         }
     }
@@ -168,7 +215,16 @@ impl CircuitVisualizer {
             QuantumGateType::SWAP => "×".to_string(),
             QuantumGateType::Toffoli => "⊕".to_string(),
             QuantumGateType::Fredkin => "×".to_string(),
-            QuantumGateType::Measure => "📊".to_string(),
+            QuantumGateType::Measure => "M".to_string(),
+            QuantumGateType::CPhase(angle) => {
+                if self.config.show_parameters {
+                    format!("CP({:.2})", angle)
+                } else {
+                    "CP".to_string()
+                }
+            },
+            QuantumGateType::Barrier => "|".to_string(),
+            QuantumGateType::Comment(_) => "".to_string(),
             QuantumGateType::Custom(name, _) => name.clone(),
         }
     }
@@ -290,9 +346,9 @@ impl CircuitVisualizer {
         for (i, line) in lines.iter_mut().enumerate() {
             if qubit_indices.contains(&i) {
                 if self.config.show_measurements {
-                    line.push_str("┤📊├");
-                } else {
                     line.push_str("┤ M ├");
+                } else {
+                    line.push_str("──────");
                 }
             } else {
                 line.push_str(&format!("─{}─", self.horizontal_char().repeat(3)));
@@ -371,6 +427,91 @@ impl CircuitVisualizer {
         latex
     }
     
+    /// Generate a full quantikz LaTeX document (used by visualize_latex)
+    pub fn to_latex_quantikz(&self, circuit: &QuantumCircuitBuilder) -> String {
+        let mut latex = String::new();
+        let n = circuit.qubits.len();
+
+        // Document preamble
+        latex.push_str("\\documentclass{article}\n");
+        latex.push_str("\\usepackage{quantikz}\n");
+        latex.push_str("\\begin{document}\n");
+        latex.push_str("\\begin{quantikz}\n");
+
+        // Build a column-per-gate representation (one row per qubit)
+        let mut rows: Vec<Vec<String>> = (0..n).map(|i| {
+            vec![format!("\\lstick{{$q_{}$}}", i)]
+        }).collect();
+
+        for gate in &circuit.gates {
+            let idxs = self.get_gate_qubit_indices(gate, circuit);
+            match &gate.gate_type {
+                QuantumGateType::Hadamard => {
+                    if let Some(&t) = idxs.first() {
+                        for r in 0..n {
+                            if r == t { rows[r].push("& \\gate{H}".to_string()); }
+                            else       { rows[r].push("& \\qw".to_string()); }
+                        }
+                    }
+                },
+                QuantumGateType::PauliX => {
+                    if let Some(&t) = idxs.first() {
+                        for r in 0..n {
+                            if r == t { rows[r].push("& \\gate{X}".to_string()); }
+                            else       { rows[r].push("& \\qw".to_string()); }
+                        }
+                    }
+                },
+                QuantumGateType::CNOT => {
+                    if idxs.len() == 2 {
+                        let ctrl = idxs[0]; let tgt = idxs[1];
+                        for r in 0..n {
+                            if r == ctrl {
+                                rows[r].push(format!("& \\ctrl{{{}}}", tgt as i32 - ctrl as i32));
+                            } else if r == tgt {
+                                rows[r].push("& \\targ{}".to_string());
+                            } else {
+                                rows[r].push("& \\qw".to_string());
+                            }
+                        }
+                    }
+                },
+                QuantumGateType::Measure => {
+                    if let Some(&t) = idxs.first() {
+                        for r in 0..n {
+                            if r == t { rows[r].push("& \\meter{}".to_string()); }
+                            else       { rows[r].push("& \\qw".to_string()); }
+                        }
+                    }
+                },
+                QuantumGateType::Barrier | QuantumGateType::Comment(_) => {
+                    // skip annotations
+                },
+                other => {
+                    let sym = self.get_gate_symbol(other);
+                    if let Some(&t) = idxs.first() {
+                        for r in 0..n {
+                            if r == t { rows[r].push(format!("& \\gate{{{}}}", sym)); }
+                            else       { rows[r].push("& \\qw".to_string()); }
+                        }
+                    }
+                },
+            }
+        }
+
+        // Add trailing \qw and end-of-row marker
+        for (i, row) in rows.iter_mut().enumerate() {
+            row.push("& \\qw".to_string());
+            let sep = if i + 1 < n { " \\\\\n" } else { "\n" };
+            latex.push_str(&row.join(" "));
+            latex.push_str(sep);
+        }
+
+        latex.push_str("\\end{quantikz}\n");
+        latex.push_str("\\end{document}\n");
+        latex
+    }
+
     /// Generate JSON representation for web visualization
     pub fn to_json(&self, circuit: &QuantumCircuitBuilder) -> serde_json::Value {
         serde_json::json!({
