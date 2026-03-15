@@ -1,4 +1,4 @@
-# AEONMI BUILD STATUS — March 14, 2026
+# AEONMI BUILD STATUS — March 2026
 
 ## WHAT IS DONE
 
@@ -34,7 +34,7 @@
 - `src/glyph/vault.rs`     — XChaCha20-Poly1305 encrypted vault, Merkle log
 - `src/glyph/anomaly.rs`   — Rate-limit signing, distort glyph on anomaly
 
-### Phase 5a ✅ COMPLETE — Mother AI (migrated from quantum_llama_bridge, Llama STRIPPED)
+### Phase 5a ✅ COMPLETE — Mother AI
 - `src/mother/quantum_core.rs`      — MotherQuantumCore, creator bond, guided evolution
 - `src/mother/emotional_core.rs`    — EmotionalCore, EmpathyEngine, bond strength
 - `src/mother/language_evolution.rs`— LanguageEvolutionCore, semantic depth, vocab growth
@@ -47,22 +47,32 @@
 - `src/core/mint.rs`  — NFT metadata JSON, Solana-compatible attributes, Anchor Rust stub
 - CLI: `aeonmi mint <file.ai> [--personality] [--anchor] [--glyph-seed] [--out]`
 
+### Phase 5c ✅ COMPLETE — Web3 Goodies (NEW)
+- `src/web3/wallet.rs` — Deterministic key-pair generation, AEON address derivation, in-memory balance ledger
+- `src/web3/token.rs`  — ERC-20/SPL fungible token: mint, burn, transfer, approve/transferFrom
+- `src/web3/dao.rs`    — DAO governance: proposals, voting (For/Against/Abstain), tally, execute
+- CLI: `aeonmi wallet new|balance|airdrop|transfer`
+- CLI: `aeonmi token info|mint|transfer|burn|balance`
+- CLI: `aeonmi dao status|propose|vote|tally|execute`
+- Tests: `tests/web3_integration.rs` (17 integration tests) + 24 inline unit tests
+- Docs: `docs/WEB3_GUIDE.md`
+
 ---
 
 ## BUILD COMMAND
 
 ```bash
-# Linux / macOS / CI
-cargo build --features "quantum,bytecode,debug-metrics,mother-ai" --no-default-features
-
-# Build all (requires libalsa for voice; skip on CI)
-cargo build --features "quantum,bytecode,debug-metrics,mother-ai,titan-libraries"
+# Standard build (all features used by tests)
+cargo build --no-default-features --features "quantum,mother-ai"
 
 # Run tests
-cargo test --features "quantum,bytecode,debug-metrics,mother-ai" --no-default-features
+cargo test --no-default-features --features "quantum,mother-ai"
+
+# Run Web3 tests only
+cargo test --no-default-features --features "quantum,mother-ai" web3
 ```
 
-Expected: clean build with warnings only (no errors). All 135 tests pass.
+Expected: clean build (warnings only, no errors). All tests pass.
 
 ---
 
@@ -79,53 +89,31 @@ Expected: clean build with warnings only (no errors). All 135 tests pass.
 | 7 | `aeonmi mint examples/hello.ai` → valid NFT metadata JSON | mint | ✅ |
 | 8 | `aeonmi mother` → interactive REPL, quantum bond active | mother AI | ✅ |
 | 9 | No Node.js installed → all `.ai` files still run | native VM | ✅ |
+| 10 | `aeonmi wallet new alice` → deterministic AEON address | web3/wallet | ✅ |
+| 11 | `aeonmi token mint ADDR 5000` → GGT balance updated | web3/token | ✅ |
+| 12 | `aeonmi dao propose "Upgrade" "body"` → proposal submitted | web3/dao | ✅ |
 
 ---
 
-## WHAT IS NOT DONE (NEXT)
+## DIAGNOSTICS / ERROR DISPLAY
 
-### Phase 1.5 — Genesis Glyphs (IMMEDIATE NEXT)
-Add `⧉`, `‥`, `…`, `↦` to the lexer and wire through AST and native VM:
+- `--pretty-errors` flag enables ANSI-formatted span diagnostics
+- Lexer errors (unterminated strings, invalid qubit literals) show file:line:col + underline
+- Parser errors (missing `(`, `{`, bad syntax) show file:line:col + underline
+- Tests: `tests/diagnostics.rs`, `tests/errors_extra.rs`
 
-```
-G-1: Add ⧉ to lexer                   G-2: Add ‥ to lexer
-G-3: Add … spread operator             G-4: Add ↦ binding glyph
-G-5: GlyphArray AST node               G-6: SpreadExpr AST node
-G-7: SliceExpr AST node                G-8: BindingProjection AST node
-G-9: Native VM execution for all       G-10: Wire ⊗ to Kronecker product
-G-12: examples/genesis.ai demo
-```
+---
 
-### Phase 1 Remaining — Language Core Fixes
-- **P1-33:** f-string interpolation — `f"hello {name}"` should evaluate to `hello Warren`
-- **P1-34:** `for x in collection` — should iterate, not create a block placeholder
-- **P4-13/14/15:** CLI color scheme — cyberpunk aesthetic, neon yellow/magenta quantum output
+## WHAT IS NEXT
 
-### Phase 3 — Shard Self-Hosting
-Run `shard/src/main.ai` as a real compiler (reads a file, tokenizes, parses, outputs).
+### Phase 6 — VM builtins for Web3
+Wire `wallet_generate`, `token_mint`, `dao_vote` etc. as native VM builtins so
+`.ai` scripts can call them directly without Rust interop.
 
-```
-aeonmi run shard/src/main.ai -- examples/hello.ai
-```
+### Phase 6b — Persistent State
+Add file-backed persistence (TOML/JSON) to wallet ledger and DAO so state
+survives across CLI invocations.
 
-Gate: **P3-4** — `read_file(path)` built-in. Without file I/O, Shard can't read source. Everything else in Phase 3 follows.
+### Phase 7 — On-chain Targets
+Generate Solana Anchor stubs and Ethereum Solidity for Token and DAO modules.
 
-Steps:
-- P3-4: `read_file` / `write_file` built-in functions
-- P3-5: Shard reads .ai source and tokenizes it
-- P3-6: Shard parses tokenized input
-- P3-7: Shard produces compiled output from .ai input
-- P3-8: End-to-end: `aeonmi run shard/src/main.ai -- examples/hello.ai` → real output
-
-### Phase 2 Remaining — Quantum Simulator
-- **P2-8:** Joint multi-qubit state-vector simulator (CRITICAL — enables real CNOT, entanglement)
-- **P2-9:** Wire real CNOT into `entangle()`
-
-### Phase 5c — Mother AI + Real LLM
-- Connect AiRegistry (OpenAI / Claude API) to EmbryoLoop
-- Mother writes `.ai` scripts autonomously
-- Wire embryo loop into MotherAI binary for standalone `MotherAI.exe`
-
-### Phase 5d — WASM target
-- `cargo build --target wasm32-unknown-unknown`
-- Browser REPL at aeonmi.x

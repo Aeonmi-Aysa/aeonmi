@@ -537,6 +537,142 @@ pub enum Command {
         #[arg(long = "dur", value_name = "NS")]
         dur: u128,
     },
+
+    // ── Web3 ───────────────────────────────────────────────────────────────────
+
+    /// Manage simulated Web3 wallets: generate, show, and transfer AEON.
+    ///
+    /// Examples:
+    ///   aeonmi wallet new alice
+    ///   aeonmi wallet balance alice
+    ///   aeonmi wallet transfer alice bob 100
+    Wallet {
+        #[command(subcommand)]
+        action: WalletAction,
+    },
+
+    /// Interact with the Genesis Glyph Token (GGT) — ERC-20/SPL-style token.
+    ///
+    /// Examples:
+    ///   aeonmi token info
+    ///   aeonmi token mint alice 5000
+    ///   aeonmi token transfer alice bob 1000
+    ///   aeonmi token burn alice 250
+    Token {
+        #[command(subcommand)]
+        action: TokenAction,
+    },
+
+    /// DAO governance: propose, vote, tally, and execute proposals.
+    ///
+    /// Examples:
+    ///   aeonmi dao propose "Upgrade VM" "Set MAX_FRAMES = 2048"
+    ///   aeonmi dao vote 1 alice for
+    ///   aeonmi dao tally 1
+    ///   aeonmi dao execute 1
+    Dao {
+        #[command(subcommand)]
+        action: DaoAction,
+    },
+}
+
+// ── Web3 subcommand enums ─────────────────────────────────────────────────────
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum WalletAction {
+    /// Generate a deterministic wallet from a seed name.
+    New {
+        #[arg(value_name = "SEED")]
+        seed: String,
+    },
+    /// Show the balance of a wallet (by seed name).
+    Balance {
+        #[arg(value_name = "SEED")]
+        seed: String,
+    },
+    /// Airdrop AEON to a wallet.
+    Airdrop {
+        #[arg(value_name = "SEED")]
+        seed: String,
+        #[arg(value_name = "AMOUNT")]
+        amount: f64,
+    },
+    /// Transfer AEON between wallets.
+    Transfer {
+        #[arg(value_name = "FROM")]
+        from: String,
+        #[arg(value_name = "TO")]
+        to: String,
+        #[arg(value_name = "AMOUNT")]
+        amount: f64,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum TokenAction {
+    /// Print token metadata.
+    Info,
+    /// Mint tokens to an address.
+    Mint {
+        #[arg(value_name = "ADDRESS")]
+        address: String,
+        #[arg(value_name = "AMOUNT")]
+        amount: f64,
+    },
+    /// Transfer tokens between addresses.
+    Transfer {
+        #[arg(value_name = "FROM")]
+        from: String,
+        #[arg(value_name = "TO")]
+        to: String,
+        #[arg(value_name = "AMOUNT")]
+        amount: f64,
+    },
+    /// Burn tokens from an address.
+    Burn {
+        #[arg(value_name = "ADDRESS")]
+        address: String,
+        #[arg(value_name = "AMOUNT")]
+        amount: f64,
+    },
+    /// Show balance of an address.
+    Balance {
+        #[arg(value_name = "ADDRESS")]
+        address: String,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum DaoAction {
+    /// Show DAO membership and voting power summary.
+    Status,
+    /// Submit a new governance proposal.
+    Propose {
+        #[arg(value_name = "TITLE")]
+        title: String,
+        #[arg(value_name = "BODY")]
+        body: String,
+    },
+    /// Cast a vote on a proposal.
+    Vote {
+        #[arg(value_name = "PROPOSAL_ID")]
+        id: u64,
+        #[arg(value_name = "MEMBER")]
+        member: String,
+        /// Vote choice: for | against | abstain
+        #[arg(value_name = "CHOICE")]
+        choice: String,
+    },
+    /// Tally votes for a proposal.
+    Tally {
+        #[arg(value_name = "PROPOSAL_ID")]
+        id: u64,
+    },
+    /// Execute a passing proposal.
+    Execute {
+        #[arg(value_name = "PROPOSAL_ID")]
+        id: u64,
+    },
 }
 
 #[derive(Subcommand, Debug, Clone)]
