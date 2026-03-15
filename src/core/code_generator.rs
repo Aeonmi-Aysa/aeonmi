@@ -470,6 +470,21 @@ impl CodeGenerator {
                 format!("{}{}", self.op_str(op), self.emit_expr_js(expr))
             }
             ASTNode::Call { callee, args } => {
+                // Hieroglyphic function calls: 𓀀(q1, 42) → __glyph('𓀀', q1, 42)
+                let glyph_name = match &**callee {
+                    ASTNode::Identifier(name) | ASTNode::IdentifierSpanned { name, .. }
+                        if name.chars().any(|c| c > '\u{07FF}') => Some(name.clone()),
+                    _ => None,
+                };
+                if let Some(sym) = glyph_name {
+                    self.helpers.insert(Helper::GlyphRuntime);
+                    let a = args
+                        .iter()
+                        .map(|x| self.emit_expr_js(x))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return format!("__glyph('{}', {})", sym, a);
+                }
                 let mapped = match &**callee {
                     ASTNode::Identifier(name) => self.map_helper(name),
                     ASTNode::IdentifierSpanned { name, .. } => self.map_helper(name),
