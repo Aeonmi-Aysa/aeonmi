@@ -15,6 +15,7 @@ pub fn run_native(
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
+    println!("native: executing {}", input.display());
     let source = std::fs::read_to_string(input)?;
     // Lex
     let mut lexer = Lexer::from_str(&source);

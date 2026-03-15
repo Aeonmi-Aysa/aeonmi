@@ -18,10 +18,10 @@ fn shell_run_native_skips_js_emit() {
         .spawn()
         .expect("failed to start shell");
 
-    // Shell `run` syntax: run <file> [--native]
+    // `run <file>` is now always native — no JS emit, no --native flag needed
     {
         let stdin = child.stdin.as_mut().expect("stdin");
-        writeln!(stdin, "run {} --native", ai_path.display()).unwrap();
+        writeln!(stdin, "run {}", ai_path.display()).unwrap();
         writeln!(stdin, "exit").unwrap();
     }
 
@@ -29,5 +29,5 @@ fn shell_run_native_skips_js_emit() {
     assert!(output.status.success(), "shell exit status not success: stderr=\n{}", String::from_utf8_lossy(&output.stderr));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("10"), "expected native result in stdout: {stdout}");
-    assert!(!dir.path().join("aeonmi.run.js").exists(), "unexpected JS file emitted in shell native run mode");
+    assert!(!dir.path().join("aeonmi.run.js").exists(), "Shard must not emit aeonmi.run.js");
 }
