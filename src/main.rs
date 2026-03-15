@@ -594,6 +594,23 @@ fn main() -> anyhow::Result<()> {
                     println!("ai: refactor {:?}", rule);
                     Ok(())
                 }
+                crate::cli::AiAction::Review { file, suggest, json } => {
+                    use commands::review::{review_file, print_findings, print_findings_json};
+                    let path = match file {
+                        Some(p) => p,
+                        None => {
+                            eprintln!("ai review: --file <FILE> is required");
+                            std::process::exit(1);
+                        }
+                    };
+                    let findings = review_file(&path, suggest)?;
+                    if json {
+                        print_findings_json(&path, &findings);
+                    } else {
+                        print_findings(&path, &findings);
+                    }
+                    Ok(())
+                }
                 crate::cli::AiAction::Chat {
                     provider,
                     prompt,
