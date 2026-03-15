@@ -43,6 +43,12 @@ pub enum ASTNode {
         increment: Option<Box<ASTNode>>,
         body: Box<ASTNode>,
     },
+    /// `for x in iterable { body }` — proper iteration (P1-34)
+    ForIn {
+        var: String,
+        iterable: Box<ASTNode>,
+        body: Box<ASTNode>,
+    },
     // Expressions
     Assignment {
         name: String,

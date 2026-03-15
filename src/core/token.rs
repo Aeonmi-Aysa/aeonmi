@@ -39,6 +39,12 @@ pub enum TokenKind {
     QuantumImplies,    // ⇒
     QuantumLoop,       // ⟲
     QuantumModulo,     // ◊
+
+    // Genesis Glyph Operators (G-1..G-5)
+    ArrayGenesisBracket, // ⧉  — array genesis bracket (both open and close; same char)
+    GenesisSep,          // ‥  — separator inside genesis expressions
+    GenesisSpread,       // …  — spread/expand operator
+    GenesisBinding,      // ↦  — binding/projection operator
     
     // Delimiters for quantum syntax
     QuantumBracketOpen,  // ⟨
@@ -195,6 +201,12 @@ impl std::fmt::Display for TokenKind {
             TokenKind::QuantumImplies => "⇒",
             TokenKind::QuantumLoop => "⟲",
             TokenKind::QuantumModulo => "◊",
+
+            // Genesis Glyph Operators
+            TokenKind::ArrayGenesisBracket => "⧉",
+            TokenKind::GenesisSep => "‥",
+            TokenKind::GenesisSpread => "…",
+            TokenKind::GenesisBinding => "↦",
             
             // Quantum delimiters
             TokenKind::QuantumBracketOpen => "⟨",

@@ -1,4 +1,5 @@
 mod ai; // AI provider registry & implementations
+mod banner; // Cyberpunk CLI banner
 mod cli;
 mod cli_vault;
 mod commands;
@@ -72,6 +73,7 @@ fn set_console_title() {
 
 fn main() -> anyhow::Result<()> {
     set_console_title();
+    banner::print_banner();
 
     let args = AeonmiCli::parse();
 
