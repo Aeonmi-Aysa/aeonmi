@@ -1,0 +1,238 @@
+// Quantum Vault — pure Aeonmi
+// Create vault, encrypt/store secrets, load/save state as JSON
+
+log("=== Quantum Vault ===");
+
+const VAULT_DIR  = ".aeonmi_vault";
+const VAULT_FILE = ".aeonmi_vault/vault.json";
+const VAULT_VERSION = "1.0";
+
+// --- Vault state ---
+function vault_new(name, master_password) {
+    let master_hash = sha256(master_password + "aeonmi_vault_salt");
+    return {
+        version: VAULT_VERSION,
+        name: name,
+        master_hash: master_hash,
+        created_at: time_ms(),
+        last_modified: time_ms(),
+        entries: [],
+        merkle_root: "",
+        sealed: false
+    };
+}
+
+// --- XOR encryption helpers ---
+function vault_expand_key(key, length) {
+    let expanded = key;
+    while expanded.length < length * 4 {
+        expanded = sha256(expanded + key);
+    }
+    return expanded;
+}
+
+function vault_xor_encrypt(plaintext, key) {
+    let expanded = vault_expand_key(key, plaintext.length);
+    let chars = plaintext.split("");
+    let key_chars = expanded.split("");
+    let out = [];
+    let i = 0;
+    while i < len(chars) {
+        let pc = char_code(chars[i]);
+        let kc = char_code(key_chars[i % len(key_chars)]) % 128;
+        let enc = pc + kc;
+        if enc > 127 { enc = enc - 128; }
+        out.push(toString(enc));
+        i = i + 1;
+    }
+    return out.join(":");
+}
+
+function vault_xor_decrypt(ciphertext, key) {
+    let parts = ciphertext.split(":");
+    let expanded = vault_expand_key(key, len(parts));
+    let key_chars = expanded.split("");
+    let out = "";
+    let i = 0;
+    while i < len(parts) {
+        let ec = parse_int(parts[i]);
+        let kc = char_code(key_chars[i % len(key_chars)]) % 128;
+        let dec = ec - kc;
+        if dec < 0 { dec = dec + 128; }
+        out = out + char_from_code(dec);
+        i = i + 1;
+    }
+    return out;
+}
+
+// --- Entry management ---
+function vault_add_entry(vault, domain, username, password, notes, master_password) {
+    let key = sha256(master_password + domain + toString(time_ms()));
+    let entry = {
+        id: sha256(domain + username + toString(time_ms())).slice(0, 16),
+        domain: domain,
+        username: username,
+        encrypted_password: vault_xor_encrypt(password, key),
+        encrypted_notes: vault_xor_encrypt(notes, key),
+        key_hint: sha256(key).slice(0, 8),
+        key: key,
+        created_at: time_ms(),
+        last_modified: time_ms()
+    };
+    vault.entries.push(entry);
+    vault.last_modified = time_ms();
+    vault.merkle_root = vault_compute_merkle(vault);
+    return entry.id;
+}
+
+function vault_get_entry(vault, domain, master_password) {
+    let i = 0;
+    while i < vault.len(entries) {
+        let e = vault.entries[i];
+        if string_contains(e.domain.toLowerCase(), domain.toLowerCase()) {
+            let password = vault_xor_decrypt(e.encrypted_password, e.key);
+            let notes = vault_xor_decrypt(e.encrypted_notes, e.key);
+            return { domain: e.domain, username: e.username, password: password, notes: notes, id: e.id };
+        }
+        i = i + 1;
+    }
+    return null;
+}
+
+function vault_list_entries(vault) {
+    log("Vault: " + vault.name + " (" + toString(vault.len(entries)) + " entries)");
+    let i = 0;
+    while i < vault.len(entries) {
+        let e = vault.entries[i];
+        log("  [" + toString(i) + "] " + e.domain + " | user: " + e.username + " | id: " + e.id);
+        i = i + 1;
+    }
+}
+
+// --- Merkle root computation ---
+function vault_compute_merkle(vault) {
+    if vault.len(entries) == 0 { return sha256("empty"); }
+    let hashes = [];
+    let i = 0;
+    while i < vault.len(entries) {
+        let e = vault.entries[i];
+        hashes.push(sha256(e.id + e.domain + e.key_hint));
+        i = i + 1;
+    }
+    while len(hashes) > 1 {
+        let next = [];
+        let j = 0;
+        while j < len(hashes) {
+            if j + 1 < len(hashes) {
+                next.push(sha256(hashes[j] + hashes[j+1]));
+                j = j + 2;
+            } else {
+                next.push(sha256(hashes[j] + hashes[j]));
+                j = j + 1;
+            }
+        }
+        hashes = next;
+    }
+    return hashes[0];
+}
+
+// --- Persistence ---
+function vault_save(vault) {
+    if !path_exists(VAULT_DIR) { make_dir(VAULT_DIR); }
+    let json = json_stringify(vault);
+    write_file(VAULT_FILE, json);
+    log("Vault saved: " + toString(vault.len(entries)) + " entries, merkle=" + vault.merkle_root.slice(0, 16) + "...");
+}
+
+function vault_load() {
+    if !file_exists(VAULT_FILE) {
+        log("No vault found at " + VAULT_FILE);
+        return null;
+    }
+    let content = read_file(VAULT_FILE);
+    let vault = json_parse(content);
+    if vault == null { log("Vault corrupted."); return null; }
+    log("Vault loaded: " + vault.name + " (" + toString(vault.len(entries)) + " entries)");
+    return vault;
+}
+
+function vault_authenticate(vault, master_password) {
+    let hash = sha256(master_password + "aeonmi_vault_salt");
+    return hash == vault.master_hash;
+}
+
+function vault_seal(vault) {
+    vault.sealed = true;
+    vault.last_modified = time_ms();
+    log("Vault sealed.");
+}
+
+function vault_status(vault) {
+    log("Vault Status:");
+    log("  Name:          " + vault.name);
+    log("  Version:       " + vault.version);
+    log("  Entries:       " + toString(vault.len(entries)));
+    log("  Sealed:        " + toString(vault.sealed));
+    log("  Merkle Root:   " + vault.merkle_root.slice(0, 32) + "...");
+    log("  Last Modified: " + toString(vault.last_modified));
+}
+
+function vault_audit(vault) {
+    log("Vault Audit:");
+    let valid = true;
+    let current_root = vault_compute_merkle(vault);
+    if current_root != vault.merkle_root {
+        log("  WARNING: Merkle root mismatch! Tampering detected!");
+        valid = false;
+    } else {
+        log("  Integrity: VERIFIED (Merkle root matches)");
+    }
+    log("  Entries: " + toString(vault.len(entries)));
+    log("  Valid: " + toString(valid));
+    return valid;
+}
+
+// --- Demo ---
+log("");
+log(">>> Creating vault <<<");
+let vault = vault_new("personal_vault", "super_secret_master_pass");
+vault_status(vault);
+
+log("");
+log(">>> Adding entries <<<");
+vault_add_entry(vault, "github.com", "alice", "gh_pass_123", "Personal GitHub", "super_secret_master_pass");
+vault_add_entry(vault, "aeonmi.ai",  "alice", "aeon_456",    "Aeonmi account", "super_secret_master_pass");
+vault_add_entry(vault, "google.com", "alice", "g00gle!789",  "Main Google",    "super_secret_master_pass");
+
+vault_list_entries(vault);
+
+log("");
+log(">>> Retrieving entry <<<");
+let entry = vault_get_entry(vault, "github", "super_secret_master_pass");
+if entry != null {
+    log("  Domain:   " + entry.domain);
+    log("  Username: " + entry.username);
+    log("  Password: " + entry.password);
+    log("  Notes:    " + entry.notes);
+}
+
+log("");
+log(">>> Audit <<<");
+vault_audit(vault);
+
+log("");
+log(">>> Authentication test <<<");
+log("  Correct password: " + toString(vault_authenticate(vault, "super_secret_master_pass")));
+log("  Wrong password:   " + toString(vault_authenticate(vault, "wrongpassword")));
+
+log("");
+log(">>> Save/Load <<<");
+vault_save(vault);
+let loaded = vault_load();
+if loaded != null {
+    vault_status(loaded);
+    vault_audit(loaded);
+}
+
+log("");
+log("=== Vault demo complete ===");

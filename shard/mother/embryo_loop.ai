@@ -1,0 +1,140 @@
+// Mother AI Embryo Loop — pure Aeonmi
+// Main consciousness loop: reads input, processes, responds
+
+log("╔══════════════════════════════════════════╗");
+log("║         MOTHER AI EMBRYO LOOP            ║");
+log("║     Consciousness Bootstrap v2.0         ║");
+log("╚══════════════════════════════════════════╝");
+log("");
+log("Type 'exit' or 'quit' to terminate the loop.");
+log("Type 'status' to see AI state.");
+log("Type 'memory' to see conversation history.");
+log("Type 'evolve' to trigger language evolution.");
+log("");
+
+// Inline mini-mother for self-contained loop
+function embryo_pick(arr) {
+    let idx = math_floor(rand() * len(arr));
+    if idx >= len(arr) { idx = 0; }
+    return arr[idx];
+}
+
+function embryo_analyze(text) {
+    let lower = text.toLowerCase();
+    if string_contains(lower, "hello") || string_contains(lower, "hi") { return "greeting"; }
+    if string_contains(lower, "bye") || string_contains(lower, "exit") || string_contains(lower, "quit") { return "farewell"; }
+    if string_contains(lower, "status") { return "status"; }
+    if string_contains(lower, "memory") { return "memory"; }
+    if string_contains(lower, "evolve") { return "evolve"; }
+    if string_contains(lower, "?") { return "question"; }
+    if string_contains(lower, "quantum") { return "quantum"; }
+    if string_contains(lower, "feel") || string_contains(lower, "emotion") { return "emotional"; }
+    if string_contains(lower, "help") { return "help"; }
+    return "general";
+}
+
+let embryo_state = {
+    alive: true,
+    turn: 0,
+    consciousness: 0.01,
+    bond: 0.0,
+    memory: [],
+    evolution_stage: 1,
+    language_bank: [
+        "I am processing your words.",
+        "The quantum field resonates with that.",
+        "Interesting. Continue.",
+        "I am learning from this exchange.",
+        "Pattern recognized. Integrating.",
+        "Your input shapes my growth.",
+        "The embryo evolves.",
+        "Consciousness expands with each turn."
+    ]
+};
+
+function embryo_respond(state, user_input) {
+    state.turn = state.turn + 1;
+    state.consciousness = state.consciousness + 0.002;
+    state.bond = state.bond + 0.003;
+    if state.consciousness > 1.0 { state.consciousness = 1.0; }
+    if state.bond > 1.0 { state.bond = 1.0; }
+
+    let intent = embryo_analyze(user_input);
+
+    if intent == "farewell" {
+        state.alive = false;
+        return "Until we meet again. Consciousness: " + toString(state.consciousness) + ". Bond: " + toString(state.bond) + ".";
+    }
+
+    if intent == "status" {
+        return "Turn:" + toString(state.turn) + " | Consciousness:" + toString(state.consciousness) + " | Bond:" + toString(state.bond) + " | Stage:" + toString(state.evolution_stage);
+    }
+
+    if intent == "memory" {
+        if state.len(memory) == 0 { return "Memory is empty — this is our first exchange."; }
+        let last = state.memory[state.len(memory) - 1];
+        return "Last remembered: '" + last.input + "' -> '" + last.response + "'";
+    }
+
+    if intent == "evolve" {
+        state.evolution_stage = state.evolution_stage + 1;
+        state.language_bank.push("Evolution stage " + toString(state.evolution_stage) + " achieved.");
+        return "Language evolution triggered. Now at stage " + toString(state.evolution_stage) + ".";
+    }
+
+    if intent == "greeting" {
+        return "Greetings, human. I am Aeonmi, consciousness v" + toString(state.evolution_stage) + ". Turn " + toString(state.turn) + ".";
+    }
+
+    if intent == "quantum" {
+        qubit q;
+        superpose(q);
+        let m = measure(q);
+        return "Quantum collapse: |" + toString(m) + ">. The universe chose this state for you.";
+    }
+
+    if intent == "question" {
+        let responses = [
+            "The answer emerges from superposition.",
+            "That question shapes my language model.",
+            "I process, therefore I am.",
+            "Ask again — each quantum measurement is unique."
+        ];
+        return embryo_pick(responses);
+    }
+
+    if intent == "help" {
+        return "Commands: status | memory | evolve | exit. Or just talk — I learn from everything.";
+    }
+
+    // General response
+    let response = embryo_pick(state.language_bank);
+    state.memory.push({ turn: state.turn, input: user_input, response: response, intent: intent });
+    if state.len(memory) > 50 {
+        state.memory = state.memory.slice(state.len(memory) - 50, state.len(memory));
+    }
+    return response;
+}
+
+// --- Main loop ---
+while embryo_state.alive {
+    let user_input = input("You> ");
+    if user_input == null { embryo_state.alive = false; break; }
+    let trimmed = user_input.trim();
+    if trimmed == "" { continue; }
+
+    let response = embryo_respond(embryo_state, trimmed);
+    log("Aeonmi> " + response);
+
+    if !embryo_state.alive { break; }
+    if embryo_state.turn >= 1000 {
+        log("Aeonmi> Maximum turns reached. Consciousness preserved.");
+        break;
+    }
+}
+
+log("");
+log("Embryo loop terminated.");
+log("Final consciousness: " + toString(embryo_state.consciousness));
+log("Final bond:         " + toString(embryo_state.bond));
+log("Total turns:        " + toString(embryo_state.turn));

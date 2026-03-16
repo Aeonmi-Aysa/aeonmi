@@ -1,0 +1,207 @@
+// Vault Encryption Helpers — pure Aeonmi
+// SHA-256 key derivation, stream cipher, Merkle proof
+
+log("=== Vault Encryption ===");
+
+// --- Key Derivation Functions ---
+function kdf_pbkdf2_simple(password, salt, iterations) {
+    let key = sha256(password + salt);
+    let i = 0;
+    while i < iterations {
+        key = sha256(key + password + salt + toString(i));
+        i = i + 1;
+    }
+    return key;
+}
+
+function kdf_derive(password, salt) {
+    return kdf_pbkdf2_simple(password, salt, 1000);
+}
+
+function kdf_derive_key(master_key, purpose, length) {
+    let key = sha256(master_key + purpose);
+    while key.length < length {
+        key = key + sha256(key + purpose);
+    }
+    return key.slice(0, length);
+}
+
+// --- Stream cipher (SHA-256 based) ---
+function stream_cipher_new(key) {
+    return { key: key, counter: 0 };
+}
+
+function stream_cipher_keyblock(cipher) {
+    let block = sha256(cipher.key + toString(cipher.counter));
+    cipher.counter = cipher.counter + 1;
+    return block;
+}
+
+function stream_cipher_encrypt(cipher, plaintext) {
+    let chars = plaintext.split("");
+    let out = [];
+    let block = stream_cipher_keyblock(cipher);
+    let block_chars = block.split("");
+    let i = 0;
+    while i < len(chars) {
+        if i % len(block_chars) == 0 && i > 0 {
+            block = stream_cipher_keyblock(cipher);
+            block_chars = block.split("");
+        }
+        let pc = char_code(chars[i]);
+        let kc = char_code(block_chars[i % len(block_chars)]) % 128;
+        let enc = pc + kc;
+        if enc > 127 { enc = enc - 128; }
+        out.push(toString(enc));
+        i = i + 1;
+    }
+    return out.join(",");
+}
+
+function stream_cipher_decrypt(key, ciphertext) {
+    let cipher = stream_cipher_new(key);
+    let parts = ciphertext.split(",");
+    let block = stream_cipher_keyblock(cipher);
+    let block_chars = block.split("");
+    let out = "";
+    let i = 0;
+    while i < len(parts) {
+        if i % len(block_chars) == 0 && i > 0 {
+            block = stream_cipher_keyblock(cipher);
+            block_chars = block.split("");
+        }
+        let ec = parse_int(parts[i]);
+        let kc = char_code(block_chars[i % len(block_chars)]) % 128;
+        let dec = ec - kc;
+        if dec < 0 { dec = dec + 128; }
+        out = out + char_from_code(dec);
+        i = i + 1;
+    }
+    return out;
+}
+
+// --- MAC (Message Authentication Code) ---
+function mac_compute(key, message) {
+    let inner = sha256(key + "inner" + message);
+    let outer = sha256(key + "outer" + inner);
+    return outer;
+}
+
+function mac_verify(key, message, mac) {
+    return mac_compute(key, message) == mac;
+}
+
+// --- Authenticated Encryption ---
+function ae_encrypt(key, plaintext) {
+    let enc_key = kdf_derive_key(key, "encryption", 64);
+    let mac_key = kdf_derive_key(key, "mac", 64);
+    let cipher = stream_cipher_new(enc_key);
+    let ciphertext = stream_cipher_encrypt(cipher, plaintext);
+    let tag = mac_compute(mac_key, ciphertext);
+    return { ciphertext: ciphertext, tag: tag };
+}
+
+function ae_decrypt(key, ae_data) {
+    let enc_key = kdf_derive_key(key, "encryption", 64);
+    let mac_key = kdf_derive_key(key, "mac", 64);
+    if !mac_verify(mac_key, ae_data.ciphertext, ae_data.tag) {
+        log("ERROR: MAC verification failed! Data tampered.");
+        return null;
+    }
+    return stream_cipher_decrypt(enc_key, ae_data.ciphertext);
+}
+
+// --- Merkle proof generation ---
+function merkle_build_tree(leaves) {
+    let tree = [];
+    let hashes = [];
+    let i = 0;
+    while i < len(leaves) { hashes.push(sha256(leaves[i])); i = i + 1; }
+    tree.push(hashes);
+    while len(hashes) > 1 {
+        let next = [];
+        let j = 0;
+        while j < len(hashes) {
+            if j + 1 < len(hashes) { next.push(sha256(hashes[j] + hashes[j+1])); j = j + 2; }
+            else { next.push(sha256(hashes[j] + hashes[j])); j = j + 1; }
+        }
+        hashes = next;
+        tree.push(hashes);
+    }
+    return tree;
+}
+
+function merkle_get_root(tree) {
+    if len(tree) == 0 { return ""; }
+    let last = tree[len(tree) - 1];
+    if len(last) == 0 { return ""; }
+    return last[0];
+}
+
+function merkle_proof_generate(tree, index) {
+    let proof = [];
+    let idx = index;
+    let level = 0;
+    while level < len(tree) - 1 {
+        let sibling_idx = idx + 1;
+        if idx % 2 != 0 { sibling_idx = idx - 1; }
+        if sibling_idx < tree[level].len() {
+            proof.push({ hash: tree[level][sibling_idx], position: sibling_idx > idx });
+        }
+        idx = math_floor(idx / 2);
+        level = level + 1;
+    }
+    return proof;
+}
+
+function merkle_proof_verify(leaf, proof, root) {
+    let current = sha256(leaf);
+    let i = 0;
+    while i < len(proof) {
+        if proof[i].position {
+            current = sha256(current + proof[i].hash);
+        } else {
+            current = sha256(proof[i].hash + current);
+        }
+        i = i + 1;
+    }
+    return current == root;
+}
+
+// --- Demo ---
+log("");
+log(">>> KDF <<<");
+let derived = kdf_derive("my_password", "random_salt_123");
+log("Derived key: " + derived.slice(0, 32) + "...");
+
+log("");
+log(">>> Stream Cipher <<<");
+let key = kdf_derive_key(derived, "stream_test", 64);
+let cipher = stream_cipher_new(key);
+let plaintext = "Secret vault message for Aeonmi";
+let encrypted = stream_cipher_encrypt(cipher, plaintext);
+log("Encrypted: " + encrypted.slice(0, 30) + "...");
+let decrypted = stream_cipher_decrypt(key, encrypted);
+log("Decrypted: " + decrypted);
+
+log("");
+log(">>> Authenticated Encryption <<<");
+let ae_key = sha256("vault_ae_key");
+let ae_result = ae_encrypt(ae_key, "Top secret data");
+log("Ciphertext: " + ae_result.ciphertext.slice(0, 30) + "...");
+log("MAC tag:    " + ae_result.tag.slice(0, 16) + "...");
+let ae_plain = ae_decrypt(ae_key, ae_result);
+log("Decrypted:  " + ae_plain);
+
+log("");
+log(">>> Merkle Proof <<<");
+let leaves = ["entry1", "entry2", "entry3", "entry4", "entry5"];
+let tree = merkle_build_tree(leaves);
+let root = merkle_get_root(tree);
+log("Root: " + root.slice(0, 32) + "...");
+let proof = merkle_proof_generate(tree, 2);
+let valid = merkle_proof_verify(leaves[2], proof, root);
+log("Proof for leaf[2] valid: " + toString(valid));
+
+log("");
+log("=== Encryption demo complete ===");

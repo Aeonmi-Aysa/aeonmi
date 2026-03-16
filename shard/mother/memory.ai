@@ -1,0 +1,222 @@
+// Mother AI Memory — pure Aeonmi
+// Load/save memory from ~/.aeonmi/mother_memory.json
+
+log("=== Mother AI Memory System ===");
+
+const MEMORY_DIR  = "~/.aeonmi";
+const MEMORY_FILE = "~/.aeonmi/mother_memory.json";
+
+function memory_empty() {
+    return {
+        version: 1,
+        conversations: [],
+        word_frequency: {},
+        learned_patterns: [],
+        user_profiles: {},
+        total_turns: 0,
+        created_at: time_ms(),
+        last_updated: time_ms()
+    };
+}
+
+function memory_load() {
+    if !file_exists(MEMORY_FILE) {
+        log("No existing memory found. Starting fresh.");
+        return memory_empty();
+    }
+    let content = read_file(MEMORY_FILE);
+    if content == null || content == "" {
+        log("Memory file empty. Starting fresh.");
+        return memory_empty();
+    }
+    let mem = json_parse(content);
+    if mem == null {
+        log("Memory corrupted. Starting fresh.");
+        return memory_empty();
+    }
+    log("Memory loaded: " + toString(mem.total_turns) + " turns recalled.");
+    return mem;
+}
+
+function memory_save(mem) {
+    mem.last_updated = time_ms();
+    if !path_exists(MEMORY_DIR) {
+        make_dir(MEMORY_DIR);
+    }
+    let json = json_stringify(mem);
+    write_file(MEMORY_FILE, json);
+    log("Memory saved: " + toString(mem.total_turns) + " turns, " + toString(len(json)) + " bytes.");
+}
+
+function memory_add_turn(mem, user_input, ai_response, intent) {
+    mem.total_turns = mem.total_turns + 1;
+    let entry = {
+        turn: mem.total_turns,
+        timestamp: time_ms(),
+        user: user_input,
+        ai: ai_response,
+        intent: intent
+    };
+    mem.conversations.push(entry);
+    // Keep last 500 conversations
+    if mem.len(conversations) > 500 {
+        mem.conversations = mem.conversations.slice(mem.len(conversations) - 500, mem.len(conversations));
+    }
+    // Update word frequency
+    let words = user_input.toLowerCase().split(" ");
+    let i = 0;
+    while i < len(words) {
+        let w = words[i].trim();
+        if w.length > 2 {
+            if object_has(mem.word_frequency, w) {
+                mem.word_frequency[w] = mem.word_frequency[w] + 1;
+            } else {
+                mem.word_frequency[w] = 1;
+            }
+        }
+        i = i + 1;
+    }
+}
+
+function memory_update_user(mem, user_id, interaction) {
+    if !object_has(mem.user_profiles, user_id) {
+        mem.user_profiles[user_id] = {
+            first_seen: time_ms(),
+            last_seen: time_ms(),
+            total_messages: 0,
+            dominant_topics: [],
+            bond_level: 0.0
+        };
+    }
+    let profile = mem.user_profiles[user_id];
+    profile.last_seen = time_ms();
+    profile.total_messages = profile.total_messages + 1;
+    profile.bond_level = profile.bond_level + 0.01;
+    if profile.bond_level > 1.0 { profile.bond_level = 1.0; }
+}
+
+function memory_learn_pattern(mem, pattern, category) {
+    let i = 0;
+    while i < mem.len(learned_patterns) {
+        if mem.learned_patterns[i].pattern == pattern { return; }
+        i = i + 1;
+    }
+    mem.learned_patterns.push({ pattern: pattern, category: category, learned_at: time_ms(), uses: 0 });
+    if mem.len(learned_patterns) > 100 {
+        mem.learned_patterns = mem.learned_patterns.slice(mem.len(learned_patterns) - 100, mem.len(learned_patterns));
+    }
+}
+
+function memory_recall_context(mem, keyword) {
+    let results = [];
+    let lower_kw = keyword.toLowerCase();
+    let i = mem.len(conversations) - 1;
+    let found = 0;
+    while i >= 0 && found < 5 {
+        let c = mem.conversations[i];
+        if string_contains(c.user.toLowerCase(), lower_kw) {
+            results.push(c);
+            found = found + 1;
+        }
+        i = i - 1;
+    }
+    return results;
+}
+
+function memory_top_topics(mem, n) {
+    let keys = object_keys(mem.word_frequency);
+    let pairs = [];
+    let i = 0;
+    while i < len(keys) {
+        pairs.push({ word: keys[i], count: mem.word_frequency[keys[i]] });
+        i = i + 1;
+    }
+    // Sort descending
+    let j = 0;
+    while j < len(pairs) {
+        let k = 0;
+        while k < len(pairs) - j - 1 {
+            if pairs[k].count < pairs[k+1].count {
+                let tmp = pairs[k]; pairs[k] = pairs[k+1]; pairs[k+1] = tmp;
+            }
+            k = k + 1;
+        }
+        j = j + 1;
+    }
+    if n > len(pairs) { n = len(pairs); }
+    return pairs.slice(0, n);
+}
+
+function memory_stats(mem) {
+    log("Memory Statistics:");
+    log("  Total turns:       " + toString(mem.total_turns));
+    log("  Conversations:     " + toString(mem.len(conversations)));
+    log("  Learned patterns:  " + toString(mem.len(learned_patterns)));
+    log("  Unique words:      " + toString(object_keys(mem.word_frequency).len()));
+    log("  User profiles:     " + toString(object_keys(mem.user_profiles).len()));
+    let top = memory_top_topics(mem, 5);
+    if len(top) > 0 {
+        log("  Top topics:");
+        let i = 0;
+        while i < len(top) {
+            log("    " + top[i].word + ": " + toString(top[i].count));
+            i = i + 1;
+        }
+    }
+}
+
+function memory_export(mem) {
+    return json_stringify(mem);
+}
+
+function memory_import(json_str) {
+    let mem = json_parse(json_str);
+    if mem == null { return memory_empty(); }
+    return mem;
+}
+
+function memory_clear(mem) {
+    mem.conversations = [];
+    mem.word_frequency = {};
+    mem.learned_patterns = [];
+    mem.total_turns = 0;
+    log("Memory cleared.");
+}
+
+// --- Demo ---
+log("");
+let mem = memory_load();
+
+memory_add_turn(mem, "Hello Mother AI!", "Greetings, human.", "greeting");
+memory_add_turn(mem, "I love quantum computing", "Quantum resonates!", "technical");
+memory_add_turn(mem, "What is consciousness?", "Consciousness is self-aware computation.", "question");
+memory_add_turn(mem, "Tell me about learning algorithms", "Learning is pattern extraction from data.", "question");
+memory_update_user(mem, "user_001", { topic: "quantum" });
+memory_update_user(mem, "user_002", { topic: "philosophy" });
+memory_learn_pattern(mem, "quantum", "physics");
+memory_learn_pattern(mem, "conscious", "philosophy");
+memory_learn_pattern(mem, "learn", "cognition");
+
+log("");
+memory_stats(mem);
+
+log("");
+log(">>> Recall 'quantum' <<<");
+let recalls = memory_recall_context(mem, "quantum");
+let i = 0;
+while i < len(recalls) {
+    log("  Turn " + toString(recalls[i].turn) + ": " + recalls[i].user);
+    i = i + 1;
+}
+
+log("");
+log("Saving memory...");
+memory_save(mem);
+
+log("");
+log(">>> Reload and verify <<<");
+let mem2 = memory_load();
+log("Reloaded turns: " + toString(mem2.total_turns));
+
+log("");
+log("=== Memory System demo complete ===");

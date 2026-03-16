@@ -111,6 +111,7 @@ pub struct Interpreter {
     pub quantum_alg: QuantumAlgorithms, // Quantum algorithms library
     pub hardware_mgr: HardwareManager, // Real quantum hardware integration
     pub base_dir: Option<std::path::PathBuf>, // Directory of the executing .ai file (for imports)
+    pub script_args: Vec<String>, // Arguments passed after -- on the CLI (available via get_args())
     imported: std::collections::HashSet<String>, // Track already-imported paths to avoid cycles
 }
 
@@ -423,13 +424,202 @@ impl Interpreter {
                 f: builtin_delete_file,
             }),
         );
-        
+        env.define(
+            "get_env".into(),
+            Value::Builtin(Builtin { name: "get_env", arity: 1, f: builtin_get_env }),
+        );
+        env.define(
+            "set_env".into(),
+            Value::Builtin(Builtin { name: "set_env", arity: 2, f: builtin_set_env }),
+        );
+        env.define(
+            "input".into(),
+            Value::Builtin(Builtin { name: "input", arity: 1, f: builtin_input }),
+        );
+        env.define(
+            "exec_cmd".into(),
+            Value::Builtin(Builtin { name: "exec_cmd", arity: 1, f: builtin_exec_cmd }),
+        );
+        env.define(
+            "read_dir".into(),
+            Value::Builtin(Builtin { name: "read_dir", arity: 1, f: builtin_read_dir }),
+        );
+        env.define(
+            "get_cwd".into(),
+            Value::Builtin(Builtin { name: "get_cwd", arity: 0, f: builtin_get_cwd }),
+        );
+        env.define(
+            "set_cwd".into(),
+            Value::Builtin(Builtin { name: "set_cwd", arity: 1, f: builtin_set_cwd }),
+        );
+        env.define(
+            "sha256".into(),
+            Value::Builtin(Builtin { name: "sha256", arity: 1, f: builtin_sha256 }),
+        );
+        env.define(
+            "json_parse".into(),
+            Value::Builtin(Builtin { name: "json_parse", arity: 1, f: builtin_json_parse }),
+        );
+        env.define(
+            "json_stringify".into(),
+            Value::Builtin(Builtin { name: "json_stringify", arity: 1, f: builtin_json_stringify }),
+        );
+        env.define(
+            "get_args".into(),
+            Value::Builtin(Builtin { name: "get_args", arity: 0, f: builtin_get_args }),
+        );
+        env.define(
+            "path_join".into(),
+            Value::Builtin(Builtin { name: "path_join", arity: 2, f: builtin_path_join }),
+        );
+        env.define(
+            "path_exists".into(),
+            Value::Builtin(Builtin { name: "path_exists", arity: 1, f: builtin_path_exists }),
+        );
+        env.define(
+            "path_is_dir".into(),
+            Value::Builtin(Builtin { name: "path_is_dir", arity: 1, f: builtin_path_is_dir }),
+        );
+        env.define(
+            "make_dir".into(),
+            Value::Builtin(Builtin { name: "make_dir", arity: 1, f: builtin_make_dir }),
+        );
+        env.define(
+            "remove_dir".into(),
+            Value::Builtin(Builtin { name: "remove_dir", arity: 1, f: builtin_remove_dir }),
+        );
+        env.define(
+            "copy_file".into(),
+            Value::Builtin(Builtin { name: "copy_file", arity: 2, f: builtin_copy_file }),
+        );
+        env.define(
+            "rename_file".into(),
+            Value::Builtin(Builtin { name: "rename_file", arity: 2, f: builtin_rename_file }),
+        );
+        env.define(
+            "exit_process".into(),
+            Value::Builtin(Builtin { name: "exit_process", arity: 1, f: builtin_exit_process }),
+        );
+        env.define(
+            "string_repeat".into(),
+            Value::Builtin(Builtin { name: "string_repeat", arity: 2, f: builtin_string_repeat }),
+        );
+        env.define(
+            "string_replace".into(),
+            Value::Builtin(Builtin { name: "string_replace", arity: 3, f: builtin_string_replace }),
+        );
+        env.define(
+            "string_starts_with".into(),
+            Value::Builtin(Builtin { name: "string_starts_with", arity: 2, f: builtin_string_starts_with }),
+        );
+        env.define(
+            "string_ends_with".into(),
+            Value::Builtin(Builtin { name: "string_ends_with", arity: 2, f: builtin_string_ends_with }),
+        );
+        env.define(
+            "string_contains".into(),
+            Value::Builtin(Builtin { name: "string_contains", arity: 2, f: builtin_string_contains }),
+        );
+        env.define(
+            "math_sqrt".into(),
+            Value::Builtin(Builtin { name: "math_sqrt", arity: 1, f: builtin_math_sqrt }),
+        );
+        env.define(
+            "math_abs".into(),
+            Value::Builtin(Builtin { name: "math_abs", arity: 1, f: builtin_math_abs }),
+        );
+        env.define(
+            "math_floor".into(),
+            Value::Builtin(Builtin { name: "math_floor", arity: 1, f: builtin_math_floor }),
+        );
+        env.define(
+            "math_ceil".into(),
+            Value::Builtin(Builtin { name: "math_ceil", arity: 1, f: builtin_math_ceil }),
+        );
+        env.define(
+            "math_pow".into(),
+            Value::Builtin(Builtin { name: "math_pow", arity: 2, f: builtin_math_pow }),
+        );
+        env.define(
+            "math_log".into(),
+            Value::Builtin(Builtin { name: "math_log", arity: 1, f: builtin_math_log }),
+        );
+        env.define(
+            "math_sin".into(),
+            Value::Builtin(Builtin { name: "math_sin", arity: 1, f: builtin_math_sin }),
+        );
+        env.define(
+            "math_cos".into(),
+            Value::Builtin(Builtin { name: "math_cos", arity: 1, f: builtin_math_cos }),
+        );
+        env.define(
+            "math_tan".into(),
+            Value::Builtin(Builtin { name: "math_tan", arity: 1, f: builtin_math_tan }),
+        );
+        env.define(
+            "math_min".into(),
+            Value::Builtin(Builtin { name: "math_min", arity: 2, f: builtin_math_min }),
+        );
+        env.define(
+            "math_max".into(),
+            Value::Builtin(Builtin { name: "math_max", arity: 2, f: builtin_math_max }),
+        );
+        env.define(
+            "array_sort".into(),
+            Value::Builtin(Builtin { name: "array_sort", arity: 1, f: builtin_array_sort }),
+        );
+        env.define(
+            "array_reverse".into(),
+            Value::Builtin(Builtin { name: "array_reverse", arity: 1, f: builtin_array_reverse }),
+        );
+        env.define(
+            "array_unique".into(),
+            Value::Builtin(Builtin { name: "array_unique", arity: 1, f: builtin_array_unique }),
+        );
+        env.define(
+            "array_flatten".into(),
+            Value::Builtin(Builtin { name: "array_flatten", arity: 1, f: builtin_array_flatten }),
+        );
+        env.define(
+            "object_keys".into(),
+            Value::Builtin(Builtin { name: "object_keys", arity: 1, f: builtin_object_keys }),
+        );
+        env.define(
+            "object_values".into(),
+            Value::Builtin(Builtin { name: "object_values", arity: 1, f: builtin_object_values }),
+        );
+        env.define(
+            "object_has".into(),
+            Value::Builtin(Builtin { name: "object_has", arity: 2, f: builtin_object_has }),
+        );
+        env.define(
+            "format".into(),
+            Value::Builtin(Builtin { name: "format", arity: 2, f: builtin_format }),
+        );
+        env.define(
+            "parse_int".into(),
+            Value::Builtin(Builtin { name: "parse_int", arity: 1, f: builtin_parse_int }),
+        );
+        env.define(
+            "parse_float".into(),
+            Value::Builtin(Builtin { name: "parse_float", arity: 1, f: builtin_parse_float }),
+        );
+        env.define(
+            "char_code".into(),
+            Value::Builtin(Builtin { name: "char_code", arity: 1, f: builtin_char_code }),
+        );
+        env.define(
+            "char_from_code".into(),
+            Value::Builtin(Builtin { name: "char_from_code", arity: 1, f: builtin_char_from_code }),
+        );
+
         Self { 
             env,
             quantum_sim: QuantumSimulator::new(),
             quantum_alg: QuantumAlgorithms::new(),
             hardware_mgr: HardwareManager::new(),
             base_dir: None,
+            script_args: Vec::new(),
             imported: std::collections::HashSet::new(),
         }
     }
@@ -942,6 +1132,7 @@ impl Interpreter {
                                     };
                                     let end_default = match &obj_val {
                                         Value::Array(a) => a.len(),
+                                        Value::String(s) => s.chars().count(),
                                         _ => 0,
                                     };
                                     let end = match argv.get(1) {
@@ -952,6 +1143,13 @@ impl Interpreter {
                                         Value::Array(ref a) => {
                                             let sliced = a[start.min(a.len())..end.min(a.len())].to_vec();
                                             Value::Array(sliced)
+                                        }
+                                        Value::String(ref s) => {
+                                            let chars: Vec<char> = s.chars().collect();
+                                            let len = chars.len();
+                                            let s_start = start.min(len);
+                                            let s_end = end.min(len);
+                                            Value::String(chars[s_start..s_end].iter().collect())
                                         }
                                         _ => Value::Null,
                                     }
@@ -2031,4 +2229,538 @@ fn builtin_delete_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, 
         Ok(()) => Ok(Value::Bool(true)),
         Err(e) => Err(err(format!("delete_file: cannot delete '{}': {}", path, e))),
     }
+}
+
+// ============================================================
+// SHELL & SYSTEM BUILT-INS (Phase 5 — Shard CLI parity)
+// ============================================================
+
+/// get_env(name: String) -> String
+/// Returns environment variable value, or "" if not set.
+fn builtin_get_env(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("get_env expects 1 argument: name".into()));
+    }
+    let name = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("get_env: name must be a string".into())),
+    };
+    Ok(Value::String(std::env::var(&name).unwrap_or_default()))
+}
+
+/// set_env(name: String, value: String) -> Bool
+/// Sets an environment variable for the current process.
+fn builtin_set_env(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("set_env expects 2 arguments: name, value".into()));
+    }
+    let name = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("set_env: name must be a string".into())),
+    };
+    let val = match &args[1] {
+        Value::String(s) => s.clone(),
+        other => format!("{}", display(other)),
+    };
+    std::env::set_var(&name, &val);
+    Ok(Value::Bool(true))
+}
+
+/// input(prompt: String) -> String
+/// Prints prompt, reads one line from stdin (without trailing newline).
+fn builtin_input(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    use std::io::Write;
+    let prompt = match args.first() {
+        Some(Value::String(s)) => s.clone(),
+        Some(other) => format!("{}", display(other)),
+        None => String::new(),
+    };
+    if !prompt.is_empty() {
+        print!("{}", prompt);
+        let _ = std::io::stdout().flush();
+    }
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)
+        .map_err(|e| err(format!("input: read error: {}", e)))?;
+    Ok(Value::String(line.trim_end_matches('\n').trim_end_matches('\r').to_string()))
+}
+
+/// exec_cmd(cmd: String) -> String
+/// Executes a shell command, returns stdout. On failure returns stderr.
+fn builtin_exec_cmd(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() < 1 {
+        return Err(err("exec_cmd expects 1 argument: command string".into()));
+    }
+    let cmd_str = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("exec_cmd: command must be a string".into())),
+    };
+    let (shell, flag) = if cfg!(windows) { ("cmd", "/C") } else { ("sh", "-c") };
+    match std::process::Command::new(shell)
+        .arg(flag)
+        .arg(&cmd_str)
+        .output()
+    {
+        Ok(out) => {
+            if out.status.success() {
+                Ok(Value::String(String::from_utf8_lossy(&out.stdout).to_string()))
+            } else {
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                Ok(Value::String(if stderr.is_empty() { stdout } else { stderr }))
+            }
+        }
+        Err(e) => Err(err(format!("exec_cmd: failed to run '{}': {}", cmd_str, e))),
+    }
+}
+
+/// read_dir(path: String) -> Array<String>
+/// Returns a list of filenames in the directory (not full paths).
+fn builtin_read_dir(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("read_dir expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("read_dir: path must be a string".into())),
+    };
+    match std::fs::read_dir(&path) {
+        Ok(entries) => {
+            let mut names = Vec::new();
+            for entry in entries.flatten() {
+                names.push(Value::String(entry.file_name().to_string_lossy().to_string()));
+            }
+            Ok(Value::Array(names))
+        }
+        Err(e) => Err(err(format!("read_dir: cannot list '{}': {}", path, e))),
+    }
+}
+
+/// get_cwd() -> String
+/// Returns the current working directory.
+fn builtin_get_cwd(_i: &mut Interpreter, _args: Vec<Value>) -> Result<Value, RuntimeError> {
+    match std::env::current_dir() {
+        Ok(p) => Ok(Value::String(p.to_string_lossy().to_string())),
+        Err(e) => Err(err(format!("get_cwd: {}", e))),
+    }
+}
+
+/// set_cwd(path: String) -> Bool
+/// Changes the current working directory.
+fn builtin_set_cwd(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("set_cwd expects 1 argument: path".into()));
+    }
+    let path = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("set_cwd: path must be a string".into())),
+    };
+    std::env::set_current_dir(&path)
+        .map(|_| Value::Bool(true))
+        .map_err(|e| err(format!("set_cwd: cannot cd to '{}': {}", path, e)))
+}
+
+/// sha256(data: String) -> String
+/// Returns hex-encoded SHA-256 hash of the input.
+fn builtin_sha256(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    use sha2::{Sha256, Digest};
+    if args.len() != 1 {
+        return Err(err("sha256 expects 1 argument: data".into()));
+    }
+    let data = match &args[0] {
+        Value::String(s) => s.as_bytes().to_vec(),
+        other => format!("{}", display(other)).into_bytes(),
+    };
+    let mut hasher = Sha256::new();
+    hasher.update(&data);
+    let result = hasher.finalize();
+    Ok(Value::String(format!("{:x}", result)))
+}
+
+/// json_parse(s: String) -> Value
+/// Parses a JSON string into an Aeonmi value (objects/arrays/strings/numbers/bools/null).
+fn builtin_json_parse(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("json_parse expects 1 argument: json_string".into()));
+    }
+    let s = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("json_parse: argument must be a string".into())),
+    };
+    let jv: serde_json::Value = serde_json::from_str(&s)
+        .map_err(|e| err(format!("json_parse: invalid JSON: {}", e)))?;
+    Ok(json_to_value(&jv))
+}
+
+fn json_to_value(jv: &serde_json::Value) -> Value {
+    match jv {
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Bool(b) => Value::Bool(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Value::Number(i as f64)
+            } else {
+                Value::Number(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::String(s) => Value::String(s.clone()),
+        serde_json::Value::Array(arr) => {
+            Value::Array(arr.iter().map(json_to_value).collect())
+        }
+        serde_json::Value::Object(map) => {
+            let mut obj = std::collections::HashMap::new();
+            for (k, v) in map {
+                obj.insert(k.clone(), json_to_value(v));
+            }
+            Value::Object(obj)
+        }
+    }
+}
+
+/// json_stringify(value: Value) -> String
+/// Serialises an Aeonmi value to a JSON string.
+fn builtin_json_stringify(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("json_stringify expects 1 argument".into()));
+    }
+    let jv = value_to_json(&args[0]);
+    match serde_json::to_string_pretty(&jv) {
+        Ok(s) => Ok(Value::String(s)),
+        Err(e) => Err(err(format!("json_stringify: {}", e))),
+    }
+}
+
+fn value_to_json(v: &Value) -> serde_json::Value {
+    match v {
+        Value::Null => serde_json::Value::Null,
+        Value::Bool(b) => serde_json::Value::Bool(*b),
+        Value::Number(n) => {
+            serde_json::json!(*n)
+        }
+        Value::String(s) => serde_json::Value::String(s.clone()),
+        Value::Array(arr) => serde_json::Value::Array(arr.iter().map(value_to_json).collect()),
+        Value::Object(map) => {
+            let mut obj = serde_json::Map::new();
+            for (k, vv) in map {
+                obj.insert(k.clone(), value_to_json(vv));
+            }
+            serde_json::Value::Object(obj)
+        }
+        other => serde_json::Value::String(format!("{}", display(other))),
+    }
+}
+
+/// get_args() -> Array<String>
+/// Returns the script arguments passed after -- on the CLI.
+/// These are set by run_native() before execution via interp.script_args.
+/// Note: because builtins receive &mut Interpreter, we read from a thread-local.
+fn builtin_get_args(i: &mut Interpreter, _args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let values: Vec<Value> = i.script_args.iter()
+        .map(|s| Value::String(s.clone()))
+        .collect();
+    Ok(Value::Array(values))
+}
+
+/// path_join(base: String, part: String) -> String
+fn builtin_path_join(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() < 2 { return Err(err("path_join expects 2 arguments".into())); }
+    let base = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("path_join: args must be strings".into())) };
+    let part = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("path_join: args must be strings".into())) };
+    let path = std::path::Path::new(&base).join(&part);
+    Ok(Value::String(path.to_string_lossy().to_string()))
+}
+
+/// path_exists(path: String) -> Bool
+fn builtin_path_exists(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("path_exists expects 1 argument".into())); }
+    let path = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("path_exists: arg must be string".into())) };
+    Ok(Value::Bool(std::path::Path::new(&path).exists()))
+}
+
+/// path_is_dir(path: String) -> Bool
+fn builtin_path_is_dir(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("path_is_dir expects 1 argument".into())); }
+    let path = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("path_is_dir: arg must be string".into())) };
+    Ok(Value::Bool(std::path::Path::new(&path).is_dir()))
+}
+
+/// make_dir(path: String) -> Bool
+fn builtin_make_dir(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("make_dir expects 1 argument: path".into())); }
+    let path = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("make_dir: arg must be string".into())) };
+    std::fs::create_dir_all(&path)
+        .map(|_| Value::Bool(true))
+        .map_err(|e| err(format!("make_dir: cannot create '{}': {}", path, e)))
+}
+
+/// remove_dir(path: String) -> Bool
+fn builtin_remove_dir(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("remove_dir expects 1 argument: path".into())); }
+    let path = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("remove_dir: arg must be string".into())) };
+    std::fs::remove_dir_all(&path)
+        .map(|_| Value::Bool(true))
+        .map_err(|e| err(format!("remove_dir: cannot remove '{}': {}", path, e)))
+}
+
+/// copy_file(src: String, dst: String) -> Bool
+fn builtin_copy_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("copy_file expects 2 arguments: src, dst".into())); }
+    let src = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("copy_file: args must be strings".into())) };
+    let dst = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("copy_file: args must be strings".into())) };
+    std::fs::copy(&src, &dst)
+        .map(|_| Value::Bool(true))
+        .map_err(|e| err(format!("copy_file: cannot copy '{}' -> '{}': {}", src, dst, e)))
+}
+
+/// rename_file(src: String, dst: String) -> Bool
+fn builtin_rename_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("rename_file expects 2 arguments: src, dst".into())); }
+    let src = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("rename_file: args must be strings".into())) };
+    let dst = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("rename_file: args must be strings".into())) };
+    std::fs::rename(&src, &dst)
+        .map(|_| Value::Bool(true))
+        .map_err(|e| err(format!("rename_file: cannot rename '{}' -> '{}': {}", src, dst, e)))
+}
+
+/// exit_process(code: Number) -> !
+fn builtin_exit_process(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let code = match args.first() {
+        Some(Value::Number(n)) => *n as i32,
+        _ => 0,
+    };
+    std::process::exit(code);
+}
+
+/// string_repeat(s: String, n: Number) -> String
+fn builtin_string_repeat(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("string_repeat expects 2 arguments: s, n".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("string_repeat: first arg must be string".into())) };
+    let n = match &args[1] { Value::Number(n) => *n as usize, _ => return Err(err("string_repeat: second arg must be number".into())) };
+    Ok(Value::String(s.repeat(n)))
+}
+
+/// string_replace(s: String, from: String, to: String) -> String
+fn builtin_string_replace(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 3 { return Err(err("string_replace expects 3 arguments: s, from, to".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("string_replace: args must be strings".into())) };
+    let from = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("string_replace: args must be strings".into())) };
+    let to = match &args[2] { Value::String(s) => s.clone(), _ => return Err(err("string_replace: args must be strings".into())) };
+    Ok(Value::String(s.replace(&from as &str, &to as &str)))
+}
+
+/// string_starts_with(s: String, prefix: String) -> Bool
+fn builtin_string_starts_with(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("string_starts_with expects 2 arguments".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("string_starts_with: args must be strings".into())) };
+    let p = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("string_starts_with: args must be strings".into())) };
+    Ok(Value::Bool(s.starts_with(&p as &str)))
+}
+
+/// string_ends_with(s: String, suffix: String) -> Bool
+fn builtin_string_ends_with(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("string_ends_with expects 2 arguments".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("string_ends_with: args must be strings".into())) };
+    let suf = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("string_ends_with: args must be strings".into())) };
+    Ok(Value::Bool(s.ends_with(&suf as &str)))
+}
+
+/// string_contains(s: String, needle: String) -> Bool
+fn builtin_string_contains(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("string_contains expects 2 arguments".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("string_contains: args must be strings".into())) };
+    let needle = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("string_contains: args must be strings".into())) };
+    Ok(Value::Bool(s.contains(&needle as &str)))
+}
+
+// Math built-ins
+fn builtin_math_sqrt(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_sqrt")?;
+    Ok(Value::Number(n.sqrt()))
+}
+fn builtin_math_abs(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_abs")?;
+    Ok(Value::Number(n.abs()))
+}
+fn builtin_math_floor(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_floor")?;
+    Ok(Value::Number(n.floor()))
+}
+fn builtin_math_ceil(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_ceil")?;
+    Ok(Value::Number(n.ceil()))
+}
+fn builtin_math_pow(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let base = num_arg(&args, 0, "math_pow")?;
+    let exp = num_arg(&args, 1, "math_pow")?;
+    Ok(Value::Number(base.powf(exp)))
+}
+fn builtin_math_log(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_log")?;
+    Ok(Value::Number(n.ln()))
+}
+fn builtin_math_sin(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_sin")?;
+    Ok(Value::Number(n.sin()))
+}
+fn builtin_math_cos(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_cos")?;
+    Ok(Value::Number(n.cos()))
+}
+fn builtin_math_tan(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let n = num_arg(&args, 0, "math_tan")?;
+    Ok(Value::Number(n.tan()))
+}
+fn builtin_math_min(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let a = num_arg(&args, 0, "math_min")?;
+    let b = num_arg(&args, 1, "math_min")?;
+    Ok(Value::Number(a.min(b)))
+}
+fn builtin_math_max(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let a = num_arg(&args, 0, "math_max")?;
+    let b = num_arg(&args, 1, "math_max")?;
+    Ok(Value::Number(a.max(b)))
+}
+
+fn num_arg(args: &[Value], idx: usize, name: &str) -> Result<f64, RuntimeError> {
+    match args.get(idx) {
+        Some(Value::Number(n)) => Ok(*n),
+        Some(other) => Err(err(format!("{}: argument {} must be a number, got {:?}", name, idx, other))),
+        None => Err(err(format!("{}: missing argument {}", name, idx))),
+    }
+}
+
+// Array utility built-ins
+fn builtin_array_sort(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("array_sort expects 1 argument".into())); }
+    let mut arr = match &args[0] { Value::Array(a) => a.clone(), _ => return Err(err("array_sort: argument must be an array".into())) };
+    arr.sort_by(|a, b| {
+        let as_ = match a { Value::Number(n) => n.to_string(), Value::String(s) => s.clone(), _ => String::new() };
+        let bs_ = match b { Value::Number(n) => n.to_string(), Value::String(s) => s.clone(), _ => String::new() };
+        // numeric sort if both are numbers
+        match (a, b) {
+            (Value::Number(na), Value::Number(nb)) => na.partial_cmp(nb).unwrap_or(std::cmp::Ordering::Equal),
+            _ => as_.cmp(&bs_),
+        }
+    });
+    Ok(Value::Array(arr))
+}
+
+fn builtin_array_reverse(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("array_reverse expects 1 argument".into())); }
+    let mut arr = match &args[0] { Value::Array(a) => a.clone(), _ => return Err(err("array_reverse: argument must be an array".into())) };
+    arr.reverse();
+    Ok(Value::Array(arr))
+}
+
+fn builtin_array_unique(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("array_unique expects 1 argument".into())); }
+    let arr = match &args[0] { Value::Array(a) => a.clone(), _ => return Err(err("array_unique: argument must be an array".into())) };
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for v in arr {
+        let key = format!("{:?}", v);
+        if seen.insert(key) {
+            out.push(v);
+        }
+    }
+    Ok(Value::Array(out))
+}
+
+fn builtin_array_flatten(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("array_flatten expects 1 argument".into())); }
+    let arr = match &args[0] { Value::Array(a) => a.clone(), _ => return Err(err("array_flatten: argument must be an array".into())) };
+    let mut out = Vec::new();
+    for v in arr {
+        match v {
+            Value::Array(inner) => out.extend(inner),
+            other => out.push(other),
+        }
+    }
+    Ok(Value::Array(out))
+}
+
+// Object built-ins
+fn builtin_object_keys(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("object_keys expects 1 argument".into())); }
+    let keys = match &args[0] {
+        Value::Object(map) => map.keys().map(|k| Value::String(k.clone())).collect(),
+        _ => return Err(err("object_keys: argument must be an object".into())),
+    };
+    Ok(Value::Array(keys))
+}
+
+fn builtin_object_values(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("object_values expects 1 argument".into())); }
+    let vals = match &args[0] {
+        Value::Object(map) => map.values().cloned().collect(),
+        _ => return Err(err("object_values: argument must be an object".into())),
+    };
+    Ok(Value::Array(vals))
+}
+
+fn builtin_object_has(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 { return Err(err("object_has expects 2 arguments: object, key".into())); }
+    let key = match &args[1] { Value::String(s) => s.clone(), _ => return Err(err("object_has: key must be string".into())) };
+    match &args[0] {
+        Value::Object(map) => Ok(Value::Bool(map.contains_key(&key))),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+/// format(template: String, values: Array) -> String
+/// Simple positional formatter: {} is replaced with values[0], values[1] ...
+fn builtin_format(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() < 1 { return Err(err("format expects at least 1 argument".into())); }
+    let template = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("format: first arg must be string".into())) };
+    let vals: Vec<String> = match args.get(1) {
+        Some(Value::Array(a)) => a.iter().map(|v| match v { Value::String(s) => s.clone(), Value::Number(n) => n.to_string(), Value::Bool(b) => b.to_string(), _ => String::new() }).collect(),
+        Some(v) => vec![match v { Value::String(s) => s.clone(), Value::Number(n) => n.to_string(), Value::Bool(b) => b.to_string(), _ => String::new() }],
+        None => vec![],
+    };
+    let mut result = template.clone();
+    for val in &vals {
+        if let Some(pos) = result.find("{}") {
+            result.replace_range(pos..pos+2, val);
+        }
+    }
+    Ok(Value::String(result))
+}
+
+/// parse_int(s: String) -> Number
+fn builtin_parse_int(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("parse_int expects 1 argument".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), Value::Number(n) => return Ok(Value::Number((*n as i64) as f64)), _ => return Err(err("parse_int: arg must be string".into())) };
+    s.trim().parse::<i64>()
+        .map(|n| Value::Number(n as f64))
+        .map_err(|_| err(format!("parse_int: cannot parse '{}' as integer", s)))
+}
+
+/// parse_float(s: String) -> Number
+fn builtin_parse_float(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("parse_float expects 1 argument".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), Value::Number(n) => return Ok(Value::Number(*n)), _ => return Err(err("parse_float: arg must be string".into())) };
+    s.trim().parse::<f64>()
+        .map(Value::Number)
+        .map_err(|_| err(format!("parse_float: cannot parse '{}' as float", s)))
+}
+
+/// char_code(s: String) -> Number
+/// Returns the Unicode code point of the first character.
+fn builtin_char_code(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("char_code expects 1 argument".into())); }
+    let s = match &args[0] { Value::String(s) => s.clone(), _ => return Err(err("char_code: arg must be string".into())) };
+    match s.chars().next() {
+        Some(c) => Ok(Value::Number(c as u32 as f64)),
+        None => Err(err("char_code: empty string".into())),
+    }
+}
+
+/// char_from_code(n: Number) -> String
+/// Returns the character with the given Unicode code point.
+fn builtin_char_from_code(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 { return Err(err("char_from_code expects 1 argument".into())); }
+    let n = match &args[0] { Value::Number(n) => *n as u32, _ => return Err(err("char_from_code: arg must be number".into())) };
+    char::from_u32(n)
+        .map(|c| Value::String(c.to_string()))
+        .ok_or_else(|| err(format!("char_from_code: invalid code point {}", n)))
 }

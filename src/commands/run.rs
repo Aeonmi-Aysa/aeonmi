@@ -15,6 +15,15 @@ pub fn run_native(
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
+    run_native_with_args(input, pretty, no_sema, &[])
+}
+
+pub fn run_native_with_args(
+    input: &PathBuf,
+    pretty: bool,
+    no_sema: bool,
+    script_args: &[String],
+) -> anyhow::Result<()> {
     println!("native: executing {}", input.display());
     let source = std::fs::read_to_string(input)?;
     // Lex
@@ -82,6 +91,7 @@ pub fn run_native(
             let mut interp = Interpreter::new();
             // Set base_dir so import resolution works relative to the source file
             interp.base_dir = input.parent().map(|p| p.to_path_buf());
+            interp.script_args = script_args.to_vec();
             if let Err(e) = interp.run_module(&module) {
                 eprintln!("{} runtime error: {}", "error:".bright_red(), e.message);
             }

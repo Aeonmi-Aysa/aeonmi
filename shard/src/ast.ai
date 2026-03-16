@@ -1,484 +1,67 @@
-// SHARD Abstract Syntax Tree Definitions
-// Hybrid classical-quantum AST nodes for The Shard compiler
-// Written in hybrid AEONMI syntax
+// SHARD AST — pure Aeonmi (max 15 functions)
 
-import { Token } from "./token";
-
-// === MAIN AST STRUCTURE ===
-quantum struct AST {
-    nodes: Vec<ASTNode>,
-    
-    function new(nodes: Vec<ASTNode>) -> AST {
-        AST { nodes }
-    }
-    
-    function add_node(&mut self, node: ASTNode) {
-        self.nodes.push(node);
-    }
-    
-    function optimize_quantum_circuits(&mut self) {
-        log("🔮 Optimizing quantum circuits in AST...");
-        
-        for node in &mut self.nodes {
-            if let ASTNode::QuantumCircuit { operations, .. } = node {
-                *operations = self.optimize_quantum_operations(operations.clone());
-            }
-        }
-    }
-    
-    function optimize_quantum_operations(ops: Vec<QuantumOperation>) -> Vec<QuantumOperation> {
-        // Quantum circuit optimization
-        let mut optimized = vec![];
-        
-        for op in ops {
-            match op {
-                QuantumOperation::Gate { name, qubits, parameters } => {
-                    // Gate fusion optimization
-                    if self.can_fuse_with_previous(&optimized, &name, &qubits) {
-                        if let Some(QuantumOperation::Gate { 
-                            name: prev_name, 
-                            qubits: prev_qubits, 
-                            .. 
-                        }) = optimized.last_mut() {
-                            // Fuse H-H gates (identity), etc.
-                            if name == "H" && *prev_name == "H" && qubits == *prev_qubits {
-                                optimized.pop(); // Remove both H gates (H²=I)
-                                continue;
-                            }
-                        }
-                    }
-                    
-                    optimized.push(QuantumOperation::Gate { name, qubits, parameters });
-                },
-                _ => optimized.push(op),
-            }
-        }
-        
-        optimized
-    }
-    
-    function can_fuse_with_previous(ops: &Vec<QuantumOperation>, gate: &str, qubits: &Vec<Expression>) -> bool {
-        if let Some(QuantumOperation::Gate { name, qubits: prev_qubits, .. }) = ops.last() {
-            name == gate && prev_qubits == qubits
-        } else {
-            false
-        }
-    }
+function ast_stmt(t, a, b, c, d) {
+    if t == "Let"      { return { type: "Let",      name: a, value: b }; }
+    if t == "Const"    { return { type: "Const",    name: a, value: b }; }
+    if t == "Assign"   { return { type: "Assign",   target: a, value: b }; }
+    if t == "Return"   { return { type: "Return",   value: a }; }
+    if t == "ExprStmt" { return { type: "ExprStmt", expr: a }; }
+    if t == "If"       { return { type: "If",       cond: a, then_body: b, else_body: c }; }
+    if t == "While"    { return { type: "While",    cond: a, body: b }; }
+    if t == "For"      { return { type: "For",      var_name: a, iter: b, body: c }; }
+    if t == "Function" { return { type: "Function", name: a, params: b, body: c }; }
+    if t == "Break"    { return { type: "Break" }; }
+    if t == "Continue" { return { type: "Continue" }; }
+    return { type: t };
 }
 
-// === AST NODE TYPES ===
-quantum enum ASTNode {
-    // === CLASSICAL NODES ===
-    Function {
-        name: String,
-        parameters: Vec<Parameter>,
-        return_type: Option<Type>,
-        body: Box<Statement>,
-    },
-    
-    Class {
-        name: String,
-        superclass: Option<String>,
-        methods: Vec<ASTNode>,
-        fields: Vec<ASTNode>,
-    },
-    
-    Struct {
-        name: String,
-        fields: Vec<StructField>,
-    },
-    
-    Enum {
-        name: String,
-        variants: Vec<EnumVariant>,
-    },
-    
-    Import {
-        path: String,
-        items: Vec<String>,
-    },
-    
-    VariableDeclaration {
-        name: String,
-        type_annotation: Option<Type>,
-        initializer: Option<Expression>,
-        is_const: bool,
-    },
-    
-    // === QUANTUM NODES ===
-    QuantumFunction {
-        name: String,
-        parameters: Vec<Parameter>,
-        return_type: Option<Type>,
-        body: Box<Statement>,
-        quantum_gates: Vec<String>, // Used gates for optimization
-    },
-    
-    QuantumCircuit {
-        name: String,
-        qubits: Vec<QubitDeclaration>,
-        operations: Vec<QuantumOperation>,
-    },
-    
-    QuantumClass {
-        name: String,
-        superclass: Option<String>,
-        quantum_methods: Vec<ASTNode>,
-        classical_methods: Vec<ASTNode>,
-        quantum_fields: Vec<ASTNode>,
-        classical_fields: Vec<ASTNode>,
-    },
-    
-    QuantumStruct {
-        name: String,
-        quantum_fields: Vec<StructField>,
-        classical_fields: Vec<StructField>,
-    },
-    
-    // === ERROR HANDLING ===
-    Error,
+function ast_literal(t, v) {
+    if t == "Number" { return { type: "Number", value: v }; }
+    if t == "String" { return { type: "String", value: v }; }
+    if t == "Bool"   { return { type: "Bool",   value: v }; }
+    if t == "Null"   { return { type: "Null" }; }
+    return { type: t, value: v };
 }
 
-// === EXPRESSION TYPES ===
-quantum enum Expression {
-    // === CLASSICAL EXPRESSIONS ===
-    Integer(i64),
-    Float(f64),
-    String(String),
-    Boolean(bool),
-    Identifier(String),
-    
-    Binary {
-        left: Box<Expression>,
-        operator: Token,
-        right: Box<Expression>,
-    },
-    
-    Unary {
-        operator: Token,
-        operand: Box<Expression>,
-    },
-    
-    Call {
-        callee: Box<Expression>,
-        arguments: Vec<Expression>,
-    },
-    
-    Index {
-        object: Box<Expression>,
-        index: Box<Expression>,
-    },
-    
-    Member {
-        object: Box<Expression>,
-        property: String,
-    },
-    
-    Array(Vec<Expression>),
-    Dictionary(Vec<(Expression, Expression)>),
-    
-    // === QUANTUM EXPRESSIONS ===
-    QuantumState {
-        state: String, // |ψ⟩, |0⟩, |1⟩, etc.
-    },
-    
-    QuantumSuperposition {
-        state: String,
-        amplitudes: Vec<QuantumAmplitude>,
-    },
-    
-    QuantumMeasurement {
-        qubit: Box<Expression>,
-        basis: Option<String>, // Z, X, Y basis
-    },
-    
-    QuantumGate {
-        name: String,
-        qubits: Vec<Expression>,
-        parameters: Vec<Expression>,
-    },
-    
-    ComplexNumber {
-        real: f64,
-        imaginary: f64,
-    },
-    
-    // === HYBRID EXPRESSIONS ===
-    QuantumIf {
-        condition: Box<Expression>, // Quantum measurement result
-        then_branch: Box<Expression>,
-        else_branch: Option<Box<Expression>>,
-    },
-    
-    Error,
+function ast_ident(name) { return { type: "Ident", name: name }; }
+
+function ast_binop(op, left, right) {
+    return { type: "BinOp", op: op, left: left, right: right };
 }
 
-// === STATEMENT TYPES ===
-quantum enum Statement {
-    Expression(Expression),
-    
-    Block {
-        statements: Vec<Statement>,
-    },
-    
-    If {
-        condition: Expression,
-        then_branch: Box<Statement>,
-        else_branch: Option<Box<Statement>>,
-    },
-    
-    While {
-        condition: Expression,
-        body: Box<Statement>,
-    },
-    
-    For {
-        iterator: String,
-        iterable: Expression,
-        body: Box<Statement>,
-    },
-    
-    Return {
-        value: Option<Expression>,
-    },
-    
-    Break,
-    Continue,
-    
-    VariableDeclaration {
-        name: String,
-        type_annotation: Option<Type>,
-        initializer: Option<Expression>,
-        is_const: bool,
-    },
-    
-    Assignment {
-        target: Expression,
-        value: Expression,
-    },
-    
-    // === QUANTUM STATEMENTS ===
-    QuantumMeasurement {
-        qubit: Expression,
-        target: Option<String>, // Classical variable to store result
-    },
-    
-    QuantumGateApplication {
-        gate: String,
-        qubits: Vec<Expression>,
-        parameters: Vec<Expression>,
-    },
-    
-    QuantumStatePreparation {
-        qubit: Expression,
-        state: Expression,
-    },
-    
-    QuantumTeleportation {
-        source: Expression,
-        target: Expression,
-        ancilla: Expression,
-    },
-    
-    Error,
+function ast_unop(op, operand) { return { type: "UnOp", op: op, operand: operand }; }
+
+function ast_call(callee, args) { return { type: "Call", callee: callee, args: args }; }
+
+function ast_method(obj, meth, args) {
+    return { type: "MethodCall", object: obj, method: meth, args: args };
 }
 
-// === SUPPORTING TYPES ===
-quantum struct Parameter {
-    name: String,
-    type_annotation: Type,
-    default_value: Option<Expression>,
-    is_quantum: bool, // True for quantum parameters (qubits, quantum states)
+function ast_index(obj, idx) { return { type: "Index", object: obj, index: idx }; }
+
+function ast_field(obj, fname) { return { type: "Field", object: obj, field: fname }; }
+
+function ast_array(elements) { return { type: "Array", elements: elements }; }
+
+function ast_object(keys, vals) { return { type: "Object", keys: keys, values: vals }; }
+
+function ast_program(body) { return { type: "Program", body: body }; }
+
+function ast_type(node) { if node == null { return "null"; } return node.type; }
+
+function ast_dump(node) {
+    if node == null { return "null"; }
+    let t = node.type;
+    if t == "Number" { return "Number(" + toString(node.value) + ")"; }
+    if t == "String" { return "String(" + node.value + ")"; }
+    if t == "Bool"   { return "Bool(" + toString(node.value) + ")"; }
+    if t == "Ident"  { return "Ident(" + node.name + ")"; }
+    if t == "BinOp"  { return "BinOp(" + node.op + ")"; }
+    if t == "Call"   { return "Call(" + node.callee + "/" + toString(node.len(args)) + ")"; }
+    if t == "Let"    { return "Let(" + node.name + ")"; }
+    if t == "Function" { return "Fn(" + node.name + "/" + toString(node.len(params)) + ")"; }
+    return t;
 }
 
-quantum enum Type {
-    // Classical types
-    Integer,
-    Float,
-    String,
-    Boolean,
-    Array(Box<Type>),
-    Dictionary(Box<Type>, Box<Type>),
-    Custom(String),
-    
-    // Quantum types
-    Qubit,
-    QubitArray(usize), // Array of qubits
-    QuantumState,
-    QuantumCircuit,
-    ComplexNumber,
-    
-    // Hybrid types
-    QuantumFunction(Vec<Type>, Box<Type>), // Parameter types, return type
-    MeasurementResult, // Result of quantum measurement
-    
-    Void,
-    Unknown,
-}
-
-quantum struct StructField {
-    name: String,
-    field_type: Type,
-    is_public: bool,
-    is_quantum: bool,
-}
-
-quantum struct EnumVariant {
-    name: String,
-    associated_data: Option<Type>,
-}
-
-quantum struct QubitDeclaration {
-    name: String,
-    count: usize, // Number of qubits (for arrays)
-    initial_state: Option<Expression>,
-}
-
-quantum enum QuantumOperation {
-    Gate {
-        name: String,
-        qubits: Vec<Expression>,
-        parameters: Vec<Expression>,
-    },
-    
-    Measurement {
-        qubit: Expression,
-        basis: Option<String>,
-        target: Option<String>, // Classical variable to store result
-    },
-    
-    StatePreparation {
-        qubit: Expression,
-        state: Expression,
-    },
-    
-    Teleportation {
-        source: Expression,
-        target: Expression,
-        ancilla: Expression,
-    },
-    
-    CustomOperation {
-        name: String,
-        arguments: Vec<Expression>,
-    },
-}
-
-quantum struct QuantumAmplitude {
-    coefficient: String,  // α, β, or numeric value
-    basis_state: String,  // |0⟩, |1⟩, etc.
-}
-
-// === POSITION TRACKING ===
-quantum struct Position {
-    line: usize,
-    column: usize,
-    file: String,
-}
-
-// === AST VISITOR PATTERN ===
-quantum trait ASTVisitor<T> {
-    function visit_ast(&mut self, ast: &AST) -> T;
-    function visit_node(&mut self, node: &ASTNode) -> T;
-    function visit_expression(&mut self, expr: &Expression) -> T;
-    function visit_statement(&mut self, stmt: &Statement) -> T;
-    
-    // Quantum-specific visitors
-    function visit_quantum_circuit(&mut self, circuit: &ASTNode) -> T;
-    function visit_quantum_operation(&mut self, op: &QuantumOperation) -> T;
-    function visit_quantum_state(&mut self, state: &Expression) -> T;
-}
-
-// === AST UTILITIES ===
-quantum module ASTUtils {
-    function extract_quantum_gates(stmt: &Statement) -> Vec<String> {
-        let mut gates = vec![];
-        
-        match stmt {
-            Statement::Block { statements } => {
-                for s in statements {
-                    gates.extend(Self::extract_quantum_gates(s));
-                }
-            },
-            
-            Statement::QuantumGateApplication { gate, .. } => {
-                gates.push(gate.clone());
-            },
-            
-            Statement::Expression(Expression::QuantumGate { name, .. }) => {
-                gates.push(name.clone());
-            },
-            
-            _ => {}
-        }
-        
-        gates
-    }
-    
-    function count_qubits(circuit: &ASTNode) -> usize {
-        if let ASTNode::QuantumCircuit { qubits, .. } = circuit {
-            qubits.iter().map(|q| q.count).sum()
-        } else {
-            0
-        }
-    }
-    
-    function is_quantum_expression(expr: &Expression) -> bool {
-        matches!(expr, 
-            Expression::QuantumState { .. } |
-            Expression::QuantumSuperposition { .. } |
-            Expression::QuantumMeasurement { .. } |
-            Expression::QuantumGate { .. } |
-            Expression::ComplexNumber { .. } |
-            Expression::QuantumIf { .. }
-        )
-    }
-    
-    function is_quantum_statement(stmt: &Statement) -> bool {
-        matches!(stmt,
-            Statement::QuantumMeasurement { .. } |
-            Statement::QuantumGateApplication { .. } |
-            Statement::QuantumStatePreparation { .. } |
-            Statement::QuantumTeleportation { .. }
-        )
-    }
-    
-    function optimize_circuit_depth(operations: &mut Vec<QuantumOperation>) {
-        // Quantum circuit depth optimization
-        // This is a simplified version - real optimization is much more complex
-        
-        // Sort operations to minimize circuit depth
-        operations.sort_by(|a, b| {
-            let qubits_a = Self::get_operation_qubits(a);
-            let qubits_b = Self::get_operation_qubits(b);
-            
-            // Operations on different qubits can be parallelized
-            if qubits_a.iter().all(|q| !qubits_b.contains(q)) {
-                std::cmp::Ordering::Equal // Can be parallelized
-            } else {
-                std::cmp::Ordering::Greater // Must be sequential
-            }
-        });
-    }
-    
-    function get_operation_qubits(op: &QuantumOperation) -> Vec<String> {
-        match op {
-            QuantumOperation::Gate { qubits, .. } |
-            QuantumOperation::StatePreparation { qubit: Expression::Identifier(name), .. } => {
-                qubits.iter().filter_map(|q| {
-                    if let Expression::Identifier(name) = q {
-                        Some(name.clone())
-                    } else {
-                        None
-                    }
-                }).collect()
-            },
-            
-            QuantumOperation::Measurement { qubit: Expression::Identifier(name), .. } => {
-                vec![name.clone()]
-            },
-            
-            _ => vec![]
-        }
-    }
-}
+let n = ast_stmt("Let", "x", ast_literal("Number", 42), null, null);
+log("ast.ai loaded — " + ast_dump(n));

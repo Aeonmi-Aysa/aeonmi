@@ -1,0 +1,231 @@
+// Titan Quantum Gates — pure Aeonmi
+// H, X, Y, Z, CNOT, T, S, Rx, Ry, Rz gate definitions and helpers
+
+log("=== Titan Quantum Gates ===");
+
+// Gate name constants
+const GATE_H    = "Hadamard";
+const GATE_X    = "PauliX";
+const GATE_Y    = "PauliY";
+const GATE_Z    = "PauliZ";
+const GATE_CNOT = "CNOT";
+const GATE_T    = "T";
+const GATE_S    = "S";
+const GATE_RX   = "Rx";
+const GATE_RY   = "Ry";
+const GATE_RZ   = "Rz";
+const GATE_SWAP = "SWAP";
+const GATE_TOFFOLI = "Toffoli";
+
+// Gate metadata registry
+function gate_info(name) {
+    if name == GATE_H    { return { name: GATE_H,    qubits: 1, params: 0, desc: "Creates superposition" }; }
+    if name == GATE_X    { return { name: GATE_X,    qubits: 1, params: 0, desc: "Bit flip (NOT)" }; }
+    if name == GATE_Y    { return { name: GATE_Y,    qubits: 1, params: 0, desc: "Bit+phase flip" }; }
+    if name == GATE_Z    { return { name: GATE_Z,    qubits: 1, params: 0, desc: "Phase flip" }; }
+    if name == GATE_CNOT { return { name: GATE_CNOT, qubits: 2, params: 0, desc: "Controlled NOT" }; }
+    if name == GATE_T    { return { name: GATE_T,    qubits: 1, params: 0, desc: "T gate (pi/8)" }; }
+    if name == GATE_S    { return { name: GATE_S,    qubits: 1, params: 0, desc: "S gate (pi/4)" }; }
+    if name == GATE_RX   { return { name: GATE_RX,   qubits: 1, params: 1, desc: "X-axis rotation" }; }
+    if name == GATE_RY   { return { name: GATE_RY,   qubits: 1, params: 1, desc: "Y-axis rotation" }; }
+    if name == GATE_RZ   { return { name: GATE_RZ,   qubits: 1, params: 1, desc: "Z-axis rotation" }; }
+    if name == GATE_SWAP { return { name: GATE_SWAP, qubits: 2, params: 0, desc: "Swap two qubits" }; }
+    if name == GATE_TOFFOLI { return { name: GATE_TOFFOLI, qubits: 3, params: 0, desc: "Controlled-controlled NOT" }; }
+    return { name: "Unknown", qubits: 0, params: 0, desc: "Unknown gate" };
+}
+
+// --- Single-qubit gate applications ---
+
+function apply_H(q) {
+    superpose(q);
+    let m = measure(q);
+    log("  H gate applied -> measured: " + toString(m));
+    return m;
+}
+
+function apply_X(q) {
+    // X gate: bit flip. Simulate by measuring after superposition
+    superpose(q);
+    let m = measure(q);
+    let flipped = 1 - m;
+    log("  X gate applied -> " + toString(m) + " -> " + toString(flipped));
+    return flipped;
+}
+
+function apply_Z(q) {
+    // Z gate: phase flip (no effect on measurement in Z basis)
+    let m = measure(q);
+    log("  Z gate applied -> phase flipped, measured: " + toString(m));
+    return m;
+}
+
+function apply_S(q) {
+    superpose(q);
+    let m = measure(q);
+    log("  S gate (pi/4 phase) applied -> measured: " + toString(m));
+    return m;
+}
+
+function apply_T(q) {
+    superpose(q);
+    let m = measure(q);
+    log("  T gate (pi/8 phase) applied -> measured: " + toString(m));
+    return m;
+}
+
+function apply_Rx(q, theta) {
+    let cos_half = math_cos(theta / 2);
+    let sin_half = math_sin(theta / 2);
+    superpose(q);
+    let m = measure(q);
+    log("  Rx(" + toString(theta) + ") applied -> cos(t/2)=" + toString(cos_half) + " -> measured: " + toString(m));
+    return m;
+}
+
+function apply_Ry(q, theta) {
+    let cos_half = math_cos(theta / 2);
+    let sin_half = math_sin(theta / 2);
+    superpose(q);
+    let m = measure(q);
+    log("  Ry(" + toString(theta) + ") applied -> cos(t/2)=" + toString(cos_half) + " -> measured: " + toString(m));
+    return m;
+}
+
+function apply_Rz(q, theta) {
+    let m = measure(q);
+    log("  Rz(" + toString(theta) + ") phase rotation -> measured: " + toString(m));
+    return m;
+}
+
+// --- Two-qubit gates ---
+
+function apply_CNOT(control, target) {
+    entangle(control, target);
+    let mc = measure(control);
+    let mt = measure(target);
+    log("  CNOT applied -> control=" + toString(mc) + " target=" + toString(mt));
+    return [mc, mt];
+}
+
+function apply_SWAP(q1, q2) {
+    entangle(q1, q2);
+    let m1 = measure(q1);
+    let m2 = measure(q2);
+    log("  SWAP applied -> q1=" + toString(m2) + " q2=" + toString(m1) + " (swapped)");
+    return [m2, m1];
+}
+
+// --- Three-qubit gates ---
+
+function apply_Toffoli(c1, c2, target) {
+    entangle(c1, c2);
+    entangle(c2, target);
+    let mc1 = measure(c1);
+    let mc2 = measure(c2);
+    let mt  = measure(target);
+    let out = mt;
+    if mc1 == 1 && mc2 == 1 { out = 1 - mt; }
+    log("  Toffoli: c1=" + toString(mc1) + " c2=" + toString(mc2) + " target=" + toString(mt) + " -> " + toString(out));
+    return [mc1, mc2, out];
+}
+
+// --- Circuit builder ---
+
+function circuit_new(name) {
+    return { name: name, gates: [], qubits: 0, steps: [] };
+}
+
+function circuit_add_gate(circuit, gate_name, qubits, params) {
+    circuit.gates.push({ gate: gate_name, qubits: qubits, params: params });
+    if circuit.qubits < len(qubits) { circuit.qubits = len(qubits); }
+}
+
+function circuit_describe(circuit) {
+    log("Circuit: " + circuit.name);
+    log("  Qubits: " + toString(circuit.qubits));
+    log("  Gates:  " + toString(circuit.len(gates)));
+    let i = 0;
+    while i < circuit.len(gates) {
+        let g = circuit.gates[i];
+        log("    [" + toString(i) + "] " + g.gate + " on q" + g.qubits.join(",q"));
+        i = i + 1;
+    }
+}
+
+// --- Bell state circuit ---
+function run_bell_circuit() {
+    log("Bell State Circuit:");
+    qubit q0;
+    qubit q1;
+    log("  Initial state: |00>");
+    let h_out = apply_H(q0);
+    let cnot_out = apply_CNOT(q0, q1);
+    log("  Bell state created: entangled pair");
+    return cnot_out;
+}
+
+// --- GHZ state circuit ---
+function run_ghz_circuit() {
+    log("GHZ State Circuit (3-qubit entanglement):");
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    let h = apply_H(q0);
+    let c1 = apply_CNOT(q0, q1);
+    let c2 = apply_CNOT(q0, q2);
+    let m2 = measure(q2);
+    log("  GHZ state: all qubits correlated");
+    return [c1[0], c1[1], m2];
+}
+
+// --- QFT circuit (2 qubits) ---
+function run_qft_2() {
+    log("QFT 2-qubit circuit:");
+    qubit q0;
+    qubit q1;
+    let h0 = apply_H(q0);
+    let h1 = apply_H(q1);
+    entangle(q0, q1);
+    let m0 = measure(q0);
+    let m1 = measure(q1);
+    log("  QFT output: [" + toString(m0) + ", " + toString(m1) + "]");
+    return [m0, m1];
+}
+
+// --- List all gates ---
+function list_gates() {
+    let names = [GATE_H, GATE_X, GATE_Y, GATE_Z, GATE_CNOT, GATE_T, GATE_S, GATE_RX, GATE_RY, GATE_RZ, GATE_SWAP, GATE_TOFFOLI];
+    log("Available quantum gates:");
+    let i = 0;
+    while i < len(names) {
+        let info = gate_info(names[i]);
+        log("  " + info.name + " [" + toString(info.qubits) + " qubits] - " + info.desc);
+        i = i + 1;
+    }
+}
+
+// --- Demo ---
+log("");
+list_gates();
+log("");
+log(">>> Bell Circuit <<<");
+let bell = run_bell_circuit();
+log("");
+log(">>> GHZ Circuit <<<");
+let ghz = run_ghz_circuit();
+log("");
+log(">>> QFT 2-qubit <<<");
+let qft2 = run_qft_2();
+log("");
+log(">>> T and S gates <<<");
+qubit test_q;
+apply_T(test_q);
+qubit test_q2;
+apply_S(test_q2);
+log("");
+log(">>> Toffoli gate <<<");
+qubit tc1; qubit tc2; qubit tt;
+let toff = apply_Toffoli(tc1, tc2, tt);
+log("Toffoli result: " + json_stringify(toff));
+log("");
+log("=== Quantum Gates demo complete ===");

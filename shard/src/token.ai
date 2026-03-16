@@ -1,308 +1,143 @@
-// SHARD Token Definitions
-// Defines all token types for classical and quantum AEONMI syntax
-// Written in hybrid AEONMI syntax
+// SHARD Token Definitions — pure Aeonmi syntax
 
-// === TOKEN KINDS ===
-quantum enum TokenKind {
-    // === QUANTUM TOKENS ===
-    Quantum,           // quantum
-    Qubit,            // qubit
-    QuantumState,     // |0⟩, |1⟩, |ψ⟩
-    QuantumGate,      // H, X, Y, Z, CNOT, Toffoli
-    Measure,          // measure
-    Circuit,          // circuit
-    Gate,             // gate
-    Superposition,    // superposition
-    Entanglement,     // entanglement
-    ComplexNumber,    // (3.2 + 4.1i)
-    GreekLetter,      // α, β, γ, ψ, φ, θ
-    
-    // === CLASSICAL TOKENS ===
-    
-    // Keywords
-    Function,         // function
-    Let,              // let
-    Const,            // const
-    Mut,              // mut
-    If,               // if
-    Else,             // else
-    For,              // for
-    While,            // while
-    Return,           // return
-    Break,            // break
-    Continue,         // continue
-    Match,            // match
-    Enum,             // enum
-    Struct,           // struct
-    Class,            // class
-    Impl,             // impl
-    Trait,            // trait
-    Import,           // import
-    Export,           // export
-    Async,            // async
-    Await,            // await
-    
-    // Types
-    I32,              // i32
-    I64,              // i64
-    F32,              // f32
-    F64,              // f64
-    Bool,             // bool
-    String,           // string
-    Usize,            // usize
-    
-    // Literals
-    Integer,          // 42, 0xFF, 0b1010
-    Float,            // 3.14, 1.0e-10
-    StringLiteral,    // "hello"
-    CharLiteral,      // 'a'
-    True,             // true
-    False,            // false
-    Null,             // null
-    
-    // Identifiers
-    Identifier,       // variable_name
-    
-    // Operators
-    Plus,             // +
-    Minus,            // -
-    Multiply,         // *
-    Divide,           // /
-    Modulo,           // %
-    Power,            // **
-    
-    Assign,           // =
-    PlusAssign,       // +=
-    MinusAssign,      // -=
-    MultiplyAssign,   // *=
-    DivideAssign,     // /=
-    ModuloAssign,     // %=
-    
-    Equal,            // ==
-    NotEqual,         // !=
-    LessThan,         // <
-    LessThanEqual,    // <=
-    GreaterThan,      // >
-    GreaterThanEqual, // >=
-    
-    And,              // &&
-    Or,               // ||
-    Not,              // !
-    
-    BitwiseAnd,       // &
-    BitwiseOr,        // |
-    BitwiseXor,       // ^
-    BitwiseNot,       // ~
-    LeftShift,        // <<
-    RightShift,       // >>
-    
-    // Punctuation
-    LeftParen,        // (
-    RightParen,       // )
-    LeftBracket,      // [
-    RightBracket,     // ]
-    LeftBrace,        // {
-    RightBrace,       // }
-    Comma,            // ,
-    Semicolon,        // ;
-    Colon,            // :
-    DoubleColon,      // ::
-    Dot,              // .
-    DotDot,           // ..
-    DotDotEqual,      // ..=
-    Arrow,            // ->
-    FatArrow,         // =>
-    Question,         // ?
-    Ampersand,        // &
-    
-    // Special
-    Comment,          // // comment
-    BlockComment,     // /* comment */
-    Whitespace,       // space, tab, newline
-    Unknown,          // unknown character
-    EOF,              // end of file
+const TK_FUNCTION   = "Function";
+const TK_LET        = "Let";
+const TK_CONST      = "Const";
+const TK_IF         = "If";
+const TK_ELSE       = "Else";
+const TK_FOR        = "For";
+const TK_IN         = "In";
+const TK_WHILE      = "While";
+const TK_RETURN     = "Return";
+const TK_BREAK      = "Break";
+const TK_CONTINUE   = "Continue";
+const TK_TRUE       = "True";
+const TK_FALSE      = "False";
+const TK_NULL       = "Null";
+const TK_QUBIT      = "Qubit";
+const TK_QUANTUM    = "Quantum";
+const TK_MEASURE    = "Measure";
+const TK_SUPERPOSE  = "Superpose";
+const TK_ENTANGLE   = "Entangle";
+
+const TK_IDENT      = "Identifier";
+const TK_NUMBER     = "Number";
+const TK_STRING     = "String";
+
+const TK_PLUS       = "Plus";
+const TK_MINUS      = "Minus";
+const TK_STAR       = "Star";
+const TK_SLASH      = "Slash";
+const TK_PERCENT    = "Percent";
+const TK_STAR_STAR  = "StarStar";
+const TK_ASSIGN     = "Assign";
+const TK_PLUS_EQ    = "PlusEq";
+const TK_MINUS_EQ   = "MinusEq";
+const TK_EQ         = "Eq";
+const TK_NEQ        = "Neq";
+const TK_LT         = "Lt";
+const TK_LTE        = "Lte";
+const TK_GT         = "Gt";
+const TK_GTE        = "Gte";
+const TK_AND        = "And";
+const TK_OR         = "Or";
+const TK_NOT        = "Not";
+const TK_LPAREN     = "LParen";
+const TK_RPAREN     = "RParen";
+const TK_LBRACKET   = "LBracket";
+const TK_RBRACKET   = "RBracket";
+const TK_LBRACE     = "LBrace";
+const TK_RBRACE     = "RBrace";
+const TK_COMMA      = "Comma";
+const TK_SEMICOLON  = "Semicolon";
+const TK_COLON      = "Colon";
+const TK_DOT        = "Dot";
+const TK_ARROW      = "Arrow";
+const TK_EOF        = "EOF";
+const TK_UNKNOWN    = "Unknown";
+
+function make_token(kind, value, line, col) {
+    return { kind: kind, value: value, line: line, col: col };
 }
 
-// === TOKEN STRUCTURE ===
-quantum struct Token {
-    kind: TokenKind;
-    lexeme: String;      // Original text
-    position: Position;  // Location in source
-    
-    constructor(kind: TokenKind, lexeme: String, position: Position) {
-        this.kind = kind;
-        this.lexeme = lexeme;
-        this.position = position;
+function token_is_keyword(tok) {
+    let kw = [TK_FUNCTION, TK_LET, TK_CONST, TK_IF, TK_ELSE, TK_FOR, TK_IN,
+              TK_WHILE, TK_RETURN, TK_BREAK, TK_CONTINUE, TK_TRUE, TK_FALSE,
+              TK_NULL, TK_QUBIT, TK_QUANTUM, TK_MEASURE, TK_SUPERPOSE, TK_ENTANGLE];
+    let i = 0;
+    while i < len(kw) {
+        if kw[i] == tok.kind { return true; }
+        i = i + 1;
     }
-    
-    // Check if token is a quantum-specific token
-    function is_quantum() -> bool {
-        match this.kind {
-            TokenKind::Quantum | 
-            TokenKind::Qubit | 
-            TokenKind::QuantumState | 
-            TokenKind::QuantumGate | 
-            TokenKind::Measure | 
-            TokenKind::Circuit | 
-            TokenKind::Gate | 
-            TokenKind::Superposition | 
-            TokenKind::Entanglement | 
-            TokenKind::ComplexNumber | 
-            TokenKind::GreekLetter => true,
-            _ => false
-        }
-    }
-    
-    // Check if token is a keyword
-    function is_keyword() -> bool {
-        match this.kind {
-            TokenKind::Quantum | TokenKind::Function | TokenKind::Let | 
-            TokenKind::Const | TokenKind::If | TokenKind::Else | 
-            TokenKind::For | TokenKind::While | TokenKind::Return | 
-            TokenKind::Match | TokenKind::Enum | TokenKind::Struct | 
-            TokenKind::Class | TokenKind::Import | TokenKind::Async => true,
-            _ => false
-        }
-    }
-    
-    // Check if token is a literal
-    function is_literal() -> bool {
-        match this.kind {
-            TokenKind::Integer | TokenKind::Float | TokenKind::StringLiteral | 
-            TokenKind::CharLiteral | TokenKind::True | TokenKind::False | 
-            TokenKind::Null | TokenKind::QuantumState | 
-            TokenKind::ComplexNumber => true,
-            _ => false
-        }
-    }
-    
-    // Check if token is an operator
-    function is_operator() -> bool {
-        match this.kind {
-            TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | 
-            TokenKind::Divide | TokenKind::Modulo | TokenKind::Power |
-            TokenKind::Assign | TokenKind::Equal | TokenKind::NotEqual |
-            TokenKind::LessThan | TokenKind::GreaterThan | TokenKind::And |
-            TokenKind::Or | TokenKind::Not => true,
-            _ => false
-        }
-    }
-    
-    // Get operator precedence for parsing
-    function precedence() -> usize {
-        match this.kind {
-            TokenKind::Or => 1,
-            TokenKind::And => 2,
-            TokenKind::Equal | TokenKind::NotEqual => 3,
-            TokenKind::LessThan | TokenKind::LessThanEqual | 
-            TokenKind::GreaterThan | TokenKind::GreaterThanEqual => 4,
-            TokenKind::Plus | TokenKind::Minus => 5,
-            TokenKind::Multiply | TokenKind::Divide | TokenKind::Modulo => 6,
-            TokenKind::Power => 7,
-            TokenKind::Not => 8,
-            _ => 0
-        }
-    }
-    
-    // Convert to string for debugging
-    function to_string() -> String {
-        f"Token({:?}, '{}', {}:{})", 
-            this.kind, 
-            this.lexeme, 
-            this.position.line, 
-            this.position.column
-    }
+    return false;
 }
 
-// === POSITION TRACKING ===
-quantum struct Position {
-    line: usize;
-    column: usize;
-    
-    constructor(line: usize, column: usize) {
-        this.line = line;
-        this.column = column;
-    }
-    
-    function to_string() -> String {
-        f"{}:{}", this.line, this.column
-    }
+function token_is_literal(tok) {
+    if tok.kind == TK_NUMBER { return true; }
+    if tok.kind == TK_STRING { return true; }
+    if tok.kind == TK_TRUE   { return true; }
+    if tok.kind == TK_FALSE  { return true; }
+    if tok.kind == TK_NULL   { return true; }
+    return false;
 }
 
-// === QUANTUM-SPECIFIC TOKEN UTILITIES ===
-quantum module QuantumTokens {
-    // Check if a string represents a quantum state
-    function is_quantum_state(text: &str) -> bool {
-        text.starts_with("|") && text.ends_with("⟩")
-    }
-    
-    // Parse quantum state notation
-    function parse_quantum_state(text: &str) -> Result<QuantumStateInfo, String> {
-        if !is_quantum_state(text) {
-            return Err("Not a quantum state".to_string());
-        }
-        
-        let content = &text[1..text.len()-1]; // Remove | and ⟩
-        
-        // Common quantum states
-        match content {
-            "0" => Ok(QuantumStateInfo::Basis(0)),
-            "1" => Ok(QuantumStateInfo::Basis(1)),
-            "+" => Ok(QuantumStateInfo::Plus),
-            "-" => Ok(QuantumStateInfo::Minus),
-            "ψ" | "psi" => Ok(QuantumStateInfo::Psi),
-            "φ" | "phi" => Ok(QuantumStateInfo::Phi),
-            _ => Ok(QuantumStateInfo::Named(content.to_string()))
-        }
-    }
-    
-    // Check if a string is a quantum gate
-    function is_quantum_gate(text: &str) -> bool {
-        match text {
-            "H" | "X" | "Y" | "Z" | "CNOT" | "CZ" | "SWAP" | 
-            "Toffoli" | "Fredkin" | "RX" | "RY" | "RZ" | 
-            "Phase" | "S" | "T" => true,
-            _ => false
-        }
-    }
-    
-    // Get quantum gate information
-    function get_gate_info(text: &str) -> Option<QuantumGateInfo> {
-        match text {
-            "H" => Some(QuantumGateInfo::new("Hadamard", 1, false)),
-            "X" => Some(QuantumGateInfo::new("Pauli-X", 1, false)),
-            "Y" => Some(QuantumGateInfo::new("Pauli-Y", 1, false)),
-            "Z" => Some(QuantumGateInfo::new("Pauli-Z", 1, false)),
-            "CNOT" => Some(QuantumGateInfo::new("Controlled-NOT", 2, false)),
-            "CZ" => Some(QuantumGateInfo::new("Controlled-Z", 2, false)),
-            "SWAP" => Some(QuantumGateInfo::new("SWAP", 2, false)),
-            "Toffoli" => Some(QuantumGateInfo::new("Toffoli", 3, false)),
-            "RX" => Some(QuantumGateInfo::new("Rotation-X", 1, true)),
-            "RY" => Some(QuantumGateInfo::new("Rotation-Y", 1, true)),
-            "RZ" => Some(QuantumGateInfo::new("Rotation-Z", 1, true)),
-            _ => None
-        }
-    }
+function token_is_op(tok) {
+    if tok.kind == TK_PLUS  { return true; }
+    if tok.kind == TK_MINUS { return true; }
+    if tok.kind == TK_STAR  { return true; }
+    if tok.kind == TK_SLASH { return true; }
+    if tok.kind == TK_EQ    { return true; }
+    if tok.kind == TK_NEQ   { return true; }
+    if tok.kind == TK_LT    { return true; }
+    if tok.kind == TK_GT    { return true; }
+    if tok.kind == TK_AND   { return true; }
+    if tok.kind == TK_OR    { return true; }
+    return false;
 }
 
-// === SUPPORTING STRUCTURES ===
-quantum enum QuantumStateInfo {
-    Basis(usize),        // |0⟩, |1⟩
-    Plus,                // |+⟩
-    Minus,               // |-⟩
-    Psi,                 // |ψ⟩
-    Phi,                 // |φ⟩
-    Named(String),       // |custom⟩
+function token_precedence(tok) {
+    if tok.kind == TK_OR      { return 1; }
+    if tok.kind == TK_AND     { return 2; }
+    if tok.kind == TK_EQ      { return 3; }
+    if tok.kind == TK_NEQ     { return 3; }
+    if tok.kind == TK_LT      { return 4; }
+    if tok.kind == TK_LTE     { return 4; }
+    if tok.kind == TK_GT      { return 4; }
+    if tok.kind == TK_GTE     { return 4; }
+    if tok.kind == TK_PLUS    { return 5; }
+    if tok.kind == TK_MINUS   { return 5; }
+    if tok.kind == TK_STAR    { return 6; }
+    if tok.kind == TK_SLASH   { return 6; }
+    if tok.kind == TK_PERCENT { return 6; }
+    if tok.kind == TK_STAR_STAR { return 7; }
+    return 0;
 }
 
-quantum struct QuantumGateInfo {
-    name: String;
-    qubit_count: usize;
-    parameterized: bool;
-    
-    constructor(name: String, qubit_count: usize, parameterized: bool) {
-        this.name = name;
-        this.qubit_count = qubit_count;
-        this.parameterized = parameterized;
-    }
+function token_to_string(tok) {
+    return "Token(" + tok.kind + ", '" + tok.value + "', " + toString(tok.line) + ":" + toString(tok.col) + ")";
 }
+
+function keyword_kind(word) {
+    if word == "function"  { return TK_FUNCTION; }
+    if word == "let"       { return TK_LET; }
+    if word == "const"     { return TK_CONST; }
+    if word == "if"        { return TK_IF; }
+    if word == "else"      { return TK_ELSE; }
+    if word == "for"       { return TK_FOR; }
+    if word == "in"        { return TK_IN; }
+    if word == "while"     { return TK_WHILE; }
+    if word == "return"    { return TK_RETURN; }
+    if word == "break"     { return TK_BREAK; }
+    if word == "continue"  { return TK_CONTINUE; }
+    if word == "true"      { return TK_TRUE; }
+    if word == "false"     { return TK_FALSE; }
+    if word == "null"      { return TK_NULL; }
+    if word == "qubit"     { return TK_QUBIT; }
+    if word == "quantum"   { return TK_QUANTUM; }
+    if word == "measure"   { return TK_MEASURE; }
+    if word == "superpose" { return TK_SUPERPOSE; }
+    if word == "entangle"  { return TK_ENTANGLE; }
+    return TK_IDENT;
+}
+
+log("token.ai loaded — " + toString(50) + " token types defined");

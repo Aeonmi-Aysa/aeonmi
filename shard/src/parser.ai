@@ -1,536 +1,246 @@
-// SHARD Quantum-Aware Parser
-// Parses both classical AEONMI and quantum syntax into hybrid AST
-// Written in hybrid AEONMI syntax
+// SHARD Parser — pure Aeonmi recursive descent (max 15 functions)
+// State: { tokens, pos }
 
-import { TokenStream, Token, TokenKind } from "./token";
-import { AST, ASTNode, Expression, Statement } from "./ast";
+function parse(tokens) {
+    let st = { tokens: tokens, pos: 0 };
+    let body = parse_stmts(st);
+    return { type: "Program", body: body };
+}
 
-// === HYBRID QUANTUM-CLASSICAL PARSER ===
-quantum parser HybridParser {
-    tokens: TokenStream;
-    current_quantum_context: bool = false;
-    
-    constructor(tokens: TokenStream) {
-        this.tokens = tokens;
+function p_peek(st) {
+    if st.pos < st.len(tokens) { return st.tokens[st.pos]; }
+    return { kind: "EOF", value: "", line: 0, col: 0 };
+}
+
+function p_adv(st) {
+    let tok = p_peek(st);
+    st.pos = st.pos + 1;
+    return tok;
+}
+
+function p_expect(st, kind) {
+    let tok = p_adv(st);
+    return tok;
+}
+
+function parse_block(st) {
+    p_adv(st);
+    let stmts = [];
+    while p_peek(st).kind != "RBrace" {
+        if p_peek(st).kind == "EOF" { return stmts; }
+        let s = parse_stmt(st);
+        if s != null { stmts.push(s); }
     }
-    
-    // Main parsing entry point
-    function parse() -> AST {
-        log("🌳 Starting quantum-aware parsing...");
-        
-        let nodes: ASTNode[] = [];
-        
-        while !this.tokens.is_at_end() {
-            // Parse top-level declarations
-            if let Some(node) = this.parse_declaration() {
-                nodes.push(node);
+    p_adv(st);
+    return stmts;
+}
+
+function parse_stmts(st) {
+    let stmts = [];
+    while p_peek(st).kind != "EOF" {
+        if p_peek(st).kind == "RBrace" { return stmts; }
+        let s = parse_stmt(st);
+        if s != null { stmts.push(s); }
+    }
+    return stmts;
+}
+
+function parse_stmt(st) {
+    let tok = p_peek(st);
+    if tok.kind == "Semicolon" { p_adv(st); return null; }
+    if tok.kind == "Let" {
+        p_adv(st);
+        let name = p_adv(st).value;
+        p_adv(st);
+        let val = parse_expr(st);
+        if p_peek(st).kind == "Semicolon" { p_adv(st); }
+        return { type: "Let", name: name, value: val };
+    }
+    if tok.kind == "Const" {
+        p_adv(st);
+        let name = p_adv(st).value;
+        p_adv(st);
+        let val = parse_expr(st);
+        if p_peek(st).kind == "Semicolon" { p_adv(st); }
+        return { type: "Const", name: name, value: val };
+    }
+    if tok.kind == "Return" {
+        p_adv(st);
+        if p_peek(st).kind == "Semicolon" { p_adv(st); return { type: "Return", value: null }; }
+        let val = parse_expr(st);
+        if p_peek(st).kind == "Semicolon" { p_adv(st); }
+        return { type: "Return", value: val };
+    }
+    if tok.kind == "If" {
+        p_adv(st);
+        let cond = parse_expr(st);
+        let then_b = parse_block(st);
+        let else_b = null;
+        if p_peek(st).kind == "Else" { p_adv(st); else_b = parse_block(st); }
+        return { type: "If", cond: cond, then_body: then_b, else_body: else_b };
+    }
+    if tok.kind == "While" {
+        p_adv(st);
+        let cond = parse_expr(st);
+        let body = parse_block(st);
+        return { type: "While", cond: cond, body: body };
+    }
+    if tok.kind == "For" {
+        p_adv(st);
+        let vn = p_adv(st).value;
+        p_adv(st);
+        let iter = parse_expr(st);
+        let body = parse_block(st);
+        return { type: "For", var_name: vn, iter: iter, body: body };
+    }
+    if tok.kind == "Function" {
+        p_adv(st);
+        let name = p_adv(st).value;
+        p_adv(st);
+        let params = [];
+        while p_peek(st).kind != "RParen" {
+            if p_peek(st).kind == "Comma" { p_adv(st); }
+            else { params.push(p_adv(st).value); }
+        }
+        p_adv(st);
+        let body = parse_block(st);
+        return { type: "Function", name: name, params: params, body: body };
+    }
+    if tok.kind == "Break"    { p_adv(st); if p_peek(st).kind == "Semicolon" { p_adv(st); } return { type: "Break" }; }
+    if tok.kind == "Continue" { p_adv(st); if p_peek(st).kind == "Semicolon" { p_adv(st); } return { type: "Continue" }; }
+    let expr = parse_expr(st);
+    if p_peek(st).kind == "Semicolon" { p_adv(st); }
+    return { type: "ExprStmt", expr: expr };
+}
+
+function parse_expr(st) {
+    let left = parse_add(st);
+    let op = p_peek(st).kind;
+    while op == "EqEq" || op == "NotEq" || op == "Lt" || op == "Gt" || op == "LtEq" || op == "GtEq" || op == "And" || op == "Or" {
+        p_adv(st);
+        let right = parse_add(st);
+        left = { type: "BinOp", op: op, left: left, right: right };
+        op = p_peek(st).kind;
+    }
+    if p_peek(st).kind == "Assign" {
+        p_adv(st);
+        let val = parse_expr(st);
+        return { type: "Assign", target: left, value: val };
+    }
+    return left;
+}
+
+function parse_add(st) {
+    let left = parse_mul(st);
+    let op = p_peek(st).kind;
+    while op == "Plus" || op == "Minus" {
+        p_adv(st);
+        let right = parse_mul(st);
+        left = { type: "BinOp", op: op, left: left, right: right };
+        op = p_peek(st).kind;
+    }
+    return left;
+}
+
+function parse_mul(st) {
+    let left = parse_unary(st);
+    let op = p_peek(st).kind;
+    while op == "Star" || op == "Slash" || op == "Percent" {
+        p_adv(st);
+        let right = parse_unary(st);
+        left = { type: "BinOp", op: op, left: left, right: right };
+        op = p_peek(st).kind;
+    }
+    return left;
+}
+
+function parse_unary(st) {
+    let tok = p_peek(st);
+    if tok.kind == "Minus" { p_adv(st); return { type: "UnOp", op: "Minus", operand: parse_unary(st) }; }
+    if tok.kind == "Not"   { p_adv(st); return { type: "UnOp", op: "Not",   operand: parse_unary(st) }; }
+    return parse_postfix(st);
+}
+
+function parse_postfix(st) {
+    let node = parse_primary(st);
+    let going = 1;
+    while going == 1 {
+        let tok = p_peek(st);
+        if tok.kind == "LParen" {
+            p_adv(st);
+            let args = [];
+            while p_peek(st).kind != "RParen" {
+                if p_peek(st).kind == "Comma" { p_adv(st); }
+                else { args.push(parse_expr(st)); }
             }
-        }
-        
-        log(f"🌳 Parsing complete: {nodes.len()} AST nodes");
-        return AST::new(nodes);
-    }
-    
-    // Parse top-level declarations
-    function parse_declaration() -> Option<ASTNode> {
-        match this.current().kind {
-            TokenKind::Quantum => Some(this.parse_quantum_declaration()),
-            TokenKind::Function => Some(this.parse_function_declaration()),
-            TokenKind::Class => Some(this.parse_class_declaration()),
-            TokenKind::Struct => Some(this.parse_struct_declaration()),
-            TokenKind::Enum => Some(this.parse_enum_declaration()),
-            TokenKind::Import => Some(this.parse_import_declaration()),
-            TokenKind::Let | TokenKind::Const => Some(this.parse_variable_declaration()),
-            _ => {
-                this.error(f"Unexpected token: {:?}", this.current().kind);
-                this.advance(); // Skip invalid token
-                None
-            }
-        }
-    }
-    
-    // Parse quantum declarations
-    function parse_quantum_declaration() -> ASTNode {
-        log("🔮 Parsing quantum declaration");
-        self.current_quantum_context = true;
-        
-        self.consume(TokenKind::Quantum, "Expected 'quantum'");
-        
-        match this.current().kind {
-            TokenKind::Function => this.parse_quantum_function(),
-            TokenKind::Circuit => this.parse_quantum_circuit(),
-            TokenKind::Class => this.parse_quantum_class(),
-            TokenKind::Struct => this.parse_quantum_struct(),
-            _ => {
-                self.error("Expected quantum function, circuit, class, or struct");
-                ASTNode::Error
-            }
-        }
-    }
-    
-    // Parse quantum function
-    function parse_quantum_function() -> ASTNode {
-        self.consume(TokenKind::Function, "Expected 'function'");
-        
-        let name = self.consume_identifier("Expected function name");
-        let parameters = self.parse_parameter_list();
-        let return_type = self.parse_optional_return_type();
-        
-        self.consume(TokenKind::LeftBrace, "Expected '{'");
-        let body = self.parse_block_statement();
-        self.consume(TokenKind::RightBrace, "Expected '}'");
-        
-        self.current_quantum_context = false;
-        
-        ASTNode::QuantumFunction {
-            name,
-            parameters,
-            return_type,
-            body,
-            quantum_gates: self.extract_quantum_gates(body),
-        }
-    }
-    
-    // Parse quantum circuit
-    function parse_quantum_circuit() -> ASTNode {
-        self.consume(TokenKind::Circuit, "Expected 'circuit'");
-        
-        let name = self.consume_identifier("Expected circuit name");
-        
-        self.consume(TokenKind::LeftBrace, "Expected '{'");
-        
-        // Parse qubits declaration
-        let qubits = if self.match_token(TokenKind::Identifier) && 
-                       self.current().lexeme == "qubits" {
-            self.advance(); // qubits
-            self.consume(TokenKind::Colon, "Expected ':'");
-            self.parse_qubit_list()
-        } else {
-            vec![]
-        };
-        
-        // Parse operations
-        let operations = if self.match_token(TokenKind::Identifier) && 
-                           self.current().lexeme == "operations" {
-            self.advance(); // operations
-            self.consume(TokenKind::Colon, "Expected ':'");
-            self.parse_quantum_operations()
-        } else {
-            vec![]
-        };
-        
-        self.consume(TokenKind::RightBrace, "Expected '}'");
-        self.current_quantum_context = false;
-        
-        ASTNode::QuantumCircuit {
-            name,
-            qubits,
-            operations,
-        }
-    }
-    
-    // Parse quantum operations list
-    function parse_quantum_operations() -> Vec<QuantumOperation> {
-        let mut operations = vec![];
-        
-        while !self.check(TokenKind::RightBrace) && !self.is_at_end() {
-            if let Some(op) = self.parse_quantum_operation() {
-                operations.push(op);
-            }
-            
-            // Optional comma
-            if self.match_token(TokenKind::Comma) {
-                self.advance();
-            }
-        }
-        
-        operations
-    }
-    
-    // Parse individual quantum operation
-    function parse_quantum_operation() -> Option<QuantumOperation> {
-        match this.current().kind {
-            TokenKind::QuantumGate => {
-                let gate_name = self.advance().lexeme.clone();
-                
-                self.consume(TokenKind::LeftParen, "Expected '(' after gate");
-                let qubits = self.parse_qubit_arguments();
-                self.consume(TokenKind::RightParen, "Expected ')'");
-                
-                Some(QuantumOperation::Gate {
-                    name: gate_name,
-                    qubits,
-                    parameters: vec![], // TODO: parse parameters for parameterized gates
-                })
-            },
-            
-            TokenKind::Measure => {
-                self.advance(); // measure
-                self.consume(TokenKind::LeftParen, "Expected '(' after measure");
-                let qubit = self.parse_expression();
-                self.consume(TokenKind::RightParen, "Expected ')'");
-                
-                Some(QuantumOperation::Measurement { qubit })
-            },
-            
-            TokenKind::Identifier => {
-                // Handle gate names that are identifiers (H, X, Y, Z, etc.)
-                let gate_name = self.current().lexeme.clone();
-                
-                if QuantumTokens::is_quantum_gate(&gate_name) {
-                    self.advance();
-                    self.consume(TokenKind::LeftParen, "Expected '(' after gate");
-                    let qubits = self.parse_qubit_arguments();
-                    self.consume(TokenKind::RightParen, "Expected ')'");
-                    
-                    Some(QuantumOperation::Gate {
-                        name: gate_name,
-                        qubits,
-                        parameters: vec![],
-                    })
-                } else {
-                    self.error(f"Unknown quantum operation: {gate_name}");
-                    None
+            p_adv(st);
+            let callee = "unknown";
+            if node.type == "Ident" { callee = node.name; }
+            node = { type: "Call", callee: callee, args: args, callee_node: node };
+        } else if tok.kind == "Dot" {
+            p_adv(st);
+            let fname = p_adv(st).value;
+            if p_peek(st).kind == "LParen" {
+                p_adv(st);
+                let args = [];
+                while p_peek(st).kind != "RParen" {
+                    if p_peek(st).kind == "Comma" { p_adv(st); }
+                    else { args.push(parse_expr(st)); }
                 }
-            },
-            
-            _ => {
-                self.error(f"Expected quantum operation, found {:?}", this.current().kind);
-                None
-            }
-        }
-    }
-    
-    // Parse qubit arguments
-    function parse_qubit_arguments() -> Vec<Expression> {
-        let mut qubits = vec![];
-        
-        if !self.check(TokenKind::RightParen) {
-            loop {
-                qubits.push(self.parse_expression());
-                
-                if !self.match_token(TokenKind::Comma) {
-                    break;
-                }
-                self.advance(); // consume comma
-            }
-        }
-        
-        qubits
-    }
-    
-    // Parse expression (handles both classical and quantum expressions)
-    function parse_expression() -> Expression {
-        self.parse_quantum_expression_or_classical()
-    }
-    
-    // Parse quantum or classical expression
-    function parse_quantum_expression_or_classical() -> Expression {
-        // Check for quantum state literals first
-        if self.match_token(TokenKind::QuantumState) {
-            return self.parse_quantum_state_expression();
-        }
-        
-        // Check for complex numbers
-        if self.match_token(TokenKind::ComplexNumber) {
-            return self.parse_complex_number_expression();
-        }
-        
-        // Parse classical expression
-        self.parse_logical_or()
-    }
-    
-    // Parse quantum state expression: |ψ⟩ = α|0⟩ + β|1⟩
-    function parse_quantum_state_expression() -> Expression {
-        let state_token = self.advance();
-        let state_content = state_token.lexeme.clone();
-        
-        // Parse quantum state superposition if present
-        if self.match_token(TokenKind::Assign) {
-            self.advance(); // =
-            
-            let superposition = self.parse_quantum_superposition();
-            
-            Expression::QuantumSuperposition {
-                state: state_content,
-                amplitudes: superposition,
-            }
-        } else {
-            Expression::QuantumState {
-                state: state_content,
-            }
-        }
-    }
-    
-    // Parse quantum superposition: α|0⟩ + β|1⟩
-    function parse_quantum_superposition() -> Vec<QuantumAmplitude> {
-        let mut amplitudes = vec![];
-        
-        loop {
-            // Parse amplitude coefficient (α, β, or number)
-            let coefficient = if self.match_token(TokenKind::GreekLetter) {
-                self.advance().lexeme.clone()
-            } else if self.match_token(TokenKind::Integer) || self.match_token(TokenKind::Float) {
-                self.advance().lexeme.clone()
-            } else if self.match_token(TokenKind::ComplexNumber) {
-                self.advance().lexeme.clone()
+                p_adv(st);
+                node = { type: "MethodCall", object: node, method: fname, args: args };
             } else {
-                "1".to_string() // Default coefficient
-            };
-            
-            // Parse basis state |0⟩ or |1⟩
-            if self.match_token(TokenKind::QuantumState) {
-                let basis_state = self.advance().lexeme.clone();
-                
-                amplitudes.push(QuantumAmplitude {
-                    coefficient,
-                    basis_state,
-                });
-            } else {
-                self.error("Expected quantum state in superposition");
-                break;
+                node = { type: "Field", object: node, field: fname };
             }
-            
-            // Check for + or - to continue superposition
-            if self.match_token(TokenKind::Plus) || self.match_token(TokenKind::Minus) {
-                self.advance(); // consume operator
-            } else {
-                break;
-            }
-        }
-        
-        amplitudes
+        } else if tok.kind == "LBracket" {
+            p_adv(st);
+            let idx = parse_expr(st);
+            p_adv(st);
+            node = { type: "Index", object: node, index: idx };
+        } else { going = 0; }
     }
-    
-    // Parse classical expressions (standard precedence climbing)
-    function parse_logical_or() -> Expression {
-        let mut expr = self.parse_logical_and();
-        
-        while self.match_token(TokenKind::Or) {
-            let operator = self.advance().clone();
-            let right = self.parse_logical_and();
-            expr = Expression::Binary {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            };
-        }
-        
-        expr
-    }
-    
-    function parse_logical_and() -> Expression {
-        let mut expr = self.parse_equality();
-        
-        while self.match_token(TokenKind::And) {
-            let operator = self.advance().clone();
-            let right = self.parse_equality();
-            expr = Expression::Binary {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            };
-        }
-        
-        expr
-    }
-    
-    function parse_equality() -> Expression {
-        let mut expr = self.parse_comparison();
-        
-        while self.match_token(TokenKind::Equal) || self.match_token(TokenKind::NotEqual) {
-            let operator = self.advance().clone();
-            let right = self.parse_comparison();
-            expr = Expression::Binary {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            };
-        }
-        
-        expr
-    }
-    
-    function parse_comparison() -> Expression {
-        let mut expr = self.parse_term();
-        
-        while self.match_token(TokenKind::LessThan) || 
-              self.match_token(TokenKind::LessThanEqual) ||
-              self.match_token(TokenKind::GreaterThan) || 
-              self.match_token(TokenKind::GreaterThanEqual) {
-            let operator = self.advance().clone();
-            let right = self.parse_term();
-            expr = Expression::Binary {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            };
-        }
-        
-        expr
-    }
-    
-    function parse_term() -> Expression {
-        let mut expr = self.parse_factor();
-        
-        while self.match_token(TokenKind::Plus) || self.match_token(TokenKind::Minus) {
-            let operator = self.advance().clone();
-            let right = self.parse_factor();
-            expr = Expression::Binary {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            };
-        }
-        
-        expr
-    }
-    
-    function parse_factor() -> Expression {
-        let mut expr = self.parse_unary();
-        
-        while self.match_token(TokenKind::Multiply) || 
-              self.match_token(TokenKind::Divide) || 
-              self.match_token(TokenKind::Modulo) {
-            let operator = self.advance().clone();
-            let right = self.parse_unary();
-            expr = Expression::Binary {
-                left: Box::new(expr),
-                operator,
-                right: Box::new(right),
-            };
-        }
-        
-        expr
-    }
-    
-    function parse_unary() -> Expression {
-        if self.match_token(TokenKind::Not) || self.match_token(TokenKind::Minus) {
-            let operator = self.advance().clone();
-            let right = self.parse_unary();
-            return Expression::Unary {
-                operator,
-                operand: Box::new(right),
-            };
-        }
-        
-        self.parse_primary()
-    }
-    
-    function parse_primary() -> Expression {
-        match this.current().kind {
-            TokenKind::Integer => {
-                let value = self.advance().lexeme.clone();
-                Expression::Integer(value.parse().unwrap_or(0))
-            },
-            
-            TokenKind::Float => {
-                let value = self.advance().lexeme.clone();
-                Expression::Float(value.parse().unwrap_or(0.0))
-            },
-            
-            TokenKind::StringLiteral => {
-                let value = self.advance().lexeme.clone();
-                Expression::String(value)
-            },
-            
-            TokenKind::True => {
-                self.advance();
-                Expression::Boolean(true)
-            },
-            
-            TokenKind::False => {
-                self.advance();
-                Expression::Boolean(false)
-            },
-            
-            TokenKind::Identifier => {
-                let name = self.advance().lexeme.clone();
-                Expression::Identifier(name)
-            },
-            
-            TokenKind::LeftParen => {
-                self.advance(); // (
-                let expr = self.parse_expression();
-                self.consume(TokenKind::RightParen, "Expected ')' after expression");
-                expr
-            },
-            
-            _ => {
-                self.error(f"Unexpected token in expression: {:?}", this.current().kind);
-                Expression::Error
-            }
-        }
-    }
-    
-    // Utility functions
-    function current() -> &Token {
-        self.tokens.current()
-    }
-    
-    function advance() -> &Token {
-        self.tokens.advance()
-    }
-    
-    function is_at_end() -> bool {
-        self.tokens.is_at_end()
-    }
-    
-    function check(kind: TokenKind) -> bool {
-        self.current().kind == kind
-    }
-    
-    function match_token(kind: TokenKind) -> bool {
-        if self.check(kind) {
-            true
-        } else {
-            false
-        }
-    }
-    
-    function consume(kind: TokenKind, message: &str) -> &Token {
-        if self.check(kind) {
-            self.advance()
-        } else {
-            self.error(f"{message}, found {:?}", self.current().kind);
-            self.current()
-        }
-    }
-    
-    function consume_identifier(message: &str) -> String {
-        if self.match_token(TokenKind::Identifier) {
-            self.advance().lexeme.clone()
-        } else {
-            self.error(message);
-            "unknown".to_string()
-        }
-    }
-    
-    function error(&mut self, message: &str) {
-        eprintln!("❌ Parse error at {}:{}: {}", 
-                 self.current().position.line,
-                 self.current().position.column,
-                 message);
-    }
+    return node;
 }
 
-// === QUANTUM-SPECIFIC AST NODES ===
-quantum enum QuantumOperation {
-    Gate {
-        name: String,
-        qubits: Vec<Expression>,
-        parameters: Vec<Expression>,
-    },
-    Measurement {
-        qubit: Expression,
-    },
-    StatePreparation {
-        qubit: Expression,
-        state: Expression,
-    },
+function parse_primary(st) {
+    let tok = p_adv(st);
+    if tok.kind == "Number"  { return { type: "Number", value: toNumber(tok.value) }; }
+    if tok.kind == "String"  { return { type: "String", value: tok.value }; }
+    if tok.kind == "True"    { return { type: "Bool", value: 1 }; }
+    if tok.kind == "False"   { return { type: "Bool", value: 0 }; }
+    if tok.kind == "Null"    { return { type: "Null" }; }
+    if tok.kind == "Ident"   { return { type: "Ident", name: tok.value }; }
+    if tok.kind == "LParen"  {
+        let e = parse_expr(st);
+        p_adv(st);
+        return e;
+    }
+    if tok.kind == "LBracket" {
+        let elems = [];
+        while p_peek(st).kind != "RBracket" {
+            if p_peek(st).kind == "Comma" { p_adv(st); }
+            else { elems.push(parse_expr(st)); }
+        }
+        p_adv(st);
+        return { type: "Array", elements: elems };
+    }
+    if tok.kind == "LBrace" {
+        let keys = [];
+        let vals = [];
+        while p_peek(st).kind != "RBrace" {
+            if p_peek(st).kind == "Comma" { p_adv(st); }
+            else {
+                let k = p_adv(st).value;
+                p_adv(st);
+                let v = parse_expr(st);
+                keys.push(k);
+                vals.push(v);
+            }
+        }
+        p_adv(st);
+        return { type: "Object", keys: keys, values: vals };
+    }
+    return { type: "Null" };
 }
 
-quantum struct QuantumAmplitude {
-    coefficient: String,  // α, β, or numeric value
-    basis_state: String,  // |0⟩, |1⟩, etc.
-}
+log("parser.ai loaded — parse(tokens) ready");

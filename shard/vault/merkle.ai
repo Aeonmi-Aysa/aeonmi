@@ -1,0 +1,190 @@
+// Vault Merkle Tree — pure Aeonmi
+// Build, add record, verify, get root hash
+
+log("=== Vault Merkle Tree ===");
+
+function merkle_new() {
+    return { leaves: [], tree: [], root: "", dirty: false };
+}
+
+function merkle_add_leaf(m, data) {
+    m.leaves.push(data);
+    m.dirty = true;
+}
+
+function merkle_hash_leaf(data) {
+    return sha256("leaf:" + data);
+}
+
+function merkle_hash_node(left, right) {
+    return sha256("node:" + left + right);
+}
+
+function merkle_build(m) {
+    if m.len(leaves) == 0 { m.root = sha256("empty"); m.tree = []; m.dirty = false; return; }
+
+    let level = [];
+    let i = 0;
+    while i < m.len(leaves) { level.push(merkle_hash_leaf(m.leaves[i])); i = i + 1; }
+
+    m.tree = [level];
+    while len(level) > 1 {
+        let next = [];
+        let j = 0;
+        while j < len(level) {
+            if j + 1 < len(level) {
+                next.push(merkle_hash_node(level[j], level[j+1]));
+                j = j + 2;
+            } else {
+                next.push(merkle_hash_node(level[j], level[j]));
+                j = j + 1;
+            }
+        }
+        level = next;
+        m.tree.push(level);
+    }
+    m.root = level[0];
+    m.dirty = false;
+}
+
+function merkle_get_root(m) {
+    if m.dirty || m.len(tree) == 0 { merkle_build(m); }
+    return m.root;
+}
+
+function merkle_get_proof(m, index) {
+    if m.dirty { merkle_build(m); }
+    let proof = [];
+    let idx = index;
+    let level = 0;
+    while level < m.len(tree) - 1 {
+        let level_nodes = m.tree[level];
+        let sibling_idx = idx + 1;
+        if idx % 2 != 0 { sibling_idx = idx - 1; }
+        if sibling_idx < len(level_nodes) {
+            let side = "right";
+            if sibling_idx < idx { side = "left"; }
+            proof.push({ hash: level_nodes[sibling_idx], side: side });
+        }
+        idx = math_floor(idx / 2);
+        level = level + 1;
+    }
+    return proof;
+}
+
+function merkle_verify_proof(leaf_data, proof, root) {
+    let current = merkle_hash_leaf(leaf_data);
+    let i = 0;
+    while i < len(proof) {
+        let p = proof[i];
+        if p.side == "right" {
+            current = merkle_hash_node(current, p.hash);
+        } else {
+            current = merkle_hash_node(p.hash, current);
+        }
+        i = i + 1;
+    }
+    return current == root;
+}
+
+function merkle_update_leaf(m, index, new_data) {
+    if index >= 0 && index < m.len(leaves) {
+        m.leaves[index] = new_data;
+        m.dirty = true;
+    }
+}
+
+function merkle_remove_last(m) {
+    if m.len(leaves) > 0 {
+        m.leaves.pop();
+        m.dirty = true;
+    }
+}
+
+function merkle_size(m) {
+    return m.len(leaves);
+}
+
+function merkle_depth(m) {
+    if m.dirty { merkle_build(m); }
+    return m.len(tree);
+}
+
+function merkle_print(m, show_hashes) {
+    if m.dirty { merkle_build(m); }
+    log("Merkle Tree:");
+    log("  Leaves: " + toString(m.len(leaves)));
+    log("  Depth:  " + toString(m.len(tree)));
+    log("  Root:   " + m.root.slice(0, 32) + "...");
+    if show_hashes {
+        let level = 0;
+        while level < m.len(tree) {
+            let nodes = m.tree[level];
+            let parts = [];
+            let i = 0;
+            while i < len(nodes) {
+                parts.push(nodes[i].slice(0, 8));
+                i = i + 1;
+            }
+            log("  L" + toString(level) + ": [" + parts.join("|") + "]");
+            level = level + 1;
+        }
+    }
+}
+
+function merkle_contains(m, data) {
+    let target = merkle_hash_leaf(data);
+    if m.dirty { merkle_build(m); }
+    if m.len(tree) == 0 { return false; }
+    let first = m.tree[0];
+    let i = 0;
+    while i < len(first) {
+        if first[i] == target { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+// --- Demo ---
+log("");
+let tree = merkle_new();
+let records = ["user:alice:secret1", "user:bob:secret2", "domain:github.com", "domain:aeonmi.ai", "key:api_key_xyz", "tx:payment_001"];
+let i = 0;
+while i < len(records) {
+    merkle_add_leaf(tree, records[i]);
+    i = i + 1;
+}
+merkle_build(tree);
+merkle_print(tree, true);
+
+log("");
+log(">>> Proof Generation & Verification <<<");
+let proof_idx = 2;
+let proof = merkle_get_proof(tree, proof_idx);
+log("Proof for leaf[" + toString(proof_idx) + "] '" + records[proof_idx] + "':");
+let j = 0;
+while j < len(proof) {
+    log("  " + proof[j].side + ": " + proof[j].hash.slice(0, 16) + "...");
+    j = j + 1;
+}
+let root = merkle_get_root(tree);
+let valid = merkle_verify_proof(records[proof_idx], proof, root);
+log("Proof valid: " + toString(valid));
+
+log("");
+log(">>> Tamper Detection <<<");
+let fake_proof = [{ hash: sha256("fake"), side: "right" }];
+let tampered = merkle_verify_proof(records[0], fake_proof, root);
+log("Fake proof valid: " + toString(tampered));
+
+log("");
+log(">>> Dynamic Updates <<<");
+merkle_add_leaf(tree, "new_entry");
+merkle_build(tree);
+log("After add: " + toString(merkle_size(tree)) + " leaves, root=" + merkle_get_root(tree).slice(0, 16) + "...");
+
+log("Contains 'user:alice:secret1': " + toString(merkle_contains(tree, "user:alice:secret1")));
+log("Contains 'nonexistent': " + toString(merkle_contains(tree, "nonexistent")));
+
+log("");
+log("=== Merkle Tree demo complete ===");

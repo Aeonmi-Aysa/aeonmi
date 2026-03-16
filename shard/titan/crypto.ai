@@ -1,0 +1,217 @@
+// Titan Crypto — pure Aeonmi
+// SHA-256, XOR cipher, key gen, Merkle tree
+
+log("=== Titan Crypto ===");
+
+// --- SHA-256 wrapper ---
+function hash(data) {
+    return sha256(toString(data));
+}
+
+function hash_hex(data) {
+    let h = sha256(toString(data));
+    return h;
+}
+
+// --- Key generation ---
+function gen_key(seed) {
+    let entropy = toString(seed) + toString(time_ms()) + toString(rand());
+    return sha256(entropy);
+}
+
+function gen_keypair(passphrase) {
+    let priv_key = sha256(passphrase + toString(time_ms()) + toString(rand()));
+    let pub_key  = sha256(priv_key + "public");
+    let address  = sha256(pub_key).slice(0, 40);
+    return { private_key: priv_key, public_key: pub_key, address: address };
+}
+
+// --- XOR stream cipher ---
+function xor_keystream(key, length) {
+    let stream = [];
+    let i = 0;
+    let expanded = key;
+    while expanded.length < length * 2 {
+        expanded = sha256(expanded);
+    }
+    let hex_chars = expanded.split("");
+    while i < length {
+        let byte_hex = hex_chars[i * 2] + hex_chars[i * 2 + 1];
+        stream.push(byte_hex);
+        i = i + 1;
+    }
+    return stream;
+}
+
+function xor_byte(a_code, b_hex) {
+    // Simple XOR simulation using char codes
+    let b_code = parse_int(b_hex) % 128;
+    let result = a_code + b_code;
+    if result > 127 { result = result - 128; }
+    return result;
+}
+
+function xor_encrypt(plaintext, key) {
+    let chars = plaintext.split("");
+    let keystream = xor_keystream(key, len(chars));
+    let out = [];
+    let i = 0;
+    while i < len(chars) {
+        let code = char_code(chars[i]);
+        let encrypted = xor_byte(code, keystream[i]);
+        out.push(toString(encrypted));
+        i = i + 1;
+    }
+    return out.join("-");
+}
+
+function xor_decrypt(ciphertext, key) {
+    let parts = ciphertext.split("-");
+    let keystream = xor_keystream(key, len(parts));
+    let out = "";
+    let i = 0;
+    while i < len(parts) {
+        let code = parse_int(parts[i]);
+        let decrypted = xor_byte(code, keystream[i]);
+        out = out + char_from_code(decrypted);
+        i = i + 1;
+    }
+    return out;
+}
+
+// --- HMAC simulation ---
+function hmac(key, message) {
+    let inner = sha256(key + message);
+    let outer = sha256(key + inner);
+    return outer;
+}
+
+// --- Merkle Tree ---
+function merkle_leaf(data) {
+    return sha256(data);
+}
+
+function merkle_node(left, right) {
+    return sha256(left + right);
+}
+
+function merkle_build(leaves) {
+    if len(leaves) == 0 { return ""; }
+    if len(leaves) == 1 { return merkle_leaf(leaves[0]); }
+
+    let hashes = [];
+    let i = 0;
+    while i < len(leaves) {
+        hashes.push(merkle_leaf(leaves[i]));
+        i = i + 1;
+    }
+
+    while len(hashes) > 1 {
+        let next_level = [];
+        let j = 0;
+        while j < len(hashes) {
+            if j + 1 < len(hashes) {
+                next_level.push(merkle_node(hashes[j], hashes[j + 1]));
+                j = j + 2;
+            } else {
+                next_level.push(merkle_node(hashes[j], hashes[j]));
+                j = j + 1;
+            }
+        }
+        hashes = next_level;
+    }
+    return hashes[0];
+}
+
+function merkle_proof(leaves, index) {
+    let proof = [];
+    let hashes = [];
+    let i = 0;
+    while i < len(leaves) { hashes.push(merkle_leaf(leaves[i])); i = i + 1; }
+    let idx = index;
+    while len(hashes) > 1 {
+        let sibling_idx = idx + 1;
+        if idx % 2 != 0 { sibling_idx = idx - 1; }
+        if sibling_idx < len(hashes) {
+            proof.push({ hash: hashes[sibling_idx], side: sibling_idx > idx });
+        }
+        let next_level = [];
+        let j = 0;
+        while j < len(hashes) {
+            if j + 1 < len(hashes) {
+                next_level.push(merkle_node(hashes[j], hashes[j+1]));
+                j = j + 2;
+            } else {
+                next_level.push(merkle_node(hashes[j], hashes[j]));
+                j = j + 1;
+            }
+        }
+        hashes = next_level;
+        idx = math_floor(idx / 2);
+    }
+    return proof;
+}
+
+// --- Simple substitution cipher ---
+function caesar_encrypt(text, shift) {
+    let chars = text.split("");
+    let out = "";
+    let i = 0;
+    while i < len(chars) {
+        let code = char_code(chars[i]);
+        if code >= char_code("a") && code <= char_code("z") {
+            let shifted = ((code - char_code("a") + shift) % 26) + char_code("a");
+            out = out + char_from_code(shifted);
+        } else if code >= char_code("A") && code <= char_code("Z") {
+            let shifted = ((code - char_code("A") + shift) % 26) + char_code("A");
+            out = out + char_from_code(shifted);
+        } else {
+            out = out + chars[i];
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+// --- Demo ---
+log("");
+log(">>> Hashing <<<");
+log("sha256('aeonmi') = " + hash("aeonmi"));
+log("sha256('hello world') = " + hash("hello world"));
+
+log("");
+log(">>> Key Generation <<<");
+let kp = gen_keypair("my_secret_passphrase");
+log("Private key: " + kp.private_key.slice(0, 16) + "...");
+log("Public key:  " + kp.public_key.slice(0, 16) + "...");
+log("Address:     " + kp.address);
+
+log("");
+log(">>> XOR Cipher <<<");
+let key = sha256("secret_key");
+let plaintext = "Hello Aeonmi!";
+let ct = xor_encrypt(plaintext, key);
+log("Encrypted: " + ct.slice(0, 30) + "...");
+let dt = xor_decrypt(ct, key);
+log("Decrypted: " + dt);
+
+log("");
+log(">>> HMAC <<<");
+let mac = hmac("secret", "important message");
+log("HMAC: " + mac.slice(0, 32) + "...");
+
+log("");
+log(">>> Merkle Tree <<<");
+let data = ["tx1", "tx2", "tx3", "tx4", "tx5", "tx6"];
+let root = merkle_build(data);
+log("Merkle root (" + toString(len(data)) + " leaves): " + root.slice(0, 32) + "...");
+
+log("");
+log(">>> Caesar Cipher <<<");
+let msg = caesar_encrypt("Hello World", 13);
+log("ROT13('Hello World') = " + msg);
+let dec = caesar_encrypt(msg, 13);
+log("ROT13 decoded = " + dec);
+
+log("");
+log("=== Crypto demo complete ===");

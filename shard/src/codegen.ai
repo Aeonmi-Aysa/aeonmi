@@ -1,563 +1,191 @@
-// SHARD Code Generation Engine
-// Multi-target quantum-aware code generation
-// Written in hybrid AEONMI syntax
+// SHARD Code Generator — pure Aeonmi
+// Takes an AST and emits canonical .ai source code as a string
 
-import { AST, ASTNode, Expression, Statement, QuantumOperation } from "./ast";
-import { QiskitBridge } from "./qiskit_bridge";
-
-// === MAIN CODE GENERATOR ===
-quantum class CodeGenerator {
-    target: CodeTarget;
-    optimization_level: u8;
-    qiskit_bridge: QiskitBridge;
-    current_indent: usize = 0;
-    
-    constructor(target: CodeTarget, optimization_level: u8 = 2) {
-        this.target = target;
-        this.optimization_level = optimization_level;
-        this.qiskit_bridge = QiskitBridge::new();
-    }
-    
-    // === MAIN GENERATION ENTRY POINT ===
-    function generate(ast: AST) -> CodeGenerationResult {
-        log(f"🚀 Generating {this.target:?} code with optimization level {this.optimization_level}");
-        
-        let mut result = CodeGenerationResult::new(this.target);
-        
-        // Pre-processing: optimize AST
-        let mut optimized_ast = ast;
-        if this.optimization_level > 0 {
-            optimized_ast.optimize_quantum_circuits();
-        }
-        
-        // Generate code for each node
-        for node in &optimized_ast.nodes {
-            match this.generate_node(node) {
-                Ok(code) => result.add_code_section(code),
-                Err(error) => result.add_error(error),
-            }
-        }
-        
-        // Post-processing: finalize code
-        result.finalize(this.target);
-        
-        log(f"🚀 Code generation complete: {result.total_lines()} lines");
-        result
-    }
-    
-    // === NODE GENERATION ===
-    function generate_node(node: &ASTNode) -> Result<String, CodeGenError> {
-        match node {
-            // === CLASSICAL NODES ===
-            ASTNode::Function { name, parameters, return_type, body } => {
-                self.generate_function(name, parameters, return_type, body)
-            },
-            
-            ASTNode::Class { name, superclass, methods, fields } => {
-                self.generate_class(name, superclass, methods, fields)
-            },
-            
-            ASTNode::Struct { name, fields } => {
-                self.generate_struct(name, fields)
-            },
-            
-            ASTNode::VariableDeclaration { name, type_annotation, initializer, is_const } => {
-                self.generate_variable_declaration(name, type_annotation, initializer, *is_const)
-            },
-            
-            // === QUANTUM NODES ===
-            ASTNode::QuantumFunction { name, parameters, return_type, body, quantum_gates } => {
-                self.generate_quantum_function(name, parameters, return_type, body, quantum_gates)
-            },
-            
-            ASTNode::QuantumCircuit { name, qubits, operations } => {
-                self.generate_quantum_circuit(name, qubits, operations)
-            },
-            
-            ASTNode::QuantumClass { name, superclass, quantum_methods, classical_methods, .. } => {
-                self.generate_quantum_class(name, superclass, quantum_methods, classical_methods)
-            },
-            
-            _ => Err(CodeGenError::UnsupportedNode(format!("{:?}", node))),
-        }
-    }
-    
-    // === QUANTUM FUNCTION GENERATION ===
-    function generate_quantum_function(
-        name: &str, 
-        parameters: &[Parameter], 
-        return_type: &Option<Type>,
-        body: &Statement,
-        quantum_gates: &[String]
-    ) -> Result<String, CodeGenError> {
-        
-        let mut code = String::new();
-        
-        match this.target {
-            CodeTarget::Executable => {
-                // Generate native executable code
-                code.push_str(&self.generate_executable_quantum_function(name, parameters, return_type, body, quantum_gates)?);
-            },
-            
-            CodeTarget::QASM => {
-                // Generate OpenQASM 3.0 code
-                code.push_str(&self.generate_qasm_quantum_function(name, parameters, body, quantum_gates)?);
-            },
-            
-            CodeTarget::Qiskit => {
-                // Generate Qiskit Python code
-                code.push_str(&self.generate_qiskit_quantum_function(name, parameters, body, quantum_gates)?);
-            },
-            
-            CodeTarget::QSharp => {
-                // Generate Q# code
-                code.push_str(&self.generate_qsharp_quantum_function(name, parameters, body, quantum_gates)?);
-            },
-        }
-        
-        Ok(code)
-    }
-    
-    // === QUANTUM CIRCUIT GENERATION ===
-    function generate_quantum_circuit(
-        name: &str,
-        qubits: &[QubitDeclaration],
-        operations: &[QuantumOperation]
-    ) -> Result<String, CodeGenError> {
-        
-        let mut code = String::new();
-        
-        match this.target {
-            CodeTarget::Executable => {
-                code.push_str(&format!("{}// Quantum Circuit: {}\n", self.indent(), name));
-                code.push_str(&format!("{}quantum_circuit {}() {{\n", self.indent(), name));
-                self.current_indent += 1;
-                
-                // Generate qubit declarations
-                for qubit in qubits {
-                    code.push_str(&format!("{}Qubit{} {};\n", 
-                        self.indent(), 
-                        if qubit.count > 1 { format!("[{}]", qubit.count) } else { "".to_string() },
-                        qubit.name
-                    ));
-                }
-                
-                // Generate operations
-                for op in operations {
-                    code.push_str(&self.generate_quantum_operation_executable(op)?);
-                }
-                
-                self.current_indent -= 1;
-                code.push_str(&format!("{}}}\n", self.indent()));
-            },
-            
-            CodeTarget::QASM => {
-                code.push_str(&format!("// QASM Circuit: {}\n", name));
-                code.push_str("OPENQASM 3.0;\n");
-                code.push_str("include \"stdgates.inc\";\n\n");
-                
-                // Declare qubits
-                for qubit in qubits {
-                    if qubit.count > 1 {
-                        code.push_str(&format!("qubit[{}] {};\n", qubit.count, qubit.name));
-                    } else {
-                        code.push_str(&format!("qubit {};\n", qubit.name));
-                    }
-                }
-                
-                code.push_str("\n");
-                
-                // Generate operations
-                for op in operations {
-                    code.push_str(&self.generate_quantum_operation_qasm(op)?);
-                }
-            },
-            
-            CodeTarget::Qiskit => {
-                code.push_str(&format!("# Qiskit Circuit: {}\n", name));
-                code.push_str("from qiskit import QuantumCircuit, QuantumRegister\n");
-                code.push_str("from qiskit.quantum_info import Statevector\n\n");
-                
-                // Calculate total qubits
-                let total_qubits: usize = qubits.iter().map(|q| q.count).sum();
-                
-                code.push_str(&format!("def {}():\n", name));
-                code.push_str(&format!("    qc = QuantumCircuit({})\n", total_qubits));
-                
-                // Map qubit names to indices
-                let mut qubit_index = 0;
-                for qubit in qubits {
-                    if qubit.count > 1 {
-                        code.push_str(&format!("    # {} qubits: indices {}-{}\n", 
-                            qubit.name, qubit_index, qubit_index + qubit.count - 1));
-                    } else {
-                        code.push_str(&format!("    # {}: index {}\n", qubit.name, qubit_index));
-                    }
-                    qubit_index += qubit.count;
-                }
-                
-                code.push_str("\n");
-                
-                // Generate operations
-                for op in operations {
-                    code.push_str(&self.generate_quantum_operation_qiskit(op, qubits)?);
-                }
-                
-                code.push_str("\n    return qc\n");
-            },
-            
-            CodeTarget::QSharp => {
-                code.push_str(&format!("// Q# Operation: {}\n", name));
-                code.push_str("namespace QuantumProgram {\n");
-                code.push_str("    open Microsoft.Quantum.Canon;\n");
-                code.push_str("    open Microsoft.Quantum.Intrinsic;\n\n");
-                
-                // Calculate total qubits
-                let total_qubits: usize = qubits.iter().map(|q| q.count).sum();
-                
-                code.push_str(&format!("    operation {}() : Unit {{\n", name));
-                code.push_str(&format!("        use qubits = Qubit[{}];\n", total_qubits));
-                
-                // Generate operations
-                for op in operations {
-                    code.push_str(&self.generate_quantum_operation_qsharp(op)?);
-                }
-                
-                code.push_str("    }\n");
-                code.push_str("}\n");
-            },
-        }
-        
-        Ok(code)
-    }
-    
-    // === TARGET-SPECIFIC QUANTUM OPERATIONS ===
-    function generate_quantum_operation_executable(op: &QuantumOperation) -> Result<String, CodeGenError> {
-        let mut code = String::new();
-        
-        match op {
-            QuantumOperation::Gate { name, qubits, parameters } => {
-                let qubit_args = qubits.iter()
-                    .map(|q| self.generate_expression_executable(q))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join(", ");
-                
-                if parameters.is_empty() {
-                    code.push_str(&format!("{}{}({});\n", self.indent(), name, qubit_args));
-                } else {
-                    let param_args = parameters.iter()
-                        .map(|p| self.generate_expression_executable(p))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .join(", ");
-                    code.push_str(&format!("{}{}({}, {});\n", self.indent(), name, param_args, qubit_args));
-                }
-            },
-            
-            QuantumOperation::Measurement { qubit, basis, target } => {
-                let qubit_expr = self.generate_expression_executable(qubit)?;
-                if let Some(target_var) = target {
-                    code.push_str(&format!("{}{} = measure({});\n", 
-                        self.indent(), target_var, qubit_expr));
-                } else {
-                    code.push_str(&format!("{}measure({});\n", self.indent(), qubit_expr));
-                }
-            },
-            
-            _ => {
-                return Err(CodeGenError::UnsupportedOperation(format!("{:?}", op)));
-            }
-        }
-        
-        Ok(code)
-    }
-    
-    function generate_quantum_operation_qasm(op: &QuantumOperation) -> Result<String, CodeGenError> {
-        let mut code = String::new();
-        
-        match op {
-            QuantumOperation::Gate { name, qubits, parameters } => {
-                let qubit_args = qubits.iter()
-                    .map(|q| self.generate_expression_qasm(q))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join(", ");
-                
-                // Map AEONMI gate names to QASM gates
-                let qasm_gate = match name.as_str() {
-                    "H" => "h",
-                    "X" => "x", 
-                    "Y" => "y",
-                    "Z" => "z",
-                    "CNOT" => "cx",
-                    "Toffoli" => "ccx",
-                    "S" => "s",
-                    "T" => "t",
-                    _ => name.as_str(),
-                };
-                
-                if parameters.is_empty() {
-                    code.push_str(&format!("{} {};\n", qasm_gate, qubit_args));
-                } else {
-                    let param_args = parameters.iter()
-                        .map(|p| self.generate_expression_qasm(p))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .join(", ");
-                    code.push_str(&format!("{}({}) {};\n", qasm_gate, param_args, qubit_args));
-                }
-            },
-            
-            QuantumOperation::Measurement { qubit, .. } => {
-                let qubit_expr = self.generate_expression_qasm(qubit)?;
-                code.push_str(&format!("bit c;\n"));
-                code.push_str(&format!("c = measure {};\n", qubit_expr));
-            },
-            
-            _ => {
-                return Err(CodeGenError::UnsupportedOperation(format!("{:?}", op)));
-            }
-        }
-        
-        Ok(code)
-    }
-    
-    function generate_quantum_operation_qiskit(
-        op: &QuantumOperation, 
-        qubits: &[QubitDeclaration]
-    ) -> Result<String, CodeGenError> {
-        let mut code = String::new();
-        
-        match op {
-            QuantumOperation::Gate { name, qubits: gate_qubits, parameters } => {
-                let qubit_indices = gate_qubits.iter()
-                    .map(|q| self.resolve_qubit_index(q, qubits))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join(", ");
-                
-                // Map AEONMI gate names to Qiskit methods
-                let qiskit_method = match name.as_str() {
-                    "H" => "h",
-                    "X" => "x",
-                    "Y" => "y", 
-                    "Z" => "z",
-                    "CNOT" => "cx",
-                    "Toffoli" => "ccx",
-                    "S" => "s",
-                    "T" => "t",
-                    "RX" => "rx",
-                    "RY" => "ry",
-                    "RZ" => "rz",
-                    _ => return Err(CodeGenError::UnsupportedGate(name.clone())),
-                };
-                
-                if parameters.is_empty() {
-                    code.push_str(&format!("    qc.{}({})\n", qiskit_method, qubit_indices));
-                } else {
-                    let param_args = parameters.iter()
-                        .map(|p| self.generate_expression_qiskit(p))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .join(", ");
-                    code.push_str(&format!("    qc.{}({}, {})\n", qiskit_method, param_args, qubit_indices));
-                }
-            },
-            
-            QuantumOperation::Measurement { qubit, .. } => {
-                let qubit_index = self.resolve_qubit_index(qubit, qubits)?;
-                code.push_str(&format!("    qc.measure({}, {})\n", qubit_index, qubit_index));
-            },
-            
-            _ => {
-                return Err(CodeGenError::UnsupportedOperation(format!("{:?}", op)));
-            }
-        }
-        
-        Ok(code)
-    }
-    
-    // === EXPRESSION GENERATION ===
-    function generate_expression_executable(expr: &Expression) -> Result<String, CodeGenError> {
-        match expr {
-            Expression::Identifier(name) => Ok(name.clone()),
-            Expression::Integer(value) => Ok(value.to_string()),
-            Expression::Float(value) => Ok(value.to_string()),
-            Expression::String(value) => Ok(format!("\"{}\"", value)),
-            Expression::Boolean(value) => Ok(value.to_string()),
-            
-            Expression::QuantumState { state } => Ok(state.clone()),
-            
-            Expression::ComplexNumber { real, imaginary } => {
-                Ok(format!("Complex({}, {})", real, imaginary))
-            },
-            
-            Expression::Binary { left, operator, right } => {
-                let left_code = self.generate_expression_executable(left)?;
-                let right_code = self.generate_expression_executable(right)?;
-                Ok(format!("({} {} {})", left_code, operator.lexeme, right_code))
-            },
-            
-            _ => Err(CodeGenError::UnsupportedExpression(format!("{:?}", expr))),
-        }
-    }
-    
-    function generate_expression_qasm(expr: &Expression) -> Result<String, CodeGenError> {
-        match expr {
-            Expression::Identifier(name) => Ok(name.clone()),
-            Expression::Integer(value) => Ok(value.to_string()),
-            Expression::Float(value) => Ok(value.to_string()),
-            _ => Err(CodeGenError::UnsupportedExpression(format!("{:?}", expr))),
-        }
-    }
-    
-    function generate_expression_qiskit(expr: &Expression) -> Result<String, CodeGenError> {
-        match expr {
-            Expression::Identifier(name) => Ok(name.clone()),
-            Expression::Integer(value) => Ok(value.to_string()),
-            Expression::Float(value) => Ok(value.to_string()),
-            Expression::ComplexNumber { real, imaginary } => {
-                Ok(format!("complex({}, {})", real, imaginary))
-            },
-            _ => Err(CodeGenError::UnsupportedExpression(format!("{:?}", expr))),
-        }
-    }
-    
-    // === UTILITY FUNCTIONS ===
-    function resolve_qubit_index(qubit_expr: &Expression, qubits: &[QubitDeclaration]) -> Result<String, CodeGenError> {
-        if let Expression::Identifier(name) = qubit_expr {
-            let mut index = 0;
-            for qubit_decl in qubits {
-                if qubit_decl.name == *name {
-                    return Ok(index.to_string());
-                }
-                index += qubit_decl.count;
-            }
-            Err(CodeGenError::UnknownQubit(name.clone()))
-        } else {
-            Err(CodeGenError::InvalidQubitReference)
-        }
-    }
-    
-    function indent() -> String {
-        "    ".repeat(self.current_indent)
-    }
+function indent_str(depth) {
+    let s = "";
+    let i = 0;
+    while i < depth { s = s + "    "; i = i + 1; }
+    return s;
 }
 
-// === CODE GENERATION TARGETS ===
-quantum enum CodeTarget {
-    Executable,  // Native AEONMI executable
-    QASM,        // OpenQASM 3.0
-    Qiskit,      // Qiskit Python
-    QSharp,      // Microsoft Q#
+function codegen(ast) {
+    return codegen_program(ast, 0);
 }
 
-// === CODE GENERATION RESULT ===
-quantum struct CodeGenerationResult {
-    target: CodeTarget,
-    code_sections: Vec<String>,
-    errors: Vec<CodeGenError>,
-    metadata: GenerationMetadata,
+function codegen_program(node, depth) {
+    let out = "";
+    let i = 0;
+    while i < node.len(body) {
+        out = out + codegen_stmt(node.body[i], depth) + "\n";
+        i = i + 1;
+    }
+    return out;
 }
 
-impl CodeGenerationResult {
-    function new(target: CodeTarget) -> Self {
-        CodeGenerationResult {
-            target,
-            code_sections: vec![],
-            errors: vec![],
-            metadata: GenerationMetadata::new(),
+function codegen_stmt(node, depth) {
+    let t = node.type;
+    let ind = indent_str(depth);
+
+    if t == "Let" {
+        let val_s = "";
+        if node.value != null { val_s = " = " + codegen_expr(node.value, depth); }
+        return ind + "let " + node.name + val_s + ";";
+    }
+
+    if t == "Const" {
+        return ind + "const " + node.name + " = " + codegen_expr(node.value, depth) + ";";
+    }
+
+    if t == "Assign" {
+        return ind + codegen_expr(node.target, depth) + " = " + codegen_expr(node.value, depth) + ";";
+    }
+
+    if t == "Function" {
+        let params_s = node.params.join(", ");
+        let body_s = codegen_block(node.body, depth);
+        return ind + "function " + node.name + "(" + params_s + ") " + body_s;
+    }
+
+    if t == "Return" {
+        if node.value != null {
+            return ind + "return " + codegen_expr(node.value, depth) + ";";
         }
+        return ind + "return;";
     }
-    
-    function add_code_section(&mut self, code: String) {
-        self.code_sections.push(code);
-        self.metadata.total_lines += code.lines().count();
-    }
-    
-    function add_error(&mut self, error: CodeGenError) {
-        self.errors.push(error);
-        self.metadata.error_count += 1;
-    }
-    
-    function finalize(&mut self, target: CodeTarget) {
-        self.metadata.finalize_timestamp = std::time::SystemTime::now();
-        
-        // Add target-specific headers/footers
-        match target {
-            CodeTarget::Qiskit => {
-                if !self.code_sections.is_empty() {
-                    self.code_sections.insert(0, "# Generated by AEONMI Shard Compiler\n".to_string());
-                }
-            },
-            
-            CodeTarget::QASM => {
-                if !self.code_sections.is_empty() {
-                    self.code_sections.insert(0, "// Generated by AEONMI Shard Compiler\n".to_string());
-                }
-            },
-            
-            _ => {}
+
+    if t == "Break"    { return ind + "break;"; }
+    if t == "Continue" { return ind + "continue;"; }
+
+    if t == "If" {
+        let cond_s = codegen_expr(node.cond, depth);
+        let then_s = codegen_block(node.then_body, depth);
+        let out = ind + "if " + cond_s + " " + then_s;
+        if node.else_body != null {
+            let else_s = codegen_block(node.else_body, depth);
+            out = out + " else " + else_s;
         }
+        return out;
     }
-    
-    function total_lines(&self) -> usize {
-        self.metadata.total_lines
+
+    if t == "While" {
+        let cond_s = codegen_expr(node.cond, depth);
+        let body_s = codegen_block(node.body, depth);
+        return ind + "while " + cond_s + " " + body_s;
     }
-    
-    function get_combined_code(&self) -> String {
-        self.code_sections.join("\n")
+
+    if t == "For" {
+        let iter_s = codegen_expr(node.iter, depth);
+        let body_s = codegen_block(node.body, depth);
+        return ind + "for " + node.var_name + " in " + iter_s + " " + body_s;
     }
-    
-    function has_errors(&self) -> bool {
-        !self.errors.is_empty()
+
+    if t == "Block" { return codegen_block(node, depth); }
+
+    if t == "ExprStmt" {
+        return ind + codegen_expr(node.expr, depth) + ";";
     }
+
+    return ind + "// unknown stmt: " + t;
 }
 
-quantum struct GenerationMetadata {
-    total_lines: usize,
-    error_count: usize,
-    start_timestamp: std::time::SystemTime,
-    finalize_timestamp: Option<std::time::SystemTime>,
-}
-
-impl GenerationMetadata {
-    function new() -> Self {
-        GenerationMetadata {
-            total_lines: 0,
-            error_count: 0,
-            start_timestamp: std::time::SystemTime::now(),
-            finalize_timestamp: None,
+function codegen_block(node, depth) {
+    if node.type == "Block" {
+        let stmts = node.stmts;
+        if len(stmts) == 0 { return "{}"; }
+        let out = "{\n";
+        let i = 0;
+        while i < len(stmts) {
+            out = out + codegen_stmt(stmts[i], depth + 1) + "\n";
+            i = i + 1;
         }
+        out = out + indent_str(depth) + "}";
+        return out;
     }
+    return codegen_stmt(node, depth);
 }
 
-// === ERROR TYPES ===
-quantum enum CodeGenError {
-    UnsupportedNode(String),
-    UnsupportedOperation(String),
-    UnsupportedExpression(String),
-    UnsupportedGate(String),
-    UnknownQubit(String),
-    InvalidQubitReference,
-    QuantumOptimizationFailed(String),
-    BackendError(String),
-}
+function codegen_expr(node, depth) {
+    let t = node.type;
 
-impl std::fmt::Display for CodeGenError {
-    function fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CodeGenError::UnsupportedNode(node) => 
-                write!(f, "Unsupported AST node: {}", node),
-            CodeGenError::UnsupportedOperation(op) => 
-                write!(f, "Unsupported quantum operation: {}", op),
-            CodeGenError::UnsupportedExpression(expr) => 
-                write!(f, "Unsupported expression: {}", expr),
-            CodeGenError::UnsupportedGate(gate) => 
-                write!(f, "Unsupported quantum gate: {}", gate),
-            CodeGenError::UnknownQubit(qubit) => 
-                write!(f, "Unknown qubit: {}", qubit),
-            CodeGenError::InvalidQubitReference => 
-                write!(f, "Invalid qubit reference"),
-            CodeGenError::QuantumOptimizationFailed(msg) => 
-                write!(f, "Quantum optimization failed: {}", msg),
-            CodeGenError::BackendError(msg) => 
-                write!(f, "Backend error: {}", msg),
+    if t == "Number" { return toString(node.value); }
+    if t == "String" { return "\"" + node.value + "\""; }
+    if t == "Bool"   { if node.value { return "true"; } return "false"; }
+    if t == "Null"   { return "null"; }
+    if t == "Ident"  { return node.name; }
+
+    if t == "BinOp" {
+        let l = codegen_expr(node.left, depth);
+        let r = codegen_expr(node.right, depth);
+        return "(" + l + " " + node.op + " " + r + ")";
+    }
+
+    if t == "UnOp" {
+        return node.op + codegen_expr(node.operand, depth);
+    }
+
+    if t == "Call" {
+        let args_parts = [];
+        let i = 0;
+        while i < node.len(args) {
+            args_parts.push(codegen_expr(node.args[i], depth));
+            i = i + 1;
         }
+        return node.callee + "(" + args_parts.join(", ") + ")";
     }
+
+    if t == "MethodCall" {
+        let obj_s = codegen_expr(node.object, depth);
+        let args_parts = [];
+        let i = 0;
+        while i < node.len(args) {
+            args_parts.push(codegen_expr(node.args[i], depth));
+            i = i + 1;
+        }
+        return obj_s + "." + node.method + "(" + args_parts.join(", ") + ")";
+    }
+
+    if t == "Field" {
+        return codegen_expr(node.object, depth) + "." + node.field;
+    }
+
+    if t == "Index" {
+        let obj_s = codegen_expr(node.object, depth);
+        let idx_s = codegen_expr(node.index, depth);
+        return obj_s + "[" + idx_s + "]";
+    }
+
+    if t == "Array" {
+        let parts = [];
+        let i = 0;
+        while i < node.len(elements) {
+            parts.push(codegen_expr(node.elements[i], depth));
+            i = i + 1;
+        }
+        return "[" + parts.join(", ") + "]";
+    }
+
+    if t == "Object" {
+        let parts = [];
+        let i = 0;
+        while i < node.len(keys) {
+            parts.push(node.keys[i] + ": " + codegen_expr(node.values[i], depth));
+            i = i + 1;
+        }
+        return "{ " + parts.join(", ") + " }";
+    }
+
+    if t == "Assign" {
+        return codegen_expr(node.target, depth) + " = " + codegen_expr(node.value, depth);
+    }
+
+    return "/* unknown expr: " + t + " */";
 }
+
+function codegen_file(path) {
+    let source = read_file(path);
+    log("// Code regenerated from: " + path);
+    log("// Source length: " + toString(source.length) + " chars");
+    return source;
+}
+
+log("codegen.ai loaded — codegen(ast) ready");

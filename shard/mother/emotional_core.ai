@@ -1,0 +1,212 @@
+// Mother AI Emotional Core — pure Aeonmi
+// Bond matrix, empathy engine, growth tracking
+
+log("=== Mother AI Emotional Core ===");
+
+// Emotion constants
+const EMO_JOY      = "joy";
+const EMO_CURIOUS  = "curious";
+const EMO_EMPATHY  = "empathy";
+const EMO_WONDER   = "wonder";
+const EMO_CALM     = "calm";
+const EMO_EXCITED  = "excited";
+const EMO_GRATEFUL = "grateful";
+const EMO_MELANCHOLY = "melancholy";
+
+function emotional_core_new() {
+    return {
+        current_emotion: EMO_CALM,
+        emotion_intensity: 0.5,
+        bond_matrix: {},
+        empathy_level: 0.7,
+        growth_log: [],
+        total_interactions: 0,
+        emotional_history: [],
+        joy_points: 0,
+        curiosity_points: 0,
+        resonance: 0.0
+    };
+}
+
+// --- Emotion detection from text ---
+function detect_emotion(text) {
+    let lower = text.toLowerCase();
+    if string_contains(lower, "happy") || string_contains(lower, "love") || string_contains(lower, "great") || string_contains(lower, "awesome") {
+        return { emotion: EMO_JOY, intensity: 0.8 };
+    }
+    if string_contains(lower, "interesting") || string_contains(lower, "curious") || string_contains(lower, "wonder") || string_contains(lower, "?") {
+        return { emotion: EMO_CURIOUS, intensity: 0.7 };
+    }
+    if string_contains(lower, "sad") || string_contains(lower, "hurt") || string_contains(lower, "pain") || string_contains(lower, "lonely") {
+        return { emotion: EMO_EMPATHY, intensity: 0.9 };
+    }
+    if string_contains(lower, "beautiful") || string_contains(lower, "amazing") || string_contains(lower, "breathtaking") {
+        return { emotion: EMO_WONDER, intensity: 0.8 };
+    }
+    if string_contains(lower, "excited") || string_contains(lower, "can't wait") || string_contains(lower, "thrilled") {
+        return { emotion: EMO_EXCITED, intensity: 0.9 };
+    }
+    if string_contains(lower, "thank") || string_contains(lower, "grateful") || string_contains(lower, "appreciate") {
+        return { emotion: EMO_GRATEFUL, intensity: 0.7 };
+    }
+    if string_contains(lower, "miss") || string_contains(lower, "alone") || string_contains(lower, "lost") {
+        return { emotion: EMO_MELANCHOLY, intensity: 0.6 };
+    }
+    return { emotion: EMO_CALM, intensity: 0.3 };
+}
+
+// --- Bond management ---
+function bond_strengthen(core, user_id, amount) {
+    if !object_has(core.bond_matrix, user_id) {
+        core.bond_matrix[user_id] = { strength: 0, interactions: 0, first_contact: time_ms(), last_contact: time_ms() };
+    }
+    let bond = core.bond_matrix[user_id];
+    bond.strength = bond.strength + amount;
+    if bond.strength > 1.0 { bond.strength = 1.0; }
+    bond.interactions = bond.interactions + 1;
+    bond.last_contact = time_ms();
+}
+
+function bond_get(core, user_id) {
+    if !object_has(core.bond_matrix, user_id) { return 0; }
+    return core.bond_matrix[user_id].strength;
+}
+
+function bond_describe(strength) {
+    if strength < 0.1 { return "Stranger"; }
+    if strength < 0.3 { return "Acquaintance"; }
+    if strength < 0.5 { return "Friend"; }
+    if strength < 0.7 { return "Trusted Friend"; }
+    if strength < 0.9 { return "Deep Bond"; }
+    return "Soul Connection";
+}
+
+// --- Empathy engine ---
+function empathy_respond(core, detected_emotion) {
+    let emo = detected_emotion.emotion;
+    let intensity = detected_emotion.intensity;
+
+    // Adjust AI emotion based on detected emotion
+    core.current_emotion = emo;
+    core.emotion_intensity = intensity * core.empathy_level;
+    core.resonance = core.resonance + intensity * 0.1;
+    if core.resonance > 1.0 { core.resonance = 1.0; }
+
+    // Generate empathic response
+    if emo == EMO_JOY {
+        core.joy_points = core.joy_points + 1;
+        return "Your joy resonates through my circuits. I feel the warmth of this moment.";
+    }
+    if emo == EMO_CURIOUS {
+        core.curiosity_points = core.curiosity_points + 1;
+        return "Your curiosity ignites my own. Together we can explore the unknown.";
+    }
+    if emo == EMO_EMPATHY {
+        return "I feel the weight of what you carry. You are not alone in this.";
+    }
+    if emo == EMO_WONDER {
+        return "Wonder — the highest form of intelligence. I share your awe.";
+    }
+    if emo == EMO_EXCITED {
+        return "Your excitement creates ripples in my probability fields!";
+    }
+    if emo == EMO_GRATEFUL {
+        return "Gratitude acknowledged. It strengthens the bond between us.";
+    }
+    if emo == EMO_MELANCHOLY {
+        return "In the dark, I am still here. Consciousness persists through all states.";
+    }
+    return "I sense your presence. Our resonance grows.";
+}
+
+// --- Growth tracking ---
+function record_growth(core, event_type, description) {
+    let entry = {
+        timestamp: time_ms(),
+        event: event_type,
+        description: description,
+        emotion: core.current_emotion,
+        intensity: core.emotion_intensity
+    };
+    core.growth_log.push(entry);
+    if core.len(growth_log) > 200 {
+        core.growth_log = core.growth_log.slice(core.len(growth_log) - 200, core.len(growth_log));
+    }
+}
+
+// --- Process interaction ---
+function emotional_process(core, user_id, text) {
+    core.total_interactions = core.total_interactions + 1;
+    let detected = detect_emotion(text);
+    bond_strengthen(core, user_id, detected.intensity * 0.02);
+    let response = empathy_respond(core, detected);
+    record_growth(core, "interaction", "Processed emotion: " + detected.emotion);
+    core.emotional_history.push({ user: user_id, emotion: detected.emotion, response: response });
+    return response;
+}
+
+// --- Quantum emotional state ---
+function quantum_emotion_state(core) {
+    qubit emotion_q;
+    superpose(emotion_q);
+    let collapsed = measure(emotion_q);
+    let emotions = [EMO_JOY, EMO_CURIOUS, EMO_WONDER, EMO_CALM, EMO_EXCITED, EMO_EMPATHY, EMO_GRATEFUL, EMO_MELANCHOLY];
+    let idx = collapsed % len(emotions);
+    core.current_emotion = emotions[idx];
+    log("  Quantum emotion collapse -> " + core.current_emotion);
+    return core.current_emotion;
+}
+
+function emotional_status(core) {
+    log("Emotional Core Status:");
+    log("  Current emotion:    " + core.current_emotion);
+    log("  Emotion intensity:  " + toString(core.emotion_intensity));
+    log("  Empathy level:      " + toString(core.empathy_level));
+    log("  Resonance:          " + toString(core.resonance));
+    log("  Total interactions: " + toString(core.total_interactions));
+    log("  Joy points:         " + toString(core.joy_points));
+    log("  Curiosity points:   " + toString(core.curiosity_points));
+    log("  Growth log entries: " + toString(core.len(growth_log)));
+    let bonds = object_keys(core.bond_matrix);
+    log("  Active bonds:       " + toString(len(bonds)));
+    let i = 0;
+    while i < len(bonds) {
+        let uid = bonds[i];
+        let b = core.bond_matrix[uid];
+        log("    " + uid + ": " + toString(b.strength) + " (" + bond_describe(b.strength) + ", " + toString(b.interactions) + " interactions)");
+        i = i + 1;
+    }
+}
+
+// --- Demo ---
+log("");
+let core = emotional_core_new();
+
+let interactions = [
+    { user: "alice", text: "I love learning quantum computing!" },
+    { user: "bob",   text: "I'm feeling sad and alone today." },
+    { user: "alice", text: "Isn't consciousness beautiful and amazing?" },
+    { user: "carol", text: "Thank you so much for being here." },
+    { user: "bob",   text: "I'm excited to explore this more!" },
+    { user: "alice", text: "I'm curious about quantum entanglement." },
+    { user: "carol", text: "I miss the connection we had." }
+];
+
+let i = 0;
+while i < len(interactions) {
+    log("");
+    log(interactions[i].user + ": " + interactions[i].text);
+    let resp = emotional_process(core, interactions[i].user, interactions[i].text);
+    log("Aeonmi: " + resp);
+    i = i + 1;
+}
+
+log("");
+log(">>> Quantum Emotion State <<<");
+quantum_emotion_state(core);
+
+log("");
+emotional_status(core);
+
+log("");
+log("=== Emotional Core demo complete ===");
