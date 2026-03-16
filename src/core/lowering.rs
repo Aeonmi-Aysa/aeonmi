@@ -168,6 +168,13 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             }
         }
 
+        // P1-34: `for x in iterable { body }` — proper iteration
+        A::ForIn { var, iterable, body } => Stmt::ForIn {
+            var: var.clone(),
+            iterable: lower_expr_ast(iterable)?,
+            body: lower_block_ast(body)?,
+        },
+
         // Decls at statement position
     A::VariableDecl { name, value, .. } => Stmt::Let {
             name: name.clone(),
@@ -632,6 +639,7 @@ fn lower_expr_ast(n: &crate::core::ast::ASTNode) -> Result<Expr, String> {
         | A::If { .. }
         | A::While { .. }
         | A::For { .. }
+        | A::ForIn { .. }
         | A::Function { .. }
         | A::VariableDecl { .. }
         | A::Return(_)
