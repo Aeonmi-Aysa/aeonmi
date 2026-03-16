@@ -931,6 +931,30 @@ impl Interpreter {
                 }
                 ControlFlow::Ok
             }
+            ForIn { var, iterable, body } => {
+                let collection = match self.eval_expr(iterable) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Err(e),
+                };
+                let items: Vec<Value> = match collection {
+                    Value::Array(arr) => arr,
+                    Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
+                    Value::QuantumArray(arr, _) => arr,
+                    other => {
+                        return ControlFlow::Err(err(format!(
+                            "for-in: cannot iterate over {:?}", other
+                        )));
+                    }
+                };
+                for item in items {
+                    self.env.define(var.clone(), item);
+                    match self.exec_block(body) {
+                        ControlFlow::Ok => {}
+                        other => return other,
+                    }
+                }
+                ControlFlow::Ok
+            }
             Let { name, value } => {
                 let v = if let Some(e) = value {
                     match self.eval_expr(e) {

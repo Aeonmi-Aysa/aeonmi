@@ -1,0 +1,168 @@
+// web3_token.ai — AEONMI ERC-20-style Fungible Token
+// Implements mint, burn, transfer, approve, and transfer_from
+// as pure .ai code.  No Rust required.
+//
+// Run: aeonmi run examples/web3_token.ai
+
+// ── Token state ───────────────────────────────────────────────────────────────
+let TOKEN_NAME    = "Genesis Glyph Token";
+let TOKEN_SYMBOL  = "GGT";
+let TOKEN_DECIMALS = 18;
+let TOKEN_MAX_SUPPLY = 1000000;
+
+let token_total_supply = 0;
+
+// Balance ledger (parallel arrays)
+let bal_accounts = [];
+let bal_amounts  = [];
+
+// Allowance ledger (parallel arrays: owner, spender, amount)
+let allow_owners   = [];
+let allow_spenders = [];
+let allow_amounts  = [];
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+function bal_index(account) {
+    let i = 0;
+    while (i < len(bal_accounts)) {
+        if (bal_accounts[i] == account) { return i; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function balance_of(account) {
+    let idx = bal_index(account);
+    if (idx == -1) { return 0; }
+    return bal_amounts[idx];
+}
+
+function _credit(account, amount) {
+    let idx = bal_index(account);
+    if (idx == -1) {
+        bal_accounts = push(bal_accounts, account);
+        bal_amounts  = push(bal_amounts,  amount);
+    } else {
+        bal_amounts[idx] = bal_amounts[idx] + amount;
+    }
+}
+
+function _debit(account, amount) {
+    let idx = bal_index(account);
+    bal_amounts[idx] = bal_amounts[idx] - amount;
+}
+
+function allow_index(owner, spender) {
+    let i = 0;
+    while (i < len(allow_owners)) {
+        if (allow_owners[i] == owner && allow_spenders[i] == spender) { return i; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function allowance(owner, spender) {
+    let idx = allow_index(owner, spender);
+    if (idx == -1) { return 0; }
+    return allow_amounts[idx];
+}
+
+// ── ERC-20 operations ─────────────────────────────────────────────────────────
+function mint(account, amount) {
+    if (amount <= 0) {
+        print("❌ mint: invalid amount " + amount);
+        return;
+    }
+    if (token_total_supply + amount > TOKEN_MAX_SUPPLY) {
+        print("❌ mint: would exceed max supply (" + TOKEN_MAX_SUPPLY + ")");
+        return;
+    }
+    _credit(account, amount);
+    token_total_supply = token_total_supply + amount;
+    print("✅ Minted " + amount + " " + TOKEN_SYMBOL + " → " + account);
+}
+
+function burn(account, amount) {
+    if (amount <= 0) { print("❌ burn: invalid amount"); return; }
+    let bal = balance_of(account);
+    if (bal < amount) {
+        print("❌ burn: " + account + " has " + bal + ", need " + amount);
+        return;
+    }
+    _debit(account, amount);
+    token_total_supply = token_total_supply - amount;
+    print("🔥 Burned " + amount + " " + TOKEN_SYMBOL + " from " + account);
+}
+
+function token_transfer(from_acc, to_acc, amount) {
+    if (amount <= 0) { print("❌ transfer: invalid amount"); return; }
+    let bal = balance_of(from_acc);
+    if (bal < amount) {
+        print("❌ transfer: insufficient balance — " + from_acc + " has " + bal);
+        return;
+    }
+    _debit(from_acc, amount);
+    _credit(to_acc, amount);
+    print("✅ Transferred " + amount + " " + TOKEN_SYMBOL + ": " + from_acc + " → " + to_acc);
+}
+
+function approve(owner, spender, amount) {
+    if (amount < 0) { print("❌ approve: invalid amount"); return; }
+    let idx = allow_index(owner, spender);
+    if (idx == -1) {
+        allow_owners   = push(allow_owners,   owner);
+        allow_spenders = push(allow_spenders, spender);
+        allow_amounts  = push(allow_amounts,  amount);
+    } else {
+        allow_amounts[idx] = amount;
+    }
+    print("✅ Approved " + spender + " to spend " + amount + " " + TOKEN_SYMBOL + " on behalf of " + owner);
+}
+
+function transfer_from(owner, to_acc, spender, amount) {
+    if (amount <= 0) { print("❌ transfer_from: invalid amount"); return; }
+    let allowed = allowance(owner, spender);
+    if (allowed < amount) {
+        print("❌ transfer_from: allowance " + allowed + " < " + amount);
+        return;
+    }
+    token_transfer(owner, to_acc, amount);
+    let idx = allow_index(owner, spender);
+    allow_amounts[idx] = allow_amounts[idx] - amount;
+}
+
+function token_info() {
+    print("Token: " + TOKEN_NAME + " (" + TOKEN_SYMBOL + ")");
+    print("Decimals: " + TOKEN_DECIMALS);
+    print("Supply: " + token_total_supply + " / " + TOKEN_MAX_SUPPLY);
+}
+
+// ── Demo ──────────────────────────────────────────────────────────────────────
+print("=== AEONMI ERC-20 Token Demo ===");
+token_info();
+print("");
+
+mint("alice", 5000);
+mint("bob",   2000);
+print("");
+print("Alice: " + balance_of("alice") + " GGT");
+print("Bob:   " + balance_of("bob")   + " GGT");
+print("");
+
+token_transfer("alice", "carol", 1500);
+print("Alice after transfer: " + balance_of("alice") + " GGT");
+print("Carol after transfer: " + balance_of("carol") + " GGT");
+print("");
+
+burn("bob", 500);
+print("Bob after burn: " + balance_of("bob") + " GGT");
+print("");
+
+approve("alice", "spender_contract", 1000);
+transfer_from("alice", "dao_treasury", "spender_contract", 800);
+print("Alice after transfer_from: " + balance_of("alice") + " GGT");
+print("DAO treasury:              " + balance_of("dao_treasury") + " GGT");
+print("Remaining allowance:       " + allowance("alice", "spender_contract") + " GGT");
+print("");
+
+token_info();

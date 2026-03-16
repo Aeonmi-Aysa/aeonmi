@@ -452,12 +452,12 @@ impl Parser {
             self.consume(TokenKind::In, "Expected 'in'")?;
             let iterable = self.parse_expression()?;
             let body = self.parse_statement()?;
-            // Lower to: for (let __i = 0; __i < collection.length; __i++) { let var = collection[__i]; body }
-            // For now, emit as a block the VM/codegen can handle
-            Ok(ASTNode::Block(vec![
-                ASTNode::new_variable_decl_at(&var_name, iterable.clone(), 0, 0),
-                body,
-            ]))
+            // P1-34: emit ForIn AST node so the VM actually iterates
+            Ok(ASTNode::ForIn {
+                var: var_name,
+                iterable: Box::new(iterable),
+                body: Box::new(body),
+            })
         } else {
             // C-style: for (init; cond; incr) { ... }
             let has_paren = self.match_token(&[TokenKind::OpenParen]);
@@ -670,6 +670,7 @@ impl Parser {
             TokenKind::QuantumModulo,    // ◊
             TokenKind::QuantumGradient,  // ∇
             TokenKind::QuantumApprox,    // ≈
+            TokenKind::GenesisBinding,   // ↦ binding/projection
         ]) {
             let op = self.previous().kind.clone();
             let right = self.parse_term()?;
@@ -1020,6 +1021,32 @@ impl Parser {
                     }
                 }
                 self.consume(TokenKind::CloseBracket, "Expected ']' after array elements")?;
+                Ok(ASTNode::ArrayLiteral(elems))
+            }
+
+            // Genesis array literal: ⧉ elem ‥ elem ‥ ... ⧉  (G-1..G-5)
+            TokenKind::ArrayGenesisBracket => {
+                let mut elems = Vec::new();
+                while !self.check(&TokenKind::ArrayGenesisBracket) && !self.is_at_end() {
+                    // Skip the ‥ separator (GenesisSep) between elements
+                    if self.check(&TokenKind::GenesisSep) { self.advance(); continue; }
+                    // … (GenesisSpread) before an element — wrap in a spread marker
+                    if self.check(&TokenKind::GenesisSpread) {
+                        self.advance();
+                        let inner = self.parse_expression()?;
+                        // Represent spread as a call: __spread(inner)
+                        elems.push(ASTNode::Call {
+                            callee: Box::new(ASTNode::Identifier("__spread".into())),
+                            args: vec![inner],
+                        });
+                        continue;
+                    }
+                    elems.push(self.parse_expression()?);
+                    // Allow optional ‥ after element
+                    if self.check(&TokenKind::GenesisSep) { self.advance(); }
+                }
+                // Consume the closing ⧉
+                if self.check(&TokenKind::ArrayGenesisBracket) { self.advance(); }
                 Ok(ASTNode::ArrayLiteral(elems))
             }
 

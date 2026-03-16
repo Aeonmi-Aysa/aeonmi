@@ -1,4 +1,5 @@
 mod ai; // AI provider registry & implementations
+mod banner; // Cyberpunk CLI banner
 mod cli;
 mod cli_vault;
 mod commands;
@@ -67,11 +68,12 @@ fn run_glyph_startup() {
 
 fn set_console_title() {
     use crossterm::{execute, terminal::SetTitle};
-    let _ = execute!(std::io::stdout(), SetTitle("Aeonmi Shard"));
+    let _ = execute!(std::io::stderr(), SetTitle("Aeonmi Shard"));
 }
 
 fn main() -> anyhow::Result<()> {
     set_console_title();
+    banner::print_banner();
 
     let args = AeonmiCli::parse();
 
