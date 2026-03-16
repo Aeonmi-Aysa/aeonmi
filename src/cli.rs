@@ -584,4 +584,21 @@ pub enum AiAction {
         list: bool,
         stream: bool,
     },
+    /// Review an .ai source file and report findings with optional suggestions
+    ///
+    /// Examples:
+    ///   aeonmi ai review --file demo.ai
+    ///   aeonmi ai review --file demo.ai --suggest
+    ///   aeonmi ai review --file demo.ai --json
+    Review {
+        /// Source file to review (.ai)
+        #[arg(long = "file", value_name = "FILE")]
+        file: Option<PathBuf>,
+        /// Include suggested fixes alongside each finding
+        #[arg(long = "suggest", action = ArgAction::SetTrue)]
+        suggest: bool,
+        /// Output findings as JSON
+        #[arg(long = "json", action = ArgAction::SetTrue)]
+        json: bool,
+    },
 }

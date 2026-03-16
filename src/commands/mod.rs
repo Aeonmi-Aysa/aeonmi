@@ -5,6 +5,7 @@ pub mod format;
 pub mod fs;
 pub mod lint;
 pub mod repl;
+pub mod review;
 pub mod run;
 pub mod tokens;
 pub mod vault;
