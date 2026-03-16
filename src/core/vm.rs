@@ -423,6 +423,40 @@ impl Interpreter {
                 f: builtin_delete_file,
             }),
         );
+
+        // HTTP / Web built-ins (Phase 5 — Idea 2)
+        env.define(
+            "http_response".into(),
+            Value::Builtin(Builtin {
+                name: "http_response",
+                arity: 2,
+                f: builtin_http_response,
+            }),
+        );
+        env.define(
+            "http_get".into(),
+            Value::Builtin(Builtin {
+                name: "http_get",
+                arity: 1,
+                f: builtin_http_get,
+            }),
+        );
+        env.define(
+            "http_post".into(),
+            Value::Builtin(Builtin {
+                name: "http_post",
+                arity: 2,
+                f: builtin_http_post,
+            }),
+        );
+        env.define(
+            "http_json".into(),
+            Value::Builtin(Builtin {
+                name: "http_json",
+                arity: 2,
+                f: builtin_http_json,
+            }),
+        );
         
         Self { 
             env,
@@ -2055,4 +2089,85 @@ fn builtin_delete_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, 
         Ok(()) => Ok(Value::Bool(true)),
         Err(e) => Err(err(format!("delete_file: cannot delete '{}': {}", path, e))),
     }
+}
+
+// ── HTTP / Web built-ins (Phase 5 — Idea 2) ─────────────────────────────────
+
+/// http_response(status, body) — create a response string
+fn builtin_http_response(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("http_response expects 2 arguments: status, body".into()));
+    }
+    let status = match &args[0] {
+        Value::Number(n) => *n as u16,
+        _ => return Err(err("http_response: status must be a number".into())),
+    };
+    let body = match &args[1] {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
+        _ => return Err(err("http_response: body must be a string or primitive".into())),
+    };
+    Ok(Value::String(format!("HTTP {} | {}", status, body)))
+}
+
+/// http_get(url) — simulate/log an HTTP GET request (returns placeholder)
+fn builtin_http_get(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 1 {
+        return Err(err("http_get expects 1 argument: url".into()));
+    }
+    let url = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("http_get: url must be a string".into())),
+    };
+    // Return an object representing the request
+    let mut obj = std::collections::HashMap::new();
+    obj.insert("method".to_string(), Value::String("GET".to_string()));
+    obj.insert("url".to_string(), Value::String(url));
+    obj.insert("status".to_string(), Value::Number(200.0));
+    Ok(Value::Object(obj))
+}
+
+/// http_post(url, body) — simulate/log an HTTP POST request (returns placeholder)
+fn builtin_http_post(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("http_post expects 2 arguments: url, body".into()));
+    }
+    let url = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(err("http_post: url must be a string".into())),
+    };
+    let body = match &args[1] {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
+        _ => return Err(err("http_post: body must be a string or primitive".into())),
+    };
+    let mut obj = std::collections::HashMap::new();
+    obj.insert("method".to_string(), Value::String("POST".to_string()));
+    obj.insert("url".to_string(), Value::String(url));
+    obj.insert("body".to_string(), Value::String(body));
+    obj.insert("status".to_string(), Value::Number(200.0));
+    Ok(Value::Object(obj))
+}
+
+/// http_json(status, body) — create a JSON response string
+fn builtin_http_json(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err("http_json expects 2 arguments: status, body".into()));
+    }
+    let status = match &args[0] {
+        Value::Number(n) => *n as u16,
+        _ => return Err(err("http_json: status must be a number".into())),
+    };
+    let body = match &args[1] {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
+        _ => return Err(err("http_json: body must be a string or primitive".into())),
+    };
+    Ok(Value::String(format!("JSON {} | {}", status, body)))
 }

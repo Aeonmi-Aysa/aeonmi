@@ -15,7 +15,10 @@ mod vault;
 mod glyph;    // Glyph Identity System
 mod mother;   // Mother AI — Quantum Consciousness + Embryo Loop
 mod qube;     // QUBE (.qube) quantum symbolic reasoning format
-mod mint;     // Web3 minting — NFT metadata + Anchor stub generation
+mod mint;       // Web3 minting — NFT metadata + Anchor stub generation
+mod verifier;   // Smart-contract verifier — static analysis + quantum-assisted verification
+mod web;        // Reactive web framework — HTTP server + routing
+mod market;     // Genesis Glyph NFT marketplace — list/mint/inspect .qube circuits
 
 use clap::Parser; // trait import enables AeonmiCli::parse()
 use std::path::PathBuf;
@@ -1393,6 +1396,152 @@ fn main() -> anyhow::Result<()> {
                 }
             }
             Ok(())
+        }
+
+        // ── VERIFY (Phase 5 — Idea 1) ───────────────────────────────────────
+        Some(Command::Verify { file, json, out }) => {
+            use crate::verifier::ContractVerifier;
+            let mut verifier = ContractVerifier::new();
+            let report = verifier.verify_file(&file)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            let output_str = if json {
+                report.to_json()
+            } else {
+                report.summary()
+            };
+
+            match out {
+                Some(path) => {
+                    let json_out = report.to_json();
+                    std::fs::write(&path, &json_out)
+                        .map_err(|e| anyhow::anyhow!("Write error: {}", e))?;
+                    println!("ok: verification report written to {}", path.display());
+                    if !json {
+                        print!("{}", report.summary());
+                    }
+                }
+                None => print!("{}", output_str),
+            }
+            Ok(())
+        }
+
+        // ── SERVE (Phase 5 — Idea 2) ────────────────────────────────────────
+        Some(Command::Serve { file, port, static_dir }) => {
+            use crate::web::{AeonmiServer, HttpResponse};
+
+            println!("  ╔══════════════════════════════════════════╗");
+            println!("  ║     AEONMI Reactive Web Server           ║");
+            println!("  ╚══════════════════════════════════════════╝");
+
+            // If a .ai file is provided, run it first to define routes
+            if let Some(ref ai_file) = file {
+                println!("  ◈  Loading app: {}", ai_file.display());
+                // Execute the .ai file to register handlers
+                let source = std::fs::read_to_string(ai_file)
+                    .map_err(|e| anyhow::anyhow!("Cannot read {}: {}", ai_file.display(), e))?;
+                // Parse and run through the VM to define handlers
+                let mut lexer = crate::core::lexer::Lexer::from_str(&source);
+                let tokens = lexer.tokenize()
+                    .map_err(|e| anyhow::anyhow!("Lexer error: {}", e))?;
+                let mut parser = crate::core::parser::Parser::new(tokens);
+                let ast = parser.parse().map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+                let module = crate::core::lowering::lower_ast_to_ir(&ast, "serve")
+                    .map_err(|e| anyhow::anyhow!("Lowering error: {}", e))?;
+                let mut vm = crate::core::vm::Interpreter::new();
+                vm.run_module(&module).map_err(|e| anyhow::anyhow!("Runtime error: {}", e.message))?;
+                println!("  ◈  App loaded successfully");
+            }
+
+            let mut server = AeonmiServer::new(port);
+            if let Some(dir) = static_dir {
+                println!("  ◈  Static files: {}", dir.display());
+                server = server.with_static_dir(dir);
+            }
+
+            server.listen_and_serve(move |req| {
+                // Default handler: return a welcome page or 404
+                match req.path.as_str() {
+                    "/" => HttpResponse::new(200, format!(
+                        "<html><head><title>Aeonmi</title></head><body>\
+                         <h1>◈ Aeonmi Reactive Web Server</h1>\
+                         <p>Quantum-powered web framework running on port {}</p>\
+                         <p>Method: {} | Path: {}</p>\
+                         </body></html>",
+                        port, req.method, req.path
+                    )),
+                    "/health" => HttpResponse::json(200, r#"{"status":"ok","server":"aeonmi"}"#.to_string()),
+                    _ => HttpResponse::new(404, format!(
+                        "<html><body><h1>404 — Not Found</h1>\
+                         <p>Path '{}' not registered.</p></body></html>",
+                        req.path
+                    )),
+                }
+            }).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            Ok(())
+        }
+
+        // ── MARKET (Phase 5 — Idea 3) ────────────────────────────────────────
+        Some(Command::Market { action }) => {
+            use crate::cli::MarketAction;
+            use crate::market::{MarketScanner, format_marketplace_listing, format_glyph_info, format_genesis_glyphs};
+            match action {
+                MarketAction::List { dir, json } => {
+                    let workspace = dir.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+                    let scanner = MarketScanner::new(workspace);
+                    let nfts = scanner.scan_qube_files();
+                    if json {
+                        let items: Vec<String> = nfts.iter().map(|n| n.to_json()).collect();
+                        println!("[{}]", items.join(",\n"));
+                    } else {
+                        print!("{}", format_marketplace_listing(&nfts));
+                    }
+                    Ok(())
+                }
+                MarketAction::Info { file, json } => {
+                    let scanner = MarketScanner::new(std::env::current_dir().unwrap_or_default());
+                    match scanner.analyze_qube_file(&file) {
+                        Some(nft) => {
+                            if json {
+                                println!("{}", nft.to_json());
+                            } else {
+                                print!("{}", format_glyph_info(&nft));
+                            }
+                        }
+                        None => {
+                            eprintln!("Error: cannot analyze {}", file.display());
+                            std::process::exit(1);
+                        }
+                    }
+                    Ok(())
+                }
+                MarketAction::Mint { file, out } => {
+                    let scanner = MarketScanner::new(std::env::current_dir().unwrap_or_default());
+                    match scanner.analyze_qube_file(&file) {
+                        Some(nft) => {
+                            let json_str = nft.to_json();
+                            match out {
+                                Some(path) => {
+                                    std::fs::write(&path, &json_str)
+                                        .map_err(|e| anyhow::anyhow!("Write error: {}", e))?;
+                                    println!("ok: NFT metadata written to {}", path.display());
+                                }
+                                None => println!("{}", json_str),
+                            }
+                        }
+                        None => {
+                            eprintln!("Error: cannot analyze {}", file.display());
+                            std::process::exit(1);
+                        }
+                    }
+                    Ok(())
+                }
+                MarketAction::Glyphs => {
+                    print!("{}", format_genesis_glyphs());
+                    Ok(())
+                }
+            }
         }
 
         None => {
