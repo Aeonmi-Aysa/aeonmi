@@ -8,41 +8,106 @@ use chacha20::ChaCha20;
 use rand::{RngCore, rngs::OsRng};
 use base64::Engine;
 
-fn key_material() -> [u8;32] {
-    // If feature "kdf-argon2" enabled, derive with Argon2id using per-user salt; else fallback to SHA256(user||host||salt)
+/// Return the base configuration directory (respects `AEONMI_CONFIG_DIR` env override).
+fn config_base_dir() -> PathBuf {
+    if let Ok(base) = std::env::var("AEONMI_CONFIG_DIR") {
+        return PathBuf::from(base);
+    }
+    config_dir().unwrap_or_else(std::env::temp_dir).join("aeonmi")
+}
+
+/// Path to the per-installation random entropy file used to strengthen key derivation.
+/// Storing a random salt on disk means the encryption key is not reconstructable
+/// from username/hostname alone — an attacker must also read this file.
+fn salt_path() -> PathBuf {
+    config_base_dir().join("keystore.salt")
+}
+
+/// Load the 32-byte per-installation random salt, or generate and persist it on
+/// first use.  If the file cannot be created (e.g. read-only filesystem) the
+/// function returns a fresh random salt for this process invocation; keys stored
+/// in that case will be unrecoverable after the process exits (the user will need
+/// to re-enter them), but we never panic.
+fn load_or_create_install_salt() -> [u8; 32] {
+    let path = salt_path();
+    // Ensure the parent directory exists.
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    // Try to read an existing salt.
+    if let Ok(bytes) = fs::read(&path) {
+        if bytes.len() == 32 {
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(&bytes);
+            return arr;
+        }
+    }
+    // Generate a fresh 32-byte cryptographically-random salt.
+    let mut salt = [0u8; 32];
+    OsRng.fill_bytes(&mut salt);
+    // Persist it so the same salt is used across invocations.
+    let _ = fs::write(&path, &salt);
+    salt
+}
+
+fn key_material() -> [u8; 32] {
+    // Mix in a random per-installation salt so the key is not reconstructable
+    // from username + hostname alone (both are non-secret public values).
+    let install_salt = load_or_create_install_salt();
     let user = whoami::username();
     // Prefer fallible hostname API; fall back to placeholder without using deprecated call.
     let host = whoami::fallible::hostname().unwrap_or_else(|_| "unknown-host".to_string());
-    let salt_static = b"AEONMI_API_KEY_SALT_v1";
+    // Static domain-separation constant — version suffix changed from v1 to v2
+    // because key derivation now includes `install_salt`.
+    let salt_static = b"AEONMI_API_KEY_SALT_v2";
     #[cfg(feature = "kdf-argon2")]
     {
-        use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, PasswordHash}};
-        // Construct deterministic salt from user+host hashed to 16 bytes to avoid storing separate salt file
-        let mut hasher = Sha256::new(); hasher.update(user.as_bytes()); hasher.update(host.as_bytes()); hasher.update(salt_static); let full = hasher.finalize();
+        use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
+        // Combine install_salt with user+host+static for a 32-byte argon2 salt.
+        let mut hasher = Sha256::new();
+        hasher.update(user.as_bytes());
+        hasher.update(host.as_bytes());
+        hasher.update(salt_static);
+        hasher.update(&install_salt);
+        let full = hasher.finalize();
         let salt_bytes = &full[..16];
-        let salt_b64 = base64::engine::general_purpose::STANDARD_NO_PAD.encode(salt_bytes);
-        let salt = SaltString::new(&salt_b64).unwrap_or_else(|_| SaltString::encode_b64(salt_bytes).unwrap());
-        let argon = Argon2::default(); // default params (can be tuned)
-        let mut key = [0u8;32];
-        // Use password as user+host (not secret) purely to expand into key space; security relies on local file protection.
-        if argon.hash_password_into(format!("{}:{}", user, host).as_bytes(), salt.as_salt(), &mut key).is_err() {
-            return fallback_sha256(&user, &host, salt_static);
+        // `encode_b64` only fails if the input is empty; our 16-byte slice is
+        // always valid.  If it does fail (environment issue), fall back to the
+        // SHA256 path to avoid a panic.
+        let salt = match SaltString::encode_b64(salt_bytes) {
+            Ok(s) => s,
+            Err(_) => return fallback_sha256(&user, &host, salt_static, &install_salt),
+        };
+        let argon = Argon2::default();
+        let mut key = [0u8; 32];
+        let password = format!("{}:{}", user, host);
+        if argon.hash_password_into(password.as_bytes(), salt.as_salt(), &mut key).is_err() {
+            return fallback_sha256(&user, &host, salt_static, &install_salt);
         }
         return key;
     }
     #[cfg(not(feature = "kdf-argon2"))]
     {
-        fallback_sha256(&user, &host, salt_static)
+        fallback_sha256(&user, &host, salt_static, &install_salt)
     }
 }
 
-fn fallback_sha256(user: &str, host: &str, salt: &[u8]) -> [u8;32] {
-    let mut hasher = Sha256::new(); hasher.update(user.as_bytes()); hasher.update(host.as_bytes()); hasher.update(salt); let out = hasher.finalize(); let mut arr=[0u8;32]; arr.copy_from_slice(&out[..32]); arr
+fn fallback_sha256(user: &str, host: &str, static_salt: &[u8], install_salt: &[u8; 32]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(user.as_bytes());
+    hasher.update(host.as_bytes());
+    hasher.update(static_salt);
+    // Include the per-installation random salt so the key is not derivable
+    // from username + hostname + the known static constant alone.
+    hasher.update(install_salt);
+    let out = hasher.finalize();
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&out[..32]);
+    arr
 }
 
 fn storage_path() -> PathBuf {
-    if let Ok(base) = std::env::var("AEONMI_CONFIG_DIR") { return PathBuf::from(base).join("keys.json"); }
-    config_dir().unwrap_or(std::env::temp_dir()).join("aeonmi").join("keys.json")
+    config_base_dir().join("keys.json")
 }
 
 const KEY_FORMAT_VERSION: u32 = 1; // increment if structure changes
@@ -93,9 +158,13 @@ fn load_all_raw() -> std::collections::HashMap<String,String> {
     let path = storage_path();
     if let Ok(txt) = fs::read_to_string(path) { serde_json::from_str(&txt).unwrap_or_default() } else { Default::default() }
 }
-fn save_all_raw(map: &std::collections::HashMap<String,String>) -> Result<(), String> {
-    let path = storage_path(); if let Some(parent)=path.parent() { let _=fs::create_dir_all(parent); }
-    fs::write(path, serde_json::to_string_pretty(map).unwrap()).map_err(|e| e.to_string())
+fn save_all_raw(map: &std::collections::HashMap<String, String>) -> Result<(), String> {
+    let path = storage_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
+    fs::write(path, json).map_err(|e| e.to_string())
 }
 
 /// Re-encrypt all stored provider keys with current key_material (e.g., after enabling new KDF feature)

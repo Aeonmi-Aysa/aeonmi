@@ -2310,7 +2310,23 @@ fn builtin_input(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, Runtim
 }
 
 /// exec_cmd(cmd: String) -> String
-/// Executes a shell command, returns stdout. On failure returns stderr.
+///
+/// Executes a shell command via `sh -c` (Unix) or `cmd /C` (Windows) and
+/// returns the combined stdout.  On non-zero exit code, stderr is returned
+/// instead.
+///
+/// # Security notice
+/// This builtin passes the command string directly to the system shell, which
+/// means it runs with the **same OS-level privileges** as the `aeonmi`
+/// process and can execute any program the current user can run.  Only call
+/// `exec_cmd` from scripts you trust completely.
+///
+/// **Command injection warning:** Never concatenate user-supplied or
+/// network-derived strings into the command without thorough sanitisation.
+/// For example, `exec_cmd("cat " + user_input)` is unsafe if `user_input`
+/// contains shell metacharacters (`;`, `|`, `$(...)`).  Pass untrusted
+/// values as arguments to a well-defined command, or use the file-I/O
+/// builtins (`read_file`, `write_file`) instead.
 fn builtin_exec_cmd(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     if args.len() < 1 {
         return Err(err("exec_cmd expects 1 argument: command string".into()));
