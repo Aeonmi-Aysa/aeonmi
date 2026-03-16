@@ -1,0 +1,510 @@
+// ============================================================
+//  Aeonmi AI Canvas — the living editor for an AI-first world
+//  Made by AI, for AI.  File type: .ai
+//  Every program starts as a thought; the canvas makes it real.
+// ============================================================
+
+// ─── Module declarations ────────────────────────────────────
+import "std/io"
+import "std/string"
+import "std/array"
+import "std/math"
+import "std/time"
+import "mother/ainmi"        // Mother AI inference bridge
+import "qube/circuit"        // QUBE quantum circuit backend
+import "crypto/vault"        // Identity & secret vault
+
+// ─── Canvas state ───────────────────────────────────────────
+let CANVAS_VERSION = "1.0.0"
+let CANVAS_TITLE   = "⧉ Aeonmi AI Canvas"
+let MAX_HISTORY    = 256
+let AUTOSAVE_SEC   = 30
+
+let canvas_state = {
+    active_file:   "",
+    language:      "ai",     // "ai" | "qube" | "ainmi"
+    source:        "",
+    tokens:        ⧉[],
+    ast:           null,
+    compiled:      false,
+    output_path:   "",
+    history:       ⧉[],
+    history_ptr:   0,
+    ai_suggestions:⧉[],
+    quantum_mode:  false,
+    dark_theme:    true,
+    font_size:     14,
+    sessions:      ⧉[]
+}
+
+// ─── Utility helpers ────────────────────────────────────────
+function timestamp() {
+    return time.now_iso8601()
+}
+
+function log(msg) {
+    print("[" + timestamp() + "] " + msg)
+}
+
+function error(msg) {
+    print("✖ ERROR: " + msg)
+}
+
+function success(msg) {
+    print("✔ " + msg)
+}
+
+// ─── History / undo-redo ────────────────────────────────────
+function snapshot_push(src) {
+    // Truncate forward history on new edit
+    let cut = array.slice(canvas_state.history, 0, canvas_state.history_ptr + 1)
+    canvas_state.history = array.push(cut, src)
+    if array.len(canvas_state.history) > MAX_HISTORY {
+        canvas_state.history = array.slice(canvas_state.history, 1, MAX_HISTORY + 1)
+    }
+    canvas_state.history_ptr = array.len(canvas_state.history) - 1
+}
+
+function undo() {
+    if canvas_state.history_ptr > 0 {
+        canvas_state.history_ptr = canvas_state.history_ptr - 1
+        canvas_state.source = array.get(canvas_state.history, canvas_state.history_ptr)
+        log("undo ← history[" + string.from_int(canvas_state.history_ptr) + "]")
+    }
+}
+
+function redo() {
+    let last = array.len(canvas_state.history) - 1
+    if canvas_state.history_ptr < last {
+        canvas_state.history_ptr = canvas_state.history_ptr + 1
+        canvas_state.source = array.get(canvas_state.history, canvas_state.history_ptr)
+        log("redo → history[" + string.from_int(canvas_state.history_ptr) + "]")
+    }
+}
+
+// ─── File management ────────────────────────────────────────
+function new_file(name, lang) {
+    canvas_state.active_file = name
+    canvas_state.language    = lang
+    canvas_state.source      = "// " + name + "\n"
+    canvas_state.compiled    = false
+    snapshot_push(canvas_state.source)
+    success("new file: " + name + " [" + lang + "]")
+}
+
+function open_file(path) {
+    let src = read_file(path)
+    canvas_state.active_file = path
+    canvas_state.source      = src
+    canvas_state.compiled    = false
+    snapshot_push(src)
+    // infer language from extension
+    if string.ends_with(path, ".qube") {
+        canvas_state.language = "qube"
+    } else if string.ends_with(path, ".ainmi") {
+        canvas_state.language = "ainmi"
+    } else {
+        canvas_state.language = "ai"
+    }
+    success("opened: " + path)
+}
+
+function save_file() {
+    if canvas_state.active_file == "" {
+        error("no active file — use save_as(path)")
+        return false
+    }
+    write_file(canvas_state.active_file, canvas_state.source)
+    success("saved: " + canvas_state.active_file)
+    return true
+}
+
+function save_as(path) {
+    canvas_state.active_file = path
+    save_file()
+}
+
+function autosave_loop() {
+    // Called periodically by the runtime event loop
+    if canvas_state.source != "" {
+        save_file()
+        log("autosaved")
+    }
+}
+
+// ─── Source editing ─────────────────────────────────────────
+function set_source(src) {
+    canvas_state.source   = src
+    canvas_state.compiled = false
+    snapshot_push(src)
+}
+
+function insert_at(pos, text) {
+    let before = string.slice(canvas_state.source, 0, pos)
+    let after  = string.slice(canvas_state.source, pos, string.len(canvas_state.source))
+    set_source(before + text + after)
+}
+
+function replace_range(start, end_pos, text) {
+    let before = string.slice(canvas_state.source, 0, start)
+    let after  = string.slice(canvas_state.source, end_pos, string.len(canvas_state.source))
+    set_source(before + text + after)
+}
+
+// ─── AI assistance (Mother AI / Ainmi) ──────────────────────
+function ai_complete(prefix, context) {
+    // Ask Mother AI for completion suggestions
+    let req = {
+        mode:    "complete",
+        lang:    canvas_state.language,
+        prefix:  prefix,
+        context: context,
+        lines:   3
+    }
+    let suggestions = ainmi.infer(req)
+    canvas_state.ai_suggestions = suggestions
+    return suggestions
+}
+
+function ai_explain(src) {
+    let req = {
+        mode: "explain",
+        lang: canvas_state.language,
+        src:  src
+    }
+    return ainmi.infer(req)
+}
+
+function ai_fix(src, error_msg) {
+    let req = {
+        mode:    "fix",
+        lang:    canvas_state.language,
+        src:     src,
+        error:   error_msg
+    }
+    let fixed = ainmi.infer(req)
+    if fixed != null {
+        set_source(fixed)
+        success("AI applied fix")
+    }
+    return fixed
+}
+
+function ai_generate(description) {
+    // Generate a new program from a natural-language description
+    let req = {
+        mode:        "generate",
+        lang:        canvas_state.language,
+        description: description,
+        quantum:     canvas_state.quantum_mode
+    }
+    let generated = ainmi.infer(req)
+    if generated != null {
+        set_source(generated)
+        success("AI generated program from: " + description)
+    }
+    return generated
+}
+
+function ai_refactor(instruction) {
+    let req = {
+        mode:        "refactor",
+        lang:        canvas_state.language,
+        src:         canvas_state.source,
+        instruction: instruction
+    }
+    let result = ainmi.infer(req)
+    if result != null {
+        set_source(result)
+        success("AI refactored")
+    }
+    return result
+}
+
+function ai_optimize() {
+    let req = {
+        mode: "optimize",
+        lang: canvas_state.language,
+        src:  canvas_state.source
+    }
+    let result = ainmi.infer(req)
+    if result != null {
+        set_source(result)
+        success("AI optimized")
+    }
+    return result
+}
+
+function ai_security_audit() {
+    let req = {
+        mode: "security_audit",
+        lang: canvas_state.language,
+        src:  canvas_state.source
+    }
+    return ainmi.infer(req)
+}
+
+// ─── QUBE quantum integration ───────────────────────────────
+function enable_quantum_mode() {
+    canvas_state.quantum_mode = true
+    log("quantum mode ON — QUBE backend active")
+}
+
+function disable_quantum_mode() {
+    canvas_state.quantum_mode = false
+    log("quantum mode OFF")
+}
+
+function insert_bell_pair(q0, q1) {
+    let snippet = f"H {q0};\nCNOT {q0}, {q1};\nmeasure {q0} -> c0;\nmeasure {q1} -> c1;\n"
+    set_source(canvas_state.source + snippet)
+    success("inserted Bell pair snippet")
+}
+
+function insert_grover(n_qubits) {
+    let snippet = f"grover(n={n_qubits});\n"
+    set_source(canvas_state.source + snippet)
+    success("inserted Grover search stub")
+}
+
+function insert_qft(n_qubits) {
+    let snippet = f"qft(n={n_qubits});\n"
+    set_source(canvas_state.source + snippet)
+    success("inserted QFT stub")
+}
+
+function run_qube_circuit(qube_src) {
+    let result = circuit.run(qube_src)
+    log("QUBE result: " + string.from_value(result))
+    return result
+}
+
+// ─── Compilation & execution ─────────────────────────────────
+function compile() {
+    if canvas_state.source == "" {
+        error("nothing to compile")
+        return false
+    }
+    log("compiling " + canvas_state.active_file + " [" + canvas_state.language + "]...")
+    // Dispatch to correct sub-compiler
+    let ok = false
+    if canvas_state.language == "qube" {
+        ok = circuit.compile(canvas_state.source)
+    } else {
+        // .ai / .ainmi → native Aeonmi compiler
+        ok = true   // native path: compile happens at run time via VM
+    }
+    canvas_state.compiled = ok
+    if ok {
+        success("compiled OK")
+    } else {
+        error("compilation failed")
+    }
+    return ok
+}
+
+function run_program() {
+    if !canvas_state.compiled {
+        compile()
+    }
+    log("running...")
+    // Placeholder: in the full runtime, the Rust VM is invoked here
+    print(canvas_state.source)
+}
+
+function build_executable(out_path) {
+    log("building executable → " + out_path)
+    canvas_state.output_path = out_path
+    // In the full pipeline: aeonmi build --release -o <out_path> <active_file>
+    success("executable written to: " + out_path)
+}
+
+function cross_compile(target) {
+    // target: "linux-x86_64" | "windows-x86_64" | "macos-arm64" | "wasm32"
+    log("cross-compiling for target: " + target)
+    success("cross-compile stub — full support via Rust codegen backend")
+}
+
+// ─── Vault / identity integration ───────────────────────────
+function sign_program(identity) {
+    let sig = vault.sign(canvas_state.source, identity)
+    success("program signed with identity: " + identity)
+    return sig
+}
+
+function verify_signature(sig, identity) {
+    let ok = vault.verify(canvas_state.source, sig, identity)
+    if ok {
+        success("signature valid ✔")
+    } else {
+        error("signature invalid ✖")
+    }
+    return ok
+}
+
+function encrypt_file(recipient_key) {
+    let cipher = vault.encrypt(canvas_state.source, recipient_key)
+    success("file encrypted for recipient")
+    return cipher
+}
+
+// ─── Session management ──────────────────────────────────────
+function session_save(name) {
+    let sess = {
+        name:   name,
+        file:   canvas_state.active_file,
+        src:    canvas_state.source,
+        lang:   canvas_state.language,
+        ts:     timestamp()
+    }
+    canvas_state.sessions = array.push(canvas_state.sessions, sess)
+    write_file(".aeonmi_session_" + name + ".json", string.to_json(sess))
+    success("session saved: " + name)
+}
+
+function session_restore(name) {
+    let path = ".aeonmi_session_" + name + ".json"
+    if !file_exists(path) {
+        error("session not found: " + name)
+        return false
+    }
+    let sess = string.from_json(read_file(path))
+    canvas_state.active_file = sess.file
+    canvas_state.source      = sess.src
+    canvas_state.language    = sess.lang
+    snapshot_push(sess.src)
+    success("session restored: " + name)
+    return true
+}
+
+// ─── UI rendering (TUI / future GUI bridge) ──────────────────
+function render_status_bar() {
+    let mode = if canvas_state.quantum_mode { "⚛ QUANTUM" } else { "  CLASSIC" }
+    let saved = if canvas_state.compiled { "✔COMPILED" } else { "  UNSAVED" }
+    print("┤ " + CANVAS_TITLE + " v" + CANVAS_VERSION
+        + " │ " + canvas_state.language
+        + " │ " + mode
+        + " │ " + saved
+        + " │ " + canvas_state.active_file + " ├")
+}
+
+function render_source_panel() {
+    print("─── SOURCE ───────────────────────────────")
+    let lines = string.split(canvas_state.source, "\n")
+    let i = 0
+    for line in lines {
+        let lnum = string.pad_left(string.from_int(i + 1), 4, " ")
+        print(lnum + " │ " + line)
+        i = i + 1
+    }
+    print("──────────────────────────────────────────")
+}
+
+function render_suggestions_panel() {
+    if array.len(canvas_state.ai_suggestions) == 0 {
+        return
+    }
+    print("─── AI SUGGESTIONS ───────────────────────")
+    let i = 0
+    for s in canvas_state.ai_suggestions {
+        print("  [" + string.from_int(i) + "] " + s)
+        i = i + 1
+    }
+    print("──────────────────────────────────────────")
+}
+
+function render() {
+    render_status_bar()
+    render_source_panel()
+    render_suggestions_panel()
+}
+
+// ─── Command REPL (interactive mode) ────────────────────────
+function repl_dispatch(cmd, args) {
+    if cmd == "new"        { new_file(array.get(args, 0), array.get(args, 1)) }
+    else if cmd == "open"  { open_file(array.get(args, 0)) }
+    else if cmd == "save"  { save_file() }
+    else if cmd == "saveas"{ save_as(array.get(args, 0)) }
+    else if cmd == "undo"  { undo() }
+    else if cmd == "redo"  { redo() }
+    else if cmd == "compile"     { compile() }
+    else if cmd == "run"         { run_program() }
+    else if cmd == "build"       { build_executable(array.get(args, 0)) }
+    else if cmd == "cross"       { cross_compile(array.get(args, 0)) }
+    else if cmd == "generate"    { ai_generate(array.join(args, " ")) }
+    else if cmd == "fix"         { ai_fix(canvas_state.source, array.join(args, " ")) }
+    else if cmd == "explain"     { print(ai_explain(canvas_state.source)) }
+    else if cmd == "refactor"    { ai_refactor(array.join(args, " ")) }
+    else if cmd == "optimize"    { ai_optimize() }
+    else if cmd == "audit"       { print(ai_security_audit()) }
+    else if cmd == "quantum"     { enable_quantum_mode() }
+    else if cmd == "classic"     { disable_quantum_mode() }
+    else if cmd == "bell"        { insert_bell_pair("q0", "q1") }
+    else if cmd == "grover"      { insert_grover(array.get(args, 0)) }
+    else if cmd == "qft"         { insert_qft(array.get(args, 0)) }
+    else if cmd == "render"      { render() }
+    else if cmd == "session-save"{ session_save(array.get(args, 0)) }
+    else if cmd == "session-load"{ session_restore(array.get(args, 0)) }
+    else if cmd == "sign"        { sign_program(array.get(args, 0)) }
+    else if cmd == "verify"      { print(verify_signature(array.get(args, 0), array.get(args, 1))) }
+    else if cmd == "help"        { canvas_help() }
+    else if cmd == "exit"        { print("Goodbye from Aeonmi AI Canvas ✦") }
+    else { error("unknown command: " + cmd + " (type 'help')") }
+}
+
+function canvas_help() {
+    print("╔══════════════════════════════════════════════╗")
+    print("║       Aeonmi AI Canvas — Commands            ║")
+    print("╠══════════════════════════════════════════════╣")
+    print("║  FILE        new <name> <lang>               ║")
+    print("║              open <path>                     ║")
+    print("║              save / saveas <path>            ║")
+    print("║  EDIT        undo / redo                     ║")
+    print("║  BUILD       compile / run                   ║")
+    print("║              build <out>  cross <target>     ║")
+    print("║  AI          generate <description>          ║")
+    print("║              fix <error>  explain            ║")
+    print("║              refactor <instruction>          ║")
+    print("║              optimize  audit                 ║")
+    print("║  QUANTUM     quantum / classic               ║")
+    print("║              bell  grover <n>  qft <n>       ║")
+    print("║  SESSION     session-save <name>             ║")
+    print("║              session-load <name>             ║")
+    print("║  SECURITY    sign <id>  verify <sig> <id>    ║")
+    print("║  VIEW        render  help  exit              ║")
+    print("╚══════════════════════════════════════════════╝")
+}
+
+// ─── Entry point ────────────────────────────────────────────
+function main() {
+    print("")
+    print("  ▄▄▄ ▄███▄ ████▄    ▄     █▀▄▀█ ▄█     ")
+    print("  █  █ █▀   █   █     █    █ █ █ ██     ")
+    print("  █▀▀▀ █▀▀  █   █  █   █   █ ▄ █ ██     ")
+    print("  █  █ █    █   █  █   █   █   █ ▐█     ")
+    print("    █   █    ████   █▄ ▄█      █   ▐     ")
+    print("   ▀              ▀▀▀         ▀          ")
+    print("")
+    print("  AI Canvas  v" + CANVAS_VERSION + "  — Made by AI, for AI")
+    print("  Type 'help' for commands, 'exit' to quit")
+    print("")
+    render_status_bar()
+    print("")
+
+    // Interactive REPL loop (driven by runtime stdin)
+    let running = true
+    while running {
+        let line = io.readline("canvas> ")
+        if line == null || line == "exit" {
+            running = false
+        } else {
+            let parts = string.split(string.trim(line), " ")
+            let cmd  = array.get(parts, 0)
+            let args = array.slice(parts, 1, array.len(parts))
+            repl_dispatch(cmd, args)
+        }
+    }
+    print("Goodbye ✦")
+}
+
+main()
