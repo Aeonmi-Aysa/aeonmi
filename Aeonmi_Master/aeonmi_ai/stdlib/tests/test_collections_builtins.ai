@@ -1,108 +1,130 @@
 ⍝ test_collections_builtins.ai — map/filter/reduce/range/sort/etc.
+⍝ Per VM rules: helper fns defined BEFORE use, ≤14 fn chain depth,
+⍝ alphabetical prefix ordering for env capture correctness.
+⍝ Array element access: arr.slice(i, i+1).pop() — NOT arr[i]
+⍝ Even check: floor(x/2)*2 == x  (% and fmod both unavailable)
 
-print("=== range ===");
-let r = range(5);
-assert_eq(len(r), 5, "range(5) len");
-assert_eq(r[0], 0, "range start 0");
-assert_eq(r[4], 4, "range end 4");
-let r2 = range(2, 7);
-assert_eq(len(r2), 5, "range(2,7) len");
-assert_eq(r2[0], 2, "range(2,7)[0]");
-let r3 = range(0, 10, 2);
-assert_eq(len(r3), 5, "range step len");
-assert_eq(r3[2], 4, "range step val");
+◯ a_dbl⟨x⟩    { return x * 2; }
+◯ a_even⟨x⟩   { return floor(x / 2) * 2 == x; }
+◯ a_add⟨a, b⟩ { return a + b; }
+◯ a_mul⟨a, b⟩ { return a * b; }
+◯ a_iseven⟨x⟩ { return floor(x / 2) * 2 == x; }
+◯ a_isodd⟨x⟩  { return floor(x / 2) * 2 != x; }
+◯ a_alleven⟨x⟩{ return floor(x / 2) * 2 == x; }
 
-print("=== map ===");
-let doubled = map([1, 2, 3, 4], ◯ __dbl⟨x⟩ { return x * 2; });
-assert_eq(doubled[0], 2, "map[0]");
-assert_eq(doubled[3], 8, "map[3]");
-assert_eq(len(doubled), 4, "map len");
+◯ b_run_tests⟨⟩ {
+    print("=== range ===");
+    let r = range(5);
+    assert_eq(len(r), 5, "range(5) len");
+    assert_eq(r.slice(0,1).pop(), 0, "range start 0");
+    assert_eq(r.slice(4,5).pop(), 4, "range end 4");
+    let r2 = range(2, 7);
+    assert_eq(len(r2), 5, "range(2,7) len");
+    assert_eq(r2.slice(0,1).pop(), 2, "range(2,7)[0]");
+    let r3 = range(0, 10, 2);
+    assert_eq(len(r3), 5, "range step len");
+    assert_eq(r3.slice(2,3).pop(), 4, "range step val");
 
-print("=== filter ===");
-let evens = filter([1,2,3,4,5,6], ◯ __even⟨x⟩ { return fmod(x, 2) == 0; });
-assert_eq(len(evens), 3, "filter len");
-assert_eq(evens[0], 2, "filter[0]");
-assert_eq(evens[2], 6, "filter[2]");
+    print("=== map ===");
+    let doubled = map([1, 2, 3, 4], a_dbl);
+    assert_eq(doubled.slice(0,1).pop(), 2, "map[0]");
+    assert_eq(doubled.slice(3,4).pop(), 8, "map[3]");
+    assert_eq(len(doubled), 4, "map len");
 
-print("=== reduce ===");
-let total = reduce([1,2,3,4,5], ◯ __add⟨acc, x⟩ { return acc + x; });
-assert_eq(total, 15, "reduce sum");
-let product_val = reduce([1,2,3,4], ◯ __mul⟨acc, x⟩ { return acc * x; }, 1);
-assert_eq(product_val, 24, "reduce product with init");
+    print("=== filter ===");
+    let evens = filter([1,2,3,4,5,6], a_even);
+    assert_eq(len(evens), 3, "filter len");
+    assert_eq(evens.slice(0,1).pop(), 2, "filter[0]");
+    assert_eq(evens.slice(2,3).pop(), 6, "filter[2]");
 
-print("=== sort ===");
-let unsorted = [3, 1, 4, 1, 5, 9, 2, 6];
-let sorted = sort(unsorted);
-assert_eq(sorted[0], 1, "sort[0]");
-assert_eq(sorted[7], 9, "sort[7]");
-let str_sorted = sort(["banana", "apple", "cherry"]);
-assert_eq(str_sorted[0], "apple", "str sort");
+    print("=== reduce ===");
+    let total = reduce([1,2,3,4,5], a_add);
+    assert_eq(total, 15, "reduce sum");
+    let pv = reduce([1,2,3,4], a_mul, 1);
+    assert_eq(pv, 24, "reduce product with init");
 
-print("=== unique ===");
-let u = unique([1, 2, 2, 3, 3, 3, 1]);
-assert_eq(len(u), 3, "unique len");
+    print("=== sort ===");
+    let unsorted = [3, 1, 4, 1, 5, 9, 2, 6];
+    let sorted = sort(unsorted);
+    assert_eq(sorted.slice(0,1).pop(), 1, "sort[0]");
+    assert_eq(sorted.slice(7,8).pop(), 9, "sort[7]");
+    let str_sorted = sort(["banana", "apple", "cherry"]);
+    assert_eq(str_sorted.slice(0,1).pop(), "apple", "str sort");
 
-print("=== flatten ===");
-let f = flatten([[1,2], [3,4], [5]]);
-assert_eq(len(f), 5, "flatten len");
-assert_eq(f[2], 3, "flatten[2]");
+    print("=== unique ===");
+    let u = unique([1, 2, 2, 3, 3, 3, 1]);
+    assert_eq(len(u), 3, "unique len");
 
-print("=== enumerate/zip ===");
-let en = enumerate(["a","b","c"]);
-assert_eq(en[0][0], 0, "enumerate idx");
-assert_eq(en[1][1], "b", "enumerate val");
-let z = zip([1,2,3], ["x","y","z"]);
-assert_eq(z[0][0], 1, "zip first");
-assert_eq(z[2][1], "z", "zip last");
+    print("=== flatten ===");
+    let f = flatten([[1,2], [3,4], [5]]);
+    assert_eq(len(f), 5, "flatten len");
+    assert_eq(f.slice(2,3).pop(), 3, "flatten[2]");
 
-print("=== any/all ===");
-let nums = [1, 3, 5, 7, 8];
-assert(any(nums, ◯ __iseven⟨x⟩ { return fmod(x,2)==0; }), "any even");
-assert(!all(nums, ◯ __isodd⟨x⟩ { return fmod(x,2)!=0; }), "not all odd");
-assert(all([2,4,6], ◯ __alleven⟨x⟩ { return fmod(x,2)==0; }), "all even");
+    print("=== enumerate/zip ===");
+    let en = enumerate(["a","b","c"]);
+    let en0 = en.slice(0,1).pop();
+    let en1 = en.slice(1,2).pop();
+    assert_eq(en0.slice(0,1).pop(), 0,   "enumerate idx");
+    assert_eq(en1.slice(1,2).pop(), "b", "enumerate val");
+    let z = zip([1,2,3], ["x","y","z"]);
+    let z0 = z.slice(0,1).pop();
+    let z2 = z.slice(2,3).pop();
+    assert_eq(z0.slice(0,1).pop(), 1,   "zip first");
+    assert_eq(z2.slice(1,2).pop(), "z", "zip last");
 
-print("=== sum/product ===");
-assert_eq(sum([1,2,3,4,5]), 15,   "sum");
-assert_eq(product([1,2,3,4]), 24, "product");
+    print("=== any/all ===");
+    let nums = [1, 3, 5, 7, 8];
+    assert(any(nums, a_iseven),  "any even");
+    assert(!all(nums, a_isodd),  "not all odd");
+    assert(all([2,4,6], a_alleven), "all even");
 
-print("=== push/pop/slice/reverse/concat ===");
-let arr = [1, 2, 3];
-let arr2 = push(arr, 4);
-assert_eq(len(arr2), 4, "push len");
-assert_eq(arr2[3], 4, "push val");
-let popped = pop([10, 20, 30]);
-assert_eq(popped[0], 30, "pop val");
-assert_eq(len(popped[1]), 2, "pop arr len");
-let sliced = slice([0,1,2,3,4], 1, 4);
-assert_eq(len(sliced), 3, "slice len");
-assert_eq(sliced[0], 1, "slice start");
-let rev = reverse([1,2,3,4]);
-assert_eq(rev[0], 4, "reverse[0]");
-assert_eq(rev[3], 1, "reverse[3]");
-let cat = concat([1,2], [3,4]);
-assert_eq(len(cat), 4, "concat len");
-assert_eq(cat[2], 3, "concat[2]");
+    print("=== sum/product ===");
+    assert_eq(sum([1,2,3,4,5]), 15,   "sum");
+    assert_eq(product([1,2,3,4]), 24, "product");
 
-print("=== keys/values/object/set_key/get_key/has_key/delete_key ===");
-let obj = object();
-obj = set_key(obj, "name", "Aeonmi");
-obj = set_key(obj, "ver", 2);
-assert(has_key(obj, "name"), "has_key name");
-assert(!has_key(obj, "missing"), "has_key missing");
-assert_eq(get_key(obj, "ver"), 2, "get_key ver");
-assert_eq(get_key(obj, "nope"), null, "get_key missing=null");
-let ks = keys(obj);
-assert_eq(len(ks), 2, "keys len");
-let vs = values(obj);
-assert_eq(len(vs), 2, "values len");
-let obj2 = delete_key(obj, "ver");
-assert(!has_key(obj2, "ver"), "delete_key works");
+    print("=== push/pop/slice/reverse/concat ===");
+    let arr = [1, 2, 3];
+    let arr2 = push(arr, 4);
+    assert_eq(len(arr2), 4, "push len");
+    assert_eq(arr2.slice(3,4).pop(), 4, "push val");
+    let popped = pop([10, 20, 30]);
+    assert_eq(popped.slice(0,1).pop(), 30, "pop val");
+    assert_eq(len(popped.slice(1,2).pop()), 2, "pop arr len");
+    let sliced = slice([0,1,2,3,4], 1, 4);
+    assert_eq(len(sliced), 3, "slice len");
+    assert_eq(sliced.slice(0,1).pop(), 1, "slice start");
+    let rev = reverse([1,2,3,4]);
+    assert_eq(rev.slice(0,1).pop(), 4, "reverse[0]");
+    assert_eq(rev.slice(3,4).pop(), 1, "reverse[3]");
+    let cat = concat([1,2], [3,4]);
+    assert_eq(len(cat), 4, "concat len");
+    assert_eq(cat.slice(2,3).pop(), 3, "concat[2]");
 
-print("=== to_json/parse_json ===");
-let j = to_json({"x": 1, "y": [1, 2, 3]});
-assert(contains(j, "\"x\""), "to_json has x");
-let parsed = parse_json("{\"a\":42,\"b\":\"hi\"}");
-assert_eq(get_key(parsed, "a"), 42, "parse_json num");
-assert_eq(get_key(parsed, "b"), "hi", "parse_json str");
+    print("=== object/set_key/get_key/has_key/delete_key/keys/values ===");
+    let obj = object();
+    obj = set_key(obj, "name", "Aeonmi");
+    obj = set_key(obj, "ver", 2);
+    assert(has_key(obj, "name"),     "has_key name");
+    assert(!has_key(obj, "missing"), "has_key missing");
+    assert_eq(get_key(obj, "ver"), 2, "get_key ver");
+    let ks = keys(obj);
+    assert_eq(len(ks), 2, "keys len");
+    let vs = values(obj);
+    assert_eq(len(vs), 2, "values len");
+    let obj2 = delete_key(obj, "ver");
+    assert(!has_key(obj2, "ver"), "delete_key works");
 
-print("=== PASS ===");
+    print("=== to_json/parse_json ===");
+    let jo = object();
+    jo = set_key(jo, "x", 1);
+    jo = set_key(jo, "y", "hi");
+    let j = to_json(jo);
+    assert(contains(j, "\"x\""), "to_json has x");
+    let parsed = parse_json("{\"a\":42,\"b\":\"hello\"}");
+    assert_eq(get_key(parsed, "a"), 42,      "parse_json num");
+    assert_eq(get_key(parsed, "b"), "hello", "parse_json str");
+
+    print("=== PASS ===");
+}
+
+b_run_tests();

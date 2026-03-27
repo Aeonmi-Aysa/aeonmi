@@ -9,8 +9,8 @@ assert_eq(trim("\t\n hi \n\t"), "hi", "trim whitespace");
 print("=== split/join ===");
 let parts = split("a,b,c", ",");
 assert_eq(len(parts), 3, "split len");
-assert_eq(parts[0], "a", "split[0]");
-assert_eq(parts[2], "c", "split[2]");
+assert_eq(parts.slice(0,1).pop(), "a", "split[0]");
+assert_eq(parts.slice(2,3).pop(), "c", "split[2]");
 assert_eq(join(["x","y","z"], "-"), "x-y-z", "join");
 assert_eq(join(["one"], ","), "one", "join single");
 
@@ -37,7 +37,7 @@ assert_eq(repeat("ab", 3), "ababab", "repeat");
 assert_eq(repeat("x", 0), "", "repeat 0");
 let ls = lines("line1\nline2\nline3");
 assert_eq(len(ls), 3, "lines count");
-assert_eq(ls[0], "line1", "lines[0]");
+assert_eq(ls.slice(0,1).pop(), "line1", "lines[0]");
 assert_eq(str_len("hello"), 5, "str_len ascii");
 assert_eq(str_len(""), 0, "str_len empty");
 
