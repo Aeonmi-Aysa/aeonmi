@@ -1,0 +1,38 @@
+⍝ decide_test.ai — Tests for agent/decide.ai
+import { dec_choose, dec_confidence, dec_is_urgent, dec_majority, dec_max_score, dec_normalize, dec_prioritize, dec_should_act, dec_threshold, dec_weight } from "./decide";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("choose(A=7,B=3)=A", dec_choose(100, 200, 7, 3), 100);
+    p = p + check("choose(A=3,B=7)=B", dec_choose(100, 200, 3, 7), 200);
+    p = p + check("choose tie → A", dec_choose(100, 200, 5, 5), 100);
+
+    p = p + check("confidence(7,10)=70", dec_confidence(7, 10), 70);
+    p = p + check("confidence(0,0)=0", dec_confidence(0, 0), 0);
+    p = p + check("confidence(10,10)=100", dec_confidence(10, 10), 100);
+
+    p = p + check("is_urgent(8,5)=true", dec_is_urgent(8, 5), true);
+    p = p + check("is_urgent(4,5)=false", dec_is_urgent(4, 5), false);
+
+    p = p + check("majority(3,2)=true", dec_majority(3, 2), true);
+    p = p + check("majority(2,3)=false", dec_majority(2, 3), false);
+
+    p = p + check("max_score(3,7,5)=7", dec_max_score(3, 7, 5), 7);
+    p = p + check("threshold(5,5)=1", dec_threshold(5, 5), 1);
+    p = p + check("threshold(4,5)=0", dec_threshold(4, 5), 0);
+    p = p + check("should_act(2,3)=true", dec_should_act(2, 3), true);
+    p = p + check("should_act(0,3)=false", dec_should_act(0, 3), false);
+    p = p + check("should_act(2,0)=false", dec_should_act(2, 0), false);
+
+    print("decide tests passed:", p, "/ 16");
+}

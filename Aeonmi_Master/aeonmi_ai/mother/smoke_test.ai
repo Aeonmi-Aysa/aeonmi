@@ -1,0 +1,14 @@
+⍝ smoke_test.ai — progressive isolation: finds exact hang point
+
+import { m_new, m_store, m_count, m_active } from "./memory_min";
+
+◯ main⟨⟩ {
+    print("step1: memory_min imported");
+    let m = m_new();
+    print("step2: m_new ok");
+    m = m_store(m, "a", "alpha");
+    print("step3: m_store ok, count =", m_count(m));
+    let act = m_active(m, 0.5);
+    print("step4: m_active =", act);
+    print("PASS");
+}

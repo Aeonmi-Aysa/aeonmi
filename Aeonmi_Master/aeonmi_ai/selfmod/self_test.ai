@@ -1,0 +1,130 @@
+⍝ self_test.ai — flat, no imports, 12 functions
+⍝ a_ = snapshot helpers, b_ = model helpers, d_ = self logic
+
+◯ a_snap_mem_count⟨state⟩ {
+    let mem = state.slice(1, 2).pop();
+    return len(mem) / 3;
+}
+
+◯ a_snap_pat_count⟨state⟩ {
+    let pat = state.slice(0, 1).pop();
+    return len(pat) / 2;
+}
+
+◯ a_snap_pat_top⟨state⟩ {
+    let pat = state.slice(0, 1).pop();
+    let n = len(pat) / 2;
+    if (n == 0) { return ""; }
+    let i = 0;
+    let best_key = "";
+    let best_count = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        let c = pat.slice(base + 1, base + 2).pop();
+        if (c > best_count) { best_key = k; best_count = c; }
+        i = i + 1;
+    }
+    return best_key;
+}
+
+◯ a_snap_strength_sum⟨state⟩ {
+    let mem = state.slice(1, 2).pop();
+    let n = len(mem) / 3;
+    let i = 0;
+    let total = 0;
+    while (i < n) {
+        let base = i * 3;
+        total = total + mem.slice(base + 2, base + 3).pop();
+        i = i + 1;
+    }
+    return total;
+}
+
+◯ b_mod_new⟨⟩ { return []; }
+
+◯ b_mod_read⟨mod, key⟩ {
+    let n = len(mod) / 2;
+    let i = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = mod.slice(base, base + 1).pop();
+        if (k == key) { return mod.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ b_mod_set⟨mod, key, val⟩ {
+    let n = len(mod) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = mod.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) { mod.push(key); mod.push(val); return mod; }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 2;
+        let ek = mod.slice(base, base + 1).pop();
+        let ev = mod.slice(base + 1, base + 2).pop();
+        if (j == found) { out.push(ek); out.push(val); }
+        if (j != found) { out.push(ek); out.push(ev); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ b_mod_sync⟨mod, learn_state⟩ {
+    let mc  = a_snap_mem_count(learn_state);
+    let pc  = a_snap_pat_count(learn_state);
+    let top = a_snap_pat_top(learn_state);
+    let ss  = a_snap_strength_sum(learn_state);
+    let m2  = b_mod_set(mod,  "mem_count",    mc);
+    let m3  = b_mod_set(m2,   "pat_count",    pc);
+    let m4  = b_mod_set(m3,   "pat_top",      top);
+    let m5  = b_mod_set(m4,   "strength_sum", ss);
+    return m5;
+}
+
+◯ d_self_boot⟨⟩ { return b_mod_new(); }
+
+◯ d_self_inspect⟨self_mod, key⟩ { return b_mod_read(self_mod, key); }
+
+◯ d_self_reflect⟨self_mod, learn_state⟩ { return b_mod_sync(self_mod, learn_state); }
+
+◯ main⟨⟩ {
+    let p = 0;
+    let sm = d_self_boot();
+
+    ⍝ check 1: fresh model reads 0 for any key
+    if (d_self_inspect(sm, "mem_count") == 0) { p = p + 1; print("pass:boot dormant"); }
+
+    ⍝ build a learn_state manually: 2 patterns, 2 memory entries
+    let pat = [];
+    pat.push("x"); pat.push(3);
+    pat.push("y"); pat.push(1);
+
+    let mem = [];
+    mem.push("x"); mem.push("observed"); mem.push(3);
+    mem.push("y"); mem.push("observed"); mem.push(1);
+
+    let ls = [];
+    ls.push(pat);
+    ls.push(mem);
+
+    ⍝ reflect: sync self-model from learn_state
+    let sm2 = d_self_reflect(sm, ls);
+
+    ⍝ check 2-5: self-model now describes reality
+    if (d_self_inspect(sm2, "mem_count") == 2)  { p = p + 1; print("pass:mem_count 2"); }
+    if (d_self_inspect(sm2, "pat_count") == 2)  { p = p + 1; print("pass:pat_count 2"); }
+    if (d_self_inspect(sm2, "pat_top")   == "x") { p = p + 1; print("pass:pat_top x"); }
+    if (d_self_inspect(sm2, "strength_sum") == 4) { p = p + 1; print("pass:strength_sum 4"); }
+
+    print("self tests passed:", p, "/ 5");
+}

@@ -1,0 +1,123 @@
+⍝ gate.ai — Single-qubit gate operations
+⍝ All gates take q=[re0,im0,re1,im1] and return transformed q
+⍝ No imports — self-contained with inline state access
+⍝ Functions: 10 total
+
+◯ gate_h⟨q⟩ {
+    ⍝ Hadamard: |0⟩→|+⟩  |1⟩→|−⟩  matrix = [[1,1],[1,-1]]/√2
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let k = 0.70710678;
+    let r = [];
+    r.push((re0 + re1) * k);
+    r.push((im0 + im1) * k);
+    r.push((re0 - re1) * k);
+    r.push((im0 - im1) * k);
+    return r;
+}
+
+◯ gate_id⟨q⟩ {
+    ⍝ Identity — no-op
+    return q;
+}
+
+◯ gate_measure⟨q⟩ {
+    ⍝ Deterministic measurement — collapse to higher-probability outcome
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let p0 = re0 * re0 + im0 * im0;
+    let p1 = re1 * re1 + im1 * im1;
+    if (p0 >= p1) { return 0; }
+    return 1;
+}
+
+◯ gate_prob0⟨q⟩ {
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    return re0 * re0 + im0 * im0;
+}
+
+◯ gate_prob1⟨q⟩ {
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    return re1 * re1 + im1 * im1;
+}
+
+◯ gate_s⟨q⟩ {
+    ⍝ S gate (phase π/2): |1⟩ → i|1⟩  matrix = [[1,0],[0,i]]
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let r = [];
+    r.push(re0);
+    r.push(im0);
+    r.push(0.0 - im1);
+    r.push(re1);
+    return r;
+}
+
+◯ gate_t⟨q⟩ {
+    ⍝ T gate (phase π/4): |1⟩ → e^{iπ/4}|1⟩  e^{iπ/4}=(√2/2)(1+i)
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let k = 0.70710678;
+    let r = [];
+    r.push(re0);
+    r.push(im0);
+    r.push(re1 * k - im1 * k);
+    r.push(re1 * k + im1 * k);
+    return r;
+}
+
+◯ gate_x⟨q⟩ {
+    ⍝ Pauli-X (NOT gate): |0⟩↔|1⟩
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let r = [];
+    r.push(re1);
+    r.push(im1);
+    r.push(re0);
+    r.push(im0);
+    return r;
+}
+
+◯ gate_y⟨q⟩ {
+    ⍝ Pauli-Y: |0⟩→i|1⟩  |1⟩→-i|0⟩  matrix=[[0,-i],[i,0]]
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let r = [];
+    r.push(im1);
+    r.push(0.0 - re1);
+    r.push(0.0 - im0);
+    r.push(re0);
+    return r;
+}
+
+◯ gate_z⟨q⟩ {
+    ⍝ Pauli-Z: |1⟩→-|1⟩  matrix=[[1,0],[0,-1]]
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let r = [];
+    r.push(re0);
+    r.push(im0);
+    r.push(0.0 - re1);
+    r.push(0.0 - im1);
+    return r;
+}
+
+◯ main⟨⟩ {
+    print("gate module loaded — gates: H X Y Z S T id measure prob0 prob1");
+}

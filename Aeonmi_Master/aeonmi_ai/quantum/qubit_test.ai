@@ -1,0 +1,41 @@
+⍝ qubit_test.ai — Tests for qubit.ai statevector module
+import { q_zero, q_one, q_plus, q_minus, q_re0, q_im0, q_re1, q_im1, q_prob0, q_prob1, q_measure } from "./qubit";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ |0⟩ state
+    let z = q_zero();
+    p = p + check("q_zero re0=1", q_re0(z) == 1.0, true);
+    p = p + check("q_zero re1=0", q_re1(z) == 0.0, true);
+    p = p + check("q_zero prob0=1", q_prob0(z) == 1.0, true);
+    p = p + check("q_zero prob1=0", q_prob1(z) == 0.0, true);
+    p = p + check("q_zero measure=0", q_measure(z), 0);
+
+    ⍝ |1⟩ state
+    let o = q_one();
+    p = p + check("q_one re0=0", q_re0(o) == 0.0, true);
+    p = p + check("q_one re1=1", q_re1(o) == 1.0, true);
+    p = p + check("q_one measure=1", q_measure(o), 1);
+
+    ⍝ |+⟩ state — equal superposition
+    let pl = q_plus();
+    p = p + check("q_plus re0=re1", q_re0(pl) == q_re1(pl), true);
+    p = p + check("q_plus measure=0", q_measure(pl), 0);
+
+    ⍝ |−⟩ state
+    let mn = q_minus();
+    p = p + check("q_minus im0=0", q_im0(mn) == 0.0, true);
+    p = p + check("q_minus im1=0", q_im1(mn) == 0.0, true);
+
+    print("qubit tests passed:", p, "/ 12");
+}

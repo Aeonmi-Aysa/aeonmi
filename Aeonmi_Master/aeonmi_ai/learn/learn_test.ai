@@ -1,0 +1,174 @@
+⍝ learn_test.ai — flat, no imports, 12 functions
+⍝ a_ = pattern helpers, b_ = reinforce helpers, d_ = learn logic
+
+◯ a_pat_add⟨pat, key⟩ {
+    let n = len(pat) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) { pat.push(key); pat.push(1); return pat; }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 2;
+        let ek = pat.slice(base, base + 1).pop();
+        let ec = pat.slice(base + 1, base + 2).pop();
+        if (j == found) { out.push(ek); out.push(ec + 1); }
+        if (j != found) { out.push(ek); out.push(ec); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ a_pat_count⟨pat, key⟩ {
+    let n = len(pat) / 2;
+    let i = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        if (k == key) { return pat.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ a_pat_new⟨⟩ { return []; }
+
+◯ a_pat_top⟨pat⟩ {
+    let n = len(pat) / 2;
+    if (n == 0) { return ""; }
+    let i = 0;
+    let best_key = "";
+    let best_count = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        let c = pat.slice(base + 1, base + 2).pop();
+        if (c > best_count) { best_key = k; best_count = c; }
+        i = i + 1;
+    }
+    return best_key;
+}
+
+◯ b_reinf_new⟨⟩ { return []; }
+
+◯ b_reinf_score⟨mem, key⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        if (k == key) { return mem.slice(base + 2, base + 3).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ b_reinf_touch⟨mem, key⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) { mem.push(key); mem.push("observed"); mem.push(1); return mem; }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 3;
+        let ek = mem.slice(base, base + 1).pop();
+        let ev = mem.slice(base + 1, base + 2).pop();
+        let es = mem.slice(base + 2, base + 3).pop();
+        if (j == found) { out.push(ek); out.push(ev); out.push(es + 1); }
+        if (j != found) { out.push(ek); out.push(ev); out.push(es); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ b_reinf_decay⟨mem, rate⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        out.push(mem.slice(base, base + 1).pop());
+        out.push(mem.slice(base + 1, base + 2).pop());
+        out.push(mem.slice(base + 2, base + 3).pop() * rate);
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ d_learn_absorb⟨state, key⟩ {
+    let pat = state.slice(0, 1).pop();
+    let mem = state.slice(1, 2).pop();
+    let pat2 = a_pat_add(pat, key);
+    let mem2 = b_reinf_touch(mem, key);
+    let out = [];
+    out.push(pat2);
+    out.push(mem2);
+    return out;
+}
+
+◯ d_learn_cycle⟨state, rate⟩ {
+    let pat = state.slice(0, 1).pop();
+    let mem = state.slice(1, 2).pop();
+    let mem2 = b_reinf_decay(mem, rate);
+    let out = [];
+    out.push(pat);
+    out.push(mem2);
+    return out;
+}
+
+◯ d_learn_new⟨⟩ {
+    let pat = a_pat_new();
+    let mem = b_reinf_new();
+    let out = [];
+    out.push(pat);
+    out.push(mem);
+    return out;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let s = d_learn_new();
+
+    ⍝ check 1: initial pat count for "x" = 0
+    let pat0 = s.slice(0, 1).pop();
+    if (a_pat_count(pat0, "x") == 0) { p = p + 1; print("pass:initial empty"); }
+
+    ⍝ absorb "x" twice, "y" once
+    let s1 = d_learn_absorb(s,  "x");
+    let s2 = d_learn_absorb(s1, "x");
+    let s3 = d_learn_absorb(s2, "y");
+
+    ⍝ check 2: x seen 2 times
+    let pat3 = s3.slice(0, 1).pop();
+    if (a_pat_count(pat3, "x") == 2) { p = p + 1; print("pass:x count 2"); }
+
+    ⍝ check 3: y seen 1 time
+    if (a_pat_count(pat3, "y") == 1) { p = p + 1; print("pass:y count 1"); }
+
+    ⍝ check 4: top is x (most frequent)
+    if (a_pat_top(pat3) == "x") { p = p + 1; print("pass:top is x"); }
+
+    ⍝ check 5: reinf score for x = 2
+    let mem3 = s3.slice(1, 2).pop();
+    if (b_reinf_score(mem3, "x") == 2) { p = p + 1; print("pass:reinf x score 2"); }
+
+    ⍝ check 6: after cycle(0.5) → x score = 1
+    let s4 = d_learn_cycle(s3, 0.5);
+    let mem4 = s4.slice(1, 2).pop();
+    if (b_reinf_score(mem4, "x") == 1) { p = p + 1; print("pass:decay x to 1"); }
+
+    print("learn tests passed:", p, "/ 6");
+}

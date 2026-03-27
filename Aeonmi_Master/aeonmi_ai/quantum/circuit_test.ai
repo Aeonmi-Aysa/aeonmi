@@ -1,0 +1,41 @@
+⍝ circuit_test.ai — Tests for circuit.ai quantum circuit descriptor
+import { circ_new, circ_add, circ_count, circ_qubits, circ_type, circ_target, circ_ctrl, circ_type_h, circ_type_x, circ_type_cx } from "./circuit";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ New circuit
+    let c = circ_new(2);
+    p = p + check("circ_new qubits=2", circ_qubits(c), 2);
+    p = p + check("circ_new gates=0", circ_count(c), 0);
+
+    ⍝ Add H gate on qubit 0
+    c = circ_add(c, circ_type_h(), 0, -1);
+    p = p + check("after H: count=1", circ_count(c), 1);
+    p = p + check("gate0 type=H", circ_type(c, 0), circ_type_h());
+    p = p + check("gate0 target=0", circ_target(c, 0), 0);
+    p = p + check("gate0 ctrl=-1", circ_ctrl(c, 0), -1);
+
+    ⍝ Add CX gate (ctrl=0, tgt=1)
+    c = circ_add(c, circ_type_cx(), 1, 0);
+    p = p + check("after CX: count=2", circ_count(c), 2);
+    p = p + check("gate1 type=CX", circ_type(c, 1), circ_type_cx());
+    p = p + check("gate1 target=1", circ_target(c, 1), 1);
+    p = p + check("gate1 ctrl=0", circ_ctrl(c, 1), 0);
+
+    ⍝ Add X gate on qubit 1
+    c = circ_add(c, circ_type_x(), 1, -1);
+    p = p + check("after X: count=3", circ_count(c), 3);
+    p = p + check("qubits unchanged", circ_qubits(c), 2);
+
+    print("circuit tests passed:", p, "/ 12");
+}

@@ -1,0 +1,22 @@
+⍝ signal.ai — raw sensory signal: [tag, payload, strength]
+⍝ 4 functions, no imports
+
+◯ sig_make⟨tag, payload, strength⟩ {
+    let s = [];
+    s.push(tag);
+    s.push(payload);
+    s.push(strength);
+    return s;
+}
+
+◯ sig_payload⟨s⟩ {
+    return s.slice(1, 2).pop();
+}
+
+◯ sig_strength⟨s⟩ {
+    return s.slice(2, 3).pop();
+}
+
+◯ sig_tag⟨s⟩ {
+    return s.slice(0, 1).pop();
+}

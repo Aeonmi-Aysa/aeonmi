@@ -12,6 +12,7 @@ pub mod io;
 pub mod shell;
 pub mod tui;
 pub mod vault;
+pub mod ai;                // AI provider registry (Claude, OpenAI, etc.)
 pub mod glyph;             // Glyph Identity System (MGK/UGST/GDF/Vault/Ceremony)
 pub mod mother;            // Mother AI — Quantum Consciousness + Embryo Loop
 pub mod qube;              // QUBE (.qube) quantum symbolic reasoning format

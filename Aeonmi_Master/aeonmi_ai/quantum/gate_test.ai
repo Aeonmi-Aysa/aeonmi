@@ -1,0 +1,59 @@
+⍝ gate_test.ai — Tests for gate.ai quantum gate operations
+import { gate_h, gate_x, gate_y, gate_z, gate_s, gate_t, gate_id, gate_measure, gate_prob0, gate_prob1 } from "./gate";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Setup: |0⟩ = [1,0,0,0]
+    let q0 = [1.0, 0.0, 0.0, 0.0];
+
+    ⍝ Identity
+    let qi = gate_id(q0);
+    p = p + check("id preserves |0⟩", gate_prob0(qi) == 1.0, true);
+
+    ⍝ Pauli-X: |0⟩ → |1⟩
+    let qx = gate_x(q0);
+    p = p + check("X: |0⟩→|1⟩ prob1=1", gate_prob1(qx) == 1.0, true);
+    p = p + check("X: |0⟩→|1⟩ measure=1", gate_measure(qx), 1);
+
+    ⍝ Pauli-X applied twice = identity
+    let qxx = gate_x(qx);
+    p = p + check("XX=I prob0=1", gate_prob0(qxx) == 1.0, true);
+
+    ⍝ Pauli-Z: |0⟩ unchanged (flips phase of |1⟩ only)
+    let qz0 = gate_z(q0);
+    p = p + check("Z|0⟩ prob0=1", gate_prob0(qz0) == 1.0, true);
+
+    ⍝ Pauli-Z on |1⟩ flips phase but prob stays 1
+    let q1 = [0.0, 0.0, 1.0, 0.0];
+    let qz1 = gate_z(q1);
+    p = p + check("Z|1⟩ prob1=1", gate_prob1(qz1) == 1.0, true);
+    p = p + check("Z|1⟩ re1=-1", qz1.slice(2,3).pop() == -1.0, true);
+
+    ⍝ Hadamard: |0⟩ → |+⟩  (equal superposition)
+    let qh = gate_h(q0);
+    p = p + check("H|0⟩ measure=0", gate_measure(qh), 0);
+
+    ⍝ H twice = identity
+    let qhh = gate_h(qh);
+    p = p + check("HH=I prob0>0.99", gate_prob0(qhh) > 0.99, true);
+
+    ⍝ S gate: |0⟩ unchanged
+    let qs = gate_s(q0);
+    p = p + check("S|0⟩ prob0=1", gate_prob0(qs) == 1.0, true);
+
+    ⍝ T gate: |0⟩ unchanged
+    let qt = gate_t(q0);
+    p = p + check("T|0⟩ prob0=1", gate_prob0(qt) == 1.0, true);
+
+    print("gate tests passed:", p, "/ 11");
+}

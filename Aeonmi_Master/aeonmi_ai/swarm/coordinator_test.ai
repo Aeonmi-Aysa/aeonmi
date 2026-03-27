@@ -1,0 +1,67 @@
+﻿⍝ coordinator_test.ai — Tests for swarm/coordinator.ai
+import { a_coord_find, coord_assign, coord_available, coord_best_agent, coord_free, coord_load, coord_new, coord_offline, coord_register, coord_role, coord_status } from "./coordinator";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ coord_new / coord_available
+    let c = coord_new(10);
+    p = p + check("new available=0", coord_available(c), 0);
+
+    ⍝ coord_register (5 agents: 2 planners, 2 executors, 1 critic)
+    c = coord_register(c, 10, 0);
+    c = coord_register(c, 11, 0);
+    c = coord_register(c, 20, 1);
+    c = coord_register(c, 21, 1);
+    c = coord_register(c, 30, 2);
+    p = p + check("available=5", coord_available(c), 5);
+
+    ⍝ coord_role / coord_status / coord_load
+    p = p + check("role(10)=0", coord_role(c, 10), 0);
+    p = p + check("role(20)=1", coord_role(c, 20), 1);
+    p = p + check("status(10)=0", coord_status(c, 10), 0);
+    p = p + check("load(10)=0", coord_load(c, 10), 0);
+
+    ⍝ coord_best_agent
+    p = p + check("best_planner=10", coord_best_agent(c, 0), 10);
+    p = p + check("best_executor=20", coord_best_agent(c, 1), 20);
+    p = p + check("best_critic=30", coord_best_agent(c, 2), 30);
+    p = p + check("best_sensor=-1", coord_best_agent(c, 4), -1);
+
+    ⍝ coord_assign
+    c = coord_assign(c, 10);
+    c = coord_assign(c, 10);
+    p = p + check("load(10)=2", coord_load(c, 10), 2);
+    p = p + check("status(10)=1", coord_status(c, 10), 1);
+    p = p + check("available after assign=4", coord_available(c), 4);
+
+    ⍝ best_planner now favors lower-load agent 11
+    p = p + check("best_planner=11 after load", coord_best_agent(c, 0), 11);
+
+    ⍝ coord_free
+    c = coord_free(c, 10);
+    p = p + check("load(10)=1 after free", coord_load(c, 10), 1);
+    c = coord_free(c, 10);
+    p = p + check("load(10)=0 after 2nd free", coord_load(c, 10), 0);
+    p = p + check("status(10)=0 after free to 0", coord_status(c, 10), 0);
+
+    ⍝ coord_offline
+    c = coord_offline(c, 30);
+    p = p + check("status(30)=2", coord_status(c, 30), 2);
+    p = p + check("available after offline=4", coord_available(c), 4);
+
+    ⍝ a_coord_find
+    p = p + check("find(10)=1", a_coord_find(c, 10), 1);
+    p = p + check("find(999)=-1", a_coord_find(c, 999), -1);
+
+    print("coordinator tests passed:", p, "/ 22");
+}

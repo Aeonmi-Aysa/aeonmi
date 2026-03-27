@@ -1,0 +1,35 @@
+⍝ maintenance.ai — scheduled upkeep on memory + journal state
+⍝ imports from _min modules to cap total function count (avoids O(2^n) clone hang)
+⍝ 3 functions only: maint_decay_pass, maint_health_score, maint_report
+
+import { m_active, m_count, m_decay } from "./memory_min";
+import { j_append, j_count } from "./journal_min";
+
+◯ maint_decay_pass⟨mem, journal, decay_rate⟩ {
+    let m2 = m_decay(mem, decay_rate);
+    let j2 = j_append(journal, "maint", "decay_pass");
+    let result = [];
+    result.push(m2);
+    result.push(j2);
+    return result;
+}
+
+◯ maint_health_score⟨mem, threshold⟩ {
+    let total = m_count(mem);
+    if (total == 0) { return 0; }
+    let active = m_active(mem, threshold);
+    return active / total;
+}
+
+◯ maint_report⟨mem, journal, threshold⟩ {
+    let total_mem  = m_count(mem);
+    let active_mem = m_active(mem, threshold);
+    let total_evts = j_count(journal);
+    let health     = maint_health_score(mem, threshold);
+    let report = [];
+    report.push(total_mem);
+    report.push(active_mem);
+    report.push(total_evts);
+    report.push(health);
+    return report;
+}

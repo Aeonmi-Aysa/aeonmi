@@ -1,0 +1,34 @@
+⍝ op_probe2 — else, while-break pattern, string concat
+
+◯ main⟨⟩ {
+    ⍝ probe else
+    let x = 5;
+    if (x > 10) {
+        print("if:wrong");
+    } else {
+        print("else:ok");
+    }
+
+    ⍝ probe else-if chain
+    if (x == 1) {
+        print("chain:wrong");
+    } else {
+        if (x == 5) { print("else_if:ok"); }
+    }
+
+    ⍝ probe early return from while via flag
+    let i = 0;
+    let found = 0;
+    while (i < 10) {
+        if (i == 3) { found = 1; i = 10; }
+        if (i != 10) { i = i + 1; }
+    }
+    if (found == 1) { print("while_break_flag:ok"); }
+
+    ⍝ probe negative index / math
+    let a = 10;
+    let b = a - 15;
+    if (b == -5) { print("neg_result:ok"); }
+
+    print("probe2 done");
+}

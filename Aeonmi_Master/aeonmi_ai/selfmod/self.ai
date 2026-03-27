@@ -1,0 +1,25 @@
+⍝ self.ai — self-aware orchestrator: state = [learn_state, self_model]
+⍝ 4 functions, imports snapshot + model
+
+import { snap_mem_count, snap_pat_count, snap_pat_top, snap_strength_sum } from "./snapshot";
+import { mod_new, mod_read, mod_set, mod_sync } from "./model";
+
+◯ self_boot⟨⟩ {
+    return mod_new();
+}
+
+◯ self_inspect⟨self_mod, key⟩ {
+    return mod_read(self_mod, key);
+}
+
+◯ self_reflect⟨self_mod, learn_state⟩ {
+    return mod_sync(self_mod, learn_state);
+}
+
+◯ self_status⟨self_mod⟩ {
+    let mc = mod_read(self_mod, "mem_count");
+    let pc = mod_read(self_mod, "pat_count");
+    if (mc == 0) { return 0; }
+    if (pc == 0) { return 1; }
+    return 2;
+}

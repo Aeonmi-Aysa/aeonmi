@@ -1,0 +1,51 @@
+⍝ message_test.ai — Tests for net/message.ai
+import { msg_new, msg_from, msg_to, msg_type, msg_payload, msg_ts, mailbox_new, mailbox_send, mailbox_size, mailbox_for } from "./message";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Message construction
+    let m = msg_new(1, 2, 5, 999, 42);
+    p = p + check("msg from=1",    msg_from(m),    1);
+    p = p + check("msg to=2",      msg_to(m),      2);
+    p = p + check("msg type=5",    msg_type(m),    5);
+    p = p + check("msg payload=999", msg_payload(m), 999);
+    p = p + check("msg ts=42",     msg_ts(m),      42);
+
+    ⍝ Mailbox
+    let box = mailbox_new();
+    p = p + check("new box size=0", mailbox_size(box), 0);
+
+    let m1 = msg_new(1, 10, 1, 100, 1);
+    let m2 = msg_new(1, 20, 2, 200, 2);
+    let m3 = msg_new(2, 10, 3, 300, 3);
+
+    box = mailbox_send(box, m1);
+    box = mailbox_send(box, m2);
+    box = mailbox_send(box, m3);
+
+    p = p + check("box size=3", mailbox_size(box), 3);
+
+    ⍝ Filter for agent 10
+    let for10 = mailbox_for(box, 10);
+    p = p + check("for agent 10: 2 messages", mailbox_size(for10), 2);
+
+    ⍝ Filter for agent 20
+    let for20 = mailbox_for(box, 20);
+    p = p + check("for agent 20: 1 message", mailbox_size(for20), 1);
+    p = p + check("for20 msg payload=200", msg_payload(msg_new(
+        for20.slice(0,1).pop(), for20.slice(1,2).pop(),
+        for20.slice(2,3).pop(), for20.slice(3,4).pop(),
+        for20.slice(4,5).pop())), 200);
+
+    print("message tests passed:", p, "/ 10");
+}

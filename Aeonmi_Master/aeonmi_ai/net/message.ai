@@ -1,0 +1,65 @@
+⍝ message.ai — Inter-agent message passing
+⍝ Message = flat array: [from_id, to_id, type_id, payload, timestamp]
+⍝ Mailbox = flat array of messages (5 fields each)
+⍝ Functions: 11 total, no imports
+
+◯ mailbox_drain⟨box⟩ {
+    ⍝ Return copy of all messages (clear = return empty)
+    return box;
+}
+
+◯ mailbox_for⟨box, agent_id⟩ {
+    ⍝ Return messages addressed to agent_id
+    let result = [];
+    let total = len(box) / 5;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5;
+        let to = box.slice(base + 1, base + 2).pop();
+        if (to == agent_id) {
+            result.push(box.slice(base,   base+1).pop());
+            result.push(box.slice(base+1, base+2).pop());
+            result.push(box.slice(base+2, base+3).pop());
+            result.push(box.slice(base+3, base+4).pop());
+            result.push(box.slice(base+4, base+5).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ mailbox_new⟨⟩ {
+    return [];
+}
+
+◯ mailbox_send⟨box, msg⟩ {
+    ⍝ Append msg (5 fields) to mailbox
+    let result = [];
+    let i = 0; let total = len(box);
+    while (i < total) { result.push(box.slice(i, i+1).pop()); i = i + 1; }
+    result.push(msg.slice(0, 1).pop());
+    result.push(msg.slice(1, 2).pop());
+    result.push(msg.slice(2, 3).pop());
+    result.push(msg.slice(3, 4).pop());
+    result.push(msg.slice(4, 5).pop());
+    return result;
+}
+
+◯ mailbox_size⟨box⟩ {
+    return len(box) / 5;
+}
+
+◯ msg_from⟨m⟩    { return m.slice(0, 1).pop(); }
+◯ msg_new⟨from_id, to_id, type_id, payload, ts⟩ {
+    let r = [];
+    r.push(from_id); r.push(to_id); r.push(type_id); r.push(payload); r.push(ts);
+    return r;
+}
+◯ msg_payload⟨m⟩ { return m.slice(3, 4).pop(); }
+◯ msg_to⟨m⟩      { return m.slice(1, 2).pop(); }
+◯ msg_ts⟨m⟩      { return m.slice(4, 5).pop(); }
+◯ msg_type⟨m⟩    { return m.slice(2, 3).pop(); }
+
+◯ main⟨⟩ {
+    print("message module loaded — msg_new from to type payload ts | mailbox_new send size for drain");
+}

@@ -1,0 +1,116 @@
+⍝ measure.ai — Measurement result accumulator
+⍝ Results = flat array: [outcome0, count0, outcome1, count1, ...]
+⍝ Functions: 10 total, no imports
+
+◯ a_meas_find⟨r, outcome⟩ {
+    ⍝ Return index of outcome in results (-1 if absent)
+    let total = len(r) / 2;
+    let i = 0;
+    while (i < total) {
+        let o = r.slice(i * 2, i * 2 + 1).pop();
+        if (o == outcome) { return i * 2; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ meas_count⟨r, outcome⟩ {
+    ⍝ How many times was outcome observed?
+    let idx = a_meas_find(r, outcome);
+    if (idx == -1) { return 0; }
+    return r.slice(idx + 1, idx + 2).pop();
+}
+
+◯ meas_most_likely⟨r⟩ {
+    ⍝ Outcome with highest count
+    let total = len(r) / 2;
+    let best_outcome = -1;
+    let best_count = -1;
+    let i = 0;
+    while (i < total) {
+        let c = r.slice(i * 2 + 1, i * 2 + 2).pop();
+        if (c > best_count) {
+            best_count = c;
+            best_outcome = r.slice(i * 2, i * 2 + 1).pop();
+        }
+        i = i + 1;
+    }
+    return best_outcome;
+}
+
+◯ meas_new⟨⟩ {
+    return [];
+}
+
+◯ meas_outcome_at⟨r, i⟩ {
+    return r.slice(i * 2, i * 2 + 1).pop();
+}
+
+◯ meas_outcomes⟨r⟩ {
+    ⍝ Number of distinct outcomes recorded
+    return len(r) / 2;
+}
+
+◯ meas_record⟨r, outcome⟩ {
+    ⍝ Increment count for outcome (or insert with count 1)
+    let idx = a_meas_find(r, outcome);
+    if (idx == -1) {
+        ⍝ New outcome — append
+        let result = [];
+        let i = 0;
+        let total = len(r);
+        while (i < total) {
+            result.push(r.slice(i, i + 1).pop());
+            i = i + 1;
+        }
+        result.push(outcome);
+        result.push(1);
+        return result;
+    }
+    ⍝ Existing outcome — increment count at idx+1
+    let result = [];
+    let i = 0;
+    let total = len(r);
+    while (i < total) {
+        if (i == idx + 1) {
+            result.push(r.slice(i, i + 1).pop() + 1);
+        } else {
+            result.push(r.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ meas_top_count⟨r⟩ {
+    ⍝ Highest count in the result set
+    let total = len(r) / 2;
+    let best = 0;
+    let i = 0;
+    while (i < total) {
+        let c = r.slice(i * 2 + 1, i * 2 + 2).pop();
+        if (c > best) { best = c; }
+        i = i + 1;
+    }
+    return best;
+}
+
+◯ meas_total⟨r⟩ {
+    ⍝ Sum of all counts
+    let total = len(r) / 2;
+    let s = 0;
+    let i = 0;
+    while (i < total) {
+        s = s + r.slice(i * 2 + 1, i * 2 + 2).pop();
+        i = i + 1;
+    }
+    return s;
+}
+
+◯ main⟨⟩ {
+    let r = meas_new();
+    r = meas_record(r, 0);
+    r = meas_record(r, 1);
+    r = meas_record(r, 0);
+    print("measure module loaded — outcomes:", meas_outcomes(r), "total:", meas_total(r));
+}

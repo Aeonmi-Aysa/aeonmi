@@ -1,0 +1,45 @@
+⍝ maintenance_test.ai — 14 total functions across import chain → fast env-clone
+
+import { m_count, m_new, m_store } from "./memory_min";
+import { j_count, j_new } from "./journal_min";
+import { maint_decay_pass, maint_health_score, maint_report } from "./maintenance";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let m = m_new();
+    m = m_store(m, "a", "alpha");
+    m = m_store(m, "b", "beta");
+    let j = j_new();
+
+    let h0 = maint_health_score(m, 0.5);
+    p = p + check("health full strength", h0, 1);
+
+    let pair = maint_decay_pass(m, j, 0.4);
+    let m2 = pair.slice(0, 1).pop();
+    let j2 = pair.slice(1, 2).pop();
+
+    p = p + check("journal got decay event", j_count(j2), 1);
+    p = p + check("memory count unchanged", m_count(m2), 2);
+
+    let h2 = maint_health_score(m2, 0.5);
+    p = p + check("health after decay", h2, 0);
+
+    let report = maint_report(m, j, 0.5);
+    p = p + check("report total",   report.slice(0, 1).pop(), 2);
+    p = p + check("report active",  report.slice(1, 2).pop(), 2);
+    p = p + check("report events",  report.slice(2, 3).pop(), 0);
+
+    let hval = report.slice(3, 4).pop();
+    p = p + check("report health", hval, 1);
+
+    print("maintenance tests passed:", p, "/ 8");
+}
