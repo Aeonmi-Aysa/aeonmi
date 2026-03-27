@@ -1,0 +1,137 @@
+⍝ Aeonmi Collections Stdlib — arrays, objects, pipelines
+⍝ Primitives: map filter reduce range enumerate zip any all sort unique
+⍝             flatten keys values push pop slice reverse concat sum product
+⍝             object set_key get_key has_key delete_key len
+
+◯ first⟨arr⟩     { return arr[0]; }
+◯ last⟨arr⟩      { return arr[len(arr) - 1]; }
+◯ tail⟨arr⟩      { return slice(arr, 1); }
+◯ head⟨arr, n⟩   { return slice(arr, 0, n); }
+◯ take⟨arr, n⟩   { return slice(arr, 0, n); }
+◯ drop⟨arr, n⟩   { return slice(arr, n); }
+◯ count⟨arr, fn⟩ {
+    return len(filter(arr, fn));
+}
+◯ min_of⟨arr⟩ {
+    if (len(arr) == 0) { return null; }
+    return reduce(arr, ◯ __mn⟨a, b⟩ { if (a < b) { return a; } return b; });
+}
+◯ max_of⟨arr⟩ {
+    if (len(arr) == 0) { return null; }
+    return reduce(arr, ◯ __mx⟨a, b⟩ { if (a > b) { return a; } return b; });
+}
+◯ group_by⟨arr, fn⟩ {
+    let result = object(); let i = 0;
+    while (i < len(arr)) {
+        let key = toString(fn(arr[i]));
+        if (!has_key(result, key)) {
+            result = set_key(result, key, []);
+        }
+        let bucket = push(get_key(result, key), arr[i]);
+        result = set_key(result, key, bucket);
+        i = i + 1;
+    }
+    return result;
+}
+◯ frequency⟨arr⟩ {
+    let result = object(); let i = 0;
+    while (i < len(arr)) {
+        let k = toString(arr[i]);
+        if (has_key(result, k)) {
+            result = set_key(result, k, get_key(result, k) + 1);
+        } else {
+            result = set_key(result, k, 1);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+◯ partition⟨arr, fn⟩ {
+    let yes = []; let no = []; let i = 0;
+    while (i < len(arr)) {
+        if (fn(arr[i])) { yes = push(yes, arr[i]); }
+        else            { no  = push(no,  arr[i]); }
+        i = i + 1;
+    }
+    return [yes, no];
+}
+◯ chunk⟨arr, size⟩ {
+    if (size <= 0) { return []; }
+    let result = []; let i = 0;
+    while (i < len(arr)) {
+        result = push(result, slice(arr, i, i + size));
+        i = i + size;
+    }
+    return result;
+}
+◯ flat_map⟨arr, fn⟩ { return flatten(map(arr, fn)); }
+◯ tap⟨arr, fn⟩      { fn(arr); return arr; }
+◯ pipe⟨val, fns⟩ {
+    let r = val; let i = 0;
+    while (i < len(fns)) { r = fns[i](r); i = i + 1; }
+    return r;
+}
+◯ zip_with⟨a, b, fn⟩ {
+    let result = []; let i = 0; let n = min(len(a), len(b));
+    while (i < n) { result = push(result, fn(a[i], b[i])); i = i + 1; }
+    return result;
+}
+◯ index_of⟨arr, val⟩ {
+    let i = 0;
+    while (i < len(arr)) { if (arr[i] == val) { return i; } i = i + 1; }
+    return -1;
+}
+◯ includes⟨arr, val⟩ { return index_of(arr, val) >= 0; }
+◯ rotate⟨arr, n⟩ {
+    let sz = len(arr);
+    if (sz == 0) { return arr; }
+    let offset = int(fmod(n, sz));
+    if (offset < 0) { offset = offset + sz; }
+    return concat(slice(arr, offset), slice(arr, 0, offset));
+}
+◯ interleave⟨a, b⟩ {
+    let result = []; let i = 0; let na = len(a); let nb = len(b);
+    while (i < na || i < nb) {
+        if (i < na) { result = push(result, a[i]); }
+        if (i < nb) { result = push(result, b[i]); }
+        i = i + 1;
+    }
+    return result;
+}
+◯ dedupe_by⟨arr, fn⟩ {
+    let seen = []; let result = []; let i = 0;
+    while (i < len(arr)) {
+        let key = toString(fn(arr[i]));
+        if (!includes(seen, key)) { seen = push(seen, key); result = push(result, arr[i]); }
+        i = i + 1;
+    }
+    return result;
+}
+◯ merge_objects⟨a, b⟩ {
+    let result = a; let ks = keys(b); let i = 0;
+    while (i < len(ks)) {
+        result = set_key(result, ks[i], get_key(b, ks[i]));
+        i = i + 1;
+    }
+    return result;
+}
+◯ object_map⟨obj, fn⟩ {
+    let result = object(); let ks = keys(obj); let i = 0;
+    while (i < len(ks)) {
+        result = set_key(result, ks[i], fn(get_key(obj, ks[i])));
+        i = i + 1;
+    }
+    return result;
+}
+◯ object_filter⟨obj, fn⟩ {
+    let result = object(); let ks = keys(obj); let i = 0;
+    while (i < len(ks)) {
+        if (fn(ks[i], get_key(obj, ks[i]))) {
+            result = set_key(result, ks[i], get_key(obj, ks[i]));
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+print("[stdlib] collections.ai loaded");

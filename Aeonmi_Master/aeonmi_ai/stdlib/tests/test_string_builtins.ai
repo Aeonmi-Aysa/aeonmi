@@ -1,0 +1,55 @@
+⍝ test_string_builtins.ai — tests for string builtins
+
+print("=== upper/lower/trim ===");
+assert_eq(upper("hello"), "HELLO", "upper");
+assert_eq(lower("WORLD"), "world", "lower");
+assert_eq(trim("  hi  "), "hi", "trim");
+assert_eq(trim("\t\n hi \n\t"), "hi", "trim whitespace");
+
+print("=== split/join ===");
+let parts = split("a,b,c", ",");
+assert_eq(len(parts), 3, "split len");
+assert_eq(parts[0], "a", "split[0]");
+assert_eq(parts[2], "c", "split[2]");
+assert_eq(join(["x","y","z"], "-"), "x-y-z", "join");
+assert_eq(join(["one"], ","), "one", "join single");
+
+print("=== replace/contains/starts_with/ends_with ===");
+assert_eq(replace("hello world", "world", "Aeonmi"), "hello Aeonmi", "replace");
+assert_eq(replace("aaa", "a", "b"), "bbb", "replace all");
+assert(contains("quantum", "ant"), "contains mid");
+assert(!contains("hello", "xyz"), "contains false");
+assert(starts_with("Aeonmi", "Ae"), "starts_with true");
+assert(!starts_with("Aeonmi", "mi"), "starts_with false");
+assert(ends_with("Aeonmi", "mi"), "ends_with true");
+assert(!ends_with("Aeonmi", "Ae"), "ends_with false");
+
+print("=== substr/char_at/find ===");
+assert_eq(substr("abcdef", 2, 3), "cde", "substr(2,3)");
+assert_eq(substr("abcdef", 3), "def", "substr(3)");
+assert_eq(char_at("hello", 0), "h", "char_at(0)");
+assert_eq(char_at("hello", 4), "o", "char_at(4)");
+assert_eq(find("hello world", "world"), 6, "find found");
+assert_eq(find("hello", "xyz"), -1, "find missing");
+
+print("=== repeat/lines/str_len ===");
+assert_eq(repeat("ab", 3), "ababab", "repeat");
+assert_eq(repeat("x", 0), "", "repeat 0");
+let ls = lines("line1\nline2\nline3");
+assert_eq(len(ls), 3, "lines count");
+assert_eq(ls[0], "line1", "lines[0]");
+assert_eq(str_len("hello"), 5, "str_len ascii");
+assert_eq(str_len(""), 0, "str_len empty");
+
+print("=== pad_left/pad_right ===");
+assert_eq(pad_left("42", 5, "0"), "00042", "pad_left");
+assert_eq(pad_right("hi", 5, "."), "hi...", "pad_right");
+assert_eq(pad_left("toolong", 3, "0"), "toolong", "pad_left no-op");
+
+print("=== toString/toNumber ===");
+assert_eq(toString(42),   "42",   "toString number");
+assert_eq(toString(true), "true", "toString bool");
+assert_eq(toNumber("3.14"), 3.14, "toNumber float");
+assert_eq(toNumber("99"),   99,   "toNumber int");
+
+print("=== PASS ===");

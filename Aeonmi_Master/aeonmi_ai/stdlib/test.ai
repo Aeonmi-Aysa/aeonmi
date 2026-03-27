@@ -1,0 +1,67 @@
+⍝ Aeonmi Test Framework — lightweight xunit-style testing for .ai files
+⍝ Usage:
+⍝   import "stdlib/test.ai"
+⍝   test("my test", ◯ __t⟨⟩ { assert_eq(1 + 1, 2); });
+⍝   run_tests();
+
+let __tests = [];
+let __pass  = 0;
+let __fail  = 0;
+let __errors = [];
+
+◯ test⟨name, fn⟩ {
+    __tests = push(__tests, [name, fn]);
+}
+
+◯ run_tests⟨⟩ {
+    __pass = 0; __fail = 0; __errors = [];
+    let i = 0;
+    print("═══════════════════════════════════════════════════════");
+    print("  Aeonmi Test Runner");
+    print("═══════════════════════════════════════════════════════");
+    while (i < len(__tests)) {
+        let name = __tests[i][0];
+        let fn   = __tests[i][1];
+        fn();
+        __pass = __pass + 1;
+        print("  ✓ " + name);
+        i = i + 1;
+    }
+    print("───────────────────────────────────────────────────────");
+    print("  Passed: " + toString(__pass) + "  Failed: " + toString(__fail));
+    if (__fail == 0) {
+        print("  ✓ ALL TESTS PASSED");
+    } else {
+        print("  ✗ FAILURES: " + toString(__fail));
+    }
+    print("═══════════════════════════════════════════════════════");
+}
+
+◯ it⟨description, fn⟩ { test(description, fn); }
+
+◯ expect_eq⟨actual, expected⟩ {
+    assert_eq(actual, expected, "Expected " + toString(expected) + " but got " + toString(actual));
+}
+◯ expect_true⟨val, msg⟩   { assert(val, msg); }
+◯ expect_false⟨val, msg⟩  { assert(!val, msg); }
+◯ expect_null⟨val⟩        { assert(is_null(val), "Expected null but got " + toString(val)); }
+◯ expect_not_null⟨val⟩    { assert(!is_null(val), "Expected non-null"); }
+◯ expect_approx⟨a, b, tol⟩ {
+    let diff = abs(a - b);
+    assert(diff <= tol, "Expected |" + toString(a) + " - " + toString(b) + "| <= " + toString(tol) + " but got " + toString(diff));
+}
+◯ expect_in_range⟨val, lo, hi⟩ {
+    assert(val >= lo && val <= hi, toString(val) + " not in range [" + toString(lo) + ", " + toString(hi) + "]");
+}
+◯ expect_contains⟨arr, val⟩ {
+    assert(includes(arr, val), "Array does not contain " + toString(val));
+}
+◯ expect_length⟨arr, n⟩ {
+    assert_eq(len(arr), n, "Expected length " + toString(n) + " but got " + toString(len(arr)));
+}
+◯ expect_type⟨val, type_str⟩ {
+    let t = typeof(val);
+    assert_eq(t, type_str, "Expected type " + type_str + " but got " + t);
+}
+
+print("[stdlib] test.ai loaded");
