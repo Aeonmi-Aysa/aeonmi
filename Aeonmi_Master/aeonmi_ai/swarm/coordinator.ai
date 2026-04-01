@@ -1,0 +1,168 @@
+﻿⍝ coordinator.ai — Agent registry and load balancing
+⍝ State: [n_slots, id0, role0, load0, status0, id1, role1, load1, status1, ...]
+⍝ role: 0=planner 1=executor 2=critic 3=memory 4=sensor
+⍝ status: 0=idle 1=busy 2=offline
+⍝ Stride = 4 per agent entry
+⍝ Functions: 11 total, no imports
+
+◯ a_coord_find⟨c, agent_id⟩ {
+    ⍝ Base index of agent_id, or -1 if absent
+    let n = (len(c) - 1) / 4;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let id = c.slice(base, base + 1).pop();
+        if (id == agent_id) { return base; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ coord_assign⟨c, agent_id⟩ {
+    ⍝ Increment load and mark agent busy
+    let idx = a_coord_find(c, agent_id);
+    if (idx == -1) { return c; }
+    let result = [];
+    let n = len(c);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 2) {
+            result.push(c.slice(i, i + 1).pop() + 1);
+        } else {
+            if (i == idx + 3) {
+                result.push(1);
+            } else {
+                result.push(c.slice(i, i + 1).pop());
+            }
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ coord_available⟨c⟩ {
+    ⍝ Count idle agents (status == 0)
+    let n = (len(c) - 1) / 4;
+    let count = 0;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let st = c.slice(base + 3, base + 4).pop();
+        if (st == 0) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ coord_best_agent⟨c, role⟩ {
+    ⍝ Lowest-load idle agent with given role (-1 if none)
+    let n = (len(c) - 1) / 4;
+    let best_id = -1;
+    let best_load = 1000000;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let id  = c.slice(base, base + 1).pop();
+        let rl  = c.slice(base + 1, base + 2).pop();
+        let ld  = c.slice(base + 2, base + 3).pop();
+        let st  = c.slice(base + 3, base + 4).pop();
+        if (rl == role && st == 0 && ld < best_load) {
+            best_load = ld;
+            best_id   = id;
+        }
+        i = i + 1;
+    }
+    return best_id;
+}
+
+◯ coord_free⟨c, agent_id⟩ {
+    ⍝ Decrement load, set idle if load reaches 0
+    let idx = a_coord_find(c, agent_id);
+    if (idx == -1) { return c; }
+    let cur_load = c.slice(idx + 2, idx + 3).pop();
+    let new_load = cur_load - 1;
+    if (new_load < 0) { new_load = 0; }
+    let new_status = 1;
+    if (new_load == 0) { new_status = 0; }
+    let result = [];
+    let n = len(c);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 2) {
+            result.push(new_load);
+        } else {
+            if (i == idx + 3) {
+                result.push(new_status);
+            } else {
+                result.push(c.slice(i, i + 1).pop());
+            }
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ coord_load⟨c, agent_id⟩ {
+    let idx = a_coord_find(c, agent_id);
+    if (idx == -1) { return -1; }
+    return c.slice(idx + 2, idx + 3).pop();
+}
+
+◯ coord_new⟨n_slots⟩ {
+    return [n_slots];
+}
+
+◯ coord_offline⟨c, agent_id⟩ {
+    ⍝ Mark agent status = 2 (offline)
+    let idx = a_coord_find(c, agent_id);
+    if (idx == -1) { return c; }
+    let result = [];
+    let n = len(c);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 3) {
+            result.push(2);
+        } else {
+            result.push(c.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ coord_register⟨c, agent_id, role⟩ {
+    ⍝ Add agent with load=0, status=0 (idle)
+    let result = [];
+    let n = len(c);
+    let i = 0;
+    while (i < n) {
+        result.push(c.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    result.push(agent_id);
+    result.push(role);
+    result.push(0);
+    result.push(0);
+    return result;
+}
+
+◯ coord_role⟨c, agent_id⟩ {
+    let idx = a_coord_find(c, agent_id);
+    if (idx == -1) { return -1; }
+    return c.slice(idx + 1, idx + 2).pop();
+}
+
+◯ coord_status⟨c, agent_id⟩ {
+    let idx = a_coord_find(c, agent_id);
+    if (idx == -1) { return -1; }
+    return c.slice(idx + 3, idx + 4).pop();
+}
+
+◯ main⟨⟩ {
+    let c = coord_new(10);
+    c = coord_register(c, 0, 0);
+    c = coord_register(c, 1, 1);
+    c = coord_register(c, 2, 1);
+    c = coord_assign(c, 1);
+    print("coordinator module loaded — available:", coord_available(c), "best_executor:", coord_best_agent(c, 1));
+}

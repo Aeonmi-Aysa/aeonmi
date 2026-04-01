@@ -1,0 +1,26 @@
+⍝ signal_test.ai — 6 total functions (4 imported + check + main)
+
+import { sig_make, sig_payload, sig_strength, sig_tag } from "./signal";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let s = sig_make("vis", "light", 8);
+
+    p = p + check("sig_tag",      sig_tag(s),      "vis");
+    p = p + check("sig_payload",  sig_payload(s),  "light");
+    p = p + check("sig_strength", sig_strength(s), 8);
+
+    let s2 = sig_make("aud", "tone", 3);
+    p = p + check("sig_tag2",     sig_tag(s2),     "aud");
+
+    print("signal tests passed:", p, "/ 4");
+}

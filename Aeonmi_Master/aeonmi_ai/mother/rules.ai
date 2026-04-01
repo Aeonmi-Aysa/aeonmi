@@ -1,0 +1,105 @@
+⍝ rules.ai — flat-array rule engine
+⍝ layout: [name0, cond_name0, action_name0, pri0, enabled0, ...]
+⍝ 5 fields per rule
+⍝ cond and action are stored as STRING names; caller passes actual fn refs separately
+⍝ helpers prefixed a_ to sort before rule_*
+
+◯ a_rule_find_idx⟨rules, name⟩ {
+    let total = len(rules) / 5;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5;
+        let n = rules.slice(base, base + 1).pop();
+        if (n == name) { return base; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ a_rule_set_enabled⟨rules, name, val⟩ {
+    let result = [];
+    let total = len(rules) / 5;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5;
+        let n  = rules.slice(base,     base + 1).pop();
+        let c  = rules.slice(base + 1, base + 2).pop();
+        let ac = rules.slice(base + 2, base + 3).pop();
+        let pr = rules.slice(base + 3, base + 4).pop();
+        let en = rules.slice(base + 4, base + 5).pop();
+        if (n == name) { en = val; }
+        result.push(n);
+        result.push(c);
+        result.push(ac);
+        result.push(pr);
+        result.push(en);
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ rule_disable⟨rules, name⟩ {
+    return a_rule_set_enabled(rules, name, false);
+}
+
+◯ rule_enable⟨rules, name⟩ {
+    return a_rule_set_enabled(rules, name, true);
+}
+
+◯ rule_enabled_count⟨rules⟩ {
+    let total = len(rules) / 5;
+    let count = 0;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5 + 4;
+        let en = rules.slice(base, base + 1).pop();
+        if (en == true) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ rule_find_action_name⟨rules, name⟩ {
+    let idx = a_rule_find_idx(rules, name);
+    if (idx == -1) { return "none"; }
+    return rules.slice(idx + 2, idx + 3).pop();
+}
+
+◯ rule_find_cond_name⟨rules, name⟩ {
+    let idx = a_rule_find_idx(rules, name);
+    if (idx == -1) { return "none"; }
+    return rules.slice(idx + 1, idx + 2).pop();
+}
+
+◯ rule_new⟨⟩ {
+    return [];
+}
+
+◯ rule_register⟨rules, name, cond_name, action_name, pri⟩ {
+    rules.push(name);
+    rules.push(cond_name);
+    rules.push(action_name);
+    rules.push(pri);
+    rules.push(true);
+    return rules;
+}
+
+◯ rule_total_count⟨rules⟩ {
+    return len(rules) / 5;
+}
+
+◯ r_fire⟨rules, cond_name⟩ {
+    let total = len(rules) / 5;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5;
+        let c  = rules.slice(base + 1, base + 2).pop();
+        let ac = rules.slice(base + 2, base + 3).pop();
+        let en = rules.slice(base + 4, base + 5).pop();
+        if (c == cond_name) {
+            if (en == true) { return ac; }
+        }
+        i = i + 1;
+    }
+    return "none";
+}

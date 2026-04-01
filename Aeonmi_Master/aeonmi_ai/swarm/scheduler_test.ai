@@ -1,0 +1,62 @@
+﻿⍝ scheduler_test.ai — Tests for swarm/scheduler.ai
+import { a_sched_find, sched_add, sched_agent_tasks, sched_count, sched_done, sched_fail, sched_new, sched_next, sched_pending, sched_running, sched_status } from "./scheduler";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ sched_new / sched_count
+    let q = sched_new(4);
+    p = p + check("new count=0", sched_count(q), 0);
+
+    ⍝ sched_add
+    q = sched_add(q, 101, 0, 5);
+    q = sched_add(q, 102, 0, 2);
+    q = sched_add(q, 103, 1, 8);
+    q = sched_add(q, 104, 2, 1);
+    p = p + check("count=4", sched_count(q), 4);
+
+    ⍝ sched_status (all pending = 0)
+    p = p + check("status(101)=0", sched_status(q, 101), 0);
+    p = p + check("status(999)=-1", sched_status(q, 999), -1);
+
+    ⍝ sched_pending
+    p = p + check("pending=4", sched_pending(q), 4);
+
+    ⍝ sched_next — lowest priority number wins
+    p = p + check("next(agent0)=102", sched_next(q, 0), 102);
+    p = p + check("next(agent1)=103", sched_next(q, 1), 103);
+    p = p + check("next(agent2)=104", sched_next(q, 2), 104);
+    p = p + check("next(agent3)=-1", sched_next(q, 3), -1);
+
+    ⍝ sched_agent_tasks
+    p = p + check("agent_tasks(0)=2", sched_agent_tasks(q, 0), 2);
+    p = p + check("agent_tasks(1)=1", sched_agent_tasks(q, 1), 1);
+
+    ⍝ sched_running
+    q = sched_running(q, 102);
+    p = p + check("status(102)=1", sched_status(q, 102), 1);
+    p = p + check("pending now=3", sched_pending(q), 3);
+
+    ⍝ sched_done
+    q = sched_done(q, 102);
+    p = p + check("status(102)=2", sched_status(q, 102), 2);
+
+    ⍝ sched_fail
+    q = sched_fail(q, 103);
+    p = p + check("status(103)=3", sched_status(q, 103), 3);
+
+    ⍝ a_sched_find
+    p = p + check("find(101)=1", a_sched_find(q, 101), 1);
+    p = p + check("find(999)=-1", a_sched_find(q, 999), -1);
+
+    print("scheduler tests passed:", p, "/ 18");
+}

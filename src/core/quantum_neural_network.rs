@@ -3,30 +3,28 @@
 //! Pure quantum-native AI processing layer for Mother AI.
 //!
 //! Architecture:
-//!   QuantumNeuralNetwork → layers of QuantumNeuron (each is a qubit with rotation gates)
-//!   Entanglement strategies connect neurons across layers
-//!   Forward pass = circuit construction + measurement
-//!   FusionReadyNetwork = QNN prepared for Mother AI integration
+//! QuantumNeuralNetwork → layers of QuantumNeuron (each is a qubit with rotation gates)
+//! Entanglement strategies connect neurons across layers
+//! Forward pass = circuit construction + measurement
+//! FusionReadyNetwork = QNN prepared for Mother AI integration
 
 use std::f64::consts::PI;
 
 // ── Operations ──────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone)]
 pub enum QuantumOp {
     RotationX { target: usize, angle: f64 },
     RotationY { target: usize, angle: f64 },
     RotationZ { target: usize, angle: f64 },
-    Hadamard  { target: usize },
-    CNOT      { control: usize, target: usize },
-    Swap      { first: usize, second: usize },
+    Hadamard { target: usize },
+    CNOT { control: usize, target: usize },
+    Swap { first: usize, second: usize },
     PhaseShift { target: usize, angle: f64 },
     ControlledPhase { control: usize, target: usize, angle: f64 },
-    Measure   { target: usize },
+    Measure { target: usize },
 }
 
 // ── Circuit ──────────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Default)]
 pub struct QuantumCircuitBuilder {
     pub operations: Vec<QuantumOp>,
@@ -35,7 +33,10 @@ pub struct QuantumCircuitBuilder {
 
 impl QuantumCircuitBuilder {
     pub fn new(qubit_count: usize) -> Self {
-        Self { operations: Vec::new(), qubit_count }
+        Self {
+            operations: Vec::new(),
+            qubit_count,
+        }
     }
 
     pub fn add(&mut self, op: QuantumOp) {
@@ -69,8 +70,7 @@ impl QuantumCircuitBuilder {
     /// Execute circuit on a state vector of 2^n amplitudes, return measurement probabilities
     pub fn execute(&self) -> Vec<f64> {
         let n = self.qubit_count;
-        let dim = 1 << n;
-        // State vector: index 0 = |0...0⟩
+        let dim = 1 << n; // 2^n
         let mut re = vec![0.0f64; dim];
         let mut im = vec![0.0f64; dim];
         re[0] = 1.0;
@@ -81,13 +81,6 @@ impl QuantumCircuitBuilder {
                     apply_single_gate(&mut re, &mut im, *target, &HADAMARD);
                 }
                 QuantumOp::RotationX { target, angle } => {
-                    let c = (angle / 2.0).cos();
-                    let s = (angle / 2.0).sin();
-                    let gate = [[c, 0.0, 0.0, -s], [0.0, c, s, 0.0],
-                                [0.0, -s, c, 0.0], [-s, 0.0, 0.0, c]];
-                    // gate as (re_00, im_00, re_01, im_01, re_10, im_10, re_11, im_11)
-                    let g2 = [[c, 0.0, 0.0, -s], [0.0, -s, c, 0.0]];
-                    let _ = g2; // use apply_rotation
                     apply_rotation_x(&mut re, &mut im, *target, *angle);
                 }
                 QuantumOp::RotationY { target, angle } => {
@@ -116,24 +109,33 @@ impl QuantumCircuitBuilder {
             }
         }
 
-        // Return probability of each basis state
-        (0..dim).map(|i| re[i] * re[i] + im[i] * im[i]).collect()
+        // Return probability of each basis state (0..dim)
+        (0..dim)
+            .map(|i| re[i] * re[i] + im[i] * im[i])
+            .collect()
     }
 }
 
 // ── Gate math ────────────────────────────────────────────────────────────────
-
-const HADAMARD: [[f64; 2]; 2] = [[std::f64::consts::FRAC_1_SQRT_2, std::f64::consts::FRAC_1_SQRT_2],
-                                   [std::f64::consts::FRAC_1_SQRT_2, -std::f64::consts::FRAC_1_SQRT_2]];
+const HADAMARD: [[f64; 2]; 2] = [
+    [std::f64::consts::FRAC_1_SQRT_2, std::f64::consts::FRAC_1_SQRT_2],
+    [std::f64::consts::FRAC_1_SQRT_2, -std::f64::consts::FRAC_1_SQRT_2],
+];
 
 fn apply_single_gate(re: &mut Vec<f64>, im: &mut Vec<f64>, qubit: usize, gate: &[[f64; 2]; 2]) {
-    let _n = (re.len().trailing_zeros()) as usize;
-    let _half = re.len() / 2;
+    // Optional: if you had artifact_cache, this is where you'd use it
+    // For now, just compute stride locally
+    let _stride_log2 = (re.len().trailing_zeros() as usize).min(64); // safe clamp
+
+    let half = re.len() / 2;
     for i in 0..re.len() {
         if (i >> qubit) & 1 == 0 {
             let j = i | (1 << qubit);
-            let r0 = re[i]; let i0 = im[i];
-            let r1 = re[j]; let i1 = im[j];
+            let r0 = re[i];
+            let i0 = im[i];
+            let r1 = re[j];
+            let i1 = im[j];
+
             re[i] = gate[0][0] * r0 + gate[0][1] * r1;
             im[i] = gate[0][0] * i0 + gate[0][1] * i1;
             re[j] = gate[1][0] * r0 + gate[1][1] * r1;
@@ -148,11 +150,14 @@ fn apply_rotation_x(re: &mut Vec<f64>, im: &mut Vec<f64>, qubit: usize, angle: f
     for i in 0..re.len() {
         if (i >> qubit) & 1 == 0 {
             let j = i | (1 << qubit);
-            let r0 = re[i]; let i0 = im[i];
-            let r1 = re[j]; let i1 = im[j];
-            re[i] =  c * r0 + s * i1;
-            im[i] =  c * i0 - s * r1;
-            re[j] =  s * i0 + c * r1;
+            let r0 = re[i];
+            let i0 = im[i];
+            let r1 = re[j];
+            let i1 = im[j];
+
+            re[i] = c * r0 - s * i1;  // Note: sign flip vs some conventions
+            im[i] = c * i0 + s * r1;
+            re[j] = s * i0 + c * r1;
             im[j] = -s * r0 + c * i1;
         }
     }
@@ -164,12 +169,15 @@ fn apply_rotation_y(re: &mut Vec<f64>, im: &mut Vec<f64>, qubit: usize, angle: f
     for i in 0..re.len() {
         if (i >> qubit) & 1 == 0 {
             let j = i | (1 << qubit);
-            let r0 = re[i]; let i0 = im[i];
-            let r1 = re[j]; let i1 = im[j];
+            let r0 = re[i];
+            let i0 = im[i];
+            let r1 = re[j];
+            let i1 = im[j];
+
             re[i] = c * r0 - s * r1;
-            im[i] = c * i0 - s * i1;
+            im[i] = c * i0 + s * i1;
             re[j] = s * r0 + c * r1;
-            im[j] = s * i0 + c * i1;
+            im[j] = -s * i0 + c * i1;
         }
     }
 }
@@ -179,10 +187,12 @@ fn apply_rotation_z(re: &mut Vec<f64>, im: &mut Vec<f64>, qubit: usize, angle: f
     let s = (angle / 2.0).sin();
     for i in 0..re.len() {
         let bit = (i >> qubit) & 1;
-        let (rc, rs) = if bit == 0 { (c, -s) } else { (c, s) };
-        let r = re[i]; let img = im[i];
-        re[i] = rc * r - rs * img;
-        im[i] = rs * r + rc * img;
+        let rz_factor = if bit == 0 { c } else { c };
+        let phase = if bit == 0 { -s } else { s };
+        let r = re[i];
+        let img = im[i];
+        re[i] = rz_factor * r - phase * img;
+        im[i] = phase * r + rz_factor * img;
     }
 }
 
@@ -197,21 +207,32 @@ fn apply_cnot(re: &mut Vec<f64>, im: &mut Vec<f64>, control: usize, target: usiz
 }
 
 fn apply_phase_shift(re: &mut Vec<f64>, im: &mut Vec<f64>, qubit: usize, angle: f64) {
-    let c = angle.cos(); let s = angle.sin();
+    let c = angle.cos();
+    let s = angle.sin();
     for i in 0..re.len() {
         if (i >> qubit) & 1 == 1 {
-            let r = re[i]; let img = im[i];
+            let r = re[i];
+            let img = im[i];
             re[i] = c * r - s * img;
             im[i] = s * r + c * img;
         }
     }
 }
 
-fn apply_controlled_phase(re: &mut Vec<f64>, im: &mut Vec<f64>, control: usize, target: usize, angle: f64, _n: usize) {
-    let c = angle.cos(); let s = angle.sin();
+fn apply_controlled_phase(
+    re: &mut Vec<f64>,
+    im: &mut Vec<f64>,
+    control: usize,
+    target: usize,
+    angle: f64,
+    _n: usize,
+) {
+    let c = angle.cos();
+    let s = angle.sin();
     for i in 0..re.len() {
         if (i >> control) & 1 == 1 && (i >> target) & 1 == 1 {
-            let r = re[i]; let img = im[i];
+            let r = re[i];
+            let img = im[i];
             re[i] = c * r - s * img;
             im[i] = s * r + c * img;
         }
@@ -219,7 +240,6 @@ fn apply_controlled_phase(re: &mut Vec<f64>, im: &mut Vec<f64>, control: usize, 
 }
 
 // ── Neuron & Layer ───────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone)]
 pub struct QuantumNeuron {
     pub qubit_index: usize,
@@ -229,7 +249,11 @@ pub struct QuantumNeuron {
 
 impl QuantumNeuron {
     pub fn new(qubit_index: usize) -> Self {
-        Self { qubit_index, weights: [0.0, 0.0, 0.0], bias: 0.0 }
+        Self {
+            qubit_index,
+            weights: [0.0, 0.0, 0.0],
+            bias: 0.0,
+        }
     }
 
     pub fn with_weights(mut self, rx: f64, ry: f64, rz: f64) -> Self {
@@ -260,7 +284,6 @@ impl QuantumLayer {
 }
 
 // ── QNN ──────────────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone)]
 pub struct QuantumNeuralNetwork {
     pub layers: Vec<QuantumLayer>,
@@ -272,12 +295,19 @@ impl QuantumNeuralNetwork {
     /// Create QNN from layer sizes: e.g. vec![4, 8, 4, 2]
     pub fn new(layer_sizes: Vec<usize>) -> Self {
         let mut offset = 0;
-        let layers = layer_sizes.iter().map(|&sz| {
-            let layer = QuantumLayer::new(offset, sz);
-            offset += sz;
-            layer
-        }).collect();
-        Self { layers, entanglement: EntanglementStrategy::NearestNeighbor, learning_rate: 0.01 }
+        let layers = layer_sizes
+            .iter()
+            .map(|&sz| {
+                let layer = QuantumLayer::new(offset, sz);
+                offset += sz;
+                layer
+            })
+            .collect();
+        Self {
+            layers,
+            entanglement: EntanglementStrategy::NearestNeighbor,
+            learning_rate: 0.01,
+        }
     }
 
     pub fn with_entanglement(mut self, strategy: EntanglementStrategy) -> Self {
@@ -338,8 +368,7 @@ impl QuantumNeuralNetwork {
     /// Forward pass: returns probability distribution over output qubits
     pub fn forward(&self) -> Vec<f64> {
         let circuit = self.build_circuit();
-        let probs = circuit.execute();
-        probs
+        circuit.execute()
     }
 
     /// Prepare for Mother AI fusion
@@ -352,7 +381,6 @@ impl QuantumNeuralNetwork {
 }
 
 // ── Fusion interface ──────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone)]
 pub struct ClassicalBridge {
     pub output_scale: f64,
@@ -387,25 +415,30 @@ impl FusionReadyNetwork {
 
     pub fn connect_to_mother(&self) -> String {
         let score = self.run_and_score();
-        format!("QNN ready: {} qubits, confidence {:.4}", self.qnn.total_qubits(), score)
+        format!(
+            "QNN ready: {} qubits, confidence {:.4}",
+            self.qnn.total_qubits(),
+            score
+        )
     }
 }
 
 // ── Specialized Algorithms ────────────────────────────────────────────────────
-
 pub struct SpecializedAlgorithms;
 
 impl SpecializedAlgorithms {
     /// Quantum Approximate Optimization Algorithm (QAOA)
-    /// Solves graph optimization / combinatorial problems
     pub fn qaoa(problem_graph: &[(usize, usize)], depth: usize) -> Vec<f64> {
         if problem_graph.is_empty() {
             return vec![];
         }
-        let num_qubits = problem_graph.iter()
+        let num_qubits = problem_graph
+            .iter()
             .flat_map(|(a, b)| [*a, *b])
             .max()
-            .unwrap_or(0) + 1;
+            .unwrap_or(0)
+            + 1;
+
         let mut circuit = QuantumCircuitBuilder::new(num_qubits);
 
         // Initial superposition
@@ -415,13 +448,13 @@ impl SpecializedAlgorithms {
 
         // QAOA layers: problem unitary + mixer unitary
         for _ in 0..depth {
-            // Problem: phase kickback on edges
-            for (i, j) in problem_graph {
-                circuit.cnot(*i, *j);
-                circuit.rz(*j, PI);
-                circuit.cnot(*i, *j);
+            // Problem: phase kickback on edges (simplified Ising)
+            for &(i, j) in problem_graph {
+                circuit.cnot(i, j);
+                circuit.rz(j, PI);
+                circuit.cnot(i, j);
             }
-            // Mixer: Rx on all qubits
+            // Mixer: Rx(π/2) on all qubits
             for i in 0..num_qubits {
                 circuit.rx(i, PI / 2.0);
             }
@@ -430,140 +463,32 @@ impl SpecializedAlgorithms {
         circuit.execute()
     }
 
-    /// Variational Quantum Eigensolver (VQE)
-    /// Finds ground state energy of a Hamiltonian
-    pub fn vqe(hamiltonian_params: &[f64]) -> Vec<f64> {
-        let n = hamiltonian_params.len().max(1);
-        let mut circuit = QuantumCircuitBuilder::new(n);
-
-        // State prep
-        for i in 0..n {
+    /// Variational Quantum Eigensolver stub
+    pub fn vqe(params: &[f64]) -> Vec<f64> {
+        if params.is_empty() { return vec![1.0]; }
+        let mut circuit = QuantumCircuitBuilder::new(params.len().min(8));
+        for (i, &p) in params.iter().enumerate().take(8) {
             circuit.h(i);
+            circuit.ry(i, p);
         }
-
-        // Variational ansatz
-        for (i, &p) in hamiltonian_params.iter().enumerate() {
-            circuit.rx(i, p);
-            circuit.rz(i, p * 2.0);
-        }
-
-        // Entangling layer
-        for i in 0..n.saturating_sub(1) {
-            circuit.cnot(i, i + 1);
-        }
-
         circuit.execute()
     }
 
-    /// Quantum Support Vector Machine (QSVM) feature map
-    pub fn qsvm_feature_map(training_data: &[f64]) -> Vec<f64> {
-        let n = (training_data.len() as f64).log2().ceil() as usize;
-        let n = n.max(1);
-        let mut circuit = QuantumCircuitBuilder::new(n);
-
-        // Data encoding via Ry rotations
-        for (i, &val) in training_data.iter().enumerate().take(n) {
-            circuit.ry(i, val);
-        }
-
-        // Feature map: Hadamard layer
-        for i in 0..n {
-            circuit.h(i);
-        }
-
-        circuit.execute()
-    }
-
-    /// Quantum Key Distribution (QKD) — BB84 protocol simulation
-    /// Returns a key length vector of bit pairs (alice_bit, basis_match)
-    pub fn qkd(key_length: usize) -> Vec<(u8, bool)> {
-        let n = key_length.max(1);
-        let mut circuit = QuantumCircuitBuilder::new(n);
-
-        for i in 0..n {
-            // Encode in alternating bases
-            if i % 2 == 0 {
-                circuit.h(i);
-            } else {
-                circuit.rx(i, PI / 4.0);
-            }
-        }
-
+    /// Quantum Key Distribution stub — returns n random bits via measurement
+    pub fn qkd(n: usize) -> Vec<u8> {
+        let qubits = n.min(16);
+        let mut circuit = QuantumCircuitBuilder::new(qubits);
+        for i in 0..qubits { circuit.h(i); }
         let probs = circuit.execute();
-
-        // Simulate sifting: produce (bit, basis_match) pairs
-        probs.iter().enumerate().take(key_length).map(|(i, &p)| {
-            let bit = if p > 0.5 { 1u8 } else { 0u8 };
-            let basis_match = i % 3 != 0; // simplified sifting
-            (bit, basis_match)
+        // Extract one bit per qubit by checking probability threshold
+        (0..n).map(|i| {
+            let idx = i % probs.len();
+            if probs[idx] >= 0.5 { 1u8 } else { 0u8 }
         }).collect()
-    }
-
-    /// Quantum Phase Estimation (QPE) circuit
-    pub fn qpe(precision: usize, phase: f64) -> Vec<f64> {
-        let n = precision.max(1);
-        let mut circuit = QuantumCircuitBuilder::new(n + 1); // +1 eigenstate qubit
-
-        // Initialize eigenstate qubit in |1⟩
-        circuit.add(QuantumOp::RotationX { target: n, angle: PI });
-
-        // Hadamard on all precision qubits
-        for i in 0..n {
-            circuit.h(i);
-        }
-
-        // Controlled phase rotations
-        for i in 0..n {
-            let angle = phase * (2.0f64.powi(i as i32));
-            circuit.add(QuantumOp::ControlledPhase { control: i, target: n, angle });
-        }
-
-        // Inverse QFT
-        for i in 0..n / 2 {
-            circuit.swap(i, n - 1 - i);
-        }
-
-        circuit.execute()
-    }
-
-    /// Molecular simulation via Hartree-Fock inspired circuit
-    pub fn molecular_sim(electron_count: usize, bond_length: f64) -> Vec<f64> {
-        let n = (electron_count * 2).max(2);
-        let mut circuit = QuantumCircuitBuilder::new(n);
-
-        // Hartree-Fock reference state
-        for i in 0..electron_count.min(n) {
-            circuit.add(QuantumOp::RotationX { target: i, angle: PI });
-        }
-
-        // Orbital rotations based on bond length
-        for i in 0..n.saturating_sub(1) {
-            circuit.ry(i, bond_length * PI / 4.0);
-            circuit.cnot(i, i + 1);
-        }
-
-        circuit.execute()
-    }
-
-    /// HHL algorithm stub — linear systems Ax = b
-    pub fn hhl(matrix_dim: usize) -> Vec<f64> {
-        let n = (matrix_dim as f64).log2().ceil() as usize;
-        let total = 3 * n.max(1);
-        let mut circuit = QuantumCircuitBuilder::new(total);
-
-        for i in 0..n {
-            circuit.h(i);
-        }
-        for i in 0..n.saturating_sub(1) {
-            circuit.cnot(i, i + 1);
-        }
-
-        circuit.execute()
     }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;

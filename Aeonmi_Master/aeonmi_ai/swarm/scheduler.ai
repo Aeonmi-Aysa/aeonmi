@@ -1,0 +1,161 @@
+﻿⍝ scheduler.ai — Priority task queue for multi-agent swarm
+⍝ State: [n_agents, id0, agent0, pri0, status0, id1, agent1, pri1, status1, ...]
+⍝ Task status: 0=pending 1=running 2=done 3=failed
+⍝ Priority: lower number = higher urgency
+⍝ Functions: 11 total, no imports
+
+◯ a_sched_find⟨q, task_id⟩ {
+    ⍝ Base index of task_id in queue, or -1 if absent
+    let n = (len(q) - 1) / 4;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let id = q.slice(base, base + 1).pop();
+        if (id == task_id) { return base; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ sched_add⟨q, task_id, agent_id, priority⟩ {
+    ⍝ Append new pending task
+    let result = [];
+    let n = len(q);
+    let i = 0;
+    while (i < n) {
+        result.push(q.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    result.push(task_id);
+    result.push(agent_id);
+    result.push(priority);
+    result.push(0);
+    return result;
+}
+
+◯ sched_agent_tasks⟨q, agent_id⟩ {
+    ⍝ Count all tasks (any status) assigned to agent_id
+    let n = (len(q) - 1) / 4;
+    let count = 0;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let ag = q.slice(base + 1, base + 2).pop();
+        if (ag == agent_id) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ sched_count⟨q⟩ {
+    return (len(q) - 1) / 4;
+}
+
+◯ sched_done⟨q, task_id⟩ {
+    ⍝ Mark task status = 2 (done)
+    let idx = a_sched_find(q, task_id);
+    if (idx == -1) { return q; }
+    let result = [];
+    let n = len(q);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 3) {
+            result.push(2);
+        } else {
+            result.push(q.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ sched_fail⟨q, task_id⟩ {
+    ⍝ Mark task status = 3 (failed)
+    let idx = a_sched_find(q, task_id);
+    if (idx == -1) { return q; }
+    let result = [];
+    let n = len(q);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 3) {
+            result.push(3);
+        } else {
+            result.push(q.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ sched_new⟨n_agents⟩ {
+    return [n_agents];
+}
+
+◯ sched_next⟨q, agent_id⟩ {
+    ⍝ task_id of highest-priority pending task for agent (-1 if none)
+    let n = (len(q) - 1) / 4;
+    let best_id = -1;
+    let best_pri = 1000000;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let id  = q.slice(base, base + 1).pop();
+        let ag  = q.slice(base + 1, base + 2).pop();
+        let pri = q.slice(base + 2, base + 3).pop();
+        let st  = q.slice(base + 3, base + 4).pop();
+        if (ag == agent_id && st == 0 && pri < best_pri) {
+            best_pri = pri;
+            best_id  = id;
+        }
+        i = i + 1;
+    }
+    return best_id;
+}
+
+◯ sched_pending⟨q⟩ {
+    ⍝ Count tasks with status == 0
+    let n = sched_count(q);
+    let count = 0;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 4;
+        let st = q.slice(base + 3, base + 4).pop();
+        if (st == 0) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ sched_running⟨q, task_id⟩ {
+    ⍝ Mark task status = 1 (running)
+    let idx = a_sched_find(q, task_id);
+    if (idx == -1) { return q; }
+    let result = [];
+    let n = len(q);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 3) {
+            result.push(1);
+        } else {
+            result.push(q.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ sched_status⟨q, task_id⟩ {
+    ⍝ Get status of task (-1 if absent)
+    let idx = a_sched_find(q, task_id);
+    if (idx == -1) { return -1; }
+    return q.slice(idx + 3, idx + 4).pop();
+}
+
+◯ main⟨⟩ {
+    let q = sched_new(3);
+    q = sched_add(q, 1, 0, 5);
+    q = sched_add(q, 2, 0, 2);
+    q = sched_add(q, 3, 1, 8);
+    let next = sched_next(q, 0);
+    print("scheduler module loaded — tasks:", sched_count(q), "next for agent 0:", next);
+}

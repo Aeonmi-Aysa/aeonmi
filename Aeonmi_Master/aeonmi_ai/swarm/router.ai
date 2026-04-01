@@ -1,0 +1,109 @@
+﻿⍝ router.ai — Message routing table for swarm agents
+⍝ Routes (from_agent_id, topic_id) -> to_agent_id
+⍝ State: [n_agents, from0, to0, topic0, from1, to1, topic1, ...]
+⍝ Stride = 3 per rule
+⍝ Functions: 11 total, no imports
+
+◯ a_route_find⟨rt, from, topic⟩ {
+    ⍝ Base index of matching rule, or -1 if absent
+    let n = (len(rt) - 1) / 3;
+    let i = 0;
+    while (i < n) {
+        let base = 1 + i * 3;
+        let f = rt.slice(base, base + 1).pop();
+        let t = rt.slice(base + 2, base + 3).pop();
+        if (f == from && t == topic) { return base; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ route_add⟨rt, from, to, topic⟩ {
+    ⍝ Append routing rule
+    let result = [];
+    let n = len(rt);
+    let i = 0;
+    while (i < n) {
+        result.push(rt.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    result.push(from);
+    result.push(to);
+    result.push(topic);
+    return result;
+}
+
+◯ route_count⟨rt⟩ {
+    return (len(rt) - 1) / 3;
+}
+
+◯ route_del⟨rt, from, topic⟩ {
+    ⍝ Remove first rule matching (from, topic)
+    let idx = a_route_find(rt, from, topic);
+    if (idx == -1) { return rt; }
+    let result = [rt.slice(0, 1).pop()];
+    let n = len(rt);
+    let i = 1;
+    while (i < n) {
+        if (i != idx && i != idx + 1 && i != idx + 2) {
+            result.push(rt.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ route_dispatch⟨rt, from, topic, default_to⟩ {
+    ⍝ Return destination agent for (from, topic), or default_to
+    let idx = a_route_find(rt, from, topic);
+    if (idx == -1) { return default_to; }
+    return rt.slice(idx + 1, idx + 2).pop();
+}
+
+◯ route_from_at⟨rt, i⟩ {
+    return rt.slice(1 + i * 3, 2 + i * 3).pop();
+}
+
+◯ route_has⟨rt, from, topic⟩ {
+    let idx = a_route_find(rt, from, topic);
+    if (idx == -1) { return 0; }
+    return 1;
+}
+
+◯ route_new⟨n_agents⟩ {
+    return [n_agents];
+}
+
+◯ route_to_at⟨rt, i⟩ {
+    return rt.slice(2 + i * 3, 3 + i * 3).pop();
+}
+
+◯ route_topic_at⟨rt, i⟩ {
+    return rt.slice(3 + i * 3, 4 + i * 3).pop();
+}
+
+◯ route_update⟨rt, from, to, topic⟩ {
+    ⍝ Update destination for existing rule (from, topic)
+    let idx = a_route_find(rt, from, topic);
+    if (idx == -1) { return route_add(rt, from, to, topic); }
+    let result = [];
+    let n = len(rt);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 1) {
+            result.push(to);
+        } else {
+            result.push(rt.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ main⟨⟩ {
+    let rt = route_new(5);
+    rt = route_add(rt, 0, 1, 10);
+    rt = route_add(rt, 0, 2, 20);
+    rt = route_add(rt, 1, 3, 10);
+    print("router module loaded — rules:", route_count(rt), "dispatch(0,10):", route_dispatch(rt, 0, 10, -1));
+}

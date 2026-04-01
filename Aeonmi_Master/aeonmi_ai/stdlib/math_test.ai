@@ -1,0 +1,36 @@
+⍝ math_test.ai — Tests for stdlib/math.ai
+import { m_abs, m_max, m_min, m_clamp, m_sign, m_sq, m_pow, m_gcd, m_lcm, m_sum, m_prod } from "./math";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("abs(-5)=5", m_abs(-5), 5);
+    p = p + check("abs(3)=3", m_abs(3), 3);
+    p = p + check("abs(0)=0", m_abs(0), 0);
+    p = p + check("max(3,7)=7", m_max(3, 7), 7);
+    p = p + check("min(3,7)=3", m_min(3, 7), 3);
+    p = p + check("clamp(5,1,10)=5", m_clamp(5, 1, 10), 5);
+    p = p + check("clamp(-2,1,10)=1", m_clamp(-2, 1, 10), 1);
+    p = p + check("clamp(15,1,10)=10", m_clamp(15, 1, 10), 10);
+    p = p + check("sign(-3)=-1", m_sign(-3), -1);
+    p = p + check("sign(0)=0", m_sign(0), 0);
+    p = p + check("sign(9)=1", m_sign(9), 1);
+    p = p + check("sq(4)=16", m_sq(4), 16);
+    p = p + check("pow(2,8)=256", m_pow(2, 8), 256);
+    p = p + check("pow(3,0)=1", m_pow(3, 0), 1);
+    p = p + check("gcd(12,8)=4", m_gcd(12, 8), 4);
+    p = p + check("gcd(7,5)=1", m_gcd(7, 5), 1);
+    p = p + check("sum([1,2,3,4])=10", m_sum([1, 2, 3, 4]), 10);
+    p = p + check("prod([2,3,4])=24", m_prod([2, 3, 4]), 24);
+
+    print("math tests passed:", p, "/ 18");
+}

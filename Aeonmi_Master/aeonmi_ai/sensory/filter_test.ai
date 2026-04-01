@@ -1,0 +1,36 @@
+⍝ filter_test.ai — 11 total functions (6 buf + 3 flt + check + main)
+
+import { buf_count, buf_new, buf_push } from "./buffer";
+import { flt_by_tag, flt_count_tag, flt_new } from "./filter";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let b = buf_new();
+
+    p = p + check("flt_count empty", flt_count_tag(b, "vis"), 0);
+
+    let b2 = buf_push(b,  "vis", "light", 8);
+    let b3 = buf_push(b2, "vis", "glow",  9);
+    let b4 = buf_push(b3, "aud", "tone",  3);
+
+    p = p + check("count vis",     flt_count_tag(b4, "vis"), 2);
+    p = p + check("count aud",     flt_count_tag(b4, "aud"), 1);
+    p = p + check("count unknown", flt_count_tag(b4, "tac"), 0);
+
+    let vis_buf = flt_by_tag(b4, "vis");
+    p = p + check("flt_by_tag len", buf_count(vis_buf), 2);
+
+    let aud_buf = flt_by_tag(b4, "aud");
+    p = p + check("flt_by_tag aud", buf_count(aud_buf), 1);
+
+    print("filter tests passed:", p, "/ 6");
+}

@@ -1,0 +1,45 @@
+⍝ ops.ai — Aeonmi operator registry (language self-description)
+⍝ Operator descriptor: flat array [op_id, arity, precedence, assoc]
+⍝ assoc: 0=left  1=right  2=none
+⍝ Functions: 12 total, no imports
+
+◯ op_add⟨⟩    { return 1; }   ⍝ +
+◯ op_and⟨⟩    { return 9; }   ⍝ logical &&
+◯ op_arity⟨id⟩ {
+    ⍝ Arity (1=unary, 2=binary)
+    if (id == 10) { return 1; }  ⍝ not
+    return 2;
+}
+◯ op_assoc⟨id⟩ {
+    ⍝ Associativity: 0=left, 1=right, 2=none
+    if (id >= 5) {
+        if (id <= 8) { return 2; }   ⍝ comparison ops: non-assoc
+    }
+    return 0;
+}
+◯ op_div⟨⟩    { return 4; }   ⍝ /
+◯ op_eq⟨⟩     { return 5; }   ⍝ ==
+◯ op_gt⟨⟩     { return 7; }   ⍝ >
+◯ op_lt⟨⟩     { return 8; }   ⍝ <
+◯ op_mul⟨⟩    { return 3; }   ⍝ *
+◯ op_not⟨⟩    { return 10; }  ⍝ logical !
+◯ op_or⟨⟩     { return 11; }  ⍝ logical ||
+◯ op_prec⟨id⟩ {
+    ⍝ Precedence level (higher = binds tighter)
+    if (id == 3) { return 50; }   ⍝ *
+    if (id == 4) { return 50; }   ⍝ /
+    if (id == 1) { return 40; }   ⍝ +
+    if (id == 2) { return 40; }   ⍝ -
+    if (id == 5) { return 30; }   ⍝ ==
+    if (id == 6) { return 30; }   ⍝ !=
+    if (id == 7) { return 30; }   ⍝ >
+    if (id == 8) { return 30; }   ⍝ <
+    if (id == 9) { return 20; }   ⍝ &&
+    if (id == 11) { return 10; }  ⍝ ||
+    if (id == 10) { return 60; }  ⍝ ! (unary, high prec)
+    return 0;
+}
+
+◯ main⟨⟩ {
+    print("ops module loaded — add sub mul div eq neq gt lt and or not + arity prec assoc");
+}

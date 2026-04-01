@@ -1,0 +1,137 @@
+⍝ list.ai — Higher-level array/list utilities (no imports)
+⍝ All operations on flat arrays of homogeneous values
+⍝ Functions: 11 total
+
+◯ l_at⟨arr, i⟩ {
+    ⍝ Get element at index i
+    return arr.slice(i, i + 1).pop();
+}
+
+◯ l_count⟨arr, val⟩ {
+    ⍝ Count occurrences of val in arr
+    let n = len(arr);
+    let c = 0;
+    let i = 0;
+    while (i < n) {
+        let v = arr.slice(i, i + 1).pop();
+        if (v == val) { c = c + 1; }
+        i = i + 1;
+    }
+    return c;
+}
+
+◯ l_drop⟨arr, n⟩ {
+    ⍝ Skip first n elements
+    let total = len(arr);
+    let result = [];
+    let i = n;
+    while (i < total) {
+        result.push(arr.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ l_fill⟨n, val⟩ {
+    ⍝ Create array of n copies of val
+    let result = [];
+    let i = 0;
+    while (i < n) {
+        result.push(val);
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ l_flatten2⟨a, b⟩ {
+    ⍝ Concatenate two arrays
+    let result = [];
+    let i = 0;
+    let na = len(a);
+    while (i < na) {
+        result.push(a.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    i = 0;
+    let nb = len(b);
+    while (i < nb) {
+        result.push(b.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ l_max⟨arr⟩ {
+    ⍝ Maximum value in array (requires len > 0)
+    let best = arr.slice(0, 1).pop();
+    let n = len(arr);
+    let i = 1;
+    while (i < n) {
+        let v = arr.slice(i, i + 1).pop();
+        if (v > best) { best = v; }
+        i = i + 1;
+    }
+    return best;
+}
+
+◯ l_min⟨arr⟩ {
+    ⍝ Minimum value in array (requires len > 0)
+    let best = arr.slice(0, 1).pop();
+    let n = len(arr);
+    let i = 1;
+    while (i < n) {
+        let v = arr.slice(i, i + 1).pop();
+        if (v < best) { best = v; }
+        i = i + 1;
+    }
+    return best;
+}
+
+◯ l_range⟨n⟩ {
+    ⍝ Generate [0, 1, 2, ..., n-1]
+    let result = [];
+    let i = 0;
+    while (i < n) {
+        result.push(i);
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ l_reverse⟨arr⟩ {
+    ⍝ Reverse array
+    let n = len(arr);
+    let result = [];
+    let i = n - 1;
+    while (i >= 0) {
+        result.push(arr.slice(i, i + 1).pop());
+        i = i - 1;
+    }
+    return result;
+}
+
+◯ l_sum⟨arr⟩ {
+    let n = len(arr);
+    let s = 0;
+    let i = 0;
+    while (i < n) {
+        s = s + arr.slice(i, i + 1).pop();
+        i = i + 1;
+    }
+    return s;
+}
+
+◯ l_take⟨arr, n⟩ {
+    ⍝ First n elements
+    let result = [];
+    let i = 0;
+    while (i < n) {
+        result.push(arr.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ main⟨⟩ {
+    print("list module loaded — at count drop fill flatten2 max min range reverse sum take");
+}

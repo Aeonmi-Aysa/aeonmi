@@ -1,0 +1,38 @@
+⍝ action_test.ai — Tests for agent/action.ai
+import { act_new, act_register, act_count, act_name, act_type, act_cost, act_enabled, act_find, act_cheapest, act_disable } from "./action";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    let reg = act_new();
+    p = p + check("new: count=0", act_count(reg), 0);
+
+    ⍝ Register: name_id=10 type=1 cost=5, name_id=20 type=2 cost=3, name_id=30 type=1 cost=8
+    reg = act_register(reg, 10, 1, 5);
+    reg = act_register(reg, 20, 2, 3);
+    reg = act_register(reg, 30, 1, 8);
+
+    p = p + check("count=3", act_count(reg), 3);
+    p = p + check("name[0]=10", act_name(reg, 0), 10);
+    p = p + check("type[1]=2", act_type(reg, 1), 2);
+    p = p + check("cost[2]=8", act_cost(reg, 2), 8);
+    p = p + check("enabled[0]=1", act_enabled(reg, 0), 1);
+    p = p + check("find(20)=1", act_find(reg, 20), 1);
+    p = p + check("find(99)=-1", act_find(reg, 99), -1);
+    p = p + check("cheapest=20(cost=3)", act_cheapest(reg), 20);
+
+    reg = act_disable(reg, 1);
+    p = p + check("after disable[1]: enabled=0", act_enabled(reg, 1), 0);
+    p = p + check("cheapest now=10(cost=5)", act_cheapest(reg), 10);
+
+    print("action tests passed:", p, "/ 11");
+}

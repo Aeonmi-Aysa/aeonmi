@@ -1,0 +1,41 @@
+⍝ learn.ai — learning loop orchestrator
+⍝ state = [patterns, memory] (2-element array)
+⍝ 4 functions, imports pattern + reinforce
+
+import { pat_add, pat_count, pat_new, pat_top } from "./pattern";
+import { reinf_decay, reinf_new, reinf_score, reinf_touch } from "./reinforce";
+
+◯ learn_absorb⟨state, key⟩ {
+    let pat = state.slice(0, 1).pop();
+    let mem = state.slice(1, 2).pop();
+    let pat2 = pat_add(pat, key);
+    let mem2 = reinf_touch(mem, key);
+    let out = [];
+    out.push(pat2);
+    out.push(mem2);
+    return out;
+}
+
+◯ learn_cycle⟨state, rate⟩ {
+    let pat = state.slice(0, 1).pop();
+    let mem = state.slice(1, 2).pop();
+    let mem2 = reinf_decay(mem, rate);
+    let out = [];
+    out.push(pat);
+    out.push(mem2);
+    return out;
+}
+
+◯ learn_new⟨⟩ {
+    let pat = pat_new();
+    let mem = reinf_new();
+    let out = [];
+    out.push(pat);
+    out.push(mem);
+    return out;
+}
+
+◯ learn_top⟨state⟩ {
+    let pat = state.slice(0, 1).pop();
+    return pat_top(pat);
+}

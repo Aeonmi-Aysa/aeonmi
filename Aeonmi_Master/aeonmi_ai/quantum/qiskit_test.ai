@@ -1,0 +1,43 @@
+⍝ qiskit_test.ai — Tests for qiskit.ai bridge descriptor
+import { qk_new, qk_add_gate, qk_add_cx, qk_add_measure, qk_op_count, qk_qubits, qk_shots, qk_op_type, qk_op_target, qk_op_ctrl } from "./qiskit";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Create Bell circuit descriptor
+    let d = qk_new(2, 2, 1024);
+    p = p + check("new: qubits=2", qk_qubits(d), 2);
+    p = p + check("new: shots=1024", qk_shots(d), 1024);
+    p = p + check("new: ops=0", qk_op_count(d), 0);
+
+    ⍝ Add H(0)
+    d = qk_add_gate(d, 0, 0);
+    p = p + check("after H: ops=1", qk_op_count(d), 1);
+    p = p + check("op0 type=0(H)", qk_op_type(d, 0), 0);
+    p = p + check("op0 target=0", qk_op_target(d, 0), 0);
+    p = p + check("op0 ctrl=-1", qk_op_ctrl(d, 0), -1);
+
+    ⍝ Add CX(ctrl=0, tgt=1)
+    d = qk_add_cx(d, 0, 1);
+    p = p + check("after CX: ops=2", qk_op_count(d), 2);
+    p = p + check("op1 type=4(CX)", qk_op_type(d, 1), 4);
+    p = p + check("op1 ctrl=0", qk_op_ctrl(d, 1), 0);
+
+    ⍝ Add MEASURE(0→c0) and MEASURE(1→c1)
+    d = qk_add_measure(d, 0, 0);
+    d = qk_add_measure(d, 1, 1);
+    p = p + check("after 2x MEASURE: ops=4", qk_op_count(d), 4);
+    p = p + check("op3 type=7(MEASURE)", qk_op_type(d, 3), 7);
+    p = p + check("op3 target=1", qk_op_target(d, 3), 1);
+
+    print("qiskit tests passed:", p, "/ 13");
+}

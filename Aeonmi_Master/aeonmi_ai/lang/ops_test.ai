@@ -1,0 +1,41 @@
+⍝ ops_test.ai — Tests for lang/ops.ai operator registry
+import { op_add, op_and, op_arity, op_assoc, op_div, op_eq, op_gt, op_lt, op_mul, op_not, op_or, op_prec } from "./ops";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("add=1",  op_add(), 1);
+    p = p + check("mul=3",  op_mul(), 3);
+    p = p + check("div=4",  op_div(), 4);
+    p = p + check("eq=5",   op_eq(),  5);
+    p = p + check("gt=7",   op_gt(),  7);
+    p = p + check("lt=8",   op_lt(),  8);
+    p = p + check("and=9",  op_and(), 9);
+    p = p + check("not=10", op_not(), 10);
+    p = p + check("or=11",  op_or(),  11);
+
+    ⍝ Precedence: * > + > == > && > ||
+    p = p + check("prec(*) > prec(+)", op_prec(op_mul()) > op_prec(op_add()), true);
+    p = p + check("prec(+) > prec(==)", op_prec(op_add()) > op_prec(op_eq()), true);
+    p = p + check("prec(==) > prec(&&)", op_prec(op_eq()) > op_prec(op_and()), true);
+    p = p + check("prec(!) > prec(*)", op_prec(op_not()) > op_prec(op_mul()), true);
+
+    ⍝ Arity
+    p = p + check("arity(+)=2",   op_arity(op_add()), 2);
+    p = p + check("arity(not)=1", op_arity(op_not()), 1);
+
+    ⍝ Assoc: comparison ops are non-assoc (2)
+    p = p + check("assoc(==)=2", op_assoc(op_eq()), 2);
+    p = p + check("assoc(+)=0",  op_assoc(op_add()), 0);
+
+    print("ops tests passed:", p, "/ 17");
+}

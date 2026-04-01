@@ -1,28 +1,34 @@
 //! AI Mother Module: multi-provider abstraction.
+//!
+//! Provider priority (first registered = preferred when no AEONMI_AI_PROVIDER set):
+//!   1. openrouter  — OpenRouter (OPENROUTER_API_KEY)   — always compiled
+//!   2. claude      — Anthropic  (ANTHROPIC_API_KEY)    — always compiled
+//!   3. openai      — OpenAI     (OPENAI_API_KEY)        — feature: ai-openai
+//!   4. copilot     — Copilot                            — feature: ai-copilot
+//!   5. perplexity  — Perplexity (PERPLEXITY_API_KEY)   — feature: ai-perplexity
+//!   6. deepseek    — DeepSeek   (DEEPSEEK_API_KEY)      — feature: ai-deepseek
+//!
+//! The preferred() method checks AEONMI_AI_PROVIDER env var first,
+//! then falls back to the first provider whose API key is set,
+//! then falls back to the first registered.
+
 use anyhow::Result;
 
 pub trait AiProvider: Send + Sync {
     fn name(&self) -> &'static str;
     fn chat(&self, prompt: &str) -> Result<String>;
-    /// Send a multi-turn conversation. Each element is (role, content) where role is
-    /// "user" or "assistant". Defaults to a single-turn call for providers that don't
-    /// override this.
-    fn chat_history(&self, messages: &[(&str, &str)]) -> Result<String> {
-        // Default: concatenate all turns and send as single prompt
-        let prompt = messages.iter()
-            .map(|(role, content)| format!("{}: {}", role, content))
-            .collect::<Vec<_>>()
-            .join("\n");
-        self.chat(&prompt)
-    }
     fn chat_stream(&self, _prompt: &str, _cb: &mut dyn FnMut(&str)) -> Result<()> {
-        // Default fallback: call non-streaming and emit once
         let full = self.chat(_prompt)?;
         _cb(&full);
         Ok(())
     }
 }
 
+// Always-compiled providers
+pub mod openrouter;
+pub mod claude;
+
+// Feature-gated providers
 #[cfg(feature = "ai-openai")]
 pub mod openai;
 #[cfg(feature = "ai-copilot")]
@@ -32,35 +38,20 @@ pub mod perplexity;
 #[cfg(feature = "ai-deepseek")]
 pub mod deepseek;
 
-// OpenRouter and Claude are feature-gated so reqwest is only pulled in when needed.
-#[cfg(feature = "ai-openrouter")]
-pub mod openrouter;
-#[cfg(feature = "ai-claude")]
-pub mod claude;
-
 pub struct AiRegistry {
     providers: Vec<Box<dyn AiProvider>>,
 }
 
 impl AiRegistry {
-    /// Alias for `from_env()` — backward-compatible constructor.
     pub fn new() -> Self {
-        Self::from_env()
-    }
-
-    /// Build a registry from runtime environment detection.
-    /// OpenRouter is checked first; Claude is the fallback.
-    pub fn from_env() -> Self {
         let mut r = Self { providers: Vec::new() };
-        #[cfg(feature = "ai-openrouter")]
-        if let Some(p) = openrouter::OpenRouter::from_env() {
-            r.providers.push(Box::new(p));
-        }
-        #[cfg(feature = "ai-claude")]
-        if let Some(p) = claude::Claude::from_env() {
-            r.providers.push(Box::new(p));
-        }
-        // Feature-gated legacy providers
+
+        // OpenRouter first — free tier available, Warren's current setup
+        r.providers.push(Box::new(openrouter::OpenRouter::default()));
+
+        // Claude second — when ANTHROPIC_API_KEY is set
+        r.providers.push(Box::new(claude::Claude::default()));
+
         #[cfg(feature = "ai-openai")]
         { r.providers.push(Box::new(openai::OpenAi::default())); }
         #[cfg(feature = "ai-copilot")]
@@ -69,33 +60,51 @@ impl AiRegistry {
         { r.providers.push(Box::new(perplexity::Perplexity::default())); }
         #[cfg(feature = "ai-deepseek")]
         { r.providers.push(Box::new(deepseek::DeepSeek::default())); }
+
         r
     }
 
-    /// Return the preferred (first available) provider, or `None` if none configured.
-    pub fn preferred(&self) -> Option<&dyn AiProvider> {
-        self.providers.first().map(|b| b.as_ref())
+    pub fn list(&self) -> Vec<&'static str> {
+        self.providers.iter().map(|p| p.name()).collect()
     }
 
-    /// Return a human-readable banner line describing the active AI provider.
-    pub fn banner(&self) -> String {
-        match self.preferred() {
-            Some(p) => format!("AI: {} ACTIVE ✓", p.name()),
-            None => "AI: No provider active — set OPENROUTER_API_KEY or ANTHROPIC_API_KEY".to_string(),
-        }
-    }
-
-    pub fn list(&self) -> Vec<&'static str> { self.providers.iter().map(|p| p.name()).collect() }
-    pub fn first(&self) -> Option<&Box<dyn AiProvider>> { self.providers.first() }
     pub fn get(&self, name: &str) -> Option<&dyn AiProvider> {
         self.providers.iter().find(|p| p.name() == name).map(|b| b.as_ref())
+    }
+
+    /// Returns the best available provider:
+    /// 1. Provider named by AEONMI_AI_PROVIDER env var (if set and found)
+    /// 2. First provider whose API key env var is set
+    /// 3. First registered provider
+    pub fn preferred(&self) -> Option<&dyn AiProvider> {
+        // Explicit override
+        if let Ok(name) = std::env::var("AEONMI_AI_PROVIDER") {
+            if let Some(p) = self.get(&name) {
+                return Some(p);
+            }
+        }
+
+        // Auto-detect: first provider with a key set
+        let key_vars = [
+            ("openrouter", "OPENROUTER_API_KEY"),
+            ("claude",     "ANTHROPIC_API_KEY"),
+            ("openai",     "OPENAI_API_KEY"),
+            ("perplexity", "PERPLEXITY_API_KEY"),
+            ("deepseek",   "DEEPSEEK_API_KEY"),
+        ];
+        for (provider_name, env_var) in &key_vars {
+            if std::env::var(env_var).is_ok() {
+                if let Some(p) = self.get(provider_name) {
+                    return Some(p);
+                }
+            }
+        }
+
+        // Fallback: first registered
+        self.providers.first().map(|b| b.as_ref())
     }
 }
 
 impl Default for AiRegistry {
-    fn default() -> Self {
-        Self::from_env()
-    }
+    fn default() -> Self { Self::new() }
 }
-
-

@@ -1,0 +1,38 @@
+⍝ filter.ai — route signals by tag or count
+⍝ 3 functions, no imports, operates on any [tag,payload,strength]*N array
+
+◯ flt_by_tag⟨buf, tag⟩ {
+    let n = len(buf) / 3;
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        let t = buf.slice(base, base + 1).pop();
+        let p = buf.slice(base + 1, base + 2).pop();
+        let s = buf.slice(base + 2, base + 3).pop();
+        if (t == tag) {
+            out.push(t);
+            out.push(p);
+            out.push(s);
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ flt_count_tag⟨buf, tag⟩ {
+    let n = len(buf) / 3;
+    let i = 0;
+    let count = 0;
+    while (i < n) {
+        let base = i * 3;
+        let t = buf.slice(base, base + 1).pop();
+        if (t == tag) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ flt_new⟨⟩ {
+    return [];
+}

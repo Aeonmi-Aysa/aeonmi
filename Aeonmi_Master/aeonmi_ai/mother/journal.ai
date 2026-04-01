@@ -1,0 +1,76 @@
+⍝ journal.ai — flat-array event log
+⍝ layout: [tag0, payload0, ts0, tag1, payload1, ts1, ...]
+⍝ 3 fields per entry; index arithmetic via slice/pop
+
+◯ journal_new⟨⟩ {
+    return [];
+}
+
+◯ journal_count⟨j⟩ {
+    return len(j) / 3;
+}
+
+◯ journal_append⟨j, tag, payload⟩ {
+    j.push(tag);
+    j.push(payload);
+    j.push(0);
+    return j;
+}
+
+◯ journal_get_tag⟨j, idx⟩ {
+    let base = idx * 3;
+    return j.slice(base, base + 1).pop();
+}
+
+◯ journal_get_payload⟨j, idx⟩ {
+    let base = idx * 3 + 1;
+    return j.slice(base, base + 1).pop();
+}
+
+◯ journal_get_ts⟨j, idx⟩ {
+    let base = idx * 3 + 2;
+    return j.slice(base, base + 1).pop();
+}
+
+◯ journal_query_payloads⟨j, target_tag⟩ {
+    let result = [];
+    let total = journal_count(j);
+    let i = 0;
+    while (i < total) {
+        let t = journal_get_tag(j, i);
+        if (t == target_tag) {
+            let p = journal_get_payload(j, i);
+            result.push(p);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ journal_last_tag⟨j⟩ {
+    let n = journal_count(j);
+    if (n == 0) { return "none"; }
+    return journal_get_tag(j, n - 1);
+}
+
+◯ journal_last_payload⟨j⟩ {
+    let n = journal_count(j);
+    if (n == 0) { return "none"; }
+    return journal_get_payload(j, n - 1);
+}
+
+◯ journal_recent⟨j, n⟩ {
+    let total = journal_count(j);
+    let start = total - n;
+    if (start < 0) { start = 0; }
+    let result = [];
+    let i = start;
+    while (i < total) {
+        let base = i * 3;
+        result.push(j.slice(base, base + 1).pop());
+        result.push(j.slice(base + 1, base + 2).pop());
+        result.push(j.slice(base + 2, base + 3).pop());
+        i = i + 1;
+    }
+    return result;
+}

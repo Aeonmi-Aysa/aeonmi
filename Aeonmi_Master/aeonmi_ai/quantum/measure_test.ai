@@ -1,0 +1,42 @@
+⍝ measure_test.ai — Tests for measure.ai result accumulator
+import { meas_new, meas_record, meas_count, meas_total, meas_outcomes, meas_most_likely, meas_top_count, meas_outcome_at } from "./measure";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    let r = meas_new();
+    p = p + check("new: outcomes=0", meas_outcomes(r), 0);
+    p = p + check("new: total=0", meas_total(r), 0);
+
+    ⍝ Record some shots
+    r = meas_record(r, 0);
+    r = meas_record(r, 0);
+    r = meas_record(r, 0);
+    r = meas_record(r, 1);
+    p = p + check("3x0+1x1: outcomes=2", meas_outcomes(r), 2);
+    p = p + check("3x0+1x1: total=4", meas_total(r), 4);
+    p = p + check("count(0)=3", meas_count(r, 0), 3);
+    p = p + check("count(1)=1", meas_count(r, 1), 1);
+    p = p + check("count(2)=0 missing", meas_count(r, 2), 0);
+    p = p + check("most_likely=0", meas_most_likely(r), 0);
+    p = p + check("top_count=3", meas_top_count(r), 3);
+    p = p + check("outcome_at(0)=0", meas_outcome_at(r, 0), 0);
+
+    ⍝ Add more of outcome 1 so it wins
+    r = meas_record(r, 1);
+    r = meas_record(r, 1);
+    r = meas_record(r, 1);
+    p = p + check("now count(1)=4", meas_count(r, 1), 4);
+    p = p + check("most_likely=1", meas_most_likely(r), 1);
+
+    print("measure tests passed:", p, "/ 12");
+}

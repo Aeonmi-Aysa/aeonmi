@@ -1,0 +1,38 @@
+⍝ rules_v2_test.ai — tests r_fire (new API)
+⍝ imports rules.ai (11 funcs) + 2 test funcs = 13 total → T(13) ≈ 8192 ops, fast
+
+import { rule_new, rule_register, rule_disable, r_fire } from "./rules";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let r = rule_new();
+    r = rule_register(r, "on_boot",  "cond_always", "act_log",    10);
+    r = rule_register(r, "on_learn", "cond_learn",  "act_store",   5);
+    r = rule_register(r, "on_decay", "cond_weak",   "act_forget",  1);
+
+    ⍝ fire matching enabled rule
+    p = p + check("fire cond_always",  r_fire(r, "cond_always"), "act_log");
+    p = p + check("fire cond_learn",   r_fire(r, "cond_learn"),  "act_store");
+    p = p + check("fire cond_weak",    r_fire(r, "cond_weak"),   "act_forget");
+
+    ⍝ fire with no match
+    p = p + check("fire no match",     r_fire(r, "cond_none"),   "none");
+
+    ⍝ fire disabled rule → none
+    r = rule_disable(r, "on_decay");
+    p = p + check("fire disabled rule", r_fire(r, "cond_weak"),  "none");
+
+    ⍝ other rules still fire after disable
+    p = p + check("other rules unaffected", r_fire(r, "cond_always"), "act_log");
+
+    print("rules_v2 tests passed:", p, "/ 6");
+}

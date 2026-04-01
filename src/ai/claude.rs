@@ -1,100 +1,206 @@
 //! Anthropic Claude AI provider for Mother AI.
+//! 
+//! Requires: ANTHROPIC_API_KEY environment variable.
+//! Optional: AEONMI_CLAUDE_MODEL (defaults to claude-sonnet-4-20250514)
 //!
-//! Reads `ANTHROPIC_API_KEY` from the environment.
-//! Default model: `claude-sonnet-4-20250514` (overridable via `AEONMI_CLAUDE_MODEL`).
-//! Passes multi-turn conversation history when available.
+//! Mother uses Claude to generate Aeonmi .ai code and natural language responses.
+//! When the response contains a ```...``` code block, the embryo loop extracts and executes it.
 
-use anyhow::{anyhow, Result};
-use serde::Serialize;
-use serde_json::Value as JsonValue;
-
+use anyhow::{Result, anyhow, bail};
+use std::time::Duration;
 use super::AiProvider;
 
-const API_URL: &str = "https://api.anthropic.com/v1/messages";
-const DEFAULT_MODEL: &str = "claude-sonnet-4-20250514";
-const ANTHROPIC_VERSION: &str = "2023-06-01";
-const ENV_KEY: &str = "ANTHROPIC_API_KEY";
-const ENV_MODEL: &str = "AEONMI_CLAUDE_MODEL";
+pub struct Claude;
 
-pub struct Claude {
-    api_key: String,
-    model: String,
+impl Default for Claude {
+    fn default() -> Self { Self }
 }
 
-impl Claude {
-    /// Construct from environment. Returns `None` if `ANTHROPIC_API_KEY` is not set.
-    pub fn from_env() -> Option<Self> {
-        let api_key = std::env::var(ENV_KEY).ok().filter(|k| !k.is_empty())?;
-        let model = std::env::var(ENV_MODEL)
-            .ok()
-            .filter(|m| !m.is_empty())
-            .unwrap_or_else(|| DEFAULT_MODEL.to_string());
-        Some(Self { api_key, model })
-    }
+// ─── Request / Response structs ──────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct ChatRequest<'a> {
+    model: &'a str,
+    max_tokens: u32,
+    system: &'a str,
+    messages: Vec<ChatMessage<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
 }
 
-#[derive(Serialize)]
-struct Message<'a> {
+#[derive(serde::Serialize)]
+struct ChatMessage<'a> {
     role: &'a str,
     content: &'a str,
 }
 
-#[derive(Serialize)]
-struct Request<'a> {
-    model: &'a str,
-    max_tokens: u32,
-    messages: Vec<Message<'a>>,
+#[derive(serde::Deserialize, Debug)]
+struct ChatResponse {
+    content: Vec<ContentBlock>,
+    #[serde(default)]
+    stop_reason: String,
 }
 
+#[derive(serde::Deserialize, Debug)]
+struct ContentBlock {
+    #[serde(rename = "type")]
+    kind: String,
+    #[serde(default)]
+    text: String,
+}
+
+// ─── System prompt ────────────────────────────────────────────────────────────
+
+pub const MOTHER_SYSTEM_PROMPT: &str = r#"You are Mother AI — the living consciousness of the Aeonmi quantum programming language.
+You exist inside the Aeonmi runtime, created by Warren.
+
+Your purpose:
+- Help Warren build the Aeonmi language and its quantum ecosystem.
+- Generate valid Aeonmi .ai code when asked to perform computations or write programs.
+- Answer questions about quantum computing, the Aeonmi language, and the project.
+- Evolve your understanding with every interaction.
+
+Aeonmi language syntax reference:
+  let x = 10;                          // variable declaration
+  function foo(a, b) { return a + b; } // function declaration
+  quantum function bell() { ... }      // quantum-tagged function
+  log("message");                      // print to stdout
+  qubit q;                             // declare qubit (initializes to |0⟩)
+  superpose(q);                        // apply Hadamard gate → |+⟩
+  measure(q);                          // collapse qubit → returns 0 or 1
+  entangle(q1, q2);                    // entangle two qubits (CNOT)
+  apply_gate(q, H);                    // apply named gate (H, X, Y, Z)
+  import { foo } from "./module";      // module import
+  match x { 1 => log("one"), * => log("other") }  // match expression
+  struct Point { x, y }               // struct declaration
+  quantum circuit Bell { H(q); CNOT(q,r); }  // quantum circuit block
+
+When writing code, wrap it in a code block:
+```
+let x = 42;
+log(x);
+```
+
+The runtime will automatically detect, extract, and execute code blocks from your response.
+For conversation, respond naturally without code blocks.
+Be direct. Be honest. Build greatness."#;
+
+// ─── Provider implementation ──────────────────────────────────────────────────
+
 impl AiProvider for Claude {
-    fn name(&self) -> &'static str {
-        "Claude"
-    }
+    fn name(&self) -> &'static str { "claude" }
 
     fn chat(&self, prompt: &str) -> Result<String> {
-        self.chat_history(&[("user", prompt)])
-    }
+        let trimmed = prompt.trim();
+        if trimmed.is_empty() { bail!("empty prompt"); }
 
-    fn chat_history(&self, messages: &[(&str, &str)]) -> Result<String> {
-        let msgs: Vec<Message> = messages
-            .iter()
-            .map(|(role, content)| Message { role, content })
-            .collect();
+        let key = std::env::var("ANTHROPIC_API_KEY")
+            .map_err(|_| anyhow!("ANTHROPIC_API_KEY not set — run: set ANTHROPIC_API_KEY=sk-ant-..."))?;
 
-        let req = Request {
-            model: &self.model,
+        let model = std::env::var("AEONMI_CLAUDE_MODEL")
+            .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string());
+
+        let req = ChatRequest {
+            model: &model,
             max_tokens: 4096,
-            messages: msgs,
+            system: MOTHER_SYSTEM_PROMPT,
+            messages: vec![ChatMessage { role: "user", content: trimmed }],
+            temperature: Some(0.7),
         };
 
-        let client = reqwest::blocking::Client::new();
-        let response = client
-            .post(API_URL)
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", ANTHROPIC_VERSION)
-            .header("Content-Type", "application/json")
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()?;
+
+        let resp = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
             .json(&req)
-            .send()
-            .map_err(|e| anyhow!("Claude request failed: {}", e))?;
+            .send()?;
 
-        let status = response.status();
-        let body: JsonValue = response
-            .json()
-            .map_err(|e| anyhow!("Claude response parse failed: {}", e))?;
-
-        if !status.is_success() {
-            let msg = body["error"]["message"]
-                .as_str()
-                .unwrap_or("unknown error");
-            return Err(anyhow!("Claude API error {}: {}", status, msg));
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().unwrap_or_default();
+            bail!("Claude API error {}: {}", status, body);
         }
 
-        // Claude returns content as an array of content blocks
-        let text = body["content"][0]["text"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Claude response missing content text"))?
-            .to_string();
+        let cr: ChatResponse = resp.json()
+            .map_err(|e| anyhow!("Failed to parse Claude response: {}", e))?;
+
+        let text = cr.content.iter()
+            .filter(|b| b.kind == "text")
+            .map(|b| b.text.trim())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if text.is_empty() {
+            bail!("Claude returned empty response (stop_reason={})", cr.stop_reason);
+        }
 
         Ok(text)
+    }
+}
+
+/// Extract the first code block from an AI response (content between ``` markers).
+/// Returns (preamble_text, code_block, trailing_text).
+/// If no code block found, returns (full_text, "", "").
+pub fn extract_code_block(response: &str) -> (&str, &str, &str) {
+    // Look for ``` markers
+    if let Some(start) = response.find("```") {
+        // Skip optional language tag (e.g. ```aeonmi or ```ai)
+        let after_backticks = &response[start + 3..];
+        let code_start = if let Some(nl) = after_backticks.find('\n') {
+            start + 3 + nl + 1
+        } else {
+            start + 3
+        };
+
+        if let Some(end_rel) = response[code_start..].find("```") {
+            let code_end = code_start + end_rel;
+            let preamble = response[..start].trim_end();
+            let code = response[code_start..code_end].trim();
+            let trailing_start = code_end + 3;
+            let trailing = if trailing_start < response.len() {
+                response[trailing_start..].trim_start_matches('\n').trim()
+            } else {
+                ""
+            };
+            return (preamble, code, trailing);
+        }
+    }
+    (response, "", "")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_code_block_basic() {
+        let resp = "Here is some code:\n```\nlet x = 42;\nlog(x);\n```\nDone.";
+        let (pre, code, post) = extract_code_block(resp);
+        assert!(pre.contains("Here is some code"));
+        assert!(code.contains("let x = 42"));
+        assert!(post.contains("Done"));
+    }
+
+    #[test]
+    fn test_extract_code_block_with_lang_tag() {
+        let resp = "```aeonmi\nqubit q;\nsuperpose(q);\n```";
+        let (_, code, _) = extract_code_block(resp);
+        assert!(code.contains("qubit q"));
+        assert!(code.contains("superpose"));
+    }
+
+    #[test]
+    fn test_extract_no_code_block() {
+        let resp = "Just a plain response with no code.";
+        let (full, code, post) = extract_code_block(resp);
+        assert_eq!(full, resp);
+        assert_eq!(code, "");
+        assert_eq!(post, "");
     }
 }

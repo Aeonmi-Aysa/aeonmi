@@ -1,0 +1,17 @@
+⍝ journal_min.ai — minimal journal module for maintenance/core chains
+⍝ flat: [tag0, payload0, ts0, ...] — 3 fields/entry
+
+◯ j_append⟨j, tag, payload⟩ {
+    j.push(tag);
+    j.push(payload);
+    j.push(0);
+    return j;
+}
+
+◯ j_count⟨j⟩ {
+    return len(j) / 3;
+}
+
+◯ j_new⟨⟩ {
+    return [];
+}

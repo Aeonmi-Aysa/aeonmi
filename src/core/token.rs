@@ -92,6 +92,7 @@ pub enum TokenKind {
     Self_,         // 'self'
     This,          // 'this'
     New,           // 'new'
+    Constructor,   // 'constructor'
     True,          // 'true' (also handled as BooleanLiteral)
     False,         // 'false'
     FString,       // f"..." interpolated strings
@@ -254,6 +255,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Self_ => "self",
             TokenKind::This => "this",
             TokenKind::New => "new",
+            TokenKind::Constructor => "constructor",
             TokenKind::True => "true",
             TokenKind::False => "false",
             TokenKind::FString => "f-string",

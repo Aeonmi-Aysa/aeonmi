@@ -1,0 +1,60 @@
+﻿⍝ sort_test.ai — Tests for stdlib/sort.ai
+import { a_find_max, a_find_min, a_swap, sort_asc, sort_desc, sort_is_asc, sort_is_desc, sort_max2, sort_med3, sort_min2, sort_pair } from "./sort";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ sort_max2 / sort_min2
+    p = p + check("max2(3,7)=7", sort_max2(3, 7), 7);
+    p = p + check("max2(9,2)=9", sort_max2(9, 2), 9);
+    p = p + check("min2(3,7)=3", sort_min2(3, 7), 3);
+    p = p + check("min2(9,2)=2", sort_min2(9, 2), 2);
+
+    ⍝ sort_pair
+    let pr = sort_pair(7, 2);
+    p = p + check("pair(7,2)[0]=2", pr.slice(0, 1).pop(), 2);
+    p = p + check("pair(7,2)[1]=7", pr.slice(1, 2).pop(), 7);
+    let pr2 = sort_pair(1, 5);
+    p = p + check("pair(1,5)[0]=1", pr2.slice(0, 1).pop(), 1);
+
+    ⍝ sort_med3
+    p = p + check("med3(3,1,2)=2", sort_med3(3, 1, 2), 2);
+    p = p + check("med3(9,5,7)=7", sort_med3(9, 5, 7), 7);
+
+    ⍝ a_find_min / a_find_max
+    let arr = [5, 2, 8, 1, 9];
+    p = p + check("find_min([5,2,8,1,9],0)=3", a_find_min(arr, 0), 3);
+    p = p + check("find_max([5,2,8,1,9],0)=4", a_find_max(arr, 0), 4);
+
+    ⍝ a_swap
+    let sw = a_swap([10, 20, 30], 0, 2);
+    p = p + check("swap([10,20,30],0,2)[0]=30", sw.slice(0, 1).pop(), 30);
+    p = p + check("swap([10,20,30],0,2)[2]=10", sw.slice(2, 3).pop(), 10);
+
+    ⍝ sort_asc
+    let s = sort_asc([5, 2, 8, 1, 9, 3]);
+    p = p + check("asc[0]=1", s.slice(0, 1).pop(), 1);
+    p = p + check("asc[5]=9", s.slice(5, 6).pop(), 9);
+    p = p + check("is_asc after sort_asc=1", sort_is_asc(s), 1);
+
+    ⍝ sort_desc
+    let d = sort_desc([5, 2, 8, 1, 9, 3]);
+    p = p + check("desc[0]=9", d.slice(0, 1).pop(), 9);
+    p = p + check("desc[5]=1", d.slice(5, 6).pop(), 1);
+    p = p + check("is_desc after sort_desc=1", sort_is_desc(d), 1);
+
+    ⍝ is_asc / is_desc on raw arrays
+    p = p + check("is_asc([1,2,3])=1", sort_is_asc([1, 2, 3]), 1);
+    p = p + check("is_asc([3,2,1])=0", sort_is_asc([3, 2, 1]), 0);
+
+    print("sort tests passed:", p, "/ 22");
+}

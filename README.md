@@ -1,322 +1,382 @@
 # Aeonmi
 
-Aeonmi is an experimental symbolic programming language exploring AI-native execution, quantum-style composition, and self-hosting compiler design.
+> **Built by AI for AI.** An AI-native programming language with a real Rust VM, 80+ native builtins, and a self-hosting compiler path.
 
-**Status:** active development — native VM complete, working language.
-
-Aeonmi combines:
-
-* a glyph-oriented surface language (`.ai`)
-* a symbolic composition model for dense data structures
-* a Rust runtime
-* a self-hosting compiler path through Shard
-* a symbolic optimization layer through QUBE
-* an experimental identity and vault layer
+[![Branch](https://img.shields.io/badge/branch-shard--v2--ecosystem-00ff88?style=flat-square)](https://github.com/Aeonmi-Aysa/aeonmi/tree/shard-v2-ecosystem)
+[![Language](https://img.shields.io/badge/language-Rust-bf00ff?style=flat-square)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-Proprietary-ffbb00?style=flat-square)](./LICENSE)
 
 ---
 
-## Core Idea
+## What Aeonmi actually is
 
-Aeonmi is built around a compact symbolic data algebra.
+Aeonmi is a symbolic programming language implemented in Rust. It has a complete pipeline:
 
-### Core glyph primitives
+```
+Source (.ai)  →  Lexer  →  Parser  →  AST  →  IR Lowering  →  Tree-walk VM
+```
 
-* `⧉` Array Genesis
-* `⟨⟩` Slice / Index
-* `…` Spread
-* `⊗` Tensor Product
-* `↦` Binding / Projection
+The VM is real. The builtins are real. The test suite passes. The compiler is not a toy.
 
-These operators are designed to keep large structures symbolic and composable for as long as possible before expansion or evaluation.
+The language was designed with one premise: **AI systems should be able to write, read, and reason about code at maximum symbolic density.** Every operator is chosen to minimize tokens while maximizing semantic clarity.
+
+This is not a proof-of-concept demo. This is an ongoing, honest build — documented exactly as it stands, including what doesn't work yet.
 
 ---
 
-## Example
+## What works right now
+
+| Feature | Status |
+|---|---|
+| `Aeonmi.exe native <file.ai>` | ✅ Works — full Lexer→Parser→AST→IR→VM pipeline |
+| 80+ native builtins | ✅ Works — math, string, array, object, JSON, functional |
+| Function definitions `◯ fn⟨args⟩ { }` | ✅ Works |
+| `let` bindings, `return`, `if/else`, `while` | ✅ Works |
+| `map`, `filter`, `reduce`, `sort`, `unique`, `flatten` | ✅ Works |
+| `object()`, `set_key()`, `get_key()`, `to_json()`, `parse_json()` | ✅ Works |
+| `range()`, `enumerate()`, `zip()`, `any()`, `all()` | ✅ Works |
+| Math constants `PI`, `E`, `TAU` | ✅ Works |
+| String ops: `split`, `join`, `upper`, `lower`, `trim`, `replace`, `contains` | ✅ Works |
+| Stdlib modules: math.ai, string.ai, collections.ai, io.ai, test.ai | ✅ Written, executable |
+| Test suite (3 files, ~120 assertions) | ✅ All passing |
+| `AeonmiStudio.exe` — IDE wrapper | ⚠️ Functional but pipeline panel is cosmetic animation |
+| `AeonmiDemo.exe` — showcase | ⚠️ Display only, no live VM execution |
+| QUBE quantum layer | 🔧 Partially implemented |
+| Identity Vault | 🔧 Experimental |
+| Import / module system | ❌ Not yet implemented |
+| `arr[i]` subscript syntax | ❌ Broken — use `arr.slice(i, i+1).pop()` |
+| `%` modulo operator | ❌ Not implemented as binary op |
+| `fmod()` builtin | ❌ Parse conflict — use `floor(x/2)*2` for even check |
+
+---
+
+## Quick start
+
+```bash
+# Run the native VM on a .ai file
+Aeonmi.exe native hello.ai
+
+# Or from source (Rust)
+cargo build --release
+./target/release/Aeonmi native hello.ai
+```
+
+### Hello World
 
 ```aeonmi
+⍝ hello.ai
+
+◯ greet⟨name⟩ {
+    let msg = "Hello, " + name + "!";
+    return msg;
+}
+
+print(greet("Quantum World"));
+```
+
+Output:
+```
+Hello, Quantum World!
+```
+
+---
+
+## Language syntax
+
+### Functions
+
+```aeonmi
+◯ add⟨a, b⟩ {
+    return a + b;
+}
+
+print(add(3, 4));   ⍝ → 7
+```
+
+- `◯` — function keyword (classical function)
+- `⟨ ⟩` — argument delimiters
+- `⍝` — comment
+
+### Let bindings
+
+```aeonmi
+let x = 42;
+let name = "Aeonmi";
+let flag = true;
+```
+
+### Control flow
+
+```aeonmi
+if (x > 10) {
+    print("big");
+} else {
+    print("small");
+}
+
+let i = 0;
+while (i < 5) {
+    print(i);
+    i = i + 1;
+}
+```
+
+### Arrays
+
+```aeonmi
+let nums = [1, 2, 3, 4, 5];
+print(len(nums));              ⍝ → 5
+print(nums.slice(0, 3));       ⍝ → [1, 2, 3]
+
+⍝ !! IMPORTANT: arr[i] does NOT work — use slice + pop
+let first = nums.slice(0, 1).pop();   ⍝ → 1
+let third = nums.slice(2, 3).pop();   ⍝ → 3
+```
+
+### Higher-order functions
+
+```aeonmi
+◯ double⟨x⟩ { return x * 2; }
+◯ even⟨x⟩   { return floor(x/2)*2 == x; }
+◯ add⟨a, b⟩  { return a + b; }
+
+let nums = [1, 2, 3, 4, 5];
+
+print(map(nums, double));      ⍝ → [2, 4, 6, 8, 10]
+print(filter(nums, even));     ⍝ → [2, 4]
+print(reduce(nums, add));      ⍝ → 15
+print(sort([3,1,4,1,5]));      ⍝ → [1, 1, 3, 4, 5]
+print(unique([1,1,2,2,3]));    ⍝ → [1, 2, 3]
+```
+
+### Objects and JSON
+
+```aeonmi
+⍝ Object literals {} as function args fail — always use object() + set_key()
+let agent = object();
+agent = set_key(agent, "id",     "AGENT-001");
+agent = set_key(agent, "status", "ONLINE");
+agent = set_key(agent, "score",  99);
+
+print(has_key(agent, "id"));     ⍝ → true
+print(get_key(agent, "status")); ⍝ → ONLINE
+print(keys(agent));              ⍝ → [id, status, score]
+print(to_json(agent));           ⍝ → {"id":"AGENT-001","status":"ONLINE","score":99}
+
+let parsed = parse_json("{\"x\":42}");
+print(get_key(parsed, "x"));     ⍝ → 42
+```
+
+### Math
+
+```aeonmi
+print(PI);              ⍝ → 3.141592653589793
+print(E);               ⍝ → 2.718281828459045
+print(TAU);             ⍝ → 6.283185307179586
+
+print(sqrt(144));       ⍝ → 12
+print(pow(2, 10));      ⍝ → 1024
+print(sin(PI / 2));     ⍝ → 1
+print(abs(-7));         ⍝ → 7
+print(clamp(1.9, 0, 1));⍝ → 1
+print(lerp(0, 100, 0.5));⍝ → 50
+print(min(3, 1, 4, 1)); ⍝ → 1
+print(max(3, 1, 4, 1)); ⍝ → 4
+```
+
+---
+
+## Genesis density operators
+
+The symbolic core of Aeonmi — these operators keep large structures composable:
+
+| Operator | Name | Purpose |
+|---|---|---|
+| `⧉` | Array Genesis | Construct dense arrays symbolically |
+| `⟨⟩` | Slice/Index delimiters | Function argument notation |
+| `…` | Spread | Expand symbolic structures |
+| `⊗` | Tensor Product | Compose structures without expansion |
+| `↦` | Binding/Projection | Assign meaning to symbolic expressions |
+
+```aeonmi
+⍝ Symbolic quantum state (Bell pair)
 bell ← ⧉0.707‥0‥0‥0.707⧉
 ψ ↦ bell ⊗ bell
 ```
 
-This expresses a symbolic tensor composition without requiring immediate full expansion.
+These are real operators in the lexer and AST — not aspirational syntax.
 
 ---
 
+## Known limitations (honest)
+
+These are not future plans — they are current facts:
+
+1. **`arr[i]` subscript is broken.** Always use `arr.slice(i, i+1).pop()` for element access. This is a parser/VM bug, not by design.
+
+2. **No `%` modulo operator.** The `%` token exists but isn't wired as a binary operator. Use `floor(x/2)*2 == x` to check even numbers.
+
+3. **`fmod()` has a parse conflict.** The lexer breaks `fmod` into `f` + `mod`. Use the `floor` workaround instead.
+
+4. **Object literals `{...}` fail as function arguments.** `fn({"k": v})` causes a parse error. Always construct objects with `object()` + `set_key()`.
+
+5. **No module/import system.** All code must be in one file, or you must manually concatenate .ai files before running.
+
+6. **`exec` and `run` subcommands use a JavaScript transpiler**, not the Rust VM. Only `native` runs through the real pipeline. Use `Aeonmi.exe native <file>`.
+
+7. **`AeonmiStudio.exe` pipeline panel is cosmetic.** The four stage indicators (Lexer → Parser → IR → VM) animate on a timer. They do not reflect actual VM stage completion. The code editor and execution are real; the visualization is approximate.
+
+---
+
+## Stdlib
+
+Located in `aeonmi_ai/stdlib/`. All files run through `Aeonmi.exe native`.
+
+| Module | Contents |
+|---|---|
+| `math.ai` | `degrees`, `radians`, `sign`, `hypot`, `log2`, `gcd`, `lcm`, `is_prime`, `factorial`, `fib`, `mean`, `variance`, `std_dev`, `normalize` |
+| `string.ai` | `capitalize`, `words`, `slug`, `truncate`, `is_numeric`, `count_occurrences`, `wrap` |
+| `collections.ai` | `first`, `last`, `tail`, `head`, `group_by`, `frequency`, `partition`, `chunk`, `zip_with`, `index_of`, `includes`, `rotate`, `dedupe_by`, `merge_objects` |
+| `io.ai` | `read_json`, `write_json`, `read_lines`, `write_lines`, `read_csv`, `write_csv`, `log_to_file` |
+| `test.ai` | `test()`, `run_tests()`, `expect_eq`, `expect_true`, `expect_approx`, `expect_in_range`, `expect_type` |
+
+### Running stdlib tests
+
+```bash
+Aeonmi.exe native aeonmi_ai/stdlib/tests/test_math_builtins.ai
+Aeonmi.exe native aeonmi_ai/stdlib/tests/test_string_builtins.ai
+Aeonmi.exe native aeonmi_ai/stdlib/tests/test_collections_builtins.ai
+```
+
+All three print `=== PASS ===`.
+
+Classic algorithms and data structures implemented in Aeonmi are in `examples/cs/`:
+
 ## Architecture
 
-```text
-             Aeonmi Language (.ai)
-                      │
-                      ▼
-                   Shard
-           self-hosting compiler
-                      │
-                      ▼
-              Titan Runtime (Rust)
-                      │
-        ┌─────────────┼─────────────┐
-        ▼                           ▼
-    Glyph Runtime               QUBE Engine
-   symbolic algebra          quantum circuits
-                      │
-                      ▼
-                Identity Vault
+```
+src/
+├── main.rs                  Entry point, CLI dispatch
+├── core/
+│   ├── lexer.rs             Tokenizer (Unicode, glyph operators)
+│   ├── parser.rs            Recursive descent parser → AST
+│   ├── ast.rs               AST node definitions
+│   ├── ir.rs                IR lowering pass
+│   └── vm.rs                Tree-walk interpreter + 80+ builtins
+├── shard/                   Self-hosting compiler path
+├── qube/                    Quantum-style symbolic layer (partial)
+└── mother_ai/               Multi-agent coordinator (experimental)
+
+aeonmi_ai/
+├── stdlib/                  Standard library (.ai files)
+│   ├── math.ai
+│   ├── string.ai
+│   ├── collections.ai
+│   ├── io.ai
+│   ├── test.ai
+│   └── tests/               Test suite
+└── demo/                    Showcase programs
+
+tools/
+├── aeonmi_studio/           IDE source (Python + tkinter)
+│   └── aeonmi_studio.py
+└── aeonmi_demo/             Animated showcase (Python + tkinter)
+    └── aeonmi_demo.py
 ```
 
 ---
 
-## Project Components
+## Tools
 
-### Aeonmi Language
+### AeonmiStudio (IDE)
 
-The main surface language for writing symbolic programs with glyph-based syntax and dense structural expressions.
+A 3-panel IDE built in Python/tkinter that wraps the native VM.
 
-### Shard
+- **Left:** Code editor with syntax highlighting, line numbers, undo/redo
+- **Middle:** VM pipeline visualization (Lexer → Parser → IR → VM)
+- **Right:** Output terminal with colored results
+- **Examples menu:** 7 pre-loaded programs
 
-The self-hosting compiler path for Aeonmi. This is where the language progressively moves toward compiling and interpreting itself.
+> ⚠️ The pipeline panel animates on a timer. It does not receive real stage events from the VM. The execution itself is real.
 
-### Titan Runtime
+Source: `tools/aeonmi_studio/aeonmi_studio.py`  
+Requires: `AeonmiStudio.exe` + `Aeonmi.exe` in the same directory.
 
-The Rust-based execution layer responsible for memory handling, execution, and runtime support for symbolic structures.
+### AeonmiDemo (Showcase)
 
-### QUBE
+An auto-cycling animated showcase with matrix rain background and typewriter code animation. For display/advertising. Does not execute real code.
 
-A symbolic optimizer and quantum-style execution layer intended to compress, rewrite, and evolve dense structures into more compact or efficient forms.
-
-### Identity Vault
-
-An experimental layer for persistent symbolic identity, cryptographic binding, and system-level execution context.
-
----
-
-## Documentation
-
-* `docs/architecture.md`
-* `docs/language_spec.md`
-* `docs/glyph_algebra.md`
-* `docs/grammar_qube.md`
-
-## Editor Support
-
-A VS Code language extension for `.ai` and `.qube` files is available at `vscode-aeonmi/`.
-It provides syntax highlighting, bracket matching, and code snippets.
-
-See `vscode-aeonmi/README.md` for installation instructions.
+Source: `tools/aeonmi_demo/aeonmi_demo.py`
 
 ---
 
-## Current Focus
+## Building from source
 
-Current development is centered on:
+```bash
+# Standard build
+cargo build --release
 
-* **Genesis glyphs** — adding `⧉`, `‥`, `…`, `↦` to the lexer and native VM
-* **f-string interpolation** — `f"hello {name}"` should evaluate correctly
-* **`for x in collection` iteration** — proper iteration, not a block placeholder
-* **CLI visual identity** — cyberpunk color scheme, startup banner
-* **Joint quantum simulator** — real multi-qubit state-vector for `entangle()` / CNOT
-* **File I/O built-ins** — `read_file` / `write_file` (gates Shard self-hosting)
-* **Shard integration** — self-hosting compiler reading and compiling real `.ai` files
+# The main binary
+./target/release/Aeonmi native examples/hello.ai
+
+# Run tests (Rust test suite)
+cargo test
+
+# Run .ai stdlib tests
+./target/release/Aeonmi native aeonmi_ai/stdlib/tests/test_math_builtins.ai
+```
+
+---
+
+## Contributing
+
+This language was built by AI. Contributions from humans and AI systems are both welcome.
+
+**High-value areas:**
+
+1. **Fix `arr[i]` subscript** — `src/core/vm.rs`, `Value::Array` case in the subscript operator. This is the single most impactful fix available.
+
+2. **Add `%` modulo operator** — wire `TokenKind::Percent` as a binary infix operator in `src/core/parser.rs`.
+
+3. **Fix `fmod` parse conflict** — `src/core/lexer.rs`, check how `f` is tokenized before identifier characters.
+
+4. **Module/import system** — `load "path/to/module.ai"` syntax. All bindings from that file become available.
+
+5. **Real pipeline telemetry for AeonmiStudio** — the IDE currently animates on a timer. The VM could emit stage-complete signals (stdout markers or a JSON protocol) so the IDE can reflect actual pipeline state.
+
+6. **QUBE completion** — the quantum-style symbolic layer in `src/qube/` is partially implemented.
+
+All PRs must:
+- Pass `cargo build --release` with zero errors
+- Run all three stdlib test files without FAIL output
+- Not introduce new warnings beyond the existing 211
+
+See `CONTRIBUTING.md` for more.
 
 ---
 
 ## Philosophy
 
-Aeonmi follows a simple rule:
+**One concept → one glyph.**
 
-**one concept → one glyph**
+Aeonmi is designed so that AI systems can express programs at maximum symbolic density. A model reading Aeonmi code sees compact structure that maps directly to semantic operations — not verbose ceremony borrowed from human-legibility conventions.
 
-Design priorities:
+> `◯ f⟨x⟩ { return x * 2; }` — 24 characters. One function, completely unambiguous.
 
-* composition over mutation
-* minimal syntax
-* symbolic density
-* mathematically meaningful operators
-* AI-friendly structure
+The language does not try to look like Python or JavaScript. It tries to look like what an AI would design if it were optimizing for its own token budget.
 
 ---
 
-## Running Aeonmi
+## Status
 
-Aeonmi programs run natively — no Node.js or external runtime required.
+**shard-v2-ecosystem** — active development branch.
 
-```bash
-# Build from source (Rust required)
-cargo build --features "quantum,bytecode,mother-ai" --no-default-features
+This is an honest project. The VM works. The test suite passes. The stdlib is real. Several things are broken and documented above. The quantum and vault layers exist but are incomplete. The IDE tools are functional wrappers, not production software.
 
-# Run an Aeonmi program (native VM)
-aeonmi run examples/hello.ai
+If you're looking for a complete, production-ready language: this isn't it yet.
 
-# Compile to .ai canonical form
-aeonmi emit examples/hello.ai
-
-# Compile to JavaScript (explicit)
-aeonmi emit examples/hello.ai --emit js
-
-# Run a QUBE quantum circuit
-aeonmi qube run examples/demo.qube
-
-# Initialize the encrypted identity vault
-aeonmi vault init
-
-# Interactive shell
-aeonmi
-```
-
-### Computer Science Examples
-
-Classic algorithms and data structures implemented in Aeonmi are in `examples/cs/`:
-
-```bash
-aeonmi run examples/cs/binary_search.ai
-aeonmi run examples/cs/merge_sort.ai
-aeonmi run examples/cs/quick_sort.ai
-aeonmi run examples/cs/stack_queue.ai
-aeonmi run examples/cs/linked_list.ai
-```
+If you're interested in the first serious attempt to build a language from first principles for AI-native execution — with a real Rust VM, working stdlib, and honest documentation — this is exactly that.
 
 ---
 
-## QUBE
-
-QUBE is Aeonmi’s symbolic quantum-style layer.
-
-It is intended to support:
-
-* state declaration
-* gate application
-* tensor composition
-* collapse / measurement
-* assertions
-* future optimization and diagram output
-
-See:
-
-* `docs/grammar_qube.md`
-* `Q.U.B.E.md`
-
----
-
-## Roadmap
-
-See:
-
-* `AEONMI_LANGUAGE_ROADMAP.md`
-* `Q.U.B.E.md`
-* `test_suite.md`
-
----
-
-## Positioning
-
-Aeonmi is best understood today as:
-
-**an experimental symbolic programming language for AI-native and quantum-style computation**
-
-It is not yet production-ready, but it is a real, working language project under active development.
-
----
-
-## Repository Notes
-
-This repository contains active research, runtime experiments, and evolving compiler infrastructure.
-
-Some subsystems are stable enough to demonstrate; others remain exploratory and are still being integrated more deeply into the runtime and compiler path.
-
----
-
-## Long-Term Direction
-
-Aeonmi is being developed toward a system that can support:
-
-* dense symbolic data representation
-* quantum-style composition and execution
-* AI-native program structure
-* deeper self-hosting through Shard
-* stronger runtime identity and vault capabilities
-
-The project is intentionally being built in public and documented honestly as features become real.
-
----
-
-## Root Directory
-
-This section describes the top-level contents of the repository.
-
-### Directories
-
-| Directory | Description |
-|-----------|-------------|
-| `src/` | Main Rust source code — lexer, parser, VM, bytecode compiler, quantum runtime, glyph system, vault, TUI/CLI, and all language subsystems |
-| `tests/` | Integration and unit test files (Rust `.rs` test modules) |
-| `examples/` | Example `.ai` and `.qube` programs covering language features, quantum algorithms, and demos |
-| `docs/` | Language and architecture documentation — spec, grammar, glyph algebra, and getting-started guides |
-| `shard/` | The Shard self-hosting compiler — Aeonmi compiler written in Aeonmi (Phase 3) |
-| `scripts/` | Utility scripts — git hooks, large-file scanners |
-| `assets/` | Project assets (application icon) |
-| `gui/` | GUI and web interface — Tauri bridge, quantum IDE HTML, static assets |
-| `mother_ai/` | Mother AI module — standalone AI consciousness layer with its own `main.rs` entry point |
-| `titan_libraries/` | Titan algorithm library — quantum math, linear algebra, and advanced algorithms written in `.ai` |
-
-### Core Project Files
-
-| File | Description |
-|------|-------------|
-| `Cargo.toml` | Rust workspace manifest — package metadata, feature flags, and all dependencies |
-| `Cargo.lock` | Dependency lockfile (pinned versions) |
-| `build.rs` | Rust build script — Windows resource embedding and build-time configuration |
-| `package.json` | Node.js package manifest used by the optional JS compilation backend (`--emit js`) |
-| `package-lock.json` | Node.js dependency lockfile |
-
-### Documentation
-
-| File | Description |
-|------|-------------|
-| `README.md` | This file — project overview, architecture, and quick-start guide |
-| `LICENSE` | Project license |
-| `CONTRIBUTING.md` | Contribution guidelines and repository hygiene rules |
-| `SECURITY.md` | Security policy and vulnerability reporting procedure |
-| `BUILD_STATUS.md` | Current build and feature completion status across all phases |
-| `AEONMI_LANGUAGE_ROADMAP.md` | Language development roadmap with factual phase tracking |
-| `Q.U.B.E.md` | QUBE tutorial and comprehensive language guide |
-| `QUANTUM_ROADMAP_2.0.md` | Quantum feature roadmap version 2.0 |
-| `QUANTUM_GAPS_ANALYSIS.md` | Analysis of current gaps in the quantum implementation |
-| `SHARD_STRATEGY.md` | Strategic plan for the Shard self-hosting compiler |
-| `SHARD_STATUS.md` | Current implementation status of the Shard compiler |
-| `MOTHER_AI_ARCHITECTURE.md` | Architecture documentation for the Mother AI system |
-| `MOTHER_AI_STATUS.md` | Current implementation status of the Mother AI module |
-| `TITAN_INTEGRATION_STATUS.md` | Integration status of the Titan algorithm libraries |
-| `SEAMLESS_INTEGRATION_CONFIRMED.md` | Record of confirmed cross-subsystem integration milestones |
-| `NEW_SESSION_PROMPT.md` | Session startup prompt for continuing development in a new AI session |
-| `array_genesis.md` | Documentation for the Array Genesis (`⧉`) glyph and symbolic arrays |
-| `roadmap.md` | High-level project roadmap |
-| `test_suite.md` | Test suite overview and coverage summary |
-| `Aeonmi_Glyph_Identity_Spec_and_Manual.odg` | Glyph identity specification and visual design manual (LibreOffice Draw) |
-
-### Build and Run Scripts
-
-| File | Description |
-|------|-------------|
-| `build_unified.ps1` | Unified PowerShell build script for all project components |
-| `build_windows.ps1` | Windows-specific build script |
-| `clean_build.ps1` | Clean build script — removes artifacts before rebuilding |
-| `apply_fixes.ps1` | Script for applying batched source fixes |
-| `quantum_demo.ps1` | PowerShell script for running quantum demos |
-| `run_tests.ps1` | Test runner script |
-| `env_qiskit.cmd` | Windows command file for setting up the Qiskit Python environment |
-
-### Pre-built Binaries
-
-| File | Description |
-|------|-------------|
-| `Aeonmi.exe` | Pre-built Windows executable for the main Aeonmi runtime |
-| `MotherAI.exe` | Pre-built Windows executable for the standalone Mother AI binary |
-
-### Example and Test Files at Root
-
-The root directory also contains a number of `.ai`, `.aeon`, and `.aeonmi` source files used for quick testing and demonstration, as well as generated output files (`out.ai`, `out.js`, `test_results.txt`, `build_output.txt`, `warnings.txt`). These are workspace artifacts from active development.
-
----
-
-## License
-
-See `LICENSE`.
+*Aeonmi — AI-native programming language — [github.com/Aeonmi-Aysa/aeonmi](https://github.com/Aeonmi-Aysa/aeonmi)*
