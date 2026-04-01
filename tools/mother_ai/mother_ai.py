@@ -45,7 +45,7 @@ VM_EXE = next((p for p in VM_EXE_PATHS if os.path.exists(p)), None)
 
 VOICE      = "en-US-AriaNeural"
 MODEL      = "claude-opus-4-6"
-MAX_TOKENS = 600
+MAX_TOKENS = 1200
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 C = {
@@ -106,9 +106,12 @@ class MotherAI(tk.Tk):
         super().__init__()
         self.title("MOTHER — AEONMI Live Stream Interface")
         self.configure(bg=C["bg"])
+        self._is_fullscreen = True
+        self.resizable(True, True)
+        self.minsize(900, 600)
         self.attributes("-fullscreen", True)
-        self.bind("<Escape>", lambda e: self.attributes("-fullscreen", False))
-        self.bind("<F11>",    lambda e: self.attributes("-fullscreen", True))
+        self.bind("<Escape>", lambda e: self._set_windowed())
+        self.bind("<F11>",    lambda e: self._set_fullscreen())
 
         self.api_key   = os.environ.get("ANTHROPIC_API_KEY", "")
         self.client    = None
@@ -126,6 +129,28 @@ class MotherAI(tk.Tk):
         self.after(600, self._pulse_header)
 
     # ── Fonts ─────────────────────────────────────────────────────────────────
+    # -- Window control -------------------------------------------------------
+    def _set_fullscreen(self):
+        self._is_fullscreen = True
+        self.attributes("-fullscreen", True)
+        self.update_idletasks()
+
+    def _set_windowed(self, w=1280, h=780):
+        self._is_fullscreen = False
+        self.attributes("-fullscreen", False)
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        x  = (sw - w) // 2
+        y  = (sh - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.update_idletasks()
+
+    def _toggle_fullscreen(self):
+        if self._is_fullscreen:
+            self._set_windowed()
+        else:
+            self._set_fullscreen()
+
     def _build_fonts(self):
         self.F = {
             "title":  tkfont.Font(family="Consolas", size=17, weight="bold"),
@@ -154,6 +179,17 @@ class MotherAI(tk.Tk):
                  text="  ⊗  ↦  ⟨⟩  ⧉  ∇  ⊕  ⊙  ≈  ⪰  ◊  ",
                  font=self.F["glyph"], bg=C["panel"], fg=C["dim"], padx=8)
         self.lbl_glyphs.pack(side="left", pady=10)
+
+        # Window control buttons
+        btn_style = dict(font=self.F["body_b"], bg=C["bg2"], fg=C["text"],
+                         activebackground=C["dim"], activeforeground=C["white"],
+                         relief="flat", bd=0, padx=10, pady=2, cursor="hand2")
+        tk.Button(hbar, text=" X ", **btn_style,
+                  command=self.destroy).pack(side="right", padx=2, pady=8)
+        tk.Button(hbar, text=" [] ", **btn_style,
+                  command=self._toggle_fullscreen).pack(side="right", padx=2, pady=8)
+        tk.Button(hbar, text=" _ ", **btn_style,
+                  command=self.iconify).pack(side="right", padx=2, pady=8)
 
         self.lbl_status = tk.Label(hbar, text="● OFFLINE",
                  font=self.F["small"], bg=C["panel"], fg=C["red"], padx=20)
@@ -259,7 +295,7 @@ class MotherAI(tk.Tk):
         sbar.pack(fill="x")
         sbar.pack_propagate(False)
         tk.Label(sbar, text="  Built by AI · For AI · github.com/Aeonmi-Aysa/aeonmi"
-                            "   ◯   ESC=windowed  F11=fullscreen  Enter=send",
+                            "   ◯   [_]=minimize  [[]]=windowed/fullscreen  [X]=exit  Enter=send",
                  font=self.F["stat"], bg=C["panel"], fg=C["dim"]).pack(side="left", pady=2)
         self.lbl_voice = tk.Label(sbar, text="VOICE: Aria Neural  ",
                  font=self.F["stat"], bg=C["panel"], fg=C["dim"])
@@ -522,8 +558,8 @@ class MotherAI(tk.Tk):
         threading.Thread(target=worker, daemon=True).start()
 
     async def _speak(self, text):
-        if len(text) > 700:
-            text = text[:700] + "."
+        if len(text) > 900:
+            text = text[:900] + "."
         comm = edge_tts.Communicate(text, VOICE)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
             tmp = f.name

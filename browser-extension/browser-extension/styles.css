@@ -1,0 +1,134 @@
+body {
+  width: 320px;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #0B1116;
+  color: #E6EDF3;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+header {
+  background-color: #161B22;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #30363D;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  color: #00D4FF;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #238636;
+  box-shadow: 0 0 5px #238636;
+}
+
+.main-content {
+  padding: 16px;
+}
+
+.card {
+  background-color: #161B22;
+  border: 1px solid #30363D;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #8B949E;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn.primary {
+  background-color: #00D4FF;
+  color: #0B1116;
+}
+
+.btn.primary:hover {
+  background-color: #00B4D8;
+}
+
+.btn.secondary {
+  background-color: #21262D;
+  color: #C9D1D9;
+  border: 1px solid #30363D;
+}
+
+.btn.secondary:hover {
+  background-color: #30363D;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.status-text {
+  color: #00D4FF;
+}
+
+.result-area {
+  background-color: #0D1117;
+  border: 1px solid #30363D;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 16px;
+}
+
+.result-area.hidden {
+  display: none;
+}
+
+.result-area h3 {
+  margin-top: 0;
+  font-size: 14px;
+  color: #00D4FF;
+}
+
+.result-area p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #C9D1D9;
+  margin-bottom: 0;
+}
+
+footer {
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid #30363D;
+  font-size: 12px;
+  color: #8B949E;
+}
