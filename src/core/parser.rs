@@ -519,7 +519,19 @@ impl Parser {
     }
 
     /* ── Precedence ───────────────────────────────────────── */
-    pub fn parse_expression(&mut self) -> Result<ASTNode, ParserError> { self.parse_logical_or() }
+    pub fn parse_expression(&mut self) -> Result<ASTNode, ParserError> { self.parse_bind() }
+
+    // bind: logical_or ( '↦' logical_or )*
+    // ↦ is the Genesis bind/pipe operator; lowers to a binary expression.
+    fn parse_bind(&mut self) -> Result<ASTNode, ParserError> {
+        let mut expr = self.parse_logical_or()?;
+        while self.match_token(&[TokenKind::Bind]) {
+            let op = self.previous().kind.clone();
+            let right = self.parse_logical_or()?;
+            expr = ASTNode::new_binary_expr(op, expr, right);
+        }
+        Ok(expr)
+    }
 
     // logical_or: logical_and ( '||' logical_and )*
     fn parse_logical_or(&mut self) -> Result<ASTNode, ParserError> {
@@ -909,6 +921,61 @@ impl Parser {
                 }
             }
             
+            // Contextual keywords that are also valid identifier references.
+            // e.g. a parameter named `from` can be read back as an expression.
+            TokenKind::From   => Ok(ASTNode::new_identifier_spanned("from",   tok.line, tok.column, 4)),
+            TokenKind::Type   => Ok(ASTNode::new_identifier_spanned("type",   tok.line, tok.column, 4)),
+            TokenKind::Impl   => Ok(ASTNode::new_identifier_spanned("impl",   tok.line, tok.column, 4)),
+            TokenKind::In     => Ok(ASTNode::new_identifier_spanned("in",     tok.line, tok.column, 2)),
+            TokenKind::Match  => Ok(ASTNode::new_identifier_spanned("match",  tok.line, tok.column, 5)),
+            TokenKind::Import => Ok(ASTNode::new_identifier_spanned("import", tok.line, tok.column, 6)),
+            TokenKind::Export => Ok(ASTNode::new_identifier_spanned("export", tok.line, tok.column, 6)),
+
+            // ◯ as inline lambda expression: ◯ name⟨params⟩ { body }
+            // Marker already consumed by advance() above.
+            TokenKind::ClassicalFunc | TokenKind::QuantumFunc | TokenKind::AIFunc => {
+                let func_line = tok.line;
+                let func_col  = tok.column;
+                let func_type = match tok.kind {
+                    TokenKind::QuantumFunc => QuantumFunctionType::Quantum,
+                    TokenKind::AIFunc      => QuantumFunctionType::AINeural,
+                    _                      => QuantumFunctionType::Classical,
+                };
+                let name = self.consume_param_name("Expected function name")?;
+                self.consume(TokenKind::QuantumBracketOpen, "Expected '⟨' after function name")?;
+                let mut params = Vec::new();
+                if !self.check(&TokenKind::QuantumBracketClose) {
+                    loop {
+                        let pname = self.consume_param_name("Expected parameter name")?;
+                        params.push(FunctionParam { name: pname, line: func_line, column: func_col });
+                        if !self.match_token(&[TokenKind::Comma]) { break; }
+                    }
+                }
+                self.consume(TokenKind::QuantumBracketClose, "Expected '⟩' after parameters")?;
+                let body = match self.parse_block()? {
+                    ASTNode::Block(stmts) => stmts,
+                    _ => return Err(self.err_here("Function body must be a block")),
+                };
+                Ok(ASTNode::new_quantum_function(func_type, &name, params, body, func_line, func_col))
+            }
+
+            // if-expression: `if (cond) { ... } else { ... }` used as a value.
+            // 'if' token was already consumed by advance() above.
+            TokenKind::If => {
+                let has_paren = self.match_token(&[TokenKind::OpenParen]);
+                let cond = self.parse_expression()?;
+                if has_paren {
+                    self.consume(TokenKind::CloseParen, "Expected ')' after if condition")?;
+                }
+                let then_branch = self.parse_statement()?;
+                let else_branch = if self.match_token(&[TokenKind::Else]) {
+                    Some(self.parse_statement()?)
+                } else {
+                    None
+                };
+                Ok(ASTNode::new_if(cond, then_branch, else_branch))
+            }
+
             _ => Err(ParserError {
                 message: format!("Unexpected token {:?}", tok.kind),
                 line: tok.line,
@@ -916,7 +983,7 @@ impl Parser {
             }),
         }
     }
-    
+
     fn parse_quantum_state(&mut self) -> Result<ASTNode, ParserError> {
         self.consume(TokenKind::Pipe, "Expected '|'")?;
         
@@ -1001,6 +1068,28 @@ impl Parser {
         }
     }
 
+    /// Like `consume_identifier` but also accepts contextual keywords as parameter names.
+    /// Needed for params like `from`, `to`, `type`, `in`, `match`, etc.
+    fn consume_param_name(&mut self, msg: &str) -> Result<String, ParserError> {
+        let tok = self.peek().clone();
+        let name = match &tok.kind {
+            TokenKind::Identifier(n) => n.clone(),
+            TokenKind::From    => "from".to_string(),
+            TokenKind::Type    => "type".to_string(),
+            TokenKind::Impl    => "impl".to_string(),
+            TokenKind::In      => "in".to_string(),
+            TokenKind::Match   => "match".to_string(),
+            TokenKind::New     => "new".to_string(),
+            TokenKind::Pub     => "pub".to_string(),
+            TokenKind::Return  => "return".to_string(),
+            TokenKind::Import  => "import".to_string(),
+            TokenKind::Export  => "export".to_string(),
+            _ => return Err(self.err_at(msg, tok.line, tok.column)),
+        };
+        self.advance();
+        Ok(name)
+    }
+
     fn is_at_end(&self) -> bool {
         matches!(self.peek().kind, TokenKind::EOF)
     }
@@ -1054,14 +1143,14 @@ impl Parser {
         
         if !self.check(&TokenKind::QuantumBracketClose) {
             loop {
-                let pname = self.consume_identifier("Expected parameter name")?;
+                let pname = self.consume_param_name("Expected parameter name")?;
                 params.push(FunctionParam { name: pname, line: func_line, column: func_col });
                 if !self.match_token(&[TokenKind::Comma]) {
                     break;
                 }
             }
         }
-        
+
         self.consume(TokenKind::QuantumBracketClose, "Expected '⟩' after parameters")?;
         
         // Parse return type annotation if present

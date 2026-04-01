@@ -748,6 +748,8 @@ fn map_binop_token(tok: &TokenKind) -> BinOp {
         TokenKind::GreaterThan => Gt,
         TokenKind::GreaterEqual => Ge,
         TokenKind::Percent => Mod,
+        TokenKind::Bind => Add,    // ↦ Genesis bind/pipe — structural placeholder
+        TokenKind::Caret => Mod,   // ^ XOR/exponent — structural placeholder
         _ => { eprintln!("[lowering] unmapped token binop `{:?}` -> Eq", tok); Eq }
     }
 }
