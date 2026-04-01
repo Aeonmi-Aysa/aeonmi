@@ -747,6 +747,7 @@ fn map_binop_token(tok: &TokenKind) -> BinOp {
         TokenKind::LessEqual => Le,
         TokenKind::GreaterThan => Gt,
         TokenKind::GreaterEqual => Ge,
+        TokenKind::Percent => Mod,
         _ => { eprintln!("[lowering] unmapped token binop `{:?}` -> Eq", tok); Eq }
     }
 }
