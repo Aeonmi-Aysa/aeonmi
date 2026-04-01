@@ -468,6 +468,11 @@ impl Interpreter {
         env.define("has_key".into(),   Value::Builtin(Builtin { name: "has_key",   arity: 2, f: builtin_has_key }));
         env.define("delete_key".into(),Value::Builtin(Builtin { name: "delete_key",arity: 2, f: builtin_delete_key }));
 
+        // ── Index access + fmod (unlocks arr[i] syntax and fmod() calls) ──────
+        env.define("__index_access".into(), Value::Builtin(Builtin { name: "__index_access", arity: 2, f: builtin_index_access }));
+        env.define("__quantum_index".into(), Value::Builtin(Builtin { name: "__quantum_index", arity: 2, f: builtin_index_access }));
+        env.define("fmod".into(),           Value::Builtin(Builtin { name: "fmod",           arity: 2, f: builtin_fmod }));
+
         Self { 
             env,
             quantum_sim: QuantumSimulator::new(),
@@ -1242,6 +1247,36 @@ fn eq_val(a: &Value, b: &Value) -> bool {
 }
 
 // ---------- Builtins ----------
+
+fn builtin_index_access(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err(format!("__index_access: expected 2 args, got {}", args.len())));
+    }
+    match (&args[0], &args[1]) {
+        (Value::Array(arr), Value::Number(idx)) => {
+            let i = *idx as usize;
+            arr.get(i).cloned().ok_or_else(|| err(format!("index {} out of bounds (array len {})", i, arr.len())))
+        }
+        (Value::String(s), Value::Number(idx)) => {
+            let i = *idx as usize;
+            let ch = s.chars().nth(i)
+                .ok_or_else(|| err(format!("string index {} out of bounds (len {})", i, s.chars().count())))?;
+            Ok(Value::String(ch.to_string()))
+        }
+        (Value::Object(map), Value::String(key)) => {
+            Ok(map.get(key.as_str()).cloned().unwrap_or(Value::Null))
+        }
+        _ => Err(err(format!("cannot index value of this type with given key"))),
+    }
+}
+
+fn builtin_fmod(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let x = to_f64(&args[0], "fmod")?;
+    let y = to_f64(&args[1], "fmod")?;
+    if y == 0.0 { return Err(err("fmod: division by zero".to_string())); }
+    Ok(Value::Number(x % y))
+}
+
 
 fn builtin_print(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     let parts: Vec<String> = args.iter().map(display).collect();

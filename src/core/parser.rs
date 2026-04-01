@@ -628,7 +628,7 @@ impl Parser {
 
     fn parse_factor(&mut self) -> Result<ASTNode, ParserError> {
         let mut expr = self.parse_unary()?;
-        while self.match_token(&[TokenKind::Star, TokenKind::Slash]) {
+        while self.match_token(&[TokenKind::Star, TokenKind::Slash, TokenKind::Percent]) {
             let op = self.previous().kind.clone();
             let right = self.parse_unary()?;
             expr = ASTNode::new_binary_expr(op, expr, right);
@@ -660,23 +660,11 @@ impl Parser {
         let mut expr = self.parse_primary()?;
         loop {
             if self.match_token(&[TokenKind::OpenBracket]) {
-                // Subscript / index access: expr[...]
-                // Consume everything to the matching ']', tracking nesting.
-                // Range syntax (1..n, ..n, n..) uses two Dot tokens — we just
-                // slurp them all. Real indexing is Phase 5d; for now return base expr.
-                let mut depth = 1usize;
-                while !self.is_at_end() && depth > 0 {
-                    match self.peek().kind {
-                        TokenKind::OpenBracket => { depth += 1; self.advance(); }
-                        TokenKind::CloseBracket => {
-                            depth -= 1;
-                            if depth > 0 { self.advance(); }
-                        }
-                        _ => { self.advance(); }
-                    }
-                }
+                // Subscript / index access: expr[index]
+                // Fixed: actually parse the index expression and produce an index node
+                let index = self.parse_expression()?;
                 self.consume(TokenKind::CloseBracket, "Expected ']' after subscript")?;
-                // expr unchanged — subscript is a no-op at this phase
+                expr = ASTNode::new_quantum_index_access(expr, index, false)
             } else if self.match_token(&[TokenKind::OpenParen]) {
                 // regular call: expr(...)
                 let mut args = Vec::new();
