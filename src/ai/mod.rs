@@ -17,17 +17,6 @@ use anyhow::Result;
 pub trait AiProvider: Send + Sync {
     fn name(&self) -> &'static str;
     fn chat(&self, prompt: &str) -> Result<String>;
-    /// Send a multi-turn conversation. Each element is (role, content) where role is
-    /// "user" or "assistant". Defaults to a single-turn call for providers that don't
-    /// override this.
-    fn chat_history(&self, messages: &[(&str, &str)]) -> Result<String> {
-        // Default: concatenate all turns and send as single prompt
-        let prompt = messages.iter()
-            .map(|(role, content)| format!("{}: {}", role, content))
-            .collect::<Vec<_>>()
-            .join("\n");
-        self.chat(&prompt)
-    }
     fn chat_stream(&self, _prompt: &str, _cb: &mut dyn FnMut(&str)) -> Result<()> {
         let full = self.chat(_prompt)?;
         _cb(&full);
@@ -49,24 +38,12 @@ pub mod perplexity;
 #[cfg(feature = "ai-deepseek")]
 pub mod deepseek;
 
-// OpenRouter and Claude are feature-gated so reqwest is only pulled in when needed.
-#[cfg(feature = "ai-openrouter")]
-pub mod openrouter;
-#[cfg(feature = "ai-claude")]
-pub mod claude;
-
 pub struct AiRegistry {
     providers: Vec<Box<dyn AiProvider>>,
 }
 
 impl AiRegistry {
     pub fn new() -> Self {
-        Self::from_env()
-    }
-
-    /// Build a registry from runtime environment detection.
-    /// OpenRouter is checked first; Claude is the fallback.
-    pub fn from_env() -> Self {
         let mut r = Self { providers: Vec::new() };
 
         // OpenRouter first — free tier available, Warren's current setup
@@ -131,11 +108,3 @@ impl AiRegistry {
 impl Default for AiRegistry {
     fn default() -> Self { Self::new() }
 }
-
-impl Default for AiRegistry {
-    fn default() -> Self {
-        Self::from_env()
-    }
-}
-
-

@@ -374,56 +374,6 @@ impl Interpreter {
                 f: builtin_to_number,
             }),
         );
-
-        // File I/O built-ins (P3-4)
-        env.define(
-            "read_file".into(),
-            Value::Builtin(Builtin {
-                name: "read_file",
-                arity: 1,
-                f: builtin_read_file,
-            }),
-        );
-        env.define(
-            "write_file".into(),
-            Value::Builtin(Builtin {
-                name: "write_file",
-                arity: 2,
-                f: builtin_write_file,
-            }),
-        );
-        env.define(
-            "append_file".into(),
-            Value::Builtin(Builtin {
-                name: "append_file",
-                arity: 2,
-                f: builtin_append_file,
-            }),
-        );
-        env.define(
-            "file_exists".into(),
-            Value::Builtin(Builtin {
-                name: "file_exists",
-                arity: 1,
-                f: builtin_file_exists,
-            }),
-        );
-        env.define(
-            "read_lines".into(),
-            Value::Builtin(Builtin {
-                name: "read_lines",
-                arity: 1,
-                f: builtin_read_lines,
-            }),
-        );
-        env.define(
-            "delete_file".into(),
-            Value::Builtin(Builtin {
-                name: "delete_file",
-                arity: 1,
-                f: builtin_delete_file,
-            }),
-        );
         
 
         // ── Math builtins ──────────────────────────────────────────────────────
@@ -694,20 +644,6 @@ impl Interpreter {
                 // New scope with closure base
                 let saved = self.env.clone();
                 self.env = fun.env.clone();
-                // Merge top-level globals (frame[0] of the caller's env) into the
-                // function's base frame so that all top-level names (functions,
-                // constants defined after this function) remain accessible.
-                // The function's own captured bindings take precedence; globals
-                // only fill gaps, avoiding accidental shadowing.
-                if let Some(global_frame) = saved.frames.first() {
-                    if let Some(fn_base_frame) = self.env.frames.first_mut() {
-                        for (k, v) in global_frame {
-                            if !fn_base_frame.contains_key(k.as_str()) {
-                                fn_base_frame.insert(k.clone(), v.clone());
-                            }
-                        }
-                    }
-                }
                 self.env.push();
                 for (p, v) in fun.params.iter().zip(args.into_iter()) {
                     self.env.define(p.clone(), v);
@@ -954,16 +890,7 @@ impl Interpreter {
                     let argv = collect_vals(self, args)?;
                     match obj_val {
                         Value::Object(ref map) => {
-                            // obj["key"] — string key access on object.
-                            // Missing keys return Null (consistent with JS undefined semantics).
-                            if property == "__index__" {
-                                let key = match argv.first() {
-                                    Some(Value::String(s)) => s.clone(),
-                                    Some(v) => display(v),
-                                    None => return Err(err("Object index requires a key".into())),
-                                };
-                                map.get(key.as_str()).cloned().unwrap_or(Value::Null)
-                            } else if let Some(func) = map.get(property.as_str()).cloned() {
+                            if let Some(func) = map.get(property.as_str()).cloned() {
                                 self.call_value(func, argv)?
                             } else {
                                 // Try global lookup: TypeName_method pattern
@@ -988,32 +915,6 @@ impl Interpreter {
                                 None
                             };
                             match property.as_str() {
-                                "__index__" => {
-                                    // arr[idx] — zero-based element access
-                                    let idx = match argv.first() {
-                                        Some(Value::Number(n)) => *n as usize,
-                                        _ => return Err(err("Array index must be a number".into())),
-                                    };
-                                    match obj_val {
-                                        Value::Array(ref a) => {
-                                            if idx < a.len() {
-                                                a[idx].clone()
-                                            } else {
-                                                return Err(err(format!("Array index {} out of bounds (len={})", idx, a.len())));
-                                            }
-                                        }
-                                        Value::String(ref s) => {
-                                            // character access on strings
-                                            let chars: Vec<char> = s.chars().collect();
-                                            if idx < chars.len() {
-                                                Value::String(chars[idx].to_string())
-                                            } else {
-                                                return Err(err(format!("String index {} out of bounds (len={})", idx, chars.len())));
-                                            }
-                                        }
-                                        _ => return Err(err("Index access requires array or string".into())),
-                                    }
-                                }
                                 "push" => {
                                     // Mutate array in env; return new length.
                                     if let Some(ref var_name) = arr_ident {
@@ -1127,24 +1028,6 @@ impl Interpreter {
                         Value::String(_) => {
                             // String built-in methods
                             match property.as_str() {
-                                "__index__" => {
-                                    // str[idx] — character access
-                                    let idx = match argv.first() {
-                                        Some(Value::Number(n)) => *n as usize,
-                                        _ => return Err(err("String index must be a number".into())),
-                                    };
-                                    match obj_val {
-                                        Value::String(ref s) => {
-                                            let chars: Vec<char> = s.chars().collect();
-                                            if idx < chars.len() {
-                                                Value::String(chars[idx].to_string())
-                                            } else {
-                                                return Err(err(format!("String index {} out of bounds (len={})", idx, chars.len())));
-                                            }
-                                        }
-                                        _ => Value::Null,
-                                    }
-                                }
                                 "length" => match obj_val {
                                     Value::String(ref s) => Value::Number(s.chars().count() as f64),
                                     _ => Value::Null,
@@ -1273,8 +1156,6 @@ impl Interpreter {
                 (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
                 (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, display(&b)))),
                 (a, Value::String(b)) => Ok(Value::String(format!("{}{}", display(&a), b))),
-                // Array concatenation: [1,2] + [3,4] → [1,2,3,4]
-                (Value::Array(mut a), Value::Array(b)) => { a.extend(b); Ok(Value::Array(a)) }
                 (a, b) => Err(err(format!("`+` on incompatible types: {:?}, {:?}", a, b))),
             },
             Sub => num2(l, r, |a, b| a - b),
@@ -1661,100 +1542,15 @@ fn builtin_apply_gate(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
             interp.quantum_sim.pauli_y(&qubit_name)
                 .map_err(|e| err(format!("Quantum error applying Y: {}", e)))?;
         }
-        "S" => {
-            interp.quantum_sim.phase_s(&qubit_name)
-                .map_err(|e| err(format!("Quantum error applying S: {}", e)))?;
-        }
-        "T" => {
-            interp.quantum_sim.phase_t(&qubit_name)
-                .map_err(|e| err(format!("Quantum error applying T: {}", e)))?;
-        }
-        "CNOT" | "CX" => {
-            return Err(err("CNOT/CX requires 2 qubits: use CNOT(control, target) or entangle(q1, q2)".into()));
+        "CNOT" => {
+            return Err(err("CNOT requires 2 qubits: use entangle(q1, q2) instead".into()));
         }
         other => {
-            return Err(err(format!("Unknown gate '{}'. Supported: H, X, Y, Z, S, T, CNOT, CX", other)));
+            return Err(err(format!("Unknown gate '{}'. Supported: H, X, Y, Z, CNOT", other)));
         }
     }
     
     Ok(Value::QubitReference(qubit_name))
-}
-
-// ── Individual gate built-in functions ──────────────────────────────────────
-// These allow scripts to write: H(q), X(q), CNOT(q1, q2), etc.
-
-/// Helper: resolve qubit name from a Value
-fn resolve_qubit_name(v: &Value) -> Result<String, RuntimeError> {
-    match v {
-        Value::QubitReference(n) | Value::String(n) => Ok(n.clone()),
-        _ => Err(err("Gate argument must be a qubit reference or name".into())),
-    }
-}
-
-/// Helper: ensure qubit exists in simulator, creating it if necessary
-fn ensure_qubit(interp: &mut Interpreter, name: &str) {
-    if !interp.quantum_sim.qubits.contains_key(name) {
-        interp.quantum_sim.create_qubit(name.to_string());
-    }
-}
-
-fn gate_h(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 { return Err(err("H expects 1 qubit argument".into())); }
-    let q = resolve_qubit_name(&args[0])?;
-    ensure_qubit(interp, &q);
-    interp.quantum_sim.superpose(&q).map_err(|e| err(format!("H gate error: {}", e)))?;
-    Ok(Value::QubitReference(q))
-}
-
-fn gate_x(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 { return Err(err("X expects 1 qubit argument".into())); }
-    let q = resolve_qubit_name(&args[0])?;
-    ensure_qubit(interp, &q);
-    interp.quantum_sim.pauli_x(&q).map_err(|e| err(format!("X gate error: {}", e)))?;
-    Ok(Value::QubitReference(q))
-}
-
-fn gate_y(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 { return Err(err("Y expects 1 qubit argument".into())); }
-    let q = resolve_qubit_name(&args[0])?;
-    ensure_qubit(interp, &q);
-    interp.quantum_sim.pauli_y(&q).map_err(|e| err(format!("Y gate error: {}", e)))?;
-    Ok(Value::QubitReference(q))
-}
-
-fn gate_z(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 { return Err(err("Z expects 1 qubit argument".into())); }
-    let q = resolve_qubit_name(&args[0])?;
-    ensure_qubit(interp, &q);
-    interp.quantum_sim.pauli_z(&q).map_err(|e| err(format!("Z gate error: {}", e)))?;
-    Ok(Value::QubitReference(q))
-}
-
-fn gate_s(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 { return Err(err("S expects 1 qubit argument".into())); }
-    let q = resolve_qubit_name(&args[0])?;
-    ensure_qubit(interp, &q);
-    interp.quantum_sim.phase_s(&q).map_err(|e| err(format!("S gate error: {}", e)))?;
-    Ok(Value::QubitReference(q))
-}
-
-fn gate_t(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 { return Err(err("T expects 1 qubit argument".into())); }
-    let q = resolve_qubit_name(&args[0])?;
-    ensure_qubit(interp, &q);
-    interp.quantum_sim.phase_t(&q).map_err(|e| err(format!("T gate error: {}", e)))?;
-    Ok(Value::QubitReference(q))
-}
-
-fn gate_cnot(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 2 { return Err(err("CNOT/CX expects 2 qubit arguments: CNOT(control, target)".into())); }
-    let ctrl = resolve_qubit_name(&args[0])?;
-    let tgt  = resolve_qubit_name(&args[1])?;
-    ensure_qubit(interp, &ctrl);
-    ensure_qubit(interp, &tgt);
-    interp.quantum_sim.apply_cnot(&ctrl, &tgt)
-        .map_err(|e| err(format!("CNOT gate error: {}", e)))?;
-    Ok(Value::QubitReference(ctrl))
 }
 
 // AEONMI Quantum Algorithm Built-in Functions

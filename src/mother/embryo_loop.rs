@@ -19,7 +19,7 @@ use std::io::{self, BufRead, Write};
 
 use crate::mother::{
     emotional_core::{EmotionalCore, Interaction},
-    language_evolution::LanguageEvolutionCore,
+    language_evolution::{ConversationContext, LanguageEvolutionCore},
     quantum_core::{CreatorSignature, MotherQuantumCore},
     quantum_attention::QuantumAttentionMechanism,
 };
@@ -127,23 +127,9 @@ impl EmbryoLoop {
 
         // Detect what kind of input this is
         if self.is_aeonmi_code(input) {
-            let result = self.execute_code(input);
-            self.history.push(("user".to_string(), input.to_string()));
-            if let Some(ref e) = result.error {
-                self.history.push(("assistant".to_string(), format!("Error: {}", e)));
-            } else {
-                self.history.push(("assistant".to_string(), result.output.clone()));
-            }
-            result
-        } else if self.ai.preferred().is_some() {
-            // Route natural language to the AI provider
-            self.route_to_ai(input)
+            self.execute_code(input)
         } else {
-            // No AI provider — fall back to built-in commands
-            let result = self.execute_command(input);
-            self.history.push(("user".to_string(), input.to_string()));
-            self.history.push(("assistant".to_string(), result.output.clone()));
-            result
+            self.execute_command(input)
         }
     }
 
@@ -221,7 +207,7 @@ impl EmbryoLoop {
             "emotion" | "bond" => self.emotional_core.summary(),
             "language" | "vocab" => self.language_evolution.summary(),
             "attention" => self.attention.summary(),
-            "history" => format!("{} interactions logged", self.history.len() / 2),
+            "history" => format!("{} interactions logged", self.history.len()),
             "evolve" => {
                 self.language_evolution.trigger_evolution();
                 let guidance = crate::mother::quantum_core::CreatorGuidance {
@@ -383,6 +369,12 @@ impl EmbryoLoop {
             self.attention.attend("input_context", &token_vecs);
         }
 
+        // History
+        self.history.push(input.to_string());
+        if self.history.len() > 1000 {
+            self.history.remove(0);
+        }
+
         self.interaction_count += 1;
 
         // Periodic evolution
@@ -495,60 +487,7 @@ impl EmbryoLoop {
             .map_err(|e| anyhow::anyhow!("Cannot read {}: {}", path.display(), e))?;
         Ok(self.execute_code(&src))
     }
-}
 
-// ── Free helper functions ─────────────────────────────────────────────────────
-
-/// Extract fenced code blocks from an AI response.
-/// Looks for ``` blocks (optionally tagged with a language like ```aeonmi or ```ai).
-fn extract_code_blocks(text: &str) -> Vec<String> {
-    let mut blocks = Vec::new();
-    let mut in_block = false;
-    let mut current_block = String::new();
-
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("```") {
-            if in_block {
-                // End of block
-                let code = current_block.trim().to_string();
-                if !code.is_empty() {
-                    blocks.push(code);
-                }
-                current_block.clear();
-                in_block = false;
-            } else {
-                // Start of block — skip the opening fence line
-                in_block = true;
-            }
-        } else if in_block {
-            current_block.push_str(line);
-            current_block.push('\n');
-        }
-    }
-
-    blocks
-}
-
-/// Remove fenced code blocks from an AI response, returning only the prose.
-fn strip_code_blocks(text: &str) -> String {
-    let mut result = String::new();
-    let mut in_block = false;
-
-    for line in text.lines() {
-        if line.trim().starts_with("```") {
-            in_block = !in_block;
-        } else if !in_block {
-            result.push_str(line);
-            result.push('\n');
-        }
-    }
-
-    result
-}
-
-// Re-open impl block for the banner and tests
-impl EmbryoLoop {
     fn print_banner(&self) {
         println!();
         println!("  ╔══════════════════════════════════════╗");
@@ -648,41 +587,5 @@ mod tests {
         // Parser may either error or succeed depending on recovery
         // — just check it doesn't panic
         let _ = result;
-    }
-
-    #[test]
-    fn test_extract_code_blocks() {
-        let text = "Here is some code:\n```\nlet x = 42;\n```\nAnd more prose.";
-        let blocks = extract_code_blocks(text);
-        assert_eq!(blocks.len(), 1);
-        assert!(blocks[0].contains("let x = 42;"));
-    }
-
-    #[test]
-    fn test_strip_code_blocks() {
-        let text = "Prose before.\n```\nlet x = 42;\n```\nProse after.";
-        let stripped = strip_code_blocks(text);
-        assert!(stripped.contains("Prose before."));
-        assert!(stripped.contains("Prose after."));
-        assert!(!stripped.contains("let x = 42;"));
-    }
-
-    #[test]
-    fn test_code_detection_no_false_positive_on_quantum_prose() {
-        let l = make_loop();
-        // "write me a quantum circuit" must NOT match as code
-        assert!(!l.is_aeonmi_code("write me a quantum circuit"));
-        assert!(!l.is_aeonmi_code("what is quantum computing"));
-        // But actual code starting with "quantum " must match
-        assert!(l.is_aeonmi_code("quantum circuit bell { }"));
-    }
-
-    #[test]
-    fn test_history_stores_role_content_pairs() {
-        let mut l = make_loop();
-        l.execute_input("let x = 42;");
-        // After executing code, there should be a user + assistant entry
-        assert!(l.history.iter().any(|(role, _)| role == "user"));
-        assert!(l.history.iter().any(|(role, _)| role == "assistant"));
     }
 }
