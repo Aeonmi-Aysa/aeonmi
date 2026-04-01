@@ -1,0 +1,68 @@
+// fibonacci.ai — Classic Fibonacci in Aeonmi
+//
+// Demonstrates recursion and iteration side-by-side.
+// Run with:  aeonmi run examples/cs/fibonacci.ai
+
+// ── Recursive ────────────────────────────────────────────────────────────────
+//
+// Time:  O(2^n)  |  Space: O(n) call stack
+// Clean definition — good for small n.
+
+function fib_recursive(n) {
+    if n <= 0 { return 0; }
+    if n == 1 { return 1; }
+    return fib_recursive(n - 1) + fib_recursive(n - 2);
+}
+
+// ── Iterative ────────────────────────────────────────────────────────────────
+//
+// Time:  O(n)  |  Space: O(1)
+// Efficient — works for large n.
+
+function fib_iterative(n) {
+    if n <= 0 { return 0; }
+    if n == 1 { return 1; }
+    let a = 0;
+    let b = 1;
+    let i = 2;
+    while i <= n {
+        let tmp = a + b;
+        a = b;
+        b = tmp;
+        i = i + 1;
+    }
+    return b;
+}
+
+// ── Sequence ─────────────────────────────────────────────────────────────────
+
+function fib_sequence(count) {
+    let seq = [];
+    let a = 0;
+    let b = 1;
+    let i = 0;
+    while i < count {
+        seq = seq + [a];
+        let tmp = a + b;
+        a = b;
+        b = tmp;
+        i = i + 1;
+    }
+    return seq;
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
+log("=== Fibonacci in Aeonmi ===");
+
+log("Recursive fib(10):");
+log(fib_recursive(10));   // 55
+
+log("Iterative fib(10):");
+log(fib_iterative(10));   // 55
+
+log("Iterative fib(30):");
+log(fib_iterative(30));   // 832040
+
+log("First 12 Fibonacci numbers:");
+log(fib_sequence(12));    // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]

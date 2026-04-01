@@ -1,5 +1,10 @@
 # Aeonmi
 
+[![CI](https://github.com/Aeonmi-Aysa/aeonmi/actions/workflows/ci.yml/badge.svg)](https://github.com/Aeonmi-Aysa/aeonmi/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
+[![Version](https://img.shields.io/badge/version-1.0.0--quantum--consciousness-purple.svg)](CHANGELOG.md)
+
 Aeonmi is an experimental symbolic programming language exploring AI-native execution, quantum-style composition, and self-hosting compiler design.
 
 **Status:** active development — native VM complete, working language.
@@ -105,17 +110,21 @@ See `vscode-aeonmi/README.md` for installation instructions.
 
 ---
 
-## Current Focus
+## Current Status
 
-Current development is centered on:
+All major phases are complete and passing:
 
-* **Genesis glyphs** — adding `⧉`, `‥`, `…`, `↦` to the lexer and native VM
-* **f-string interpolation** — `f"hello {name}"` should evaluate correctly
-* **`for x in collection` iteration** — proper iteration, not a block placeholder
-* **CLI visual identity** — cyberpunk color scheme, startup banner
-* **Joint quantum simulator** — real multi-qubit state-vector for `entangle()` / CNOT
-* **File I/O built-ins** — `read_file` / `write_file` (gates Shard self-hosting)
-* **Shard integration** — self-hosting compiler reading and compiling real `.ai` files
+* ✅ **Genesis glyphs** — `⧉`, `‥`, `…`, `↦` in lexer and native VM
+* ✅ **F-string interpolation** — `f"hello {name}"` evaluates correctly
+* ✅ **`for x in collection` iteration** — full for-in loop support
+* ✅ **CLI visual identity** — cyberpunk startup banner
+* ✅ **Joint quantum simulator** — real multi-qubit state-vector, CNOT gate
+* ✅ **File I/O built-ins** — `read_file` / `write_file` / `append_file`
+* ✅ **Shard integration** — self-hosting compiler running `.ai` files
+* ✅ **Web3 modules** — wallet, ERC-20 tokens, DAO governance
+* ✅ **NFT minting** — Solana-compatible metadata + Anchor stubs
+* ✅ **Mother AI** — embryo loop, emotional core, quantum attention
+* ✅ **CI/CD** — automated build and test on Linux, macOS, and Windows
 
 ---
 
@@ -141,9 +150,12 @@ Aeonmi programs run natively — no Node.js or external runtime required.
 
 ```bash
 # Build from source (Rust required)
-cargo build --features "quantum,bytecode,mother-ai" --no-default-features
+cargo build --no-default-features --features "quantum,mother-ai"
 
-# Run an Aeonmi program (native VM)
+# Tour all key language features
+aeonmi run examples/showcase.ai
+
+# Run a simple Aeonmi program (native VM)
 aeonmi run examples/hello.ai
 
 # Compile to .ai canonical form
@@ -167,6 +179,7 @@ aeonmi
 Classic algorithms and data structures implemented in Aeonmi are in `examples/cs/`:
 
 ```bash
+aeonmi run examples/cs/fibonacci.ai
 aeonmi run examples/cs/binary_search.ai
 aeonmi run examples/cs/merge_sort.ai
 aeonmi run examples/cs/quick_sort.ai
@@ -196,10 +209,11 @@ See:
 
 ---
 
-## Roadmap
+## Roadmap & Changelog
 
 See:
 
+* `CHANGELOG.md` — full version history and feature log
 * `AEONMI_LANGUAGE_ROADMAP.md`
 * `Q.U.B.E.md`
 * `test_suite.md`
@@ -272,6 +286,7 @@ This section describes the top-level contents of the repository.
 | File | Description |
 |------|-------------|
 | `README.md` | This file — project overview, architecture, and quick-start guide |
+| `CHANGELOG.md` | Full version history and feature log — what changed in each release |
 | `LICENSE` | Project license |
 | `CONTRIBUTING.md` | Contribution guidelines and repository hygiene rules |
 | `SECURITY.md` | Security policy and vulnerability reporting procedure |
