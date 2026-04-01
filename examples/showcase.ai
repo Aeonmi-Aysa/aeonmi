@@ -1,0 +1,119 @@
+// showcase.ai — Aeonmi Language Feature Tour
+//
+// This file demonstrates the key features of the Aeonmi language.
+// Run with:  aeonmi run examples/showcase.ai
+
+// ── 1. Variables & Arithmetic ────────────────────────────────────────────────
+
+let x = 10;
+let y = 3;
+log(x + y);      // 13
+log(x * y);      // 30
+log(x % y);      // 1
+
+// ── 2. Strings & F-string Interpolation ─────────────────────────────────────
+
+let name = "Aeonmi";
+let version = "1.0";
+log(f"Welcome to {name} v{version}!");
+
+// ── 3. Functions ─────────────────────────────────────────────────────────────
+
+function add(a, b) {
+    return a + b;
+}
+
+function greet(who) {
+    return f"Hello, {who}!";
+}
+
+log(add(4, 7));          // 11
+log(greet("universe"));  // Hello, universe!
+
+// ── 4. Closures ──────────────────────────────────────────────────────────────
+
+let double = |n| n * 2;
+let square = |n| n * n;
+log(double(5));   // 10
+log(square(6));   // 36
+
+// ── 5. Control Flow ──────────────────────────────────────────────────────────
+
+function classify(n) {
+    if n > 0 {
+        return "positive";
+    } else if n < 0 {
+        return "negative";
+    } else {
+        return "zero";
+    }
+}
+
+log(classify(42));   // positive
+log(classify(-7));   // negative
+log(classify(0));    // zero
+
+// ── 6. While Loop ────────────────────────────────────────────────────────────
+
+let count = 0;
+let sum = 0;
+while count < 5 {
+    sum = sum + count;
+    count = count + 1;
+}
+log(sum);   // 10  (0+1+2+3+4)
+
+// ── 7. Arrays & For-In Loop ──────────────────────────────────────────────────
+
+let primes = [2, 3, 5, 7, 11, 13];
+let total = 0;
+for p in primes {
+    total = total + p;
+}
+log(total);         // 41
+log(len(primes));   // 6
+
+// ── 8. Recursion ─────────────────────────────────────────────────────────────
+
+function factorial(n) {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+log(factorial(10));   // 3628800
+
+// ── 9. Match Expressions ─────────────────────────────────────────────────────
+
+function day_name(d) {
+    match d {
+        1 => "Monday",
+        2 => "Tuesday",
+        3 => "Wednesday",
+        4 => "Thursday",
+        5 => "Friday",
+        6 => "Saturday",
+        7 => "Sunday",
+        _ => "Unknown",
+    }
+}
+
+log(day_name(3));   // Wednesday
+log(day_name(7));   // Sunday
+
+// ── 10. Genesis Glyphs — Symbolic Arrays ─────────────────────────────────────
+
+let bell = ⧉0.707‥0‥0‥0.707⧉;
+log("Bell state amplitude vector defined.");
+
+// ── 11. Quantum Variables & Operations ───────────────────────────────────────
+
+qubit q;
+superpose(q);
+let result = measure(q);
+log(f"Measured qubit: {result}");   // 0 or 1
+
+// ── 12. Done ─────────────────────────────────────────────────────────────────
+
+log("Aeonmi showcase complete. ⊗");
