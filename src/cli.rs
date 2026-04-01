@@ -168,8 +168,27 @@ pub enum Command {
         fix: bool,
     },
 
-    /// Interactive REPL (placeholder for now)
+    /// Interactive REPL (Mother AI)
     Repl,
+
+    /// Build an .ai file through the Aeonmi native pipeline.
+    /// Defaults to --emit ai output. Without a file, looks for build.ai in cwd.
+    ///
+    /// Examples:
+    ///   aeonmi build                   # runs build.ai in current dir
+    ///   aeonmi build src/main.ai       # build specific file
+    ///   aeonmi build src/main.ai --out out.ai
+    Build {
+        /// Input .ai file (optional — defaults to build.ai in cwd)
+        #[arg(value_name = "INPUT")]
+        input: Option<PathBuf>,
+        /// Output file (default: output.ai)
+        #[arg(long = "out", value_name = "FILE")]
+        out: Option<PathBuf>,
+        /// Disable semantic analysis
+        #[arg(long = "no-sema", action = clap::ArgAction::SetTrue)]
+        no_sema: bool,
+    },
 
     /// Editor: line-mode by default; pass --tui for TUI editor
     Edit {

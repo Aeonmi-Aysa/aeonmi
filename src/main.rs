@@ -488,6 +488,33 @@ fn main() -> anyhow::Result<()> {
 
         Some(Command::Repl) => commands::repl::main(),
 
+        Some(Command::Build { input, out, no_sema }) => {
+            use crate::commands::compile::compile_pipeline;
+            use crate::cli::EmitKind;
+            let input_path = input.unwrap_or_else(|| {
+                std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("build.ai")
+            });
+            if !input_path.exists() {
+                eprintln!("aeonmi build: no input — tried '{}'", input_path.display());
+                eprintln!("  Pass a file: aeonmi build <file.ai>  or create build.ai");
+                return Ok(());
+            }
+            let out_path = out.unwrap_or_else(|| input_path.with_extension("out.ai"));
+            println!("⟦AEONMI⟧ build: {} → {}", input_path.display(), out_path.display());
+            compile_pipeline(
+                Some(input_path),
+                EmitKind::Ai,
+                out_path,
+                false,
+                false,
+                args.pretty_errors,
+                no_sema,
+                false,
+            )
+        }
+
         Some(Command::Edit { file, tui }) => commands::edit::main(file, cfg_path, tui),
 
         Some(Command::New {

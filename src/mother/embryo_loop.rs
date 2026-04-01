@@ -440,7 +440,7 @@ impl EmbryoLoop {
         loop {
             {
                 let mut out = stdout.lock();
-                write!(out, "mother> ")?;
+                write!(out, "◈ mother ❯ ")?;
                 out.flush()?;
             }
 
@@ -453,8 +453,11 @@ impl EmbryoLoop {
             }
 
             let trimmed = line.trim();
-            if trimmed.eq_ignore_ascii_case("exit") || trimmed.eq_ignore_ascii_case("quit") {
-                println!("[Mother AI] Goodbye.");
+            if trimmed.eq_ignore_ascii_case("exit")
+                || trimmed.eq_ignore_ascii_case("quit")
+                || trimmed.eq_ignore_ascii_case("back")
+            {
+                println!("[Mother AI] Returning to shard.");
                 break;
             }
 
