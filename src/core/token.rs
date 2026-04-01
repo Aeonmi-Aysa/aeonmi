@@ -100,6 +100,8 @@ pub enum TokenKind {
     Ampersand,     // '&'
     Bang,          // '!'
     Percent,       // '%'
+    Bind,          // ↦ (U+21A6, Genesis bind/pipe operator)
+    Caret,         // ^ (XOR / exponent)
     
     // AEONMI Quantum-Native Keywords
     ClassicalFunc,     // ◯
@@ -254,6 +256,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Ampersand => "&",
             TokenKind::Bang => "!",
             TokenKind::Percent => "%",
+            TokenKind::Bind => "↦",
+            TokenKind::Caret => "^",
 
             // Quantum-native keywords
             TokenKind::ClassicalFunc => "◯",

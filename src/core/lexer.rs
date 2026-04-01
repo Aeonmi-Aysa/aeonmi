@@ -348,6 +348,8 @@ impl Lexer {
                 '✓' => Some(TokenKind::Success),           // quantum success
                 '⏰' | '⏱' => Some(TokenKind::TimeBlock),   // time block
                 
+                '↦' => Some(TokenKind::Bind),            // Genesis bind/pipe operator
+
                 _ => None,
             } {
                 let (line, col) = self.pos();
@@ -369,6 +371,10 @@ impl Lexer {
                 self.lex_line_comment();
                 continue;
             } else if ch == self.options.markers.line_comment {
+                self.lex_line_comment();
+                continue;
+            } else if ch == '⍝' {
+                // ⍝ (U+2395) is the Aeonmi line-comment glyph; skip to end of line.
                 self.lex_line_comment();
                 continue;
             } else if ch == self.options.markers.block_comment_start {
@@ -884,6 +890,9 @@ impl Lexer {
 
             // AI/Brain emoji for AI functions
             '🧠' => Some(TokenKind::AIFunc),
+
+            // Caret: XOR / exponent
+            '^' => Some(TokenKind::Caret),
 
             // Many specialized glyphs are represented as hieroglyphic operations
             glyph if is_hieroglyphic(glyph) && !is_identifier_start(glyph) => Some(TokenKind::HieroglyphicOp(glyph.to_string())),
