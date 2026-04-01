@@ -206,7 +206,11 @@ impl Parser {
             for (i, name) in names.iter().enumerate() {
                 stmts.push(ASTNode::new_variable_decl_at(
                     name,
-                    ASTNode::NumberLiteral(i as f64), // placeholder — runtime needs indexing
+                    ASTNode::new_quantum_index_access(
+                        ASTNode::Identifier(tmp.to_string()),
+                        ASTNode::NumberLiteral(i as f64),
+                        false, // classical indexing
+                    ),
                     line, column,
                 ));
             }
@@ -432,11 +436,48 @@ impl Parser {
             self.consume(TokenKind::In, "Expected 'in'")?;
             let iterable = self.parse_expression()?;
             let body = self.parse_statement()?;
-            // Lower to: for (let __i = 0; __i < collection.length; __i++) { let var = collection[__i]; body }
-            // For now, emit as a block the VM/codegen can handle
+            // Lower to a while loop so the VM can iterate without new AST nodes:
+            //   let __iter_N = collection;
+            //   let __i_N = 0;
+            //   while (__i_N < len(__iter_N)) {
+            //       let var = __iter_N[__i_N];
+            //       body;
+            //       __i_N = __i_N + 1;
+            //   }
+            let uid = self.pos; // unique suffix per loop site
+            let iter_name = format!("__iter_{}", uid);
+            let idx_name  = format!("__i_{}", uid);
+            let iter_id   = || ASTNode::Identifier(iter_name.clone());
+            let idx_id    = || ASTNode::Identifier(idx_name.clone());
+            // while condition: __i_N < len(__iter_N)
+            let len_call = ASTNode::new_call(
+                ASTNode::Identifier("len".to_string()),
+                vec![iter_id()],
+            );
+            let cond = ASTNode::new_binary_expr(
+                TokenKind::LessThan,
+                idx_id(),
+                len_call,
+            );
+            // loop body: { let var = __iter_N[__i_N]; <body>; __i_N = __i_N + 1; }
+            let elem_decl = ASTNode::new_variable_decl_at(
+                &var_name,
+                ASTNode::new_quantum_index_access(iter_id(), idx_id(), false),
+                0, 0,
+            );
+            let increment = ASTNode::new_assignment(
+                &idx_name,
+                ASTNode::new_binary_expr(
+                    TokenKind::Plus,
+                    idx_id(),
+                    ASTNode::NumberLiteral(1.0),
+                ),
+            );
+            let while_body = ASTNode::Block(vec![elem_decl, body, increment]);
             Ok(ASTNode::Block(vec![
-                ASTNode::new_variable_decl_at(&var_name, iterable.clone(), 0, 0),
-                body,
+                ASTNode::new_variable_decl_at(&iter_name, iterable, 0, 0),
+                ASTNode::new_variable_decl_at(&idx_name, ASTNode::NumberLiteral(0.0), 0, 0),
+                ASTNode::new_while(cond, while_body),
             ]))
         } else {
             // C-style: for (init; cond; incr) { ... }
