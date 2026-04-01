@@ -1,0 +1,112 @@
+⍝ entangle.ai — Two-qubit entanglement and Bell states
+⍝ 2-qubit state: [re00,im00, re01,im01, re10,im10, re11,im11]  (8 floats)
+⍝ Index map: |00⟩=0-1  |01⟩=2-3  |10⟩=4-5  |11⟩=6-7
+⍝ Functions: 10 total, no imports
+
+◯ bell_phi_minus⟨⟩ {
+    ⍝ |Φ-⟩ = (|00⟩ - |11⟩)/√2
+    let k = 0.70710678;
+    let r = [];
+    r.push(k);  r.push(0.0);   ⍝ |00⟩
+    r.push(0.0); r.push(0.0);  ⍝ |01⟩
+    r.push(0.0); r.push(0.0);  ⍝ |10⟩
+    r.push(0.0 - k); r.push(0.0); ⍝ |11⟩
+    return r;
+}
+
+◯ bell_phi_plus⟨⟩ {
+    ⍝ |Φ+⟩ = (|00⟩ + |11⟩)/√2  — canonical Bell state
+    let k = 0.70710678;
+    let r = [];
+    r.push(k);  r.push(0.0);  ⍝ |00⟩
+    r.push(0.0); r.push(0.0); ⍝ |01⟩
+    r.push(0.0); r.push(0.0); ⍝ |10⟩
+    r.push(k);  r.push(0.0);  ⍝ |11⟩
+    return r;
+}
+
+◯ bell_psi_minus⟨⟩ {
+    ⍝ |Ψ-⟩ = (|01⟩ - |10⟩)/√2
+    let k = 0.70710678;
+    let r = [];
+    r.push(0.0); r.push(0.0);       ⍝ |00⟩
+    r.push(k);  r.push(0.0);         ⍝ |01⟩
+    r.push(0.0 - k); r.push(0.0);   ⍝ |10⟩
+    r.push(0.0); r.push(0.0);        ⍝ |11⟩
+    return r;
+}
+
+◯ bell_psi_plus⟨⟩ {
+    ⍝ |Ψ+⟩ = (|01⟩ + |10⟩)/√2
+    let k = 0.70710678;
+    let r = [];
+    r.push(0.0); r.push(0.0); ⍝ |00⟩
+    r.push(k);  r.push(0.0);  ⍝ |01⟩
+    r.push(k);  r.push(0.0);  ⍝ |10⟩
+    r.push(0.0); r.push(0.0); ⍝ |11⟩
+    return r;
+}
+
+◯ ent_apply_cnot⟨b⟩ {
+    ⍝ CNOT: control=q0 target=q1 — swaps |10⟩ ↔ |11⟩ (positions 4-5 ↔ 6-7)
+    let r = [];
+    r.push(b.slice(0, 1).pop()); r.push(b.slice(1, 2).pop()); ⍝ |00⟩ unchanged
+    r.push(b.slice(2, 3).pop()); r.push(b.slice(3, 4).pop()); ⍝ |01⟩ unchanged
+    r.push(b.slice(6, 7).pop()); r.push(b.slice(7, 8).pop()); ⍝ |10⟩ ← old |11⟩
+    r.push(b.slice(4, 5).pop()); r.push(b.slice(5, 6).pop()); ⍝ |11⟩ ← old |10⟩
+    return r;
+}
+
+◯ ent_apply_h0⟨b⟩ {
+    ⍝ Apply Hadamard to qubit 0 of 2-qubit state
+    ⍝ |00⟩ → (|00⟩+|10⟩)/√2  |01⟩ → (|01⟩+|11⟩)/√2
+    ⍝ |10⟩ → (|00⟩-|10⟩)/√2  |11⟩ → (|01⟩-|11⟩)/√2
+    let k = 0.70710678;
+    let a00r = b.slice(0,1).pop(); let a00i = b.slice(1,2).pop();
+    let a01r = b.slice(2,3).pop(); let a01i = b.slice(3,4).pop();
+    let a10r = b.slice(4,5).pop(); let a10i = b.slice(5,6).pop();
+    let a11r = b.slice(6,7).pop(); let a11i = b.slice(7,8).pop();
+    let r = [];
+    r.push((a00r + a10r) * k); r.push((a00i + a10i) * k);
+    r.push((a01r + a11r) * k); r.push((a01i + a11i) * k);
+    r.push((a00r - a10r) * k); r.push((a00i - a10i) * k);
+    r.push((a01r - a11r) * k); r.push((a01i - a11i) * k);
+    return r;
+}
+
+◯ ent_measure0⟨b⟩ {
+    ⍝ Measure qubit 0: 0 if P(|0x⟩) >= P(|1x⟩)
+    let a00r = b.slice(0,1).pop(); let a00i = b.slice(1,2).pop();
+    let a01r = b.slice(2,3).pop(); let a01i = b.slice(3,4).pop();
+    let a10r = b.slice(4,5).pop(); let a10i = b.slice(5,6).pop();
+    let a11r = b.slice(6,7).pop(); let a11i = b.slice(7,8).pop();
+    let p0 = a00r*a00r + a00i*a00i + a01r*a01r + a01i*a01i;
+    let p1 = a10r*a10r + a10i*a10i + a11r*a11r + a11i*a11i;
+    if (p0 >= p1) { return 0; }
+    return 1;
+}
+
+◯ ent_measure1⟨b⟩ {
+    ⍝ Measure qubit 1: 0 if P(|x0⟩) >= P(|x1⟩)
+    let a00r = b.slice(0,1).pop(); let a00i = b.slice(1,2).pop();
+    let a01r = b.slice(2,3).pop(); let a01i = b.slice(3,4).pop();
+    let a10r = b.slice(4,5).pop(); let a10i = b.slice(5,6).pop();
+    let a11r = b.slice(6,7).pop(); let a11i = b.slice(7,8).pop();
+    let p0 = a00r*a00r + a00i*a00i + a10r*a10r + a10i*a10i;
+    let p1 = a01r*a01r + a01i*a01i + a11r*a11r + a11i*a11i;
+    if (p0 >= p1) { return 0; }
+    return 1;
+}
+
+◯ ent_prob⟨b, outcome⟩ {
+    ⍝ Probability amplitude^2 for 2-bit outcome (0=|00⟩ 1=|01⟩ 2=|10⟩ 3=|11⟩)
+    let base = outcome * 2;
+    let re = b.slice(base, base + 1).pop();
+    let im = b.slice(base + 1, base + 2).pop();
+    return re * re + im * im;
+}
+
+◯ main⟨⟩ {
+    let b = bell_phi_plus();
+    print("entangle module loaded — Bell |Φ+⟩ prob00:", ent_prob(b, 0), "prob11:", ent_prob(b, 3));
+}

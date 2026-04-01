@@ -326,7 +326,8 @@ impl Interpreter {
             }),
         );
         
-        // Quantum gate builtins — callable as H(q), X(q), CNOT(q1, q2) or apply_gate(q, H)
+        // Gate builtins — callable as H(q), X(q), CNOT(q1,q2), etc.
+        // AND usable as apply_gate(q, H) since apply_gate also accepts Builtin.
         env.define("H".into(), Value::Builtin(Builtin { name: "H", arity: 1, f: gate_h }));
         env.define("X".into(), Value::Builtin(Builtin { name: "X", arity: 1, f: gate_x }));
         env.define("Y".into(), Value::Builtin(Builtin { name: "Y", arity: 1, f: gate_y }));
@@ -334,9 +335,9 @@ impl Interpreter {
         env.define("S".into(), Value::Builtin(Builtin { name: "S", arity: 1, f: gate_s }));
         env.define("T".into(), Value::Builtin(Builtin { name: "T", arity: 1, f: gate_t }));
         env.define("CNOT".into(), Value::Builtin(Builtin { name: "CNOT", arity: 2, f: gate_cnot }));
-        env.define("CX".into(),   Value::Builtin(Builtin { name: "CX",   arity: 2, f: gate_cnot }));
+        env.define("CX".into(), Value::Builtin(Builtin { name: "CNOT", arity: 2, f: gate_cnot }));
         env.define("HADAMARD".into(), Value::Builtin(Builtin { name: "H", arity: 1, f: gate_h }));
-        env.define("NOT".into(),      Value::Builtin(Builtin { name: "X", arity: 1, f: gate_x }));
+        env.define("NOT".into(), Value::Builtin(Builtin { name: "X", arity: 1, f: gate_x }));
         
         // Hieroglyphic glyph operations — called when scripts use Unicode symbols like 𓀀(x, y)
         env.define(
@@ -424,6 +425,104 @@ impl Interpreter {
             }),
         );
         
+
+        // ── Math builtins ──────────────────────────────────────────────────────
+        env.define("sqrt".into(),     Value::Builtin(Builtin { name: "sqrt",     arity: 1, f: builtin_sqrt }));
+        env.define("sin".into(),      Value::Builtin(Builtin { name: "sin",      arity: 1, f: builtin_sin }));
+        env.define("cos".into(),      Value::Builtin(Builtin { name: "cos",      arity: 1, f: builtin_cos }));
+        env.define("tan".into(),      Value::Builtin(Builtin { name: "tan",      arity: 1, f: builtin_tan }));
+        env.define("atan2".into(),    Value::Builtin(Builtin { name: "atan2",    arity: 2, f: builtin_atan2 }));
+        env.define("floor".into(),    Value::Builtin(Builtin { name: "floor",    arity: 1, f: builtin_floor }));
+        env.define("ceil".into(),     Value::Builtin(Builtin { name: "ceil",     arity: 1, f: builtin_ceil }));
+        env.define("round".into(),    Value::Builtin(Builtin { name: "round",    arity: 1, f: builtin_round }));
+        env.define("abs".into(),      Value::Builtin(Builtin { name: "abs",      arity: 1, f: builtin_abs }));
+        env.define("exp".into(),      Value::Builtin(Builtin { name: "exp",      arity: 1, f: builtin_exp }));
+        env.define("ln".into(),       Value::Builtin(Builtin { name: "ln",       arity: 1, f: builtin_ln }));
+        env.define("log10".into(),    Value::Builtin(Builtin { name: "log10",    arity: 1, f: builtin_log10 }));
+        env.define("pow".into(),      Value::Builtin(Builtin { name: "pow",      arity: 2, f: builtin_pow }));
+        env.define("min".into(),      Value::Builtin(Builtin { name: "min",      arity: 2, f: builtin_min }));
+        env.define("max".into(),      Value::Builtin(Builtin { name: "max",      arity: 2, f: builtin_max }));
+        env.define("PI".into(),       Value::Number(std::f64::consts::PI));
+        env.define("E".into(),        Value::Number(std::f64::consts::E));
+        env.define("TAU".into(),      Value::Number(std::f64::consts::TAU));
+        env.define("INFINITY".into(), Value::Number(f64::INFINITY));
+        env.define("NAN".into(),      Value::Number(f64::NAN));
+
+        // ── String builtins ────────────────────────────────────────────────────
+        env.define("upper".into(),       Value::Builtin(Builtin { name: "upper",       arity: 1, f: builtin_upper }));
+        env.define("lower".into(),       Value::Builtin(Builtin { name: "lower",       arity: 1, f: builtin_lower }));
+        env.define("trim".into(),        Value::Builtin(Builtin { name: "trim",        arity: 1, f: builtin_trim }));
+        env.define("split".into(),       Value::Builtin(Builtin { name: "split",       arity: 2, f: builtin_split }));
+        env.define("join".into(),        Value::Builtin(Builtin { name: "join",        arity: 2, f: builtin_join }));
+        env.define("replace".into(),     Value::Builtin(Builtin { name: "replace",     arity: 3, f: builtin_replace }));
+        env.define("contains".into(),    Value::Builtin(Builtin { name: "contains",    arity: 2, f: builtin_contains }));
+        env.define("starts_with".into(), Value::Builtin(Builtin { name: "starts_with", arity: 2, f: builtin_starts_with }));
+        env.define("ends_with".into(),   Value::Builtin(Builtin { name: "ends_with",   arity: 2, f: builtin_ends_with }));
+        env.define("substr".into(),      Value::Builtin(Builtin { name: "substr",      arity: usize::MAX, f: builtin_substr }));
+        env.define("char_at".into(),     Value::Builtin(Builtin { name: "char_at",     arity: 2, f: builtin_char_at }));
+        env.define("find".into(),        Value::Builtin(Builtin { name: "find",        arity: 2, f: builtin_find }));
+        env.define("repeat".into(),      Value::Builtin(Builtin { name: "repeat",      arity: 2, f: builtin_repeat }));
+        env.define("lines".into(),       Value::Builtin(Builtin { name: "lines",       arity: 1, f: builtin_lines }));
+        env.define("str_len".into(),     Value::Builtin(Builtin { name: "str_len",     arity: 1, f: builtin_str_len }));
+        env.define("pad_left".into(),    Value::Builtin(Builtin { name: "pad_left",    arity: 3, f: builtin_pad_left }));
+        env.define("pad_right".into(),   Value::Builtin(Builtin { name: "pad_right",   arity: 3, f: builtin_pad_right }));
+
+        // ── File I/O builtins ──────────────────────────────────────────────────
+        env.define("read_file".into(),   Value::Builtin(Builtin { name: "read_file",   arity: 1, f: builtin_read_file }));
+        env.define("write_file".into(),  Value::Builtin(Builtin { name: "write_file",  arity: 2, f: builtin_write_file }));
+        env.define("file_exists".into(), Value::Builtin(Builtin { name: "file_exists", arity: 1, f: builtin_file_exists }));
+        env.define("append_file".into(), Value::Builtin(Builtin { name: "append_file", arity: 2, f: builtin_append_file }));
+        env.define("input".into(),       Value::Builtin(Builtin { name: "input",       arity: usize::MAX, f: builtin_input }));
+
+        // ── Functional builtins ────────────────────────────────────────────────
+        env.define("map".into(),      Value::Builtin(Builtin { name: "map",      arity: 2, f: builtin_map }));
+        env.define("filter".into(),   Value::Builtin(Builtin { name: "filter",   arity: 2, f: builtin_filter }));
+        env.define("reduce".into(),   Value::Builtin(Builtin { name: "reduce",   arity: usize::MAX, f: builtin_reduce }));
+        env.define("range".into(),    Value::Builtin(Builtin { name: "range",    arity: usize::MAX, f: builtin_range }));
+        env.define("enumerate".into(),Value::Builtin(Builtin { name: "enumerate",arity: 1, f: builtin_enumerate }));
+        env.define("zip".into(),      Value::Builtin(Builtin { name: "zip",      arity: 2, f: builtin_zip }));
+        env.define("any".into(),      Value::Builtin(Builtin { name: "any",      arity: 2, f: builtin_any }));
+        env.define("all".into(),      Value::Builtin(Builtin { name: "all",      arity: 2, f: builtin_all }));
+        env.define("sort".into(),     Value::Builtin(Builtin { name: "sort",     arity: usize::MAX, f: builtin_sort }));
+        env.define("unique".into(),   Value::Builtin(Builtin { name: "unique",   arity: 1, f: builtin_unique }));
+        env.define("flatten".into(),  Value::Builtin(Builtin { name: "flatten",  arity: 1, f: builtin_flatten }));
+        env.define("keys".into(),     Value::Builtin(Builtin { name: "keys",     arity: 1, f: builtin_keys }));
+        env.define("values".into(),   Value::Builtin(Builtin { name: "values",   arity: 1, f: builtin_values }));
+        env.define("push".into(),     Value::Builtin(Builtin { name: "push",     arity: 2, f: builtin_push }));
+        env.define("pop".into(),      Value::Builtin(Builtin { name: "pop",      arity: 1, f: builtin_pop }));
+        env.define("slice".into(),    Value::Builtin(Builtin { name: "slice",    arity: usize::MAX, f: builtin_slice }));
+        env.define("reverse".into(),  Value::Builtin(Builtin { name: "reverse",  arity: 1, f: builtin_reverse }));
+        env.define("concat".into(),   Value::Builtin(Builtin { name: "concat",   arity: 2, f: builtin_concat }));
+        env.define("sum".into(),      Value::Builtin(Builtin { name: "sum",      arity: 1, f: builtin_sum }));
+        env.define("product".into(),  Value::Builtin(Builtin { name: "product",  arity: 1, f: builtin_product }));
+
+        // ── Utility builtins ───────────────────────────────────────────────────
+        env.define("assert".into(),    Value::Builtin(Builtin { name: "assert",    arity: usize::MAX, f: builtin_assert }));
+        env.define("assert_eq".into(), Value::Builtin(Builtin { name: "assert_eq", arity: usize::MAX, f: builtin_assert_eq }));
+        env.define("exit".into(),      Value::Builtin(Builtin { name: "exit",      arity: usize::MAX, f: builtin_exit }));
+        env.define("sleep".into(),     Value::Builtin(Builtin { name: "sleep",     arity: 1, f: builtin_sleep }));
+        env.define("hash".into(),      Value::Builtin(Builtin { name: "hash",      arity: 1, f: builtin_hash }));
+        env.define("int".into(),       Value::Builtin(Builtin { name: "int",       arity: 1, f: builtin_int }));
+        env.define("float".into(),     Value::Builtin(Builtin { name: "float",     arity: 1, f: builtin_float }));
+        env.define("bool".into(),      Value::Builtin(Builtin { name: "bool",      arity: 1, f: builtin_bool }));
+        env.define("is_null".into(),   Value::Builtin(Builtin { name: "is_null",   arity: 1, f: builtin_is_null }));
+        env.define("is_nan".into(),    Value::Builtin(Builtin { name: "is_nan",    arity: 1, f: builtin_is_nan }));
+        env.define("clamp".into(),     Value::Builtin(Builtin { name: "clamp",     arity: 3, f: builtin_clamp }));
+        env.define("lerp".into(),      Value::Builtin(Builtin { name: "lerp",      arity: 3, f: builtin_lerp }));
+        env.define("now".into(),       Value::Builtin(Builtin { name: "now",       arity: 0, f: builtin_now }));
+        env.define("parse_json".into(),Value::Builtin(Builtin { name: "parse_json",arity: 1, f: builtin_parse_json }));
+        env.define("to_json".into(),   Value::Builtin(Builtin { name: "to_json",   arity: 1, f: builtin_to_json }));
+        env.define("object".into(),    Value::Builtin(Builtin { name: "object",    arity: 0, f: builtin_object }));
+        env.define("set_key".into(),   Value::Builtin(Builtin { name: "set_key",   arity: 3, f: builtin_set_key }));
+        env.define("get_key".into(),   Value::Builtin(Builtin { name: "get_key",   arity: 2, f: builtin_get_key }));
+        env.define("has_key".into(),   Value::Builtin(Builtin { name: "has_key",   arity: 2, f: builtin_has_key }));
+        env.define("delete_key".into(),Value::Builtin(Builtin { name: "delete_key",arity: 2, f: builtin_delete_key }));
+
+        // ── Index access + fmod (unlocks arr[i] syntax and fmod() calls) ──────
+        env.define("__index_access".into(), Value::Builtin(Builtin { name: "__index_access", arity: 2, f: builtin_index_access }));
+        env.define("__quantum_index".into(), Value::Builtin(Builtin { name: "__quantum_index", arity: 2, f: builtin_index_access }));
+        env.define("fmod".into(),           Value::Builtin(Builtin { name: "fmod",           arity: 2, f: builtin_fmod }));
+
         Self { 
             env,
             quantum_sim: QuantumSimulator::new(),
@@ -778,8 +877,18 @@ impl Interpreter {
                 self.env.define(name.clone(), v);
                 ControlFlow::Ok
             }
+            Block(stmts) => {
+                // Flat execution — no scope push/pop so Let bindings are visible
+                // to subsequent stmts in the same enclosing scope.
+                for s in stmts {
+                    match self.exec_stmt(s) {
+                        ControlFlow::Ok => {}
+                        other => return other,
+                    }
+                }
+                ControlFlow::Ok
+            }
             Assign { target, value } => {
-                // Only Ident target in v0
                 if let crate::core::ir::Expr::Ident(name) = target {
                     let v = match self.eval_expr(value) {
                         Ok(v) => v,
@@ -789,6 +898,16 @@ impl Interpreter {
                         return ControlFlow::Err(err(format!("Undefined variable `{}`", name)));
                     }
                     ControlFlow::Ok
+                } else if let crate::core::ir::Expr::Member { object, .. } = target {
+                    // this.field = value — evaluate value (for side effects) but
+                    // discard the result; object identity tracking is Phase 5d.
+                    if let crate::core::ir::Expr::Ident(obj_name) = object.as_ref() {
+                        if obj_name == "this" || obj_name == "self" {
+                            let _ = self.eval_expr(value); // eval for side effects
+                            return ControlFlow::Ok;
+                        }
+                    }
+                    ControlFlow::Err(err("Only simple identifier or this.field assignment supported".into()))
                 } else {
                     ControlFlow::Err(err(
                         "Only simple identifier assignment supported in v0".into()
@@ -809,6 +928,13 @@ impl Interpreter {
             },
             Ident(s) => {
                 debug_log!("vm: lookup '{}'", s);
+                // 'this' and 'self' resolve to an empty object when not explicitly set.
+                // Constructor/method bodies use them for field access; the runtime
+                // doesn't yet track object identity, so we return Null gracefully
+                // instead of crashing. Phase 5d (genesis memory) will wire real 'this'.
+                if (s == "this" || s == "self") && self.env.get(s).is_none() {
+                    return Ok(Value::Null);
+                }
                 let result = self
                     .env
                     .get(s)
@@ -1265,6 +1391,36 @@ fn eq_val(a: &Value, b: &Value) -> bool {
 
 // ---------- Builtins ----------
 
+fn builtin_index_access(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() != 2 {
+        return Err(err(format!("__index_access: expected 2 args, got {}", args.len())));
+    }
+    match (&args[0], &args[1]) {
+        (Value::Array(arr), Value::Number(idx)) => {
+            let i = *idx as usize;
+            arr.get(i).cloned().ok_or_else(|| err(format!("index {} out of bounds (array len {})", i, arr.len())))
+        }
+        (Value::String(s), Value::Number(idx)) => {
+            let i = *idx as usize;
+            let ch = s.chars().nth(i)
+                .ok_or_else(|| err(format!("string index {} out of bounds (len {})", i, s.chars().count())))?;
+            Ok(Value::String(ch.to_string()))
+        }
+        (Value::Object(map), Value::String(key)) => {
+            Ok(map.get(key.as_str()).cloned().unwrap_or(Value::Null))
+        }
+        _ => Err(err(format!("cannot index value of this type with given key"))),
+    }
+}
+
+fn builtin_fmod(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let x = to_f64(&args[0], "fmod")?;
+    let y = to_f64(&args[1], "fmod")?;
+    if y == 0.0 { return Err(err("fmod: division by zero".to_string())); }
+    Ok(Value::Number(x % y))
+}
+
+
 fn builtin_print(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
     let parts: Vec<String> = args.iter().map(display).collect();
     println!("{}", parts.join(" "));
@@ -1478,8 +1634,9 @@ fn builtin_apply_gate(interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
     
     let gate_name = match &args[1] {
         Value::String(name) => name.to_uppercase(),
+        // Accept gate builtins: apply_gate(q, H) where H is now a Builtin
         Value::Builtin(b) => b.name.to_uppercase(),
-        _ => return Err(err("apply_gate second argument must be a gate name string or gate builtin (H, X, Y, Z, S, T, CNOT)".into())),
+        _ => return Err(err("apply_gate second argument must be a gate name or gate builtin (H, X, Y, Z, CNOT)".into())),
     };
     
     // Create qubit if it doesn't exist
@@ -1942,117 +2099,624 @@ fn builtin_to_number(_interp: &mut Interpreter, args: Vec<Value>) -> Result<Valu
     Ok(Value::Number(n))
 }
 
-// ─── File I/O built-ins (P3-4) ────────────────────────────────────────────────
+// ─── Gate builtins — callable as H(q), X(q), CNOT(q1,q2) etc. ────────────────────────────
 
-/// read_file(path: String) -> String
-/// Reads the entire contents of a file and returns it as a string.
-fn builtin_read_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(err("read_file expects 1 argument: path".into()));
+fn gate_qubit_name(args: &[Value], gate: &str) -> Result<String, RuntimeError> {
+    match args.first() {
+        Some(Value::QubitReference(n)) => Ok(n.clone()),
+        Some(Value::String(n)) => Ok(n.clone()),
+        _ => Err(err(format!("{} expects a qubit as first argument", gate))),
     }
-    let path = match &args[0] {
-        Value::String(s) => s.clone(),
-        _ => return Err(err("read_file: path must be a string".into())),
-    };
+}
+
+fn gate_h(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let name = gate_qubit_name(&args, "H")?;
+    if !interp.quantum_sim.qubits.contains_key(&name) {
+        interp.quantum_sim.create_qubit(name.clone());
+    }
+    interp.quantum_sim.superpose(&name)
+        .map_err(|e| err(format!("H gate error: {}", e)))?;
+    Ok(Value::QubitReference(name))
+}
+
+fn gate_x(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let name = gate_qubit_name(&args, "X")?;
+    if !interp.quantum_sim.qubits.contains_key(&name) {
+        interp.quantum_sim.create_qubit(name.clone());
+    }
+    interp.quantum_sim.pauli_x(&name)
+        .map_err(|e| err(format!("X gate error: {}", e)))?;
+    Ok(Value::QubitReference(name))
+}
+
+fn gate_y(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let name = gate_qubit_name(&args, "Y")?;
+    if !interp.quantum_sim.qubits.contains_key(&name) {
+        interp.quantum_sim.create_qubit(name.clone());
+    }
+    interp.quantum_sim.pauli_y(&name)
+        .map_err(|e| err(format!("Y gate error: {}", e)))?;
+    Ok(Value::QubitReference(name))
+}
+
+fn gate_z(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let name = gate_qubit_name(&args, "Z")?;
+    if !interp.quantum_sim.qubits.contains_key(&name) {
+        interp.quantum_sim.create_qubit(name.clone());
+    }
+    interp.quantum_sim.pauli_z(&name)
+        .map_err(|e| err(format!("Z gate error: {}", e)))?;
+    Ok(Value::QubitReference(name))
+}
+
+fn gate_s(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    // S gate = Z^(1/2). Simulate as Z for now (approximation).
+    let name = gate_qubit_name(&args, "S")?;
+    if !interp.quantum_sim.qubits.contains_key(&name) {
+        interp.quantum_sim.create_qubit(name.clone());
+    }
+    interp.quantum_sim.pauli_z(&name)
+        .map_err(|e| err(format!("S gate error: {}", e)))?;
+    Ok(Value::QubitReference(name))
+}
+
+fn gate_t(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    // T gate = Z^(1/4). Simulate as Z for now (approximation).
+    let name = gate_qubit_name(&args, "T")?;
+    if !interp.quantum_sim.qubits.contains_key(&name) {
+        interp.quantum_sim.create_qubit(name.clone());
+    }
+    interp.quantum_sim.pauli_z(&name)
+        .map_err(|e| err(format!("T gate error: {}", e)))?;
+    Ok(Value::QubitReference(name))
+}
+
+fn gate_cnot(interp: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.len() < 2 {
+        return Err(err("CNOT expects 2 qubits: CNOT(control, target)".into()));
+    }
+    let ctrl = gate_qubit_name(&args[0..1], "CNOT")?;
+    let tgt  = gate_qubit_name(&args[1..2], "CNOT")?;
+    for name in [&ctrl, &tgt] {
+        if !interp.quantum_sim.qubits.contains_key(name.as_str()) {
+            interp.quantum_sim.create_qubit(name.clone());
+        }
+    }
+    interp.quantum_sim.entangle(&ctrl, &tgt)
+        .map_err(|e| err(format!("CNOT gate error: {}", e)))?;
+    Ok(Value::Null)
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AEONMI STDLIB — Math, String, I/O, Functional, Utility builtins
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+fn to_f64(v: &Value, ctx: &str) -> Result<f64, RuntimeError> {
+    match v {
+        Value::Number(n) => Ok(*n),
+        Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+        Value::String(s) => s.parse::<f64>().map_err(|_| err(format!("{}: cannot convert {:?} to number", ctx, s))),
+        _ => Err(err(format!("{}: expected number, got {:?}", ctx, v))),
+    }
+}
+fn to_str(v: &Value, ctx: &str) -> Result<String, RuntimeError> {
+    match v {
+        Value::String(s) => Ok(s.clone()),
+        _ => Err(err(format!("{}: expected string", ctx))),
+    }
+}
+fn to_arr(v: Value, ctx: &str) -> Result<Vec<Value>, RuntimeError> {
+    match v {
+        Value::Array(a) => Ok(a),
+        _ => Err(err(format!("{}: expected array", ctx))),
+    }
+}
+fn truthy(v: &Value) -> bool {
+    match v {
+        Value::Bool(b) => *b,
+        Value::Null => false,
+        Value::Number(n) => *n != 0.0 && !n.is_nan(),
+        Value::String(s) => !s.is_empty(),
+        _ => true,
+    }
+}
+
+// ── Math ──────────────────────────────────────────────────────────────────────
+fn builtin_sqrt(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "sqrt")?.sqrt()))
+}
+fn builtin_sin(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "sin")?.sin()))
+}
+fn builtin_cos(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "cos")?.cos()))
+}
+fn builtin_tan(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "tan")?.tan()))
+}
+fn builtin_atan2(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "atan2")?.atan2(to_f64(&a[1], "atan2")?)))
+}
+fn builtin_floor(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "floor")?.floor()))
+}
+fn builtin_ceil(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "ceil")?.ceil()))
+}
+fn builtin_round(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "round")?.round()))
+}
+fn builtin_abs(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "abs")?.abs()))
+}
+fn builtin_exp(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "exp")?.exp()))
+}
+fn builtin_ln(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "ln")?.ln()))
+}
+fn builtin_log10(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "log10")?.log10()))
+}
+fn builtin_pow(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "pow")?.powf(to_f64(&a[1], "pow")?)))
+}
+fn builtin_min(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let x = to_f64(&a[0], "min")?; let y = to_f64(&a[1], "min")?;
+    Ok(Value::Number(if x <= y { x } else { y }))
+}
+fn builtin_max(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let x = to_f64(&a[0], "max")?; let y = to_f64(&a[1], "max")?;
+    Ok(Value::Number(if x >= y { x } else { y }))
+}
+fn builtin_clamp(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let v = to_f64(&a[0], "clamp")?; let lo = to_f64(&a[1], "clamp")?; let hi = to_f64(&a[2], "clamp")?;
+    Ok(Value::Number(if v < lo { lo } else if v > hi { hi } else { v }))
+}
+fn builtin_lerp(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let x = to_f64(&a[0], "lerp")?; let y = to_f64(&a[1], "lerp")?; let t = to_f64(&a[2], "lerp")?;
+    Ok(Value::Number(x + (y - x) * t))
+}
+fn builtin_is_nan(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Bool(matches!(&a[0], Value::Number(n) if n.is_nan())))
+}
+
+// ── String ────────────────────────────────────────────────────────────────────
+fn builtin_upper(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::String(to_str(&a[0], "upper")?.to_uppercase()))
+}
+fn builtin_lower(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::String(to_str(&a[0], "lower")?.to_lowercase()))
+}
+fn builtin_trim(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::String(to_str(&a[0], "trim")?.trim().to_string()))
+}
+fn builtin_split(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "split")?; let sep = to_str(&a[1], "split")?;
+    Ok(Value::Array(s.split(sep.as_str()).map(|p| Value::String(p.to_string())).collect()))
+}
+fn builtin_join(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "join")?; let sep = to_str(&a[1], "join")?;
+    let parts: Vec<String> = arr.iter().map(|v| display(v)).collect();
+    Ok(Value::String(parts.join(&sep)))
+}
+fn builtin_replace(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "replace")?; let from = to_str(&a[1], "replace")?; let to = to_str(&a[2], "replace")?;
+    Ok(Value::String(s.replace(from.as_str(), &to)))
+}
+fn builtin_contains(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "contains")?; let pat = to_str(&a[1], "contains")?;
+    Ok(Value::Bool(s.contains(pat.as_str())))
+}
+fn builtin_starts_with(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "starts_with")?; let pat = to_str(&a[1], "starts_with")?;
+    Ok(Value::Bool(s.starts_with(pat.as_str())))
+}
+fn builtin_ends_with(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "ends_with")?; let pat = to_str(&a[1], "ends_with")?;
+    Ok(Value::Bool(s.ends_with(pat.as_str())))
+}
+fn builtin_substr(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    if a.len() < 2 { return Err(err("substr(s, start[, len])".into())); }
+    let s = to_str(&a[0], "substr")?;
+    let chars: Vec<char> = s.chars().collect();
+    let start = to_f64(&a[1], "substr")? as usize;
+    let end = if a.len() >= 3 { (start + to_f64(&a[2], "substr")? as usize).min(chars.len()) } else { chars.len() };
+    let start = start.min(chars.len());
+    Ok(Value::String(chars[start..end].iter().collect()))
+}
+fn builtin_char_at(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "char_at")?; let i = to_f64(&a[1], "char_at")? as usize;
+    let c = s.chars().nth(i).ok_or_else(|| err(format!("char_at: index {} out of bounds", i)))?;
+    Ok(Value::String(c.to_string()))
+}
+fn builtin_find(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "find")?; let pat = to_str(&a[1], "find")?;
+    match s.find(pat.as_str()) {
+        Some(i) => Ok(Value::Number(s[..i].chars().count() as f64)),
+        None => Ok(Value::Number(-1.0)),
+    }
+}
+fn builtin_repeat(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "repeat")?; let n = to_f64(&a[1], "repeat")? as usize;
+    Ok(Value::String(s.repeat(n)))
+}
+fn builtin_lines(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "lines")?;
+    Ok(Value::Array(s.lines().map(|l| Value::String(l.to_string())).collect()))
+}
+fn builtin_str_len(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "str_len")?;
+    Ok(Value::Number(s.chars().count() as f64))
+}
+fn builtin_pad_left(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "pad_left")?; let w = to_f64(&a[1], "pad_left")? as usize;
+    let pad = to_str(&a[2], "pad_left")?;
+    let ch = pad.chars().next().unwrap_or(' ');
+    let len = s.chars().count();
+    if len >= w { return Ok(Value::String(s)); }
+    let result = std::iter::repeat(ch).take(w - len).chain(s.chars()).collect();
+    Ok(Value::String(result))
+}
+fn builtin_pad_right(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "pad_right")?; let w = to_f64(&a[1], "pad_right")? as usize;
+    let pad = to_str(&a[2], "pad_right")?;
+    let ch = pad.chars().next().unwrap_or(' ');
+    let len = s.chars().count();
+    if len >= w { return Ok(Value::String(s)); }
+    let result = s.chars().chain(std::iter::repeat(ch).take(w - len)).collect();
+    Ok(Value::String(result))
+}
+
+// ── File I/O ──────────────────────────────────────────────────────────────────
+fn builtin_read_file(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let path = to_str(&a[0], "read_file")?;
     match std::fs::read_to_string(&path) {
-        Ok(content) => Ok(Value::String(content)),
-        Err(e) => Err(err(format!("read_file: cannot read '{}': {}", path, e))),
+        Ok(s) => Ok(Value::String(s)),
+        Err(e) => Err(err(format!("read_file: {}", e))),
     }
 }
-
-/// write_file(path: String, content: String) -> Bool
-/// Writes content to a file (creates or overwrites). Returns true on success.
-fn builtin_write_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 2 {
-        return Err(err("write_file expects 2 arguments: path, content".into()));
-    }
-    let path = match &args[0] {
-        Value::String(s) => s.clone(),
-        _ => return Err(err("write_file: path must be a string".into())),
-    };
-    let content = match &args[1] {
-        Value::String(s) => s.clone(),
-        other => display(other),
-    };
-    match std::fs::write(&path, content) {
-        Ok(()) => Ok(Value::Bool(true)),
-        Err(e) => Err(err(format!("write_file: cannot write '{}': {}", path, e))),
-    }
+fn builtin_write_file(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let path = to_str(&a[0], "write_file")?; let content = to_str(&a[1], "write_file")?;
+    std::fs::write(&path, &content).map_err(|e| err(format!("write_file: {}", e)))?;
+    Ok(Value::Bool(true))
 }
-
-/// append_file(path: String, content: String) -> Bool
-/// Appends content to a file. Creates the file if it doesn't exist.
-fn builtin_append_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 2 {
-        return Err(err("append_file expects 2 arguments: path, content".into()));
-    }
-    let path = match &args[0] {
-        Value::String(s) => s.clone(),
-        _ => return Err(err("append_file: path must be a string".into())),
-    };
-    let content = match &args[1] {
-        Value::String(s) => s.clone(),
-        other => display(other),
-    };
-    use std::io::Write;
-    let result = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-        .and_then(|mut f| f.write_all(content.as_bytes()));
-    match result {
-        Ok(()) => Ok(Value::Bool(true)),
-        Err(e) => Err(err(format!("append_file: cannot append to '{}': {}", path, e))),
-    }
-}
-
-/// file_exists(path: String) -> Bool
-/// Returns true if the path exists on the filesystem.
-fn builtin_file_exists(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(err("file_exists expects 1 argument: path".into()));
-    }
-    let path = match &args[0] {
-        Value::String(s) => s.clone(),
-        _ => return Err(err("file_exists: path must be a string".into())),
-    };
+fn builtin_file_exists(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let path = to_str(&a[0], "file_exists")?;
     Ok(Value::Bool(std::path::Path::new(&path).exists()))
 }
-
-/// read_lines(path: String) -> Array<String>
-/// Reads a file and returns an array of lines (newlines stripped).
-fn builtin_read_lines(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(err("read_lines expects 1 argument: path".into()));
+fn builtin_append_file(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    use std::io::Write;
+    let path = to_str(&a[0], "append_file")?; let content = to_str(&a[1], "append_file")?;
+    let mut f = std::fs::OpenOptions::new().append(true).create(true).open(&path)
+        .map_err(|e| err(format!("append_file: {}", e)))?;
+    f.write_all(content.as_bytes()).map_err(|e| err(format!("append_file write: {}", e)))?;
+    Ok(Value::Bool(true))
+}
+fn builtin_input(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    if !a.is_empty() {
+        if let Value::String(prompt) = &a[0] { print!("{}", prompt); }
+        use std::io::Write; let _ = std::io::stdout().flush();
     }
-    let path = match &args[0] {
-        Value::String(s) => s.clone(),
-        _ => return Err(err("read_lines: path must be a string".into())),
-    };
-    match std::fs::read_to_string(&path) {
-        Ok(content) => {
-            let lines: Vec<Value> = content
-                .lines()
-                .map(|l| Value::String(l.to_string()))
-                .collect();
-            Ok(Value::Array(lines))
-        }
-        Err(e) => Err(err(format!("read_lines: cannot read '{}': {}", path, e))),
-    }
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).map_err(|e| err(format!("input: {}", e)))?;
+    Ok(Value::String(line.trim_end_matches('\n').trim_end_matches('\r').to_string()))
 }
 
-/// delete_file(path: String) -> Bool
-/// Deletes a file. Returns true on success.
-fn builtin_delete_file(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(err("delete_file expects 1 argument: path".into()));
+// ── Functional ────────────────────────────────────────────────────────────────
+fn builtin_map(interp: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "map")?; let f = a[1].clone();
+    let mut out = Vec::with_capacity(arr.len());
+    for item in arr { out.push(interp.call_value(f.clone(), vec![item])?); }
+    Ok(Value::Array(out))
+}
+fn builtin_filter(interp: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "filter")?; let f = a[1].clone();
+    let mut out = Vec::new();
+    for item in arr {
+        let result = interp.call_value(f.clone(), vec![item.clone()])?;
+        if truthy(&result) { out.push(item); }
     }
-    let path = match &args[0] {
-        Value::String(s) => s.clone(),
-        _ => return Err(err("delete_file: path must be a string".into())),
+    Ok(Value::Array(out))
+}
+fn builtin_reduce(interp: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    if a.len() < 2 { return Err(err("reduce(arr, fn[, init])".into())); }
+    let arr = to_arr(a[0].clone(), "reduce")?; let f = a[1].clone();
+    if arr.is_empty() {
+        return if a.len() >= 3 { Ok(a[2].clone()) } else { Err(err("reduce: empty array with no init".into())) };
+    }
+    let (mut acc, start) = if a.len() >= 3 { (a[2].clone(), 0) } else { (arr[0].clone(), 1) };
+    for item in arr.into_iter().skip(start) {
+        acc = interp.call_value(f.clone(), vec![acc, item])?;
+    }
+    Ok(acc)
+}
+fn builtin_range(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let (start, end, step) = match a.len() {
+        1 => (0.0, to_f64(&a[0], "range")?, 1.0),
+        2 => (to_f64(&a[0], "range")?, to_f64(&a[1], "range")?, 1.0),
+        _ => (to_f64(&a[0], "range")?, to_f64(&a[1], "range")?, to_f64(&a[2], "range")?),
     };
-    match std::fs::remove_file(&path) {
-        Ok(()) => Ok(Value::Bool(true)),
-        Err(e) => Err(err(format!("delete_file: cannot delete '{}': {}", path, e))),
+    if step == 0.0 { return Err(err("range: step cannot be 0".into())); }
+    let mut out = Vec::new(); let mut cur = start;
+    while (step > 0.0 && cur < end) || (step < 0.0 && cur > end) {
+        out.push(Value::Number(cur)); cur += step;
+        if out.len() > 1_000_000 { return Err(err("range: too many elements (>1M)".into())); }
+    }
+    Ok(Value::Array(out))
+}
+fn builtin_enumerate(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "enumerate")?;
+    Ok(Value::Array(arr.into_iter().enumerate().map(|(i, v)| {
+        Value::Array(vec![Value::Number(i as f64), v])
+    }).collect()))
+}
+fn builtin_zip(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let a0 = to_arr(a[0].clone(), "zip")?; let a1 = to_arr(a[1].clone(), "zip")?;
+    Ok(Value::Array(a0.into_iter().zip(a1.into_iter()).map(|(x, y)| Value::Array(vec![x, y])).collect()))
+}
+fn builtin_any(interp: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "any")?; let f = a[1].clone();
+    for item in arr { if truthy(&interp.call_value(f.clone(), vec![item])?) { return Ok(Value::Bool(true)); } }
+    Ok(Value::Bool(false))
+}
+fn builtin_all(interp: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "all")?; let f = a[1].clone();
+    for item in arr { if !truthy(&interp.call_value(f.clone(), vec![item])?) { return Ok(Value::Bool(false)); } }
+    Ok(Value::Bool(true))
+}
+fn builtin_sort(interp: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let mut arr = to_arr(a[0].clone(), "sort")?;
+    if a.len() >= 2 {
+        // sort with comparator
+        let f = a[1].clone();
+        let mut err_acc: Option<RuntimeError> = None;
+        arr.sort_by(|x, y| {
+            if err_acc.is_some() { return std::cmp::Ordering::Equal; }
+            // We need interior mutability here; use a workaround with unsafe ptr
+            let interp_ptr = interp as *mut Interpreter;
+            match unsafe { (*interp_ptr).call_value(f.clone(), vec![x.clone(), y.clone()]) } {
+                Ok(Value::Number(n)) => {
+                    if n < 0.0 { std::cmp::Ordering::Less }
+                    else if n > 0.0 { std::cmp::Ordering::Greater }
+                    else { std::cmp::Ordering::Equal }
+                },
+                Ok(_) => std::cmp::Ordering::Equal,
+                Err(e) => { err_acc = Some(e); std::cmp::Ordering::Equal },
+            }
+        });
+        if let Some(e) = err_acc { return Err(e); }
+    } else {
+        // default sort: numbers numerically, strings lexicographically
+        arr.sort_by(|x, y| match (x, y) {
+            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
+            (Value::String(a), Value::String(b)) => a.cmp(b),
+            _ => std::cmp::Ordering::Equal,
+        });
+    }
+    Ok(Value::Array(arr))
+}
+fn builtin_unique(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "unique")?;
+    let mut seen = Vec::new(); let mut out = Vec::new();
+    for item in arr {
+        let key = display(&item);
+        if !seen.contains(&key) { seen.push(key); out.push(item); }
+    }
+    Ok(Value::Array(out))
+}
+fn builtin_flatten(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "flatten")?;
+    let mut out = Vec::new();
+    for item in arr { match item { Value::Array(inner) => out.extend(inner), other => out.push(other) } }
+    Ok(Value::Array(out))
+}
+fn builtin_keys(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match &a[0] {
+        Value::Object(m) => { let mut ks: Vec<Value> = m.keys().map(|k| Value::String(k.clone())).collect(); ks.sort_by(|a,b| display(a).cmp(&display(b))); Ok(Value::Array(ks)) },
+        _ => Err(err("keys: expected object".into())),
+    }
+}
+fn builtin_values(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match &a[0] {
+        Value::Object(m) => { let mut pairs: Vec<_> = m.iter().collect(); pairs.sort_by_key(|(k,_)| k.clone()); Ok(Value::Array(pairs.into_iter().map(|(_,v)| v.clone()).collect())) },
+        _ => Err(err("values: expected object".into())),
+    }
+}
+fn builtin_push(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let mut arr = to_arr(a[0].clone(), "push")?; arr.push(a[1].clone()); Ok(Value::Array(arr))
+}
+fn builtin_pop(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let mut arr = to_arr(a[0].clone(), "pop")?;
+    let last = arr.pop().unwrap_or(Value::Null);
+    Ok(Value::Array(vec![last, Value::Array(arr)]))
+}
+fn builtin_slice(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    if a.len() < 2 { return Err(err("slice(arr, start[, end])".into())); }
+    let arr = to_arr(a[0].clone(), "slice")?;
+    let start = (to_f64(&a[1], "slice")? as isize).max(0) as usize;
+    let end = if a.len() >= 3 { (to_f64(&a[2], "slice")? as isize).max(0) as usize } else { arr.len() };
+    let start = start.min(arr.len()); let end = end.min(arr.len());
+    Ok(Value::Array(arr[start..end].to_vec()))
+}
+fn builtin_reverse(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match &a[0] {
+        Value::Array(arr) => { let mut v = arr.clone(); v.reverse(); Ok(Value::Array(v)) },
+        Value::String(s) => Ok(Value::String(s.chars().rev().collect())),
+        _ => Err(err("reverse: expected array or string".into())),
+    }
+}
+fn builtin_concat(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let mut out = to_arr(a[0].clone(), "concat")?;
+    out.extend(to_arr(a[1].clone(), "concat")?);
+    Ok(Value::Array(out))
+}
+fn builtin_sum(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "sum")?;
+    let total: f64 = arr.iter().map(|v| to_f64(v, "sum").unwrap_or(0.0)).sum();
+    Ok(Value::Number(total))
+}
+fn builtin_product(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let arr = to_arr(a[0].clone(), "product")?;
+    let total: f64 = arr.iter().map(|v| to_f64(v, "product").unwrap_or(1.0)).product();
+    Ok(Value::Number(total))
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+fn builtin_assert(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    if !truthy(&a[0]) {
+        let msg = if a.len() >= 2 { display(&a[1]) } else { "assertion failed".to_string() };
+        return Err(err(format!("AssertionError: {}", msg)));
+    }
+    Ok(Value::Null)
+}
+fn builtin_assert_eq(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    if a.len() < 2 { return Err(err("assert_eq(a, b[, msg])".into())); }
+    if display(&a[0]) != display(&a[1]) {
+        let msg = if a.len() >= 3 { display(&a[2]) } else { format!("expected {:?} == {:?}", display(&a[0]), display(&a[1])) };
+        return Err(err(format!("AssertionError: {}", msg)));
+    }
+    Ok(Value::Null)
+}
+fn builtin_exit(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let code = if !a.is_empty() { to_f64(&a[0], "exit").unwrap_or(0.0) as i32 } else { 0 };
+    std::process::exit(code);
+}
+fn builtin_sleep(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let ms = to_f64(&a[0], "sleep")? as u64;
+    std::thread::sleep(std::time::Duration::from_millis(ms));
+    Ok(Value::Null)
+}
+fn builtin_hash(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new(); display(&a[0]).hash(&mut h);
+    Ok(Value::Number(h.finish() as f64))
+}
+fn builtin_int(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "int")?.trunc()))
+}
+fn builtin_float(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Number(to_f64(&a[0], "float")?))
+}
+fn builtin_bool(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Bool(truthy(&a[0])))
+}
+fn builtin_is_null(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Bool(matches!(&a[0], Value::Null)))
+}
+fn builtin_now(_i: &mut Interpreter, _a: Vec<Value>) -> Result<Value, RuntimeError> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ms = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
+    Ok(Value::Number(ms as f64))
+}
+fn builtin_parse_json(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    let s = to_str(&a[0], "parse_json")?;
+    parse_json_str(&s)
+}
+fn parse_json_str(s: &str) -> Result<Value, RuntimeError> {
+    let s = s.trim();
+    if s == "null" { return Ok(Value::Null); }
+    if s == "true" { return Ok(Value::Bool(true)); }
+    if s == "false" { return Ok(Value::Bool(false)); }
+    if let Ok(n) = s.parse::<f64>() { return Ok(Value::Number(n)); }
+    if s.starts_with('"') && s.ends_with('"') {
+        let inner = &s[1..s.len()-1];
+        return Ok(Value::String(inner.replace("\\n","\n").replace("\\t","\t").replace("\\\"","\"").replace("\\\\","\\")));
+    }
+    if s.starts_with('[') && s.ends_with(']') {
+        let inner = &s[1..s.len()-1].trim();
+        if inner.is_empty() { return Ok(Value::Array(vec![])); }
+        let parts = split_json_top(inner);
+        let vals: Result<Vec<Value>, _> = parts.iter().map(|p| parse_json_str(p.trim())).collect();
+        return Ok(Value::Array(vals?));
+    }
+    if s.starts_with('{') && s.ends_with('}') {
+        let inner = &s[1..s.len()-1].trim();
+        let mut map = std::collections::HashMap::new();
+        if !inner.is_empty() {
+            for pair in split_json_top(inner) {
+                let pair = pair.trim();
+                if let Some(colon) = find_json_colon(pair) {
+                    let key = pair[..colon].trim().trim_matches('"').to_string();
+                    let val = parse_json_str(pair[colon+1..].trim())?;
+                    map.insert(key, val);
+                }
+            }
+        }
+        return Ok(Value::Object(map));
+    }
+    Err(err(format!("parse_json: cannot parse: {}", &s[..s.len().min(40)])))
+}
+fn split_json_top(s: &str) -> Vec<String> {
+    let mut parts = Vec::new(); let mut depth = 0i32; let mut start = 0; let mut in_str = false;
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '"' && (i == 0 || chars[i-1] != '\\') { in_str = !in_str; }
+        else if !in_str {
+            if c == '[' || c == '{' { depth += 1; }
+            else if c == ']' || c == '}' { depth -= 1; }
+            else if c == ',' && depth == 0 { parts.push(s[start..].chars().take(i-start).collect()); start = i+1; }
+        }
+        i += 1;
+    }
+    parts.push(s[start..].to_string());
+    parts
+}
+fn find_json_colon(s: &str) -> Option<usize> {
+    let mut depth = 0i32; let mut in_str = false;
+    for (i, c) in s.chars().enumerate() {
+        if c == '"' { in_str = !in_str; }
+        else if !in_str {
+            if c == '[' || c == '{' { depth += 1; }
+            else if c == ']' || c == '}' { depth -= 1; }
+            else if c == ':' && depth == 0 { return Some(i); }
+        }
+    }
+    None
+}
+fn builtin_to_json(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::String(value_to_json(&a[0])))
+}
+fn value_to_json(v: &Value) -> String {
+    match v {
+        Value::Null => "null".to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => { if n.fract() == 0.0 && n.abs() < 1e15 { format!("{}", *n as i64) } else { format!("{}", n) } },
+        Value::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\t', "\\t")),
+        Value::Array(a) => format!("[{}]", a.iter().map(value_to_json).collect::<Vec<_>>().join(",")),
+        Value::Object(m) => { let mut pairs: Vec<_> = m.iter().collect(); pairs.sort_by_key(|(k,_)| k.clone()); format!("{{{}}}", pairs.iter().map(|(k,v)| format!("\"{}\":{}", k, value_to_json(v))).collect::<Vec<_>>().join(",")) },
+        _ => format!("\"{}\"", display(v)),
+    }
+}
+fn builtin_object(_i: &mut Interpreter, _a: Vec<Value>) -> Result<Value, RuntimeError> {
+    Ok(Value::Object(std::collections::HashMap::new()))
+}
+fn builtin_set_key(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match a[0].clone() {
+        Value::Object(mut m) => { m.insert(to_str(&a[1], "set_key")?, a[2].clone()); Ok(Value::Object(m)) },
+        _ => Err(err("set_key: expected object".into())),
+    }
+}
+fn builtin_get_key(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match &a[0] {
+        Value::Object(m) => Ok(m.get(&to_str(&a[1], "get_key")?).cloned().unwrap_or(Value::Null)),
+        _ => Err(err("get_key: expected object".into())),
+    }
+}
+fn builtin_has_key(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match &a[0] {
+        Value::Object(m) => Ok(Value::Bool(m.contains_key(&to_str(&a[1], "has_key")?))),
+        _ => Err(err("has_key: expected object".into())),
+    }
+}
+fn builtin_delete_key(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, RuntimeError> {
+    match a[0].clone() {
+        Value::Object(mut m) => { m.remove(&to_str(&a[1], "delete_key")?); Ok(Value::Object(m)) },
+        _ => Err(err("delete_key: expected object".into())),
     }
 }

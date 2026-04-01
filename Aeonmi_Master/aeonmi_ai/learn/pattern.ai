@@ -1,0 +1,62 @@
+⍝ pattern.ai — frequency tracking: [key, count] * N, 2 fields/record
+⍝ 4 functions, no imports
+
+◯ pat_add⟨pat, key⟩ {
+    let n = len(pat) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        pat.push(key);
+        pat.push(1);
+        return pat;
+    }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 2;
+        let ek = pat.slice(base, base + 1).pop();
+        let ec = pat.slice(base + 1, base + 2).pop();
+        if (j == found) { out.push(ek); out.push(ec + 1); }
+        if (j != found) { out.push(ek); out.push(ec); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ pat_count⟨pat, key⟩ {
+    let n = len(pat) / 2;
+    let i = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        if (k == key) { return pat.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ pat_new⟨⟩ {
+    return [];
+}
+
+◯ pat_top⟨pat⟩ {
+    let n = len(pat) / 2;
+    if (n == 0) { return ""; }
+    let i = 0;
+    let best_key = "";
+    let best_count = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        let c = pat.slice(base + 1, base + 2).pop();
+        if (c > best_count) { best_key = k; best_count = c; }
+        i = i + 1;
+    }
+    return best_key;
+}

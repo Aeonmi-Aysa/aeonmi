@@ -1,0 +1,57 @@
+⍝ model.ai — self-model: flat [key, val]*N store of introspective readings
+⍝ 4 functions, imports snapshot
+⍝ Keys: "mem_count", "pat_count", "pat_top", "strength_sum"
+
+import { snap_mem_count, snap_pat_count, snap_pat_top, snap_strength_sum } from "./snapshot";
+
+◯ mod_new⟨⟩ {
+    return [];
+}
+
+◯ mod_read⟨mod, key⟩ {
+    let n = len(mod) / 2;
+    let i = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = mod.slice(base, base + 1).pop();
+        if (k == key) { return mod.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ mod_set⟨mod, key, val⟩ {
+    let n = len(mod) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = mod.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) { mod.push(key); mod.push(val); return mod; }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 2;
+        let ek = mod.slice(base, base + 1).pop();
+        let ev = mod.slice(base + 1, base + 2).pop();
+        if (j == found) { out.push(ek); out.push(val); }
+        if (j != found) { out.push(ek); out.push(ev); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ mod_sync⟨mod, learn_state⟩ {
+    let mc  = snap_mem_count(learn_state);
+    let pc  = snap_pat_count(learn_state);
+    let top = snap_pat_top(learn_state);
+    let ss  = snap_strength_sum(learn_state);
+    let m2  = mod_set(mod,  "mem_count",    mc);
+    let m3  = mod_set(m2,   "pat_count",    pc);
+    let m4  = mod_set(m3,   "pat_top",      top);
+    let m5  = mod_set(m4,   "strength_sum", ss);
+    return m5;
+}

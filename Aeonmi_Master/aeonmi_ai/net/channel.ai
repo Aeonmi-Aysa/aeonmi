@@ -1,0 +1,83 @@
+⍝ channel.ai — Buffered channel for inter-agent communication
+⍝ Channel = flat array: [name_id, cap, val0, val1, ...]
+⍝ Header: 2 fields. Buffer follows: variable length up to cap values.
+⍝ Functions: 10 total, no imports
+
+◯ chan_cap⟨ch⟩ {
+    return ch.slice(1, 2).pop();
+}
+
+◯ chan_drain⟨ch⟩ {
+    ⍝ Return empty channel with same name/cap
+    let r = [];
+    r.push(ch.slice(0, 1).pop());
+    r.push(ch.slice(1, 2).pop());
+    return r;
+}
+
+◯ chan_empty⟨ch⟩ {
+    if (len(ch) <= 2) { return true; }
+    return false;
+}
+
+◯ chan_full⟨ch⟩ {
+    let cap = ch.slice(1, 2).pop();
+    let size = len(ch) - 2;
+    if (size >= cap) { return true; }
+    return false;
+}
+
+◯ chan_name⟨ch⟩ {
+    return ch.slice(0, 1).pop();
+}
+
+◯ chan_new⟨name_id, cap⟩ {
+    let r = [];
+    r.push(name_id);
+    r.push(cap);
+    return r;
+}
+
+◯ chan_peek⟨ch⟩ {
+    ⍝ View front value without removing (-1 if empty)
+    if (len(ch) <= 2) { return -1; }
+    return ch.slice(2, 3).pop();
+}
+
+◯ chan_recv⟨ch⟩ {
+    ⍝ Remove and return front value; channel state returned via chan_recv_ch
+    ⍝ Returns front value (-1 if empty)
+    if (len(ch) <= 2) { return -1; }
+    return ch.slice(2, 3).pop();
+}
+
+◯ chan_recv_ch⟨ch⟩ {
+    ⍝ Channel after receiving front value (drop index 2)
+    if (len(ch) <= 2) { return ch; }
+    let result = [];
+    result.push(ch.slice(0, 1).pop());
+    result.push(ch.slice(1, 2).pop());
+    let i = 3;
+    let total = len(ch);
+    while (i < total) {
+        result.push(ch.slice(i, i+1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ chan_send⟨ch, val⟩ {
+    ⍝ Append val to channel buffer (if not full)
+    let cap = ch.slice(1, 2).pop();
+    let size = len(ch) - 2;
+    if (size >= cap) { return ch; }
+    let result = [];
+    let i = 0; let total = len(ch);
+    while (i < total) { result.push(ch.slice(i, i+1).pop()); i = i + 1; }
+    result.push(val);
+    return result;
+}
+
+◯ main⟨⟩ {
+    print("channel module loaded — new send recv recv_ch peek cap name full empty drain");
+}

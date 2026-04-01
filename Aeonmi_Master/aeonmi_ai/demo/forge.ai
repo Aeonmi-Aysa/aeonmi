@@ -1,0 +1,109 @@
+﻿⍝ forge.ai — Aeonmi Forge: meta code generator (Aeonmi writing Aeonmi)
+⍝ Takes a module spec and generates function blueprints with complexity analysis
+⍝ Demonstrates meta-programming: AI language modeling its own structure
+⍝ Flat file — no imports, 12 functions, a_/b_/c_/d_ prefix ordering
+
+◯ a_forge_param_ct⟨func_id⟩ {
+    ⍝ Param count cycles 1-2-3-1-2-3 (no % operator: use integer division trick)
+    let v = func_id - (func_id / 3) * 3;
+    return v + 1;
+}
+
+◯ a_forge_type_id⟨func_id, n_types⟩ {
+    ⍝ Return type cycles through available type IDs
+    if (n_types <= 0) { return 0; }
+    return func_id - (func_id / n_types) * n_types;
+}
+
+◯ b_forge_complexity⟨n_funcs, n_types, n_deps⟩ {
+    ⍝ Halstead-inspired complexity: funcs * types + deps * 2
+    return n_funcs * n_types + n_deps * 2;
+}
+
+◯ b_forge_deps⟨n_funcs⟩ {
+    ⍝ Linear dependency chain: each function depends on previous
+    if (n_funcs <= 1) { return 0; }
+    return n_funcs - 1;
+}
+
+◯ b_forge_gen⟨module_id, n_funcs, n_types⟩ {
+    ⍝ Generate module descriptor: [module_id, n_funcs, n_types, type0, type1, ...]
+    let result = [module_id, n_funcs, n_types];
+    let i = 0;
+    while (i < n_funcs) {
+        result.push(a_forge_type_id(i, n_types));
+        result.push(a_forge_param_ct(i));
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ c_forge_density⟨n_funcs, n_ops⟩ {
+    ⍝ Symbolic density: ops per function (higher = more expressive)
+    if (n_funcs == 0) { return 0; }
+    return n_ops / n_funcs;
+}
+
+◯ c_forge_print_func⟨module_id, func_id, params, type_id⟩ {
+    ⍝ Emit one function stub in Aeonmi syntax
+    print("  fn m", module_id, "_f", func_id, "( params=", params, ") -> type_", type_id);
+    return 1;
+}
+
+◯ c_forge_validate⟨n_funcs, n_types⟩ {
+    ⍝ Valid if funcs > 0 and types > 0 and funcs <= 14 (VM limit)
+    if (n_funcs <= 0) { return 0; }
+    if (n_types <= 0) { return 0; }
+    if (n_funcs > 14) { return 0; }
+    return 1;
+}
+
+◯ d_forge_emit⟨module_id, n_funcs, n_types⟩ {
+    ⍝ Print all function stubs for the module
+    let passed = 0;
+    let i = 0;
+    while (i < n_funcs) {
+        let params = a_forge_param_ct(i);
+        let type_id = a_forge_type_id(i, n_types);
+        passed = passed + c_forge_print_func(module_id, i, params, type_id);
+        i = i + 1;
+    }
+    return passed;
+}
+
+◯ d_forge_render⟨module_id, score, density⟩ {
+    ⍝ Print compilation summary
+    print("[FORGE] Complexity score:", score, "| Symbolic density:", density);
+    print("[FORGE] Emitting stubs -> module_", module_id, ".ai");
+}
+
+◯ d_forge_run⟨module_id, n_funcs, n_types⟩ {
+    ⍝ Full compilation pipeline
+    let valid = c_forge_validate(n_funcs, n_types);
+    if (valid == 0) {
+        print("[FORGE ERROR] Invalid spec: module=", module_id, "funcs=", n_funcs, "types=", n_types);
+        return 0;
+    }
+    print("=== AEONMI FORGE v1.0 ===");
+    print("[COMPILE] Module", module_id, "—", n_funcs, "functions,", n_types, "types");
+    let emitted = d_forge_emit(module_id, n_funcs, n_types);
+    let deps    = b_forge_deps(n_funcs);
+    let score   = b_forge_complexity(n_funcs, n_types, deps);
+    let density = c_forge_density(n_funcs, n_funcs * 3);
+    print("[ANALYZE] Dependencies:", deps, "edges | Valid:", valid);
+    d_forge_render(module_id, score, density);
+    print("=== FORGE COMPLETE ===", emitted, "/", n_funcs, "functions valid");
+    return emitted;
+}
+
+◯ main⟨⟩ {
+    ⍝ Forge 3 modules: stdlib, agent, quantum
+    let r0 = d_forge_run(1, 5, 3);
+    let r1 = d_forge_run(2, 8, 4);
+    let r2 = d_forge_run(3, 11, 7);
+    let total = r0 + r1 + r2;
+    print("[FORGE SUITE] Total stubs generated:", total, "/ 24");
+    if (total == 24) {
+        print("=== PASS ===");
+    }
+}

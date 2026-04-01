@@ -1,0 +1,66 @@
+⍝ reinforce.ai — strength-weighted memory: [key, val, strength] * N
+⍝ 4 functions, no imports
+⍝ compatible with memory_min array format
+
+◯ reinf_decay⟨mem, rate⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        let v = mem.slice(base + 1, base + 2).pop();
+        let s = mem.slice(base + 2, base + 3).pop();
+        out.push(k);
+        out.push(v);
+        out.push(s * rate);
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ reinf_new⟨⟩ {
+    return [];
+}
+
+◯ reinf_score⟨mem, key⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        if (k == key) { return mem.slice(base + 2, base + 3).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ reinf_touch⟨mem, key⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        mem.push(key);
+        mem.push("observed");
+        mem.push(1);
+        return mem;
+    }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 3;
+        let ek = mem.slice(base, base + 1).pop();
+        let ev = mem.slice(base + 1, base + 2).pop();
+        let es = mem.slice(base + 2, base + 3).pop();
+        if (j == found) { out.push(ek); out.push(ev); out.push(es + 1); }
+        if (j != found) { out.push(ek); out.push(ev); out.push(es); }
+        j = j + 1;
+    }
+    return out;
+}

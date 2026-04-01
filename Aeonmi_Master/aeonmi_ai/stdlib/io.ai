@@ -1,0 +1,90 @@
+⍝ Aeonmi I/O Stdlib — file operations, CSV, JSON helpers
+⍝ Primitives: read_file write_file file_exists append_file input
+⍝             parse_json to_json
+
+◯ read_json⟨path⟩ {
+    let raw = read_file(path);
+    return parse_json(raw);
+}
+◯ write_json⟨path, val⟩ {
+    let raw = to_json(val);
+    write_file(path, raw);
+    return true;
+}
+◯ read_lines⟨path⟩ {
+    let raw = read_file(path);
+    return lines(raw);
+}
+◯ write_lines⟨path, arr⟩ {
+    write_file(path, join(arr, "\n"));
+    return true;
+}
+◯ read_csv⟨path⟩ {
+    let raw = read_file(path);
+    let all_lines = lines(raw);
+    if (len(all_lines) == 0) { return []; }
+    let headers = split(all_lines[0], ",");
+    let result = []; let i = 1;
+    while (i < len(all_lines)) {
+        let row_line = trim(all_lines[i]);
+        if (str_len(row_line) > 0) {
+            let cols = split(row_line, ",");
+            let row = object(); let j = 0;
+            while (j < len(headers)) {
+                let key = trim(headers[j]);
+                let val = if (j < len(cols)) { trim(cols[j]) } else { "" };
+                row = set_key(row, key, val);
+                j = j + 1;
+            }
+            result = push(result, row);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+◯ write_csv⟨path, rows⟩ {
+    if (len(rows) == 0) { write_file(path, ""); return true; }
+    let header_keys = keys(rows[0]);
+    let header_line = join(header_keys, ",");
+    let all_rows = [header_line]; let i = 0;
+    while (i < len(rows)) {
+        let row = rows[i];
+        let row_vals = map(header_keys, ◯ __get_col⟨k⟩ {
+            return toString(get_key(row, k));
+        });
+        all_rows = push(all_rows, join(row_vals, ","));
+        i = i + 1;
+    }
+    write_file(path, join(all_rows, "\n"));
+    return true;
+}
+◯ file_copy⟨src, dst⟩ {
+    let contents = read_file(src);
+    write_file(dst, contents);
+    return true;
+}
+◯ ensure_file⟨path, default_content⟩ {
+    if (!file_exists(path)) {
+        write_file(path, default_content);
+        return false;
+    }
+    return true;
+}
+◯ log_to_file⟨path, message⟩ {
+    let ts = toString(now());
+    append_file(path, "[" + ts + "] " + message + "\n");
+    return true;
+}
+◯ prompt⟨question⟩ {
+    return input(question + " ");
+}
+◯ prompt_number⟨question⟩ {
+    let s = prompt(question);
+    return toNumber(s);
+}
+◯ prompt_confirm⟨question⟩ {
+    let s = lower(trim(prompt(question + " (y/n)")));
+    return s == "y" || s == "yes";
+}
+
+print("[stdlib] io.ai loaded");

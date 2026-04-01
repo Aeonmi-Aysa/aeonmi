@@ -1,0 +1,81 @@
+⍝ Aeonmi String Stdlib — wrappers & higher-order string utilities
+⍝ Primitives: upper lower trim split join replace contains starts_with
+⍝             ends_with substr char_at find repeat lines str_len
+⍝             pad_left pad_right toString
+
+◯ str_reverse⟨s⟩    { return reverse(s); }
+◯ str_count⟨s, sub⟩ {
+    let parts = split(s, sub);
+    return len(parts) - 1;
+}
+◯ str_strip⟨s, ch⟩ {
+    let t = s;
+    while (str_len(t) > 0 && char_at(t, 0) == ch) {
+        t = substr(t, 1);
+    }
+    while (str_len(t) > 0 && char_at(t, str_len(t) - 1) == ch) {
+        t = substr(t, 0, str_len(t) - 1);
+    }
+    return t;
+}
+◯ str_title⟨s⟩ {
+    let words = split(s, " ");
+    let result = map(words, ◯ __cap_word⟨w⟩ {
+        if (str_len(w) == 0) { return w; }
+        let first = upper(substr(w, 0, 1));
+        let rest  = lower(substr(w, 1));
+        return first + rest;
+    });
+    return join(result, " ");
+}
+◯ str_is_numeric⟨s⟩ {
+    let t = trim(s);
+    if (str_len(t) == 0) { return false; }
+    let n = toNumber(t);
+    return !is_nan(n);
+}
+◯ str_truncate⟨s, max_len, ellipsis⟩ {
+    if (str_len(s) <= max_len) { return s; }
+    return substr(s, 0, max_len - str_len(ellipsis)) + ellipsis;
+}
+◯ str_format_number⟨n, decimals⟩ {
+    let factor = pow(10, decimals);
+    let rounded = round(n * factor) / factor;
+    return toString(rounded);
+}
+◯ str_indent⟨s, n⟩ {
+    let pad = repeat(" ", n);
+    let ls = lines(s);
+    let indented = map(ls, ◯ __ind⟨l⟩ { return pad + l; });
+    return join(indented, "\n");
+}
+◯ str_to_words⟨s⟩ {
+    let parts = split(trim(s), " ");
+    return filter(parts, ◯ __nonempty⟨w⟩ { return str_len(w) > 0; });
+}
+◯ str_camel_to_snake⟨s⟩ {
+    let result = ""; let i = 0;
+    while (i < str_len(s)) {
+        let c = char_at(s, i);
+        if (c == upper(c) && c != lower(c) && i > 0) {
+            result = result + "_" + lower(c);
+        } else {
+            result = result + lower(c);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+◯ template⟨tmpl, obj⟩ {
+    let ks = keys(obj);
+    let result = tmpl; let i = 0;
+    while (i < len(ks)) {
+        let k = ks[i];
+        let v = get_key(obj, k);
+        result = replace(result, "{{" + k + "}}", toString(v));
+        i = i + 1;
+    }
+    return result;
+}
+
+print("[stdlib] string.ai loaded");

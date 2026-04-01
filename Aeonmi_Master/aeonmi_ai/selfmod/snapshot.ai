@@ -1,0 +1,44 @@
+⍝ snapshot.ai — introspective stats over a learn state = [patterns, memory]
+⍝ 4 functions, no imports
+⍝ patterns format: [key, count]*N (2 fields/record)
+⍝ memory  format: [key, val, strength]*N (3 fields/record)
+
+◯ snap_mem_count⟨state⟩ {
+    let mem = state.slice(1, 2).pop();
+    return len(mem) / 3;
+}
+
+◯ snap_pat_count⟨state⟩ {
+    let pat = state.slice(0, 1).pop();
+    return len(pat) / 2;
+}
+
+◯ snap_pat_top⟨state⟩ {
+    let pat = state.slice(0, 1).pop();
+    let n = len(pat) / 2;
+    if (n == 0) { return ""; }
+    let i = 0;
+    let best_key = "";
+    let best_count = 0;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        let c = pat.slice(base + 1, base + 2).pop();
+        if (c > best_count) { best_key = k; best_count = c; }
+        i = i + 1;
+    }
+    return best_key;
+}
+
+◯ snap_strength_sum⟨state⟩ {
+    let mem = state.slice(1, 2).pop();
+    let n = len(mem) / 3;
+    let i = 0;
+    let total = 0;
+    while (i < n) {
+        let base = i * 3;
+        total = total + mem.slice(base + 2, base + 3).pop();
+        i = i + 1;
+    }
+    return total;
+}

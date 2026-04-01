@@ -1,0 +1,65 @@
+﻿⍝ map_test.ai — Tests for stdlib/map.ai
+import { a_map_find, map_del, map_get, map_has, map_key_at, map_keys, map_new, map_put, map_size, map_val_at, map_vals } from "./map";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ map_new + map_size
+    let m = map_new();
+    p = p + check("new size=0", map_size(m), 0);
+
+    ⍝ map_put + map_get
+    m = map_put(m, 10, 100);
+    m = map_put(m, 20, 200);
+    m = map_put(m, 30, 300);
+    p = p + check("size=3", map_size(m), 3);
+    p = p + check("get(10)=100", map_get(m, 10, -1), 100);
+    p = p + check("get(20)=200", map_get(m, 20, -1), 200);
+    p = p + check("get(30)=300", map_get(m, 30, -1), 300);
+    p = p + check("get(99,def=-1)=-1", map_get(m, 99, -1), -1);
+
+    ⍝ map_has
+    p = p + check("has(10)=1", map_has(m, 10), 1);
+    p = p + check("has(99)=0", map_has(m, 99), 0);
+
+    ⍝ map_put update
+    m = map_put(m, 10, 999);
+    p = p + check("update(10)=999", map_get(m, 10, -1), 999);
+    p = p + check("size still 3", map_size(m), 3);
+
+    ⍝ map_key_at / map_val_at
+    p = p + check("key_at(0)=10", map_key_at(m, 0), 10);
+    p = p + check("val_at(0)=999", map_val_at(m, 0), 999);
+
+    ⍝ a_map_find
+    p = p + check("find(20)=2", a_map_find(m, 20), 2);
+    p = p + check("find(99)=-1", a_map_find(m, 99), -1);
+
+    ⍝ map_del
+    m = map_del(m, 20);
+    p = p + check("after del size=2", map_size(m), 2);
+    p = p + check("has(20) after del=0", map_has(m, 20), 0);
+    p = p + check("get(20) after del=-1", map_get(m, 20, -1), -1);
+
+    ⍝ map_del absent key (no-op)
+    let sz = map_size(m);
+    m = map_del(m, 999);
+    p = p + check("del absent noop", map_size(m), sz);
+
+    ⍝ map_keys / map_vals
+    let ks = map_keys(m);
+    p = p + check("keys len=2", len(ks), 2);
+    let vs = map_vals(m);
+    p = p + check("vals len=2", len(vs), 2);
+
+    print("map tests passed:", p, "/ 22");
+}

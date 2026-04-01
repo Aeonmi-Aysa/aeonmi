@@ -433,7 +433,32 @@ impl Lexer {
             } else if ch == '"' {
                 self.lex_string().map(Some)
             } else if ch == '\'' {
-                self.lex_char_literal().map(Some)
+                // Char literal: 'x', '_', '\n', etc.
+                // Lex the content between the quotes and emit as StringLiteral.
+                let (line, col) = self.pos();
+                self.advance_char(); // consume opening '
+                let mut content = String::new();
+                // Handle escape sequences
+                if let Some((_, '\\')) = self.current {
+                    self.advance_char(); // consume '\'
+                    if let Some((_, escaped)) = self.current {
+                        content.push('\\');
+                        content.push(escaped);
+                        self.advance_char();
+                    }
+                } else {
+                    // Regular char — consume until closing ' or EOF
+                    while let Some((_, c)) = self.current {
+                        if c == '\'' { break; }
+                        content.push(c);
+                        self.advance_char();
+                    }
+                }
+                // Consume closing '
+                if let Some((_, '\'')) = self.current {
+                    self.advance_char();
+                }
+                Ok(Some(Token::new(TokenKind::StringLiteral(content.clone()), format!("'{}'", content), line, col)))
             } else if is_identifier_start(ch) {
                 Ok(Some(self.lex_identifier()))
             } else {
@@ -833,6 +858,7 @@ impl Lexer {
             "self" => Token::new(TokenKind::Self_, String::from("self"), line, col),
             "this" => Token::new(TokenKind::This, String::from("this"), line, col),
             "new" => Token::new(TokenKind::New, String::from("new"), line, col),
+            "constructor" => Token::new(TokenKind::Constructor, String::from("constructor"), line, col),
             "true" => Token::new(TokenKind::BooleanLiteral(true), String::from("true"), line, col),
             "false" => Token::new(TokenKind::BooleanLiteral(false), String::from("false"), line, col),
             _ => {
@@ -842,12 +868,12 @@ impl Lexer {
                         // Lex as f-string: f"text {expr} more"
                         return match self.lex_string() {
                             Ok(tok) => {
-                                // Wrap the string content in an FString token
+                                // Emit as FString so the parser can detect trailing format args
                                 let content = match tok.kind {
                                     TokenKind::StringLiteral(s) => s,
                                     _ => String::new(),
                                 };
-                                Token::new(TokenKind::StringLiteral(content), tok.lexeme, line, col)
+                                Token::new(TokenKind::FString, format!("f\"{}\"", content), line, col)
                             }
                             Err(_) => Token::new(TokenKind::Identifier(ident.clone()), ident, line, col),
                         };

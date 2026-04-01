@@ -169,6 +169,11 @@ fn write_stmt(dst: &mut String, s: &Stmt, indent: usize) {
             write_block(dst, body, indent);
             dst.push('\n');
         }
+        Block(stmts) => {
+            for s in stmts {
+                write_stmt(dst, s, indent);
+            }
+        }
         For { cond, init, step, body } => {
             indent_spaces(dst, indent);
             dst.push_str("for (");

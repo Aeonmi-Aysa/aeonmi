@@ -1,0 +1,162 @@
+⍝ shard_boot.ai — integrated Shard demo, all 4 phases, flat (no imports)
+⍝ 10 functions total → T(10) = 2^9 = 512 clone ops, fast
+⍝ state = [mem_arr, pat_arr, cycle_count]
+⍝   mem_arr: [key, val, strength, ...] 3 fields/entry
+⍝   pat_arr: [key, count, ...]         2 fields/entry
+
+⍝ ── Phase 1 helpers: flat memory ─────────────────────────────────────────────
+
+◯ a_mem_recall⟨m, key⟩ {
+    let n = len(m) / 3;
+    let i = 0;
+    while (i < n) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { return m.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return "null";
+}
+
+◯ a_mem_store⟨m, key, val⟩ {
+    let n = len(m) / 3;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 3;
+        let ek = m.slice(base, base + 1).pop();
+        let ev = m.slice(base + 1, base + 2).pop();
+        let es = m.slice(base + 2, base + 3).pop();
+        if (j == found) { out.push(ek); out.push(val); out.push(es); }
+        if (j != found) { out.push(ek); out.push(ev); out.push(es); }
+        j = j + 1;
+    }
+    return out;
+}
+
+⍝ ── Phase 3 helpers: flat pattern tracker ────────────────────────────────────
+
+◯ b_pat_add⟨p, key⟩ {
+    let n = len(p) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = p.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        p.push(key);
+        p.push(1);
+        return p;
+    }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 2;
+        let ek = p.slice(base, base + 1).pop();
+        let ec = p.slice(base + 1, base + 2).pop();
+        if (j == found) { out.push(ek); out.push(ec + 1); }
+        if (j != found) { out.push(ek); out.push(ec); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ b_pat_top⟨p⟩ {
+    let n = len(p) / 2;
+    if (n == 0) { return "none"; }
+    let best_key = p.slice(0, 1).pop();
+    let best_cnt = p.slice(1, 2).pop();
+    let i = 1;
+    while (i < n) {
+        let base = i * 2;
+        let k = p.slice(base, base + 1).pop();
+        let c = p.slice(base + 1, base + 2).pop();
+        if (c > best_cnt) {
+            best_key = k;
+            best_cnt = c;
+        }
+        i = i + 1;
+    }
+    return best_key;
+}
+
+⍝ ── Phase 4 helpers: snapshot ────────────────────────────────────────────────
+
+◯ c_snap_mem_count⟨state⟩ {
+    let m = state.slice(0, 1).pop();
+    return len(m) / 3;
+}
+
+◯ c_snap_pat_count⟨state⟩ {
+    let p = state.slice(1, 2).pop();
+    return len(p) / 2;
+}
+
+◯ c_snap_top_pat⟨state⟩ {
+    let p = state.slice(1, 2).pop();
+    return b_pat_top(p);
+}
+
+⍝ ── Shard lifecycle ──────────────────────────────────────────────────────────
+
+◯ d_boot⟨⟩ {
+    let state = [];
+    state.push([]);
+    state.push([]);
+    state.push(0);
+    return state;
+}
+
+◯ d_cycle⟨state, key, val⟩ {
+    let m   = state.slice(0, 1).pop();
+    let p   = state.slice(1, 2).pop();
+    let cyc = state.slice(2, 3).pop();
+    let m2  = a_mem_store(m, key, val);
+    let p2  = b_pat_add(p, key);
+    let out = [];
+    out.push(m2);
+    out.push(p2);
+    out.push(cyc + 1);
+    return out;
+}
+
+◯ main⟨⟩ {
+    print("=== Shard Boot Demo ===");
+
+    let s = d_boot();
+    print("boot: mem_count =", c_snap_mem_count(s), "| pat_count =", c_snap_pat_count(s));
+
+    s = d_cycle(s, "language", "aeonmi");
+    s = d_cycle(s, "phase",    "sensory");
+    s = d_cycle(s, "language", "aeonmi");
+    s = d_cycle(s, "phase",    "learning");
+    s = d_cycle(s, "language", "aeonmi");
+
+    let cyc = s.slice(2, 3).pop();
+    print("after", cyc, "cycles:");
+    print("  mem_count  =", c_snap_mem_count(s));
+    print("  pat_count  =", c_snap_pat_count(s));
+    print("  top_pattern=", c_snap_top_pat(s));
+
+    let lang_val = a_mem_recall(s.slice(0, 1).pop(), "language");
+    print("  recall language =", lang_val);
+
+    print("=== PASS ===");
+}

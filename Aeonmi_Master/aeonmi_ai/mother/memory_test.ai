@@ -1,0 +1,49 @@
+⍝ memory_test.ai
+
+import { mem_new, mem_store, mem_recall, mem_strength, mem_reinforce, mem_decay_all, mem_active_count, mem_total_count } from "./memory";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let m = mem_new();
+    let p = 0;
+
+    p = p + check("new is empty", mem_total_count(m), 0);
+
+    m = mem_store(m, "color", "blue");
+    p = p + check("total after store", mem_total_count(m), 1);
+    p = p + check("recall color", mem_recall(m, "color"), "blue");
+    p = p + check("strength after store", mem_strength(m, "color"), 1);
+
+    m = mem_store(m, "shape", "circle");
+    p = p + check("total after 2nd store", mem_total_count(m), 2);
+
+    m = mem_store(m, "color", "red");
+    p = p + check("total after overwrite", mem_total_count(m), 2);
+    p = p + check("recall overwritten", mem_recall(m, "color"), "red");
+
+    p = p + check("recall missing", mem_recall(m, "nope"), "null");
+
+    m = mem_reinforce(m, "color", 0);
+    p = p + check("reinforce no change", mem_strength(m, "color"), 1);
+
+    m = mem_decay_all(m, 0.3);
+    let s = mem_strength(m, "color");
+    p = p + check("strength after decay", s, 0.7);
+
+    let ac = mem_active_count(m, 0.5);
+    p = p + check("active count after decay", ac, 2);
+
+    m = mem_decay_all(m, 0.5);
+    let ac2 = mem_active_count(m, 0.5);
+    p = p + check("active count drops", ac2, 0);
+
+    print("memory tests passed:", p, "/ 12");
+}

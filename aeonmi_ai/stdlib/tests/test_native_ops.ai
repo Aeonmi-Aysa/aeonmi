@@ -1,0 +1,28 @@
+
+⍝ Verify all 3 fixes inline — no function call overhead
+
+⍝ FIX 1: arr[i] subscript
+let arr = [10, 20, 30, 40, 50];
+assert_eq(arr[0], 10, "arr[0]==10");
+assert_eq(arr[2], 30, "arr[2]==30");
+assert_eq(arr[4], 50, "arr[4]==50");
+print("FIX 1: arr[i] subscript = PASS");
+
+⍝ FIX 2: % modulo operator
+assert_eq(10 % 3, 1, "10%3==1");
+assert_eq(7 % 2, 1,  "7%2==1");
+assert_eq(9 % 3, 0,  "9%3==0");
+print("FIX 2: % modulo operator = PASS");
+
+⍝ FIX 3: fmod builtin
+assert_eq(fmod(10, 3),   1,   "fmod(10,3)==1");
+assert_eq(fmod(9,  3),   0,   "fmod(9,3)==0");
+assert_eq(fmod(7,  2),   1,   "fmod(7,2)==1");
+print("FIX 3: fmod builtin = PASS");
+
+⍝ Bonus: arr[i] inside expression
+let total = arr[0] + arr[1] + arr[2];
+assert_eq(total, 60, "arr sum==60");
+print("BONUS: arr[i] in expressions = PASS");
+
+print("=== ALL FIXES VERIFIED ===");

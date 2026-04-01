@@ -119,9 +119,17 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
 
     Ok(match n {
         A::Block(items) => {
-            // Blocks are handled by `lower_block_ast` at call sites; produce a no-op here.
-            let _ = items;
-            Stmt::Expr(Expr::Object(vec![]))
+            // Lower all items and emit as a flat Stmt::Block so every
+            // declaration (qubit, let, etc.) is visible to subsequent stmts.
+            let mut stmts = Vec::new();
+            for item in items {
+                stmts.push(lower_stmt_ast(item)?);
+            }
+            match stmts.len() {
+                0 => Stmt::Expr(Expr::Object(vec![])),
+                1 => stmts.remove(0),
+                _ => Stmt::Block(stmts),
+            }
         }
 
         A::Return(expr) => Stmt::Return(Some(lower_expr_ast(expr)?)),
@@ -490,10 +498,10 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
     // Phase 1: null literal
     A::NullLiteral => Stmt::Expr(Expr::Lit(Lit::Null)),
 
-    // P1-4: quantum circuit — execute gates sequentially inside a block
+    // P1-4: quantum circuit — execute gates sequentially in the CURRENT scope
+    // so qubit declarations are visible to gate calls.
     A::QuantumCircuit { name, gates } => {
         let mut stmts: Vec<Stmt> = Vec::new();
-        // Emit a marker call so JS/VM can log the circuit name
         stmts.push(Stmt::Expr(Expr::Call {
             callee: Box::new(Expr::Ident("__quantum_circuit_begin".to_string())),
             args: vec![Expr::Lit(Lit::String(name.clone()))],
@@ -505,22 +513,9 @@ fn lower_stmt_ast(n: &crate::core::ast::ASTNode) -> Result<Stmt, String> {
             callee: Box::new(Expr::Ident("__quantum_circuit_end".to_string())),
             args: vec![Expr::Lit(Lit::String(name.clone()))],
         }));
-        // Wrap in a block: emit each stmt
-        // IR has no Block stmt, so we inline; caller handles sequencing via main fn
-        if stmts.len() == 1 {
-            stmts.remove(0)
-        } else {
-            // Return the first stmt and handle the rest via the top-level loop.
-            // Simplest safe approach: wrap in a call that executes them as args (side-effect-safe in JS).
-            // Better: emit as Stmt::Expr of a JS IIFE via the codegen. Use a placeholder call.
-            Stmt::Expr(Expr::Call {
-                callee: Box::new(Expr::Ident("__quantum_circuit_run".to_string())),
-                args: stmts.into_iter().map(|s| match s {
-                    Stmt::Expr(e) => e,
-                    _ => Expr::Lit(Lit::Null),
-                }).collect(),
-            })
-        }
+        // Stmt::Block executes flat in current scope — no new scope frame,
+        // so qubit Let bindings declared in the circuit are visible to gate calls.
+        Stmt::Block(stmts)
     }
 
     // Catch-all for truly unimplemented nodes (should shrink toward zero)
@@ -760,8 +755,7 @@ fn map_binop_token(tok: &TokenKind) -> BinOp {
         TokenKind::LessEqual => Le,
         TokenKind::GreaterThan => Gt,
         TokenKind::GreaterEqual => Ge,
-        TokenKind::AndAnd => And,
-        TokenKind::OrOr  => Or,
+        TokenKind::Percent => Mod,
         _ => { eprintln!("[lowering] unmapped token binop `{:?}` -> Eq", tok); Eq }
     }
 }

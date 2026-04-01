@@ -1,0 +1,16 @@
+⍝ debug_test.ai — minimal isolation test
+
+import { mem_new, mem_store, mem_total_count, mem_active_count } from "./memory";
+import { maint_health_score, maint_decay_pass, maint_report, maint_report_total } from "./maintenance";
+
+◯ main⟨⟩ {
+    print("step 1: mem_new");
+    let m = mem_new();
+    print("step 2: mem_store");
+    m = mem_store(m, "a", "alpha");
+    m = mem_store(m, "b", "beta");
+    print("step 3: mem_total_count =", mem_total_count(m));
+    print("step 4: mem_active_count =", mem_active_count(m, 0.5));
+    print("step 5: maint_health_score =", maint_health_score(m, 0.5));
+    print("done");
+}

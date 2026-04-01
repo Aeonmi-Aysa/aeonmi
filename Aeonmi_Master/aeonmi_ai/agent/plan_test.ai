@@ -1,0 +1,41 @@
+⍝ plan_test.ai — Tests for agent/plan.ai
+import { plan_new, plan_add, plan_count, plan_goal, plan_priority, plan_status, plan_done, plan_cancel, plan_next, plan_pending_count, plan_done_count } from "./plan";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    let pl = plan_new();
+    p = p + check("new: count=0", plan_count(pl), 0);
+
+    pl = plan_add(pl, 101, 5, 1);
+    pl = plan_add(pl, 102, 9, 2);
+    pl = plan_add(pl, 103, 3, 1);
+
+    p = p + check("count=3", plan_count(pl), 3);
+    p = p + check("goal[0]=101", plan_goal(pl, 0), 101);
+    p = p + check("priority[1]=9", plan_priority(pl, 1), 9);
+    p = p + check("status[2]=0(pending)", plan_status(pl, 2), 0);
+    p = p + check("pending_count=3", plan_pending_count(pl), 3);
+    p = p + check("next=1(highest pri=9)", plan_next(pl), 1);
+
+    pl = plan_done(pl, 1);
+    p = p + check("after done[1]: status=1", plan_status(pl, 1), 1);
+    p = p + check("done_count=1", plan_done_count(pl), 1);
+    p = p + check("pending_count=2", plan_pending_count(pl), 2);
+    p = p + check("next now=0(pri=5)", plan_next(pl), 0);
+
+    pl = plan_cancel(pl, 2);
+    p = p + check("after cancel[2]: status=2", plan_status(pl, 2), 2);
+    p = p + check("pending_count=1", plan_pending_count(pl), 1);
+
+    print("plan tests passed:", p, "/ 13");
+}
