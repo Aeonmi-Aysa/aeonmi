@@ -45,7 +45,7 @@ VM_EXE = next((p for p in VM_EXE_PATHS if os.path.exists(p)), None)
 
 VOICE      = "en-US-AriaNeural"
 MODEL      = "claude-opus-4-6"
-MAX_TOKENS = 1200
+MAX_TOKENS = 4096
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 C = {
@@ -87,7 +87,7 @@ AEONMI FACTS — speak these fluently:
 
 STREAM CONTEXT:
 - Questions come from TikTok/YouTube live chat.
-- Keep answers to 2-4 sentences for simple questions. Go deeper for technical ones.
+- Give complete answers. Never cut yourself off mid-thought. For simple questions 3-5 sentences is fine; go as deep as the question deserves for technical ones.
 - When showing code, use real Aeonmi .ai syntax with Genesis operators.
 - When someone asks "what is Aeonmi" — lead with the philosophy, not features.
 - When someone challenges whether it is a real language — answer with facts, not defensiveness.
@@ -399,7 +399,7 @@ class MotherAI(tk.Tk):
         threading.Thread(target=animate_pipe, daemon=True).start()
 
         self.history.append({"role": "user", "content": question})
-        msgs = self.history[-12:]
+        msgs = self.history[-20:]
 
         try:
             resp = self.client.messages.create(
@@ -558,8 +558,8 @@ class MotherAI(tk.Tk):
         threading.Thread(target=worker, daemon=True).start()
 
     async def _speak(self, text):
-        if len(text) > 900:
-            text = text[:900] + "."
+        if len(text) > 1400:
+            text = text[:1400] + "."
         comm = edge_tts.Communicate(text, VOICE)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
             tmp = f.name
