@@ -1,0 +1,109 @@
+⍝ qiskit.ai — Qiskit bridge: circuit descriptor → Qiskit execution map
+⍝ Converts Aeonmi circuit flat arrays to a serialized op sequence
+⍝ that a companion Python/Qiskit wrapper executes on real quantum hardware.
+⍝
+⍝ Bridge protocol (flat array):
+⍝   [n_qubits, n_cbits, shot_count, op_count, op0_type, op0_tgt, op0_ctrl, ...]
+⍝
+⍝ Gate type IDs (match circuit.ai):
+⍝   0=H  1=X  2=Y  3=Z  4=CX  5=S  6=T  7=MEASURE
+⍝
+⍝ Functions: 10 total, no imports
+
+◯ qk_add_cx⟨desc, ctrl, tgt⟩ {
+    ⍝ Append CX (CNOT) gate — 2-qubit, ctrl controls tgt
+    let r = [];
+    let i = 0; let total = len(desc);
+    while (i < total) { r.push(desc.slice(i, i+1).pop()); i = i + 1; }
+    r.push(4); r.push(tgt); r.push(ctrl);
+    ⍝ Increment op_count at index 3
+    let op_count = r.slice(3, 4).pop() + 1;
+    let result = [];
+    i = 0; total = len(r);
+    while (i < total) {
+        if (i == 3) { result.push(op_count); } else { result.push(r.slice(i, i+1).pop()); }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ qk_add_gate⟨desc, gtype, tgt⟩ {
+    ⍝ Append a single-qubit gate (ctrl = -1)
+    let r = [];
+    let i = 0; let total = len(desc);
+    while (i < total) { r.push(desc.slice(i, i+1).pop()); i = i + 1; }
+    r.push(gtype); r.push(tgt); r.push(-1);
+    ⍝ Increment op_count at index 3
+    let op_count = r.slice(3, 4).pop() + 1;
+    let result = [];
+    i = 0; total = len(r);
+    while (i < total) {
+        if (i == 3) { result.push(op_count); } else { result.push(r.slice(i, i+1).pop()); }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ qk_add_measure⟨desc, tgt, creg⟩ {
+    ⍝ Append MEASURE op — maps qubit tgt to classical register creg
+    let r = [];
+    let i = 0; let total = len(desc);
+    while (i < total) { r.push(desc.slice(i, i+1).pop()); i = i + 1; }
+    r.push(7); r.push(tgt); r.push(creg);
+    let op_count = r.slice(3, 4).pop() + 1;
+    let result = [];
+    i = 0; total = len(r);
+    while (i < total) {
+        if (i == 3) { result.push(op_count); } else { result.push(r.slice(i, i+1).pop()); }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ qk_new⟨n_qubits, n_cbits, shots⟩ {
+    ⍝ Create a new Qiskit bridge descriptor
+    ⍝ Header: [n_qubits, n_cbits, shots, op_count=0]
+    let r = [];
+    r.push(n_qubits);
+    r.push(n_cbits);
+    r.push(shots);
+    r.push(0);
+    return r;
+}
+
+◯ qk_op_count⟨desc⟩ {
+    return desc.slice(3, 4).pop();
+}
+
+◯ qk_op_ctrl⟨desc, i⟩ {
+    return desc.slice(4 + i * 3 + 2, 4 + i * 3 + 3).pop();
+}
+
+◯ qk_op_target⟨desc, i⟩ {
+    return desc.slice(4 + i * 3 + 1, 4 + i * 3 + 2).pop();
+}
+
+◯ qk_op_type⟨desc, i⟩ {
+    return desc.slice(4 + i * 3, 4 + i * 3 + 1).pop();
+}
+
+◯ qk_qubits⟨desc⟩ {
+    return desc.slice(0, 1).pop();
+}
+
+◯ qk_shots⟨desc⟩ {
+    return desc.slice(2, 3).pop();
+}
+
+◯ main⟨⟩ {
+    ⍝ Bell circuit: H(0), CX(0→1), MEASURE(0→c0), MEASURE(1→c1)
+    let d = qk_new(2, 2, 1024);
+    d = qk_add_gate(d, 0, 0);
+    d = qk_add_cx(d, 0, 1);
+    d = qk_add_measure(d, 0, 0);
+    d = qk_add_measure(d, 1, 1);
+    print("qiskit bridge: qubits=", qk_qubits(d), "shots=", qk_shots(d), "ops=", qk_op_count(d));
+    print("op0 type=", qk_op_type(d, 0), "target=", qk_op_target(d, 0));
+    print("op1 type=", qk_op_type(d, 1), "ctrl=", qk_op_ctrl(d, 1));
+    print("⧉ Qiskit backend exec — run companion qiskit_runner.py to execute on hardware");
+}

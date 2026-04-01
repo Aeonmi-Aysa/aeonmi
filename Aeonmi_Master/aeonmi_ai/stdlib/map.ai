@@ -1,0 +1,126 @@
+﻿⍝ map.ai — Flat key-value map (numeric keys and values)
+⍝ State: flat array [k0, v0, k1, v1, ...]
+⍝ Functions: 11 total, no imports
+⍝ a_map_find is helper prefix (alphabetically before map_*)
+
+◯ a_map_find⟨m, key⟩ {
+    ⍝ Returns index of key in flat KV array, or -1 if absent
+    let n = len(m) / 2;
+    let i = 0;
+    while (i < n) {
+        let k = m.slice(i * 2, i * 2 + 1).pop();
+        if (k == key) { return i * 2; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ map_del⟨m, key⟩ {
+    ⍝ Remove key-value pair; returns map unchanged if key absent
+    let idx = a_map_find(m, key);
+    if (idx == -1) { return m; }
+    let result = [];
+    let n = len(m);
+    let i = 0;
+    while (i < n) {
+        if (i != idx && i != idx + 1) {
+            result.push(m.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ map_get⟨m, key, def⟩ {
+    ⍝ Return value for key, or def if absent
+    let idx = a_map_find(m, key);
+    if (idx == -1) { return def; }
+    return m.slice(idx + 1, idx + 2).pop();
+}
+
+◯ map_has⟨m, key⟩ {
+    ⍝ 1 if key exists, 0 otherwise
+    let idx = a_map_find(m, key);
+    if (idx == -1) { return 0; }
+    return 1;
+}
+
+◯ map_key_at⟨m, i⟩ {
+    ⍝ Key at index i (0-based entry position)
+    return m.slice(i * 2, i * 2 + 1).pop();
+}
+
+◯ map_keys⟨m⟩ {
+    ⍝ Flat array of all keys
+    let n = len(m) / 2;
+    let result = [];
+    let i = 0;
+    while (i < n) {
+        result.push(m.slice(i * 2, i * 2 + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ map_new⟨⟩ {
+    return [];
+}
+
+◯ map_put⟨m, key, val⟩ {
+    ⍝ Insert or update key -> val
+    let idx = a_map_find(m, key);
+    if (idx == -1) {
+        ⍝ Append new pair
+        let result = [];
+        let n = len(m);
+        let i = 0;
+        while (i < n) {
+            result.push(m.slice(i, i + 1).pop());
+            i = i + 1;
+        }
+        result.push(key);
+        result.push(val);
+        return result;
+    }
+    ⍝ Update existing value at idx+1
+    let result = [];
+    let n = len(m);
+    let i = 0;
+    while (i < n) {
+        if (i == idx + 1) {
+            result.push(val);
+        } else {
+            result.push(m.slice(i, i + 1).pop());
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ map_size⟨m⟩ {
+    return len(m) / 2;
+}
+
+◯ map_val_at⟨m, i⟩ {
+    ⍝ Value at index i (0-based entry position)
+    return m.slice(i * 2 + 1, i * 2 + 2).pop();
+}
+
+◯ map_vals⟨m⟩ {
+    ⍝ Flat array of all values
+    let n = len(m) / 2;
+    let result = [];
+    let i = 0;
+    while (i < n) {
+        result.push(m.slice(i * 2 + 1, i * 2 + 2).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ main⟨⟩ {
+    let m = map_new();
+    m = map_put(m, 1, 100);
+    m = map_put(m, 2, 200);
+    print("map module loaded — size:", map_size(m), "get(1):", map_get(m, 1, -1));
+}

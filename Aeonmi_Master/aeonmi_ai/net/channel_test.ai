@@ -1,0 +1,48 @@
+⍝ channel_test.ai — Tests for net/channel.ai
+import { chan_new, chan_send, chan_recv, chan_recv_ch, chan_peek, chan_cap, chan_name, chan_full, chan_empty, chan_drain } from "./channel";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    let ch = chan_new(42, 3);
+    p = p + check("new: name=42",  chan_name(ch), 42);
+    p = p + check("new: cap=3",    chan_cap(ch),  3);
+    p = p + check("new: empty=true", chan_empty(ch), true);
+    p = p + check("new: full=false",  chan_full(ch),  false);
+    p = p + check("peek empty=-1", chan_peek(ch), -1);
+    p = p + check("recv empty=-1", chan_recv(ch), -1);
+
+    ch = chan_send(ch, 10);
+    ch = chan_send(ch, 20);
+    p = p + check("after 2 sends: empty=false", chan_empty(ch), false);
+    p = p + check("peek front=10", chan_peek(ch), 10);
+    p = p + check("full(2/3)=false", chan_full(ch), false);
+
+    ch = chan_send(ch, 30);
+    p = p + check("full(3/3)=true", chan_full(ch), true);
+
+    ⍝ Sending to full channel is a no-op
+    let ch2 = chan_send(ch, 99);
+    p = p + check("send to full: no-op", chan_peek(ch2), chan_peek(ch));
+
+    ⍝ Receive
+    let val = chan_recv(ch);
+    p = p + check("recv first=10", val, 10);
+    ch = chan_recv_ch(ch);
+    p = p + check("after recv: peek=20", chan_peek(ch), 20);
+
+    ⍝ Drain
+    ch = chan_drain(ch);
+    p = p + check("after drain: empty=true", chan_empty(ch), true);
+
+    print("channel tests passed:", p, "/ 14");
+}

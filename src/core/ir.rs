@@ -97,6 +97,10 @@ pub enum Stmt {
         target: Expr, // Identifier or Index/Member in a future extension
         value: Expr,
     },
+    /// Flat sequential block — executes stmts in the CURRENT scope (no push/pop).
+    /// Used by QuantumCircuit and multi-item Block lowering so qubit declarations
+    /// remain visible to gate calls in the same scope.
+    Block(Vec<Stmt>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

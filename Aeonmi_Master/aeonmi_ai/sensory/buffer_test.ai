@@ -1,0 +1,34 @@
+⍝ buffer_test.ai — 8 total functions (6 imported + check + main)
+
+import { buf_advance, buf_count, buf_new, buf_peek_payload, buf_peek_tag, buf_push } from "./buffer";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let b = buf_new();
+
+    p = p + check("empty count",   buf_count(b),        0);
+    p = p + check("empty tag",     buf_peek_tag(b),     "");
+    p = p + check("empty payload", buf_peek_payload(b), "");
+
+    let b1 = buf_push(b,  "vis", "light", 8);
+    let b2 = buf_push(b1, "aud", "tone",  3);
+
+    p = p + check("count after 2",   buf_count(b2),        2);
+    p = p + check("peek tag",        buf_peek_tag(b2),     "vis");
+    p = p + check("peek payload",    buf_peek_payload(b2), "light");
+
+    let b3 = buf_advance(b2);
+    p = p + check("count after adv", buf_count(b3),        1);
+    p = p + check("tag after adv",   buf_peek_tag(b3),     "aud");
+
+    print("buffer tests passed:", p, "/ 8");
+}

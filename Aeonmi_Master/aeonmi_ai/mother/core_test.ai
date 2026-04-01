@@ -1,0 +1,185 @@
+⍝ core_test.ai — flat, no imports, 12 functions
+⍝ helpers sorted a_/b_/c_ before d_/main to satisfy alphabetical env capture
+
+◯ a_j_append⟨j, tag, payload⟩ {
+    j.push(tag);
+    j.push(payload);
+    j.push(0);
+    return j;
+}
+
+◯ a_j_new⟨⟩ {
+    return [];
+}
+
+◯ b_m_new⟨⟩ {
+    return [];
+}
+
+◯ b_m_recall⟨m, key⟩ {
+    let n = len(m) / 3;
+    let i = 0;
+    let result = "";
+    while (i < n) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) {
+            result = m.slice(base + 1, base + 2).pop();
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ b_m_store⟨m, key, val⟩ {
+    let n = len(m) / 3;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 3;
+        let ek = m.slice(base, base + 1).pop();
+        let ev = m.slice(base + 1, base + 2).pop();
+        let es = m.slice(base + 2, base + 3).pop();
+        if (j == found) { out.push(ek); out.push(val); out.push(es); }
+        if (j != found) { out.push(ek); out.push(ev); out.push(es); }
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ c_r_new⟨⟩ {
+    return [];
+}
+
+◯ c_r_register⟨r, name, cond_name, action_name, pri⟩ {
+    let n = len(r) / 5;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 5;
+        let rn = r.slice(base, base + 1).pop();
+        if (rn == name) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        r.push(name);
+        r.push(cond_name);
+        r.push(action_name);
+        r.push(pri);
+        r.push(1);
+        return r;
+    }
+    let out = [];
+    let j = 0;
+    while (j < n) {
+        let base = j * 5;
+        let rn = r.slice(base, base + 1).pop();
+        let rc = r.slice(base + 1, base + 2).pop();
+        let ra = r.slice(base + 2, base + 3).pop();
+        let rp = r.slice(base + 3, base + 4).pop();
+        let re = r.slice(base + 4, base + 5).pop();
+        out.push(rn); out.push(rc); out.push(ra); out.push(rp); out.push(re);
+        j = j + 1;
+    }
+    return out;
+}
+
+◯ d_add_rule⟨state, name, cond, action, pri⟩ {
+    let j = state.slice(0, 1).pop();
+    let m = state.slice(1, 2).pop();
+    let r = state.slice(2, 3).pop();
+    let r2 = c_r_register(r, name, cond, action, pri);
+    let j2 = a_j_append(j, "rule", name);
+    let out = [];
+    out.push(j2);
+    out.push(m);
+    out.push(r2);
+    return out;
+}
+
+◯ d_init⟨⟩ {
+    let j = a_j_new();
+    let m = b_m_new();
+    let r = c_r_new();
+    let j2 = a_j_append(j, "system", "boot");
+    let out = [];
+    out.push(j2);
+    out.push(m);
+    out.push(r);
+    return out;
+}
+
+◯ d_learn⟨state, key, val⟩ {
+    let j = state.slice(0, 1).pop();
+    let m = state.slice(1, 2).pop();
+    let r = state.slice(2, 3).pop();
+    let m2 = b_m_store(m, key, val);
+    let j2 = a_j_append(j, "learn", key);
+    let out = [];
+    out.push(j2);
+    out.push(m2);
+    out.push(r);
+    return out;
+}
+
+◯ d_recall⟨state, key⟩ {
+    let m = state.slice(1, 2).pop();
+    return b_m_recall(m, key);
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let s = d_init();
+
+    ⍝ check 1: boot event logged (j count = 1)
+    let j0 = s.slice(0, 1).pop();
+    let jc0 = len(j0) / 3;
+    if (jc0 == 1) {
+        p = p + 1;
+        print("pass:boot event");
+    }
+
+    ⍝ learn two things
+    let s1 = d_learn(s, "name", "aeonmi");
+    let s2 = d_learn(s1, "version", "1");
+
+    ⍝ check 2: memory count = 2
+    let m2 = s2.slice(1, 2).pop();
+    let mc2 = len(m2) / 3;
+    if (mc2 == 2) {
+        p = p + 1;
+        print("pass:memories stored");
+    }
+
+    ⍝ check 3: recall value
+    let v = d_recall(s2, "name");
+    if (v == "aeonmi") {
+        p = p + 1;
+        print("pass:recall value");
+    }
+
+    ⍝ check 4: rule added
+    let s3 = d_add_rule(s2, "rule1", "cond1", "act1", 1);
+    let r3 = s3.slice(2, 3).pop();
+    let rc3 = len(r3) / 5;
+    if (rc3 == 1) {
+        p = p + 1;
+        print("pass:rule added");
+    }
+
+    print("core tests passed:", p, "/ 4");
+}

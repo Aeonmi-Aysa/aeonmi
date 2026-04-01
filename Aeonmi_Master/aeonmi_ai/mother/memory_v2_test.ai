@@ -1,0 +1,45 @@
+⍝ memory_v2_test.ai — tests m_delete (new API)
+⍝ imports memory.ai (11 funcs) + 2 test funcs = 13 total → T(13) ≈ 8192 ops, fast
+
+import { mem_new, mem_store, mem_recall, mem_total_count, m_delete } from "./memory";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let m = mem_new();
+    m = mem_store(m, "color", "blue");
+    m = mem_store(m, "shape", "circle");
+    m = mem_store(m, "size",  "large");
+
+    p = p + check("count before delete", mem_total_count(m), 3);
+
+    ⍝ delete middle entry
+    m = m_delete(m, "shape");
+    p = p + check("count after delete", mem_total_count(m), 2);
+    p = p + check("deleted key gone",   mem_recall(m, "shape"), "null");
+    p = p + check("color still there",  mem_recall(m, "color"), "blue");
+    p = p + check("size still there",   mem_recall(m, "size"),  "large");
+
+    ⍝ delete missing key → no-op
+    let m2 = m_delete(m, "nope");
+    p = p + check("delete missing: count unchanged", mem_total_count(m2), 2);
+
+    ⍝ delete first entry
+    m = m_delete(m, "color");
+    p = p + check("count after 2nd delete", mem_total_count(m), 1);
+    p = p + check("only size remains",      mem_recall(m, "size"), "large");
+
+    ⍝ delete last remaining
+    m = m_delete(m, "size");
+    p = p + check("count after 3rd delete", mem_total_count(m), 0);
+
+    print("memory_v2 tests passed:", p, "/ 9");
+}

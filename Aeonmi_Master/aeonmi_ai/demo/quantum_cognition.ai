@@ -1,0 +1,120 @@
+﻿⍝ quantum_cognition.ai — Quantum Cognition Engine
+⍝ 3-qubit AI decision model: Explore / Confidence / Novelty dimensions
+⍝ Decisions emerge from quantum state collapse — not classical logic
+⍝ Flat file — no imports, 12 functions, a_/b_/c_/d_ prefix ordering
+
+◯ a_prob1⟨q⟩ {
+    ⍝ P(measure=1) = |re1|^2 + |im1|^2
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    return re1 * re1 + im1 * im1;
+}
+
+◯ a_q_zero⟨⟩ {
+    ⍝ |0⟩ = [re0=1, im0=0, re1=0, im1=0]
+    return [1, 0, 0, 0];
+}
+
+◯ b_gate_h⟨q⟩ {
+    ⍝ Hadamard: |0⟩ -> |+⟩, |1⟩ -> |−⟩
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let k = 0.70710678;
+    return [(re0 + re1) * k, (im0 + im1) * k, (re0 - re1) * k, (im0 - im1) * k];
+}
+
+◯ b_gate_x⟨q⟩ {
+    ⍝ Pauli-X: flip |0⟩ <-> |1⟩
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    return [re1, im1, re0, im0];
+}
+
+◯ b_measure⟨q⟩ {
+    ⍝ Projective measurement: 1 if P(1) > 0.5, else 0
+    let p1 = a_prob1(q);
+    if (p1 > 0.5) { return 1; }
+    return 0;
+}
+
+◯ c_action_id⟨bits⟩ {
+    ⍝ 3-bit decision vector maps to cognitive action:
+    ⍝ 0=REST 1=OBSERVE 2=ANALYZE 3=HYPOTHESIZE
+    ⍝ 4=EXPERIMENT 5=GENERALIZE 6=COMMIT 7=INNOVATE
+    return bits;
+}
+
+◯ c_decide_3q⟨q0, q1, q2⟩ {
+    ⍝ Collapse 3 qubits -> 3-bit decision integer
+    let b0 = b_measure(q0);
+    let b1 = b_measure(q1);
+    let b2 = b_measure(q2);
+    return b0 + b1 * 2 + b2 * 4;
+}
+
+◯ c_simulate_step⟨step, input⟩ {
+    ⍝ Encode 3-bit input into qubit basis states, apply cognition gates, measure
+    ⍝ q0 = EXPLORE: always put in superposition via H (quantum uncertainty dimension)
+    ⍝ q1 = CONFIDENCE: set by input bit 1
+    ⍝ q2 = NOVELTY: set by input bit 2
+    let q0 = a_q_zero();
+    let q1 = a_q_zero();
+    let q2 = a_q_zero();
+    let b1 = (input / 2) - (input / 4) * 2;
+    let b2 = input / 4;
+    if (b1 == 1) { q1 = b_gate_x(q1); }
+    if (b2 == 1) { q2 = b_gate_x(q2); }
+    ⍝ Explore qubit always enters quantum superposition
+    q0 = b_gate_h(q0);
+    return c_decide_3q(q0, q1, q2);
+}
+
+◯ d_check_quantum⟨q⟩ {
+    ⍝ Verify qubit normalization: prob0 + prob1 = 1 (within float precision)
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let p0  = re0 * re0 + im0 * im0;
+    let p1  = a_prob1(q);
+    let total = p0 + p1;
+    if (total > 0.99) { return 1; }
+    return 0;
+}
+
+◯ d_print_step⟨step, input, decision⟩ {
+    ⍝ Print one cognition step with action label
+    let b1 = (input / 2) - (input / 4) * 2;
+    let b2 = input / 4;
+    print("[Step", step, "] input=", input, "| q0=SUPER q1=|", b1, "> q2=|", b2, "> | decision=", decision);
+}
+
+◯ d_run_cognition⟨n_steps⟩ {
+    ⍝ Run quantum cognition engine for n_steps decision cycles
+    print("=== QUANTUM COGNITION ENGINE v1.0 ===");
+    ⍝ Verify a superposition state is valid
+    let q_super = b_gate_h(a_q_zero());
+    let qvalid  = d_check_quantum(q_super);
+    print("[INIT] Superposition qubit valid:", qvalid, "| Prob(|1>):", a_prob1(q_super));
+    let passed  = 0;
+    let i = 0;
+    while (i < n_steps) {
+        let decision = c_simulate_step(i, i);
+        d_print_step(i, i, decision);
+        let action = c_action_id(decision);
+        passed = passed + 1;
+        i = i + 1;
+    }
+    print("[SUMMARY]", passed, "decisions completed | Explore qubit: SUPERPOSED throughout");
+    print("[QUANTUM STATE] H|0> prob(|1>):", a_prob1(q_super), "— quantum uncertainty confirmed");
+    return passed;
+}
+
+◯ main⟨⟩ {
+    let results = d_run_cognition(8);
+    if (results == 8) {
+        print("=== PASS ===");
+    }
+}

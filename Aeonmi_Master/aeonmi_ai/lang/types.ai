@@ -1,0 +1,34 @@
+⍝ types.ai — Aeonmi type system self-description
+⍝ Types represented as integer IDs — the language describing itself
+⍝ Type IDs: 0=nil 1=bool 2=int 3=float 4=string 5=array 6=func 7=qubit 8=circuit 9=agent
+⍝ Functions: 11 total, no imports
+
+◯ ty_agent⟨⟩    { return 9; }
+◯ ty_array⟨⟩    { return 5; }
+◯ ty_bool⟨⟩     { return 1; }
+◯ ty_circuit⟨⟩  { return 8; }
+◯ ty_float⟨⟩    { return 3; }
+◯ ty_func⟨⟩     { return 6; }
+◯ ty_int⟨⟩      { return 2; }
+
+◯ ty_is_numeric⟨id⟩ {
+    ⍝ True if type is int or float
+    if (id == 2) { return true; }
+    if (id == 3) { return true; }
+    return false;
+}
+
+◯ ty_is_quantum⟨id⟩ {
+    ⍝ True if type is qubit or circuit
+    if (id == 7) { return true; }
+    if (id == 8) { return true; }
+    return false;
+}
+
+◯ ty_nil⟨⟩      { return 0; }
+◯ ty_qubit⟨⟩    { return 7; }
+
+◯ main⟨⟩ {
+    print("types module loaded — nil bool int float string array func qubit circuit agent");
+    print("is_numeric(int):", ty_is_numeric(ty_int()), "is_quantum(qubit):", ty_is_quantum(ty_qubit()));
+}

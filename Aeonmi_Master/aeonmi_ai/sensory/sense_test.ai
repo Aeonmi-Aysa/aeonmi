@@ -1,0 +1,100 @@
+⍝ sense_test.ai — flat, no imports, 11 functions
+⍝ b_ prefix = buffer helpers (sort before d_/main)
+⍝ d_ prefix = sense logic
+
+◯ b_buf_advance⟨buf⟩ {
+    let n = len(buf) / 3;
+    if (n == 0) { return buf; }
+    let out = [];
+    let i = 1;
+    while (i < n) {
+        let base = i * 3;
+        out.push(buf.slice(base, base + 1).pop());
+        out.push(buf.slice(base + 1, base + 2).pop());
+        out.push(buf.slice(base + 2, base + 3).pop());
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ b_buf_count⟨buf⟩ {
+    return len(buf) / 3;
+}
+
+◯ b_buf_new⟨⟩ {
+    return [];
+}
+
+◯ b_buf_peek_payload⟨buf⟩ {
+    if (len(buf) == 0) { return ""; }
+    return buf.slice(1, 2).pop();
+}
+
+◯ b_buf_peek_tag⟨buf⟩ {
+    if (len(buf) == 0) { return ""; }
+    return buf.slice(0, 1).pop();
+}
+
+◯ b_buf_push⟨buf, tag, payload, strength⟩ {
+    buf.push(tag);
+    buf.push(payload);
+    buf.push(strength);
+    return buf;
+}
+
+◯ d_sense_absorb⟨buf, tag, payload, strength⟩ {
+    return b_buf_push(buf, tag, payload, strength);
+}
+
+◯ d_sense_count⟨buf⟩ {
+    return b_buf_count(buf);
+}
+
+◯ d_sense_flush⟨buf⟩ {
+    return [];
+}
+
+◯ d_sense_strongest⟨buf, threshold⟩ {
+    let n = b_buf_count(buf);
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        let t = buf.slice(base, base + 1).pop();
+        let p = buf.slice(base + 1, base + 2).pop();
+        let s = buf.slice(base + 2, base + 3).pop();
+        if (s >= threshold) {
+            out.push(t);
+            out.push(p);
+            out.push(s);
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let b = b_buf_new();
+
+    ⍝ check 1: empty = 0
+    if (d_sense_count(b) == 0) { p = p + 1; print("pass:empty count"); }
+
+    ⍝ absorb 3 signals
+    let b1 = d_sense_absorb(b,  "vis", "light", 8);
+    let b2 = d_sense_absorb(b1, "aud", "tone",  3);
+    let b3 = d_sense_absorb(b2, "vis", "glow",  9);
+
+    ⍝ check 2: count = 3
+    if (d_sense_count(b3) == 3) { p = p + 1; print("pass:count 3"); }
+
+    ⍝ check 3: strongest(7) = 2 signals (8 and 9 pass, 3 fails)
+    let strong = d_sense_strongest(b3, 7);
+    if (b_buf_count(strong) == 2) { p = p + 1; print("pass:strongest"); }
+
+    ⍝ check 4: flush → 0
+    let b4 = d_sense_flush(b3);
+    if (d_sense_count(b4) == 0) { p = p + 1; print("pass:flush"); }
+
+    print("sense tests passed:", p, "/ 4");
+}

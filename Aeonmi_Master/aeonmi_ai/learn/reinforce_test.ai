@@ -1,0 +1,35 @@
+⍝ reinforce_test.ai — 6 total functions (4 imported + check + main)
+
+import { reinf_decay, reinf_new, reinf_score, reinf_touch } from "./reinforce";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let mem = reinf_new();
+
+    p = p + check("empty score",   reinf_score(mem, "x"), 0);
+
+    let m1 = reinf_touch(mem, "x");
+    p = p + check("first touch",   reinf_score(m1, "x"),  1);
+
+    let m2 = reinf_touch(m1, "x");
+    p = p + check("second touch",  reinf_score(m2, "x"),  2);
+
+    let m3 = reinf_touch(m2, "y");
+    p = p + check("new key score", reinf_score(m3, "y"),  1);
+    p = p + check("x unchanged",   reinf_score(m3, "x"),  2);
+
+    let m4 = reinf_decay(m3, 0.5);
+    p = p + check("x after decay", reinf_score(m4, "x"),  1);
+    p = p + check("y after decay", reinf_score(m4, "y"),  0.5);
+
+    print("reinforce tests passed:", p, "/ 7");
+}

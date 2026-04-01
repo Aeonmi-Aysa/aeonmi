@@ -1,0 +1,42 @@
+⍝ entangle_test.ai — Tests for entangle.ai Bell state and 2-qubit ops
+import { bell_phi_plus, bell_phi_minus, bell_psi_plus, bell_psi_minus, ent_prob, ent_measure0, ent_measure1, ent_apply_cnot, ent_apply_h0 } from "./entangle";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Bell |Φ+⟩ = (|00⟩ + |11⟩)/√2
+    let bpp = bell_phi_plus();
+    p = p + check("|Φ+⟩ prob(00)≈0.5", ent_prob(bpp, 0) > 0.49, true);
+    p = p + check("|Φ+⟩ prob(01)=0", ent_prob(bpp, 1) == 0.0, true);
+    p = p + check("|Φ+⟩ prob(10)=0", ent_prob(bpp, 2) == 0.0, true);
+    p = p + check("|Φ+⟩ prob(11)≈0.5", ent_prob(bpp, 3) > 0.49, true);
+    p = p + check("|Φ+⟩ measure0=0", ent_measure0(bpp), 0);
+
+    ⍝ Bell |Ψ+⟩ = (|01⟩ + |10⟩)/√2
+    let bsp = bell_psi_plus();
+    p = p + check("|Ψ+⟩ prob(00)=0", ent_prob(bsp, 0) == 0.0, true);
+    p = p + check("|Ψ+⟩ prob(01)≈0.5", ent_prob(bsp, 1) > 0.49, true);
+    p = p + check("|Ψ+⟩ prob(10)≈0.5", ent_prob(bsp, 2) > 0.49, true);
+    p = p + check("|Ψ+⟩ prob(11)=0", ent_prob(bsp, 3) == 0.0, true);
+
+    ⍝ CNOT: |Ψ+⟩ → CNOT flips |10⟩↔|11⟩ → |Φ+⟩ shape
+    let after_cx = ent_apply_cnot(bsp);
+    p = p + check("CNOT Psi+ prob10=0", ent_prob(after_cx, 2) == 0.0, true);
+
+    ⍝ H on q0 of |00⟩ → |+0⟩ = (|00⟩+|10⟩)/√2
+    let b00 = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let bh0 = ent_apply_h0(b00);
+    p = p + check("H0|00⟩ prob(00)≈0.5", ent_prob(bh0, 0) > 0.49, true);
+    p = p + check("H0|00⟩ prob(10)≈0.5", ent_prob(bh0, 2) > 0.49, true);
+
+    print("entangle tests passed:", p, "/ 12");
+}

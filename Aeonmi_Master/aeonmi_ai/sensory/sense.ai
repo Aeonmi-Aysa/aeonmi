@@ -1,0 +1,36 @@
+⍝ sense.ai — sensory orchestrator: absorb, attend, flush
+⍝ 4 functions, imports buffer + filter
+
+import { buf_advance, buf_count, buf_new, buf_peek_payload, buf_peek_tag, buf_push } from "./buffer";
+import { flt_by_tag, flt_count_tag, flt_new } from "./filter";
+
+◯ sense_absorb⟨buf, tag, payload, strength⟩ {
+    return buf_push(buf, tag, payload, strength);
+}
+
+◯ sense_count⟨buf⟩ {
+    return buf_count(buf);
+}
+
+◯ sense_flush⟨buf⟩ {
+    return [];
+}
+
+◯ sense_strongest⟨buf, threshold⟩ {
+    let n = buf_count(buf);
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        let t = buf.slice(base, base + 1).pop();
+        let p = buf.slice(base + 1, base + 2).pop();
+        let s = buf.slice(base + 2, base + 3).pop();
+        if (s >= threshold) {
+            out.push(t);
+            out.push(p);
+            out.push(s);
+        }
+        i = i + 1;
+    }
+    return out;
+}

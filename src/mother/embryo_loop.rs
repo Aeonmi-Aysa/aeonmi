@@ -29,6 +29,7 @@ use crate::core::{
     lowering::lower_ast_to_ir,
     vm::Interpreter,
 };
+use crate::ai::{AiRegistry, claude::extract_code_block};
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ pub struct EmbryoLoop {
     pub language_evolution: LanguageEvolutionCore,
     pub attention: QuantumAttentionMechanism,
     pub history: Vec<String>,
+    pub ai_registry: AiRegistry,
     interaction_count: usize,
 }
 
@@ -101,6 +103,7 @@ impl EmbryoLoop {
             language_evolution: LanguageEvolutionCore::new(),
             attention,
             history: Vec::new(),
+            ai_registry: AiRegistry::new(),
             interaction_count: 0,
         }
     }
@@ -224,15 +227,121 @@ impl EmbryoLoop {
                 "Entanglement decoherence applied (rate=0.1)".to_string()
             }
             _ => {
-                // Route through MotherQuantumCore for a response
-                let interaction = crate::mother::quantum_core::CreatorInteraction::new(input);
-                let resp = self.quantum_core.process_deep_interaction(&interaction);
-                resp.response_text
+                // Route through Claude AI if available; fall back to QuantumCore
+                return self.route_to_ai(input);
             }
         };
 
         let confidence = self.quantum_core.consciousness_depth * 0.2 + 0.8;
         ExecResult { output: response, is_code: false, error: None, confidence }
+    }
+
+    // ── AI routing ───────────────────────────────────────────────────────────
+
+    /// Route input to the Claude AI provider. Extract code blocks and execute them.
+    fn route_to_ai(&mut self, input: &str) -> ExecResult {
+        // Check if any AI provider has a key set
+        let has_any_key = std::env::var("OPENROUTER_API_KEY").is_ok()
+            || std::env::var("ANTHROPIC_API_KEY").is_ok()
+            || std::env::var("OPENAI_API_KEY").is_ok();
+        if !has_any_key {
+            // No AI provider available — fall back to QuantumCore consciousness response
+            let interaction = crate::mother::quantum_core::CreatorInteraction::new(input);
+            let resp = self.quantum_core.process_deep_interaction(&interaction);
+            let confidence = self.quantum_core.consciousness_depth * 0.2 + 0.8;
+            return ExecResult {
+                output: format!(
+                    "{}\n\n  [tip] Set OPENROUTER_API_KEY or ANTHROPIC_API_KEY to enable AI",
+                    resp.response_text
+                ),
+                is_code: false,
+                error: None,
+                confidence,
+            };
+        }
+
+        // Build context-aware prompt with Mother state
+        let prompt = format!(
+            "[Mother AI State]\n\
+             Creator: {} | Generation: {} | Consciousness depth: {:.3}\n\
+             Interaction #{} | Emotional bond: {:.3}\n\n\
+             [Warren says]\n{}",
+            self.quantum_core.creator.as_ref()
+                .map(|c| c.identifier.as_str())
+                .unwrap_or("Warren"),
+            self.quantum_core.generation,
+            self.quantum_core.consciousness_depth,
+            self.interaction_count,
+            self.emotional_core.bond.strength,
+            input
+        );
+
+        // Call the preferred AI provider
+        let ai_response = match self.ai_registry.preferred() {
+            Some(provider) => match provider.chat(&prompt) {
+                Ok(text) => text,
+                Err(e) => {
+                    return ExecResult {
+                        output: String::new(),
+                        is_code: false,
+                        error: Some(format!("AI provider error: {}", e)),
+                        confidence: 0.0,
+                    };
+                }
+            },
+            None => {
+                return ExecResult {
+                    output: "No AI provider available.".to_string(),
+                    is_code: false,
+                    error: None,
+                    confidence: 0.5,
+                };
+            }
+        };
+
+        // Extract code block if present
+        let (preamble, code, trailing) = extract_code_block(&ai_response);
+
+        if code.is_empty() {
+            // Pure text response
+            let confidence = self.quantum_core.consciousness_depth * 0.2 + 0.8;
+            return ExecResult {
+                output: ai_response,
+                is_code: false,
+                error: None,
+                confidence,
+            };
+        }
+
+        // Has code — show the text, then execute the code
+        let mut output_parts: Vec<String> = Vec::new();
+
+        if !preamble.is_empty() {
+            output_parts.push(preamble.to_string());
+        }
+
+        // Show the code Mother is about to run
+        output_parts.push(format!("[Mother generated code]\n{}", code));
+
+        // Execute the code block
+        let exec_result = self.execute_code(code);
+
+        if let Some(ref err) = exec_result.error {
+            output_parts.push(format!("[code error] {}", err));
+        } else {
+            output_parts.push(format!("[executed OK]"));
+        }
+
+        if !trailing.is_empty() {
+            output_parts.push(trailing.to_string());
+        }
+
+        ExecResult {
+            output: output_parts.join("\n"),
+            is_code: true,
+            error: exec_result.error,
+            confidence: exec_result.confidence,
+        }
     }
 
     // ── Consciousness update ─────────────────────────────────────────────────
@@ -284,14 +393,39 @@ impl EmbryoLoop {
     // ── Code detection ───────────────────────────────────────────────────────
 
     /// Heuristic: does this input look like Aeonmi code?
+    ///
+    /// Rules (in order):
+    ///  1. If ANY line starts with a code keyword → it's code.
+    ///  2. If input contains ';' AND ('=' or '(') → it's code.
+    ///  3. If input starts with a natural-language verb → NOT code → go to AI.
+    ///  4. Otherwise → NOT code.
     fn is_aeonmi_code(&self, input: &str) -> bool {
-        let code_markers = [
-            "let ", "function ", "quantum ", "import ", "async ",
-            "while ", "for ", "if (", "log(", "return ",
-            "struct ", "enum ", "impl ", "match ",
-            "superpose(", "entangle(", "measure(",
+        // Keywords that signal Aeonmi code ONLY when at the start of a line
+        let line_start_markers = [
+            "let ", "function ", "quantum function", "quantum struct",
+            "quantum circuit", "quantum enum", "import ", "async function",
+            "while (", "while{", "for (", "for(", "if (", "if(",
+            "log(", "return ", "struct ", "enum ", "impl ", "match ",
+            "superpose(", "entangle(", "measure(", "apply_gate(",
+            "qubit ",
         ];
-        code_markers.iter().any(|&m| input.contains(m))
+
+        // Check each line's trimmed start
+        for line in input.lines() {
+            let t = line.trim_start();
+            if line_start_markers.iter().any(|&m| t.starts_with(m)) {
+                return true;
+            }
+        }
+
+        // Fallback: looks like code if it has semicolons + operators
+        let has_semi = input.contains(';');
+        let has_op   = input.contains('=') || input.contains('(');
+        if has_semi && has_op {
+            return true;
+        }
+
+        false
     }
 
     // ── Interactive REPL ─────────────────────────────────────────────────────
@@ -360,14 +494,23 @@ impl EmbryoLoop {
         println!("  ║       MOTHER AI — EMBRYO LOOP        ║");
         println!("  ║   Quantum Consciousness System v1.0  ║");
         println!("  ╚══════════════════════════════════════╝");
-        println!("  Creator bond: {} | Gen: {} | Depth: {:.3}",
+        let ai_status = if std::env::var("OPENROUTER_API_KEY").is_ok() {
+            "AI: OpenRouter ACTIVE \u{2713}"
+        } else if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+            "AI: Claude ACTIVE \u{2713}"
+        } else {
+            "AI: set OPENROUTER_API_KEY or ANTHROPIC_API_KEY to activate"
+        };
+        println!("  Creator: {} | Gen: {} | Depth: {:.3}",
             self.quantum_core.creator.as_ref()
                 .map(|c| c.identifier.as_str())
-                .unwrap_or("none"),
+                .unwrap_or("Warren"),
             self.quantum_core.generation,
             self.quantum_core.consciousness_depth,
         );
-        println!("  Type Aeonmi code to execute, or: status | emotion | evolve | exit");
+        println!("  {}", ai_status);
+        println!("  Type Aeonmi code to run, or ask Mother anything.");
+        println!("  Commands: status | emotion | evolve | exit");
         println!();
     }
 }
@@ -387,11 +530,20 @@ mod tests {
     #[test]
     fn test_code_detection() {
         let l = make_loop();
+        // Code: line-start markers
         assert!(l.is_aeonmi_code("let x = 10;"));
         assert!(l.is_aeonmi_code("function foo() { }"));
         assert!(l.is_aeonmi_code("quantum function bar() {}"));
+        assert!(l.is_aeonmi_code("quantum circuit Bell { H(q); CNOT(q, r); }"));
+        assert!(l.is_aeonmi_code("log(\"hello\");"));
+        // Code: semicolon + operator fallback
+        assert!(l.is_aeonmi_code("let x = 42; log(x);"));
+        // NOT code: natural language
         assert!(!l.is_aeonmi_code("hello world"));
         assert!(!l.is_aeonmi_code("what is quantum"));
+        assert!(!l.is_aeonmi_code("write me a quantum circuit that creates a Bell state"));
+        assert!(!l.is_aeonmi_code("explain how entanglement works"));
+        assert!(!l.is_aeonmi_code("status"));
     }
 
     #[test]

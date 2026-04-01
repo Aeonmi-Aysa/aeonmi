@@ -1,0 +1,37 @@
+⍝ journal_test.ai
+
+import { journal_new, journal_append, journal_count, journal_get_tag, journal_get_payload, journal_last_tag, journal_last_payload, journal_query_payloads } from "./journal";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let j = journal_new();
+    let p = 0;
+
+    p = p + check("new is empty", journal_count(j), 0);
+
+    j = journal_append(j, "boot", "system_start");
+    p = p + check("count after 1 append", journal_count(j), 1);
+    p = p + check("tag[0]", journal_get_tag(j, 0), "boot");
+    p = p + check("payload[0]", journal_get_payload(j, 0), "system_start");
+
+    j = journal_append(j, "learn", "key_a");
+    j = journal_append(j, "boot", "reinit");
+    p = p + check("count after 3", journal_count(j), 3);
+
+    p = p + check("last_tag", journal_last_tag(j), "boot");
+    p = p + check("last_payload", journal_last_payload(j), "reinit");
+
+    let boots = journal_query_payloads(j, "boot");
+    p = p + check("query boot count", len(boots), 2);
+    p = p + check("query boot[0]", boots.slice(0, 1).pop(), "system_start");
+
+    print("journal tests passed:", p, "/ 9");
+}

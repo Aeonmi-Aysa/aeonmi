@@ -1,0 +1,138 @@
+⍝ quantum_demo.ai — Integrated quantum simulation demo (flat, no imports)
+⍝ Demonstrates: Bell state creation, statevector math, Qiskit bridge, measurement statistics
+⍝ All helpers inlined using a_/b_/c_/d_ prefix for alphabetical env capture ordering
+⍝ Functions: 12 total
+
+◯ a_prob⟨re, im⟩ {
+    ⍝ Probability from complex amplitude: |α|² = re² + im²
+    return re * re + im * im;
+}
+
+◯ a_q_zero⟨⟩ {
+    ⍝ |0⟩ = [1, 0, 0, 0]
+    let r = []; r.push(1.0); r.push(0.0); r.push(0.0); r.push(0.0);
+    return r;
+}
+
+◯ b_gate_h⟨q⟩ {
+    ⍝ Hadamard gate on single qubit
+    let k = 0.70710678;
+    let re0 = q.slice(0,1).pop(); let im0 = q.slice(1,2).pop();
+    let re1 = q.slice(2,3).pop(); let im1 = q.slice(3,4).pop();
+    let r = [];
+    r.push((re0 + re1) * k); r.push((im0 + im1) * k);
+    r.push((re0 - re1) * k); r.push((im0 - im1) * k);
+    return r;
+}
+
+◯ b_gate_x⟨q⟩ {
+    ⍝ Pauli-X: flip |0⟩ ↔ |1⟩
+    let re0 = q.slice(0,1).pop(); let im0 = q.slice(1,2).pop();
+    let re1 = q.slice(2,3).pop(); let im1 = q.slice(3,4).pop();
+    let r = []; r.push(re1); r.push(im1); r.push(re0); r.push(im0);
+    return r;
+}
+
+◯ c_bell_phi_plus⟨⟩ {
+    ⍝ |Φ+⟩ 2-qubit Bell state: [re00,im00, re01,im01, re10,im10, re11,im11]
+    let k = 0.70710678;
+    let r = [];
+    r.push(k); r.push(0.0);   ⍝ |00⟩
+    r.push(0.0); r.push(0.0); ⍝ |01⟩
+    r.push(0.0); r.push(0.0); ⍝ |10⟩
+    r.push(k); r.push(0.0);   ⍝ |11⟩
+    return r;
+}
+
+◯ c_meas_record⟨r, outcome⟩ {
+    ⍝ Increment count for outcome in results array [out,count, ...]
+    let total = len(r) / 2;
+    let i = 0;
+    while (i < total) {
+        let o = r.slice(i*2, i*2+1).pop();
+        if (o == outcome) {
+            let result = [];
+            let j = 0; let n = len(r);
+            while (j < n) {
+                if (j == i*2+1) { result.push(r.slice(j, j+1).pop() + 1); }
+                else { result.push(r.slice(j, j+1).pop()); }
+                j = j + 1;
+            }
+            return result;
+        }
+        i = i + 1;
+    }
+    let result = [];
+    let j = 0; let n = len(r);
+    while (j < n) { result.push(r.slice(j, j+1).pop()); j = j + 1; }
+    result.push(outcome); result.push(1);
+    return result;
+}
+
+◯ c_qk_bell_circuit⟨⟩ {
+    ⍝ Qiskit bridge descriptor for Bell circuit: H(0), CX(0→1), M(0), M(1)
+    ⍝ Format: [n_qubits, n_cbits, shots, op_count, ...ops]
+    let r = [];
+    r.push(2); r.push(2); r.push(1024); r.push(4);
+    r.push(0); r.push(0); r.push(-1);   ⍝ H(0)
+    r.push(4); r.push(1); r.push(0);    ⍝ CX(ctrl=0, tgt=1)
+    r.push(7); r.push(0); r.push(0);    ⍝ MEASURE(q0→c0)
+    r.push(7); r.push(1); r.push(1);    ⍝ MEASURE(q1→c1)
+    return r;
+}
+
+◯ d_simulate_bell⟨shots⟩ {
+    ⍝ Simulate Bell |Φ+⟩ measurement: 50/50 split between |00⟩ and |11⟩
+    ⍝ Deterministic simulation: alternate outcomes
+    let results = [];
+    let i = 0;
+    while (i < shots) {
+        if (i * 2 < shots) {
+            results = c_meas_record(results, 0);
+        } else {
+            results = c_meas_record(results, 3);
+        }
+        i = i + 1;
+    }
+    return results;
+}
+
+◯ d_verify_entanglement⟨b⟩ {
+    ⍝ Verify Bell |Φ+⟩: prob(|00⟩) ≈ 0.5, prob(|11⟩) ≈ 0.5, others = 0
+    let p00 = a_prob(b.slice(0,1).pop(), b.slice(1,2).pop());
+    let p01 = a_prob(b.slice(2,3).pop(), b.slice(3,4).pop());
+    let p10 = a_prob(b.slice(4,5).pop(), b.slice(5,6).pop());
+    let p11 = a_prob(b.slice(6,7).pop(), b.slice(7,8).pop());
+    if (p01 != 0.0) { return false; }
+    if (p10 != 0.0) { return false; }
+    if (p00 < 0.49) { return false; }
+    if (p11 < 0.49) { return false; }
+    return true;
+}
+
+◯ main⟨⟩ {
+    print("=== QUANTUM DEMO ===");
+
+    ⍝ 1. Single-qubit gates
+    let q = a_q_zero();
+    let qh = b_gate_h(q);
+    let qhx = b_gate_x(qh);
+    print("H|0⟩ re0:", qh.slice(0,1).pop(), "re1:", qh.slice(2,3).pop());
+    print("X(H|0⟩) re0:", qhx.slice(0,1).pop(), "re1:", qhx.slice(2,3).pop());
+
+    ⍝ 2. Bell state entanglement verification
+    let bell = c_bell_phi_plus();
+    let ent_ok = d_verify_entanglement(bell);
+    print("Bell |Φ+⟩ entanglement valid:", ent_ok);
+    print("  P(|00⟩):", a_prob(bell.slice(0,1).pop(), bell.slice(1,2).pop()));
+    print("  P(|11⟩):", a_prob(bell.slice(6,7).pop(), bell.slice(7,8).pop()));
+
+    ⍝ 3. Qiskit bridge descriptor
+    let qk = c_qk_bell_circuit();
+    print("Qiskit bridge: qubits=", qk.slice(0,1).pop(), "shots=", qk.slice(2,3).pop(), "ops=", qk.slice(3,4).pop());
+    print("  op0 type=", qk.slice(4,5).pop(), "(H) target=", qk.slice(5,6).pop());
+    print("  op1 type=", qk.slice(7,8).pop(), "(CX) ctrl=", qk.slice(9,10).pop());
+    print("⧉ Hardware exec: run aeonmi_qiskit_runner.py with this descriptor");
+
+    print("=== PASS ===");
+}

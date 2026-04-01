@@ -1,0 +1,45 @@
+⍝ model_test.ai — 10 total functions (8 imported + check + main)
+
+import { snap_mem_count, snap_pat_count, snap_pat_top, snap_strength_sum } from "./snapshot";
+import { mod_new, mod_read, mod_set, mod_sync } from "./model";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) { print("pass:", label); return 1; }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let m = mod_new();
+
+    p = p + check("empty read",    mod_read(m, "x"),    0);
+
+    let m1 = mod_set(m,  "x", 42);
+    p = p + check("set read",      mod_read(m1, "x"),   42);
+
+    let m2 = mod_set(m1, "x", 99);
+    p = p + check("overwrite",     mod_read(m2, "x"),   99);
+
+    let m3 = mod_set(m2, "y", 7);
+    p = p + check("x preserved",   mod_read(m3, "x"),   99);
+    p = p + check("y set",         mod_read(m3, "y"),   7);
+
+    ⍝ build a learn_state and sync
+    let pat = [];
+    pat.push("a"); pat.push(5);
+    pat.push("b"); pat.push(2);
+    let mem = [];
+    mem.push("a"); mem.push("observed"); mem.push(5);
+    let ls = [];
+    ls.push(pat);
+    ls.push(mem);
+
+    let m4 = mod_sync(mod_new(), ls);
+    p = p + check("sync mem_count",    mod_read(m4, "mem_count"),    1);
+    p = p + check("sync pat_count",    mod_read(m4, "pat_count"),    2);
+    p = p + check("sync pat_top",      mod_read(m4, "pat_top"),      "a");
+    p = p + check("sync strength_sum", mod_read(m4, "strength_sum"), 5);
+
+    print("model tests passed:", p, "/ 9");
+}

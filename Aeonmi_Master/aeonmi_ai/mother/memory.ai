@@ -1,0 +1,133 @@
+⍝ memory.ai — associative flat-array memory store
+⍝ layout: [key0, val0, str0, key1, val1, str1, ...]
+⍝ str = strength (float 0.0-1.0)
+⍝ helpers prefixed a_ so they sort before mem_ (alphabetical decl order)
+
+◯ a_mem_find_idx⟨m, key⟩ {
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { return base; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ a_mem_rebuild⟨m, idx, new_val, new_str⟩ {
+    let result = [];
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        let v = m.slice(base + 1, base + 2).pop();
+        let s = m.slice(base + 2, base + 3).pop();
+        if (base == idx) {
+            result.push(k);
+            result.push(new_val);
+            result.push(new_str);
+        } else {
+            result.push(k);
+            result.push(v);
+            result.push(s);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ mem_active_count⟨m, threshold⟩ {
+    let total = len(m) / 3;
+    let count = 0;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3 + 2;
+        let s = m.slice(base, base + 1).pop();
+        if (s >= threshold) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ mem_decay_all⟨m, rate⟩ {
+    let result = [];
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        let v = m.slice(base + 1, base + 2).pop();
+        let s = m.slice(base + 2, base + 3).pop();
+        let ns = s - rate;
+        if (ns < 0) { ns = 0; }
+        result.push(k);
+        result.push(v);
+        result.push(ns);
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ mem_new⟨⟩ {
+    return [];
+}
+
+◯ mem_recall⟨m, key⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) { return "null"; }
+    return m.slice(idx + 1, idx + 2).pop();
+}
+
+◯ mem_reinforce⟨m, key, boost⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) { return m; }
+    let cur_str = m.slice(idx + 2, idx + 3).pop();
+    let cur_val = m.slice(idx + 1, idx + 2).pop();
+    let ns = cur_str + boost;
+    if (ns > 1) { ns = 1; }
+    return a_mem_rebuild(m, idx, cur_val, ns);
+}
+
+◯ mem_store⟨m, key, val⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    return a_mem_rebuild(m, idx, val, 1);
+}
+
+◯ mem_strength⟨m, key⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) { return 0; }
+    return m.slice(idx + 2, idx + 3).pop();
+}
+
+◯ mem_total_count⟨m⟩ {
+    return len(m) / 3;
+}
+
+◯ m_delete⟨m, key⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) { return m; }
+    let result = [];
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        let v = m.slice(base + 1, base + 2).pop();
+        let s = m.slice(base + 2, base + 3).pop();
+        if (k != key) {
+            result.push(k);
+            result.push(v);
+            result.push(s);
+        }
+        i = i + 1;
+    }
+    return result;
+}
