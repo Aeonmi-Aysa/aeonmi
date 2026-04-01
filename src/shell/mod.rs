@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::cli::EmitKind;
 use crate::commands;
 use crate::commands::compile::compile_pipeline;
+use crate::mother::{EmbryoConfig, EmbryoLoop};
 
 pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> anyhow::Result<()> {
     banner();
@@ -405,6 +406,203 @@ pub fn start(config_path: Option<PathBuf>, pretty: bool, skip_sema: bool) -> any
                 }
             }
 
+            // ── Extended commands ─────────────────────────────────────────
+            "clear" | "cls" => {
+                print!("\x1B[2J\x1B[1;1H");
+                io::stdout().flush().ok();
+            }
+
+            "touch" => {
+                if let Some(p) = parts.first() {
+                    if let Err(e) = fs::OpenOptions::new().create(true).write(true).open(p) {
+                        eprintln!("{} {}", "err:".red().bold(), e);
+                    }
+                } else {
+                    usage("touch <file>");
+                }
+            }
+
+            "head" => {
+                let n: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(10);
+                if let Some(p) = parts.first() {
+                    match fs::read_to_string(p) {
+                        Ok(s) => s.lines().take(n).for_each(|l| println!("{l}")),
+                        Err(e) => eprintln!("{} {}", "err:".red().bold(), e),
+                    }
+                } else { usage("head <file> [n]"); }
+            }
+
+            "tail" => {
+                let n: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(10);
+                if let Some(p) = parts.first() {
+                    match fs::read_to_string(p) {
+                        Ok(s) => {
+                            let lines: Vec<&str> = s.lines().collect();
+                            let start = lines.len().saturating_sub(n);
+                            lines[start..].iter().for_each(|l| println!("{l}"));
+                        }
+                        Err(e) => eprintln!("{} {}", "err:".red().bold(), e),
+                    }
+                } else { usage("tail <file> [n]"); }
+            }
+
+            "grep" => {
+                if parts.len() < 2 {
+                    usage("grep <pattern> <file>");
+                } else {
+                    let pat = &parts[0];
+                    match fs::read_to_string(&parts[1]) {
+                        Ok(s) => {
+                            let mut found = false;
+                            for (i, l) in s.lines().enumerate() {
+                                if l.contains(pat.as_str()) {
+                                    println!("{}:{}", i + 1, l);
+                                    found = true;
+                                }
+                            }
+                            if !found { println!("(no matches)"); }
+                        }
+                        Err(e) => eprintln!("{} {}", "err:".red().bold(), e),
+                    }
+                }
+            }
+
+            "write" => {
+                // write <file> <content...>
+                if parts.len() < 2 {
+                    usage("write <file> <content>");
+                } else {
+                    let content = parts[1..].join(" ");
+                    if let Err(e) = fs::write(&parts[0], content) {
+                        eprintln!("{} {}", "err:".red().bold(), e);
+                    }
+                }
+            }
+
+            "append" => {
+                if parts.len() < 2 {
+                    usage("append <file> <content>");
+                } else {
+                    use std::io::Write as W;
+                    let content = format!("{}\n", parts[1..].join(" "));
+                    match fs::OpenOptions::new().create(true).append(true).open(&parts[0]) {
+                        Ok(mut f) => { let _ = f.write_all(content.as_bytes()); }
+                        Err(e) => eprintln!("{} {}", "err:".red().bold(), e),
+                    }
+                }
+            }
+
+            "tree" => {
+                fn print_tree(path: &Path, prefix: &str, depth: usize) {
+                    if depth > 4 { return; }
+                    if let Ok(entries) = fs::read_dir(path) {
+                        let mut entries: Vec<_> = entries.flatten().collect();
+                        entries.sort_by_key(|e| e.file_name());
+                        for (i, entry) in entries.iter().enumerate() {
+                            let is_last = i == entries.len() - 1;
+                            let connector = if is_last { "└── " } else { "├── " };
+                            let name = entry.file_name();
+                            println!("{}{}{}", prefix, connector, name.to_string_lossy());
+                            if entry.path().is_dir() {
+                                let next = if is_last { format!("{}    ", prefix) } else { format!("{}│   ", prefix) };
+                                print_tree(&entry.path(), &next, depth + 1);
+                            }
+                        }
+                    }
+                }
+                let target = parts.first().map(PathBuf::from).unwrap_or(cwd.clone());
+                println!("{}", target.display());
+                print_tree(&target, "", 0);
+            }
+
+            "env" => {
+                for (k, v) in std::env::vars() {
+                    println!("{}={}", k.truecolor(130, 0, 200), v);
+                }
+            }
+
+            "setenv" => {
+                // setenv KEY=VALUE
+                if let Some(pair) = parts.first() {
+                    if let Some((k, v)) = pair.split_once('=') {
+                        std::env::set_var(k, v);
+                        println!("set {}={}", k.truecolor(130, 0, 200), v);
+                    } else {
+                        usage("setenv KEY=VALUE");
+                    }
+                } else { usage("setenv KEY=VALUE"); }
+            }
+
+            "which" => {
+                if let Some(name) = parts.first() {
+                    let found = std::env::var("PATH").ok()
+                        .map(|p| p.split(';').any(|dir| {
+                            let full = PathBuf::from(dir).join(name);
+                            let exe  = PathBuf::from(dir).join(format!("{}.exe", name));
+                            if full.exists() { println!("{}", full.display()); true }
+                            else if exe.exists() { println!("{}", exe.display()); true }
+                            else { false }
+                        }))
+                        .unwrap_or(false);
+                    if !found { eprintln!("{} not found: {name}", "err:".red().bold()); }
+                } else { usage("which <cmd>"); }
+            }
+
+            "open" => {
+                if let Some(p) = parts.first() {
+                    if let Err(e) = std::process::Command::new("cmd")
+                        .args(["/C", "start", "", p])
+                        .spawn()
+                    {
+                        eprintln!("{} {}", "err:".red().bold(), e);
+                    }
+                } else { usage("open <file>"); }
+            }
+
+            // Full system access — run any external command
+            "exec" | "!" => {
+                if parts.is_empty() {
+                    usage("exec <cmd> [args...]");
+                } else {
+                    match std::process::Command::new(&parts[0])
+                        .args(&parts[1..])
+                        .current_dir(&cwd)
+                        .status()
+                    {
+                        Ok(s) => {
+                            if !s.success() {
+                                eprintln!("{} exit code: {}", "exec:".yellow().bold(),
+                                    s.code().unwrap_or(-1));
+                            }
+                        }
+                        Err(e) => eprintln!("{} {}", "err:".red().bold(), e),
+                    }
+                }
+            }
+
+            // Mother AI
+            "mother" | "repl" | "chat" => {
+                println!(
+                    "\n  {} Entering Mother AI — type {} to return to shard\n",
+                    "◈".truecolor(225, 0, 180).bold(),
+                    "'back' or 'exit'".truecolor(255, 240, 0),
+                );
+                let config = EmbryoConfig {
+                    creator_id: "Warren".to_string(),
+                    interactive: true,
+                    verbose: false,
+                    ..Default::default()
+                };
+                let mut mother = EmbryoLoop::new(config);
+                if let Err(e) = mother.run_repl() {
+                    eprintln!("{} Mother AI error: {e}", "err:".red().bold());
+                }
+                println!(
+                    "\n  {} Returned to Aeonmi Shard\n",
+                    "◈".truecolor(225, 0, 180).bold(),
+                );
+            }
+
             // Fallback
             other => eprintln!("{} unknown command: {other}", "err:".red().bold()),
         }
@@ -429,20 +627,62 @@ fn banner() {
 }
 
 fn print_help() {
-    println!(
-        "{}\n\
-         {}\n  pwd                 # print working dir\n  cd [dir]            # change directory\n  ls [dir]            # list directory\n  mkdir <path>        # make directory\n  mv <src> <dst>      # move/rename\n  cp <src> <dst>      # copy file/dir\n\
-         {}\n  cat <file>          # show file\n  rm <path>           # remove file/dir\n  edit [--tui] [FILE] # open editor (TUI with --tui)\n  exit                # quit shell\n\
-         {}\n  compile <file.ai> [--emit js|ai] [--out FILE] [--no-sema]\n  run <file.ai> [--native] [--out FILE] # run JS path or native if --native given\n  native-run <file.ai> [--out FILE] # legacy alias for native VM execution\n\
-         {}\n  qsim <file.ai> [--shots NUM] [--backend titan|qiskit] # quantum simulation\n  qstate              # display quantum system info\n  qgates              # show available quantum gates\n  qexample [name]     # run quantum examples\n\
-         {}\n  help                # show this help\n",
-        "Aeonmi Shard — Quantum Programming Shell".bold().truecolor(0, 255, 180),
-        "Navigation:".truecolor(130, 0, 200),
-        "Files:".truecolor(130, 0, 200),
-        "Build:".truecolor(130, 0, 200),
-        "Quantum:".truecolor(255, 180, 0),
-        "Help:".truecolor(130, 0, 200),
-    );
+    let h  = |s: &str| s.truecolor(130, 0, 200).bold().to_string();
+    let q  = |s: &str| s.truecolor(255, 180, 0).bold().to_string();
+    let m  = |s: &str| s.truecolor(225, 0, 180).bold().to_string();
+    let ti = |s: &str| s.bold().truecolor(0, 255, 180).to_string();
+    println!();
+    println!("  {}", ti("Aeonmi Shard — Quantum Programming Shell"));
+    println!();
+    println!("  {}", h("Navigation:"));
+    println!("    pwd                 # print working directory");
+    println!("    cd [dir]            # change directory");
+    println!("    ls [dir]            # list directory");
+    println!("    mkdir <path>        # make directory");
+    println!("    mv <src> <dst>      # move / rename");
+    println!("    cp <src> <dst>      # copy file or dir");
+    println!();
+    println!("  {}", h("Files:"));
+    println!("    cat <file>          # show file contents");
+    println!("    head <file> [n]     # first N lines (default 10)");
+    println!("    tail <file> [n]     # last N lines (default 10)");
+    println!("    grep <pat> <file>   # search in file");
+    println!("    write <file> <txt>  # write text to file");
+    println!("    append <file> <txt> # append text to file");
+    println!("    touch <file>        # create empty file");
+    println!("    rm <path>           # remove file or dir");
+    println!("    tree [dir]          # directory tree");
+    println!("    open <file>         # open with default app");
+    println!("    edit [--tui] [FILE] # open editor");
+    println!("    clear               # clear screen");
+    println!("    exit                # quit shard");
+    println!();
+    println!("  {}", h("Build:"));
+    println!("    compile <file.ai> [--emit ai|js] [--out FILE] [--no-sema]");
+    println!("    run <file.ai> [--native] [--out FILE]");
+    println!("    native-run <file.ai> [--out FILE]   # legacy alias");
+    println!();
+    println!("  {}", h("System:"));
+    println!("    env                 # show all environment variables");
+    println!("    setenv KEY=VALUE    # set environment variable");
+    println!("    which <cmd>         # find command in PATH");
+    println!("    exec <cmd> [args]   # run any external command");
+    println!("    !<cmd> [args]       # shorthand for exec");
+    println!();
+    println!("  {}", q("Quantum:"));
+    println!("    qsim <file.ai> [--shots N] [--backend titan|qiskit]");
+    println!("    qstate              # quantum system info");
+    println!("    qgates              # available gates");
+    println!("    qexample [name]     # run quantum examples");
+    println!();
+    println!("  {}", m("Mother AI:"));
+    println!("    mother              # enter Mother AI session");
+    println!("    repl                # alias for mother");
+    println!("    (type 'back' or 'exit' inside Mother to return to shard)");
+    println!();
+    println!("  {}", h("Help:"));
+    println!("    help                # show this help");
+    println!();
 }
 
 fn usage(s: &str) {
