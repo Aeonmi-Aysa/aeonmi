@@ -3474,7 +3474,7 @@ async function _setGoal(goal){
     const d=await fetch("/api/goal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({goal})}).then(r=>r.json());
     if(d.ok){
       // Show in chat
-      addMsg("mother",`◈ Goal set: "${goal}"\n\nDecomposed into ${d.steps.length} steps:\n${d.steps.map((s,i)=>`${i+1}. ${s}`).join('\n')}\n\nUse autorun or click ⟳ Run to execute autonomously.`);
+      addMsg("mother",`◈ Goal set: "${goal}"\n\nDecomposed into ${d.steps.length} steps:\n${d.steps.map((s,i)=>`${i+1}. ${s}`).join('\\n')}\n\nUse autorun or click ⟳ Run to execute autonomously.`);
       const badge=document.getElementById("agbadge");
       if(badge){ badge.style.display="inline"; badge.textContent="◈ 0%"; }
       if(cont) await loadGoalState();
@@ -3509,7 +3509,7 @@ async function _doAutoRun(){
       for(const r of d.results||[]){
         out+=`\n  ${r.step}. ${r.action}\n     → ${r.result?.slice(0,150)||'done'}`;
       }
-      if(d.complete) out+='\n\n  ✓ Goal complete.';
+      if(d.complete) out+='\\n\\n  ✓ Goal complete.';
       else out+=`\n\n  ${d.remaining} step(s) remaining.`;
       addMsg("mother",out);
       // Update badge
@@ -3551,7 +3551,7 @@ function _renderGenerated(programs, cont){
   const rows=programs.slice().reverse().map(p=>{
     const oc=outcomeColor[p.outcome||"PENDING"]||"var(--text-3)";
     const shortOut=(p.output||"").slice(0,180);
-    const ref=p.reflection?"<div style=\"margin-top:6px;padding:6px 8px;background:rgba(168,85,247,.07);border-radius:4px;border-left:2px solid rgba(168,85,247,.4);color:var(--text-2);font-size:11px\">"+p.reflection.slice(0,200)+"</div>":"";
+    const ref=p.reflection?'<div style="margin-top:6px;padding:6px 8px;background:rgba(168,85,247,.07);border-radius:4px;border-left:2px solid rgba(168,85,247,.4);color:var(--text-2);font-size:11px">'+p.reflection.slice(0,200)+'</div>':'';
     return `<div style="padding:10px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <span style="font-weight:700;color:#ec4899;font-size:12px">${p.name||"unnamed"}</span>
@@ -3574,7 +3574,7 @@ async function genPropose(){
   cont.innerHTML='<div style="color:var(--text-3);text-align:center">◈ Asking Mother to propose programs…</div>';
   try{
     const d=await fetch("/api/propose").then(r=>r.json());
-    addMsg("mother","◈ Self-Generation Proposals:\n\n"+(d.proposals||"No proposals."));
+    addMsg("mother","◈ Self-Generation Proposals:\\n\\n"+(d.proposals||"No proposals."));
     if(prog) prog.textContent="proposed";
   }catch(e){
     addMsg("system",`Propose error: ${e.message}`);
@@ -3609,7 +3609,7 @@ async function genReflect(name){
   if(prog) prog.textContent="reflecting…";
   try{
     const d=await fetch("/api/reflect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name||null})}).then(r=>r.json());
-    addMsg("mother","◈ Reflection:\n\n"+(d.reflection||"No reflection."));
+    addMsg("mother","◈ Reflection:\\n\\n"+(d.reflection||"No reflection."));
     if(prog) prog.textContent="reflected";
     await loadGeneratePanel();
   }catch(e){
