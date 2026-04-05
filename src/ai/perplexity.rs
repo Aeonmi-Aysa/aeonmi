@@ -28,7 +28,9 @@ impl AiProvider for Perplexity {
         let trimmed = prompt.trim();
         if trimmed.is_empty() { bail!("empty prompt"); }
         let key = std::env::var("PERPLEXITY_API_KEY")
-            .map_err(|_| anyhow!("PERPLEXITY_API_KEY not set"))?;
+            .ok()
+            .or_else(|| crate::core::api_keys::get_api_key("perplexity"))
+            .ok_or_else(|| anyhow!("PERPLEXITY_API_KEY not set"))?;
         let model = std::env::var("AEONMI_PERPLEXITY_MODEL").unwrap_or_else(|_| "llama-3.1-sonar-small-chat".to_string());
         let req = ChatRequest { model: &model, messages: vec![ChatMessage { role: "user", content: trimmed }], temperature: 0.7 };
         let client = reqwest::blocking::Client::builder().timeout(Duration::from_secs(45)).build()?;

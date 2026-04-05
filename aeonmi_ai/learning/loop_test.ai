@@ -1,0 +1,65 @@
+⍝ loop_test.ai — Phase 3 learning loop tests
+⍝ imports 10 fns from loop + check + main = 12 total (budget ≤ 13)
+
+import { a_clamp, b_m_count, b_m_recall, b_m_store, b_m_decay, c_reinforce, c_bias, d_learn_cycle } from "./loop";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) {
+        print("[PASS] " + label);
+    } else {
+        print("[FAIL] " + label + " got=" + got + " want=" + want);
+    }
+}
+
+◯ main⟨⟩ {
+    ⍝ ── clamp ────────────────────────────────────────────────────────────
+    check("clamp mid",   a_clamp(50, 0, 100), 50);
+    check("clamp lo",    a_clamp(-5, 0, 100), 0);
+    check("clamp hi",    a_clamp(150, 0, 100), 100);
+
+    ⍝ ── memory primitives ────────────────────────────────────────────────
+    let m = [];
+    check("m_count empty", b_m_count(m), 0);
+
+    m = b_m_store(m, "x", 10);
+    check("m_count 1",     b_m_count(m), 1);
+    check("m_recall x",    b_m_recall(m, "x"), 10);
+    check("m_recall miss", b_m_recall(m, "z"), 0);
+
+    m = b_m_store(m, "x", 20);
+    check("m_count upsert", b_m_count(m), 1);
+    check("m_recall upd",   b_m_recall(m, "x"), 20);
+
+    ⍝ ── decay ────────────────────────────────────────────────────────────
+    let m2 = [];
+    m2 = b_m_store(m2, "a", 5);
+    m2 = b_m_decay(m2, 1);
+    check("decay rate=1",  b_m_recall(m2, "a"), 5);
+
+    ⍝ ── reinforce ────────────────────────────────────────────────────────
+    let mr = [];
+    mr = c_reinforce(mr, 2);
+    check("proceed_count 1", b_m_recall(mr, "proceed_count"), 1);
+    mr = c_reinforce(mr, 3);
+    check("proceed_count 2", b_m_recall(mr, "proceed_count"), 2);
+    mr = c_reinforce(mr, 1);
+    check("abort_count 1",   b_m_recall(mr, "abort_count"),   1);
+
+    ⍝ ── bias ─────────────────────────────────────────────────────────────
+    let mb = [];
+    check("bias empty",   c_bias(mb), 50);
+    mb = c_reinforce(mb, 2);
+    mb = c_reinforce(mb, 2);
+    mb = c_reinforce(mb, 2);
+    mb = c_reinforce(mb, 1);
+    check("bias 3/4",     c_bias(mb), 75);
+
+    ⍝ ── full cycle ───────────────────────────────────────────────────────
+    let mc = [];
+    mc = d_learn_cycle(mc, 2, 16);
+    check("cycle lv",  b_m_recall(mc, "last_verdict"), 2);
+    check("cycle lc",  b_m_recall(mc, "last_conf"),    16);
+    check("cycle pc",  b_m_recall(mc, "proceed_count"), 1);
+
+    print("=== loop tests done ===");
+}

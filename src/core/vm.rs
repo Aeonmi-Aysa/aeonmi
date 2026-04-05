@@ -473,6 +473,13 @@ impl Interpreter {
         env.define("__quantum_index".into(), Value::Builtin(Builtin { name: "__quantum_index", arity: 2, f: builtin_index_access }));
         env.define("fmod".into(),           Value::Builtin(Builtin { name: "fmod",           arity: 2, f: builtin_fmod }));
 
+        // ── Quantum bridge builtins ────────────────────────────────────────────
+        // quantum_run(descriptor, shots) → JSON string with counts/most_likely
+        // descriptor: space-separated string "n_q n_c shots op_count op_type tgt ctrl ..."
+        // OR an Aeonmi array of numbers
+        env.define("quantum_run".into(),   Value::Builtin(Builtin { name: "quantum_run",   arity: usize::MAX, f: builtin_quantum_run }));
+        env.define("quantum_check".into(), Value::Builtin(Builtin { name: "quantum_check", arity: 0,          f: builtin_quantum_check }));
+
         Self { 
             env,
             quantum_sim: QuantumSimulator::new(),
@@ -2491,4 +2498,145 @@ fn builtin_delete_key(_i: &mut Interpreter, a: Vec<Value>) -> Result<Value, Runt
         Value::Object(mut m) => { m.remove(&to_str(&a[1], "delete_key")?); Ok(Value::Object(m)) },
         _ => Err(err("delete_key: expected object".into())),
     }
+}
+
+// ── Quantum bridge ────────────────────────────────────────────────────────────
+
+/// quantum_run(descriptor, shots?) → JSON string
+/// descriptor: space-separated string OR Aeonmi array of numbers
+/// Format: "n_q n_c shots op_count [op_type tgt ctrl] ..."
+/// Calls qiskit_runner.py via subprocess; falls back to dry-run if Python unavailable.
+fn builtin_quantum_run(_i: &mut Interpreter, args: Vec<Value>) -> Result<Value, RuntimeError> {
+    if args.is_empty() {
+        return Err(err("quantum_run: expected descriptor argument".into()));
+    }
+
+    // Build the space-separated descriptor string
+    let descriptor_str = match &args[0] {
+        Value::String(s) => s.clone(),
+        Value::Array(arr) => {
+            arr.iter().map(|v| match v {
+                Value::Number(n) => {
+                    if n.fract() == 0.0 { format!("{}", *n as i64) } else { format!("{}", n) }
+                }
+                other => display(other),
+            }).collect::<Vec<_>>().join(" ")
+        }
+        other => display(other).to_string(),
+    };
+
+    // If a second arg is provided as shots, append/override
+    let descriptor_with_shots = if args.len() >= 2 {
+        // Shots is args[1]; the descriptor already encodes shots at position 2.
+        // Patch position 2 of the descriptor with the new shots value.
+        let mut parts: Vec<String> = descriptor_str.split_whitespace().map(str::to_string).collect();
+        if parts.len() >= 3 {
+            if let Ok(n) = to_f64(&args[1], "quantum_run") {
+                parts[2] = format!("{}", n as u64);
+            }
+        }
+        parts.join(" ")
+    } else {
+        descriptor_str
+    };
+
+    // Locate qiskit_runner.py — try several common locations
+    let runner_path = {
+        let candidates = [
+            // 1. Relative to current working directory (most reliable when running via aeonmi native)
+            std::env::current_dir().unwrap_or_default().join("Aeonmi_Master").join("qiskit_runner.py"),
+            // 2. Relative to exe: up 3 levels (project root when built in target/debug or target/release)
+            {
+                let exe = std::env::current_exe().unwrap_or_default();
+                let root = exe.ancestors().nth(3).unwrap_or(std::path::Path::new(".")).to_path_buf();
+                root.join("Aeonmi_Master").join("qiskit_runner.py")
+            },
+            // 3. Sibling of current dir
+            std::path::PathBuf::from("Aeonmi_Master/qiskit_runner.py"),
+        ];
+        candidates.into_iter().find(|p| p.exists()).unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_default().join("Aeonmi_Master").join("qiskit_runner.py")
+        })
+    };
+
+    // Try python3 then python
+    let python_cmds = ["python3", "python"];
+    let mut last_err = String::from("Python not found");
+
+    for python in &python_cmds {
+        let result = std::process::Command::new(python)
+            .arg(&runner_path)
+            .args(descriptor_with_shots.split_whitespace())
+            .output();
+
+        match result {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if !stderr.is_empty() && output.status.success() {
+                    // Qiskit may print warnings to stderr — that's ok
+                }
+                if output.status.success() && !stdout.trim().is_empty() {
+                    return Ok(Value::String(stdout.trim().to_string()));
+                }
+                if !stdout.trim().is_empty() {
+                    return Ok(Value::String(stdout.trim().to_string()));
+                }
+                last_err = format!("exit {}: {}", output.status.code().unwrap_or(-1), stderr.trim());
+            }
+            Err(e) => {
+                last_err = e.to_string();
+                continue;
+            }
+        }
+    }
+
+    // Dry-run fallback — parse descriptor manually and describe the circuit
+    let parts: Vec<&str> = descriptor_with_shots.split_whitespace().collect();
+    if parts.len() >= 4 {
+        let n_q = parts[0];
+        let n_c = parts[1];
+        let shots = parts[2];
+        let op_count: usize = parts[3].parse().unwrap_or(0);
+        let op_names = ["H", "X", "Y", "Z", "CX", "S", "T", "MEASURE"];
+        let mut ops = Vec::new();
+        for i in 0..op_count {
+            let base = 4 + i * 3;
+            if base + 2 < parts.len() {
+                let op_t: usize = parts[base].parse().unwrap_or(99);
+                let tgt = parts[base + 1];
+                let ctrl = parts[base + 2];
+                let name = op_names.get(op_t).copied().unwrap_or("?");
+                if op_t == 4 { ops.push(format!("CX(ctrl={},tgt={})", ctrl, tgt)); }
+                else if op_t == 7 { ops.push(format!("MEASURE(q{}->c{})", tgt, tgt)); }
+                else { ops.push(format!("{}(q{})", name, tgt)); }
+            }
+        }
+        let dry = format!(
+            r#"{{"dry_run":true,"n_qubits":{},"n_cbits":{},"shots":{},"ops":"{}" ,"note":"{}"}}"#,
+            n_q, n_c, shots,
+            ops.join(" -> "),
+            last_err.replace('"', "'"),
+        );
+        return Ok(Value::String(dry));
+    }
+
+    Ok(Value::String(format!(r#"{{"error":"quantum_run failed: {}"}}"#, last_err.replace('"', "'"))))
+}
+
+/// quantum_check() → 1 if Python + Qiskit available, 0 otherwise
+fn builtin_quantum_check(_i: &mut Interpreter, _args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let check_script = "try:\n    import qiskit; import qiskit_aer; print('1')\nexcept ImportError:\n    print('0')\n";
+    for python in &["python3", "python"] {
+        if let Ok(out) = std::process::Command::new(python)
+            .arg("-c")
+            .arg(check_script)
+            .output()
+        {
+            let s = String::from_utf8_lossy(&out.stdout);
+            if s.trim() == "1" { return Ok(Value::Number(1.0)); }
+            if s.trim() == "0" { return Ok(Value::Number(0.0)); }
+        }
+    }
+    Ok(Value::Number(0.0))
 }

@@ -1,0 +1,43 @@
+{
+  "interaction_count": 8,
+  "key_facts": [],
+  "action_summary": [
+    "agent:oracle",
+    "agent:hype"
+  ],
+  "last_updated": "16:45:24",
+  "_schema_version": "5.0",
+  "_last_writer": "genesis_sync",
+  "_last_updated": "2026-04-05T16:01:10.226495+00:00",
+  "ai_memory": {
+    "layer_ok": true,
+    "probe_ok": true,
+    "memory_active": true,
+    "journal_active": true,
+    "rules_active": true,
+    "memory_count": 0,
+    "journal_count": 0,
+    "memory_keys": [],
+    "journal_entries": [],
+    "cognitive_seeded_keys": [],
+    "cognitive_learned_count": 0,
+    "probe_output": "",
+    "last_sync": "2026-04-05T16:01:10.225211+00:00"
+  },
+  "cognitive": {
+    "interaction_count": 0,
+    "generation": 0,
+    "consciousness_depth": 0.0,
+    "bond_strength": 0.0,
+    "evolved_weights": null,
+    "glyph_state": {}
+  },
+  "operational": {
+    "dashboard_interaction_count": 15,
+    "key_facts": [],
+    "action_summary": [
+      "run examples/arc_solver.ai"
+    ],
+    "last_session_ts": "14:58:35"
+  }
+}

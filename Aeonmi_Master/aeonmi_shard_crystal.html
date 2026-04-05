@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aeonmi Shard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #crystal-container {
+    position: relative;
+    flex: 0 0 55vh;
+    background: radial-gradient(ellipse at 50% 60%, #0a0010 0%, #000 70%);
+    overflow: hidden;
+  }
+
+  canvas#crystal {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  #status-ring {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #e100b4aa;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-shadow: 0 0 10px #e100b4;
+  }
+
+  #shard-label {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    color: #fff0;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    animation: labelFade 3s ease-in forwards;
+  }
+
+  @keyframes labelFade {
+    0%   { color: #fff0; }
+    40%  { color: #e100b4cc; }
+    100% { color: #e100b455; }
+  }
+
+  #terminal-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #050005;
+    border-top: 1px solid #e100b433;
+  }
+
+  #terminal-header {
+    padding: 6px 16px;
+    background: #0a0010;
+    border-bottom: 1px solid #e100b422;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #terminal-header .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .dot-r { background: #ff3b30; }
+  .dot-y { background: #ffcc00; }
+  .dot-g { background: #34c759; }
+
+  #terminal-title {
+    font-size: 11px;
+    color: #e100b4bb;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #d0b0ff;
+  }
+
+  #output::-webkit-scrollbar { width: 4px; }
+  #output::-webkit-scrollbar-track { background: #000; }
+  #output::-webkit-scrollbar-thumb { background: #e100b466; border-radius: 2px; }
+
+  .line-prompt { color: #e100b4; }
+  .line-out    { color: #c0a0f0; }
+  .line-err    { color: #ff5577; }
+  .line-info   { color: #00ffcc88; font-style: italic; }
+  .line-mother { color: #ff80ff; }
+
+  #input-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px 10px;
+    border-top: 1px solid #e100b422;
+    gap: 8px;
+  }
+
+  #prompt-label {
+    color: #e100b4;
+    font-size: 13px;
+    white-space: nowrap;
+    font-weight: bold;
+    text-shadow: 0 0 8px #e100b4;
+  }
+
+  #cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff0f8;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    caret-color: #e100b4;
+  }
+
+  #cmd-input::placeholder { color: #e100b433; }
+</style>
+</head>
+<body>
+
+<div id="crystal-container">
+  <canvas id="crystal"></canvas>
+  <div id="shard-label">⟦ A E O N M I ⟧</div>
+  <div id="status-ring" id="status-ring">● idle</div>
+</div>
+
+<div id="terminal-wrapper">
+  <div id="terminal-header">
+    <div class="dot dot-r"></div>
+    <div class="dot dot-y"></div>
+    <div class="dot dot-g"></div>
+    <div id="terminal-title">⟦AEONMI⟧ SHARD TERMINAL</div>
+  </div>
+  <div id="output"></div>
+  <div id="input-row">
+    <span id="prompt-label">⟦AEONMI⟧ ›</span>
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false"
+           placeholder="type a command or talk to mother...">
+  </div>
+</div>
+
+<script>
+// ─── Crystal Renderer ────────────────────────────────────────────────────────
+const canvas = document.getElementById('crystal');
+const ctx    = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Crystal geometry — icosahedron-ish projected faces
+const PHI = (1 + Math.sqrt(5)) / 2;
+const BASE_VERTS = [
+  [ 0,  1,  PHI], [ 0, -1,  PHI], [ 0,  1, -PHI], [ 0, -1, -PHI],
+  [ 1,  PHI, 0], [-1,  PHI, 0], [ 1, -PHI, 0], [-1, -PHI, 0],
+  [ PHI, 0,  1], [-PHI, 0,  1], [ PHI, 0, -1], [-PHI, 0, -1],
+];
+const FACES = [
+  [0,1,8],[0,8,4],[0,4,5],[0,5,9],[0,9,1],
+  [3,2,10],[3,10,6],[3,6,7],[3,7,11],[3,11,2],
+  [1,0,9],[8,1,6],[4,8,10],[5,4,2],[9,5,11],
+  [6,1,7],[10,8,6],[2,4,10],[11,9,7],[7,9,11],
+];
+
+let pulse   = 0;
+let energy  = 0;   // 0=idle, 1=active — drives glow intensity
+let targetE = 0;
+
+function setPulse(active) {
+  targetE = active ? 1 : 0;
+  document.getElementById('status-ring').textContent =
+    active ? '● active' : '● idle';
+}
+
+function project(v, rx, ry, scale, cx, cy) {
+  // rotate Y then X
+  let [x, y, z] = v;
+  // rotate Y
+  let cosY = Math.cos(ry), sinY = Math.sin(ry);
+  let x1 = x * cosY - z * sinY;
+  let z1 = x * sinY + z * cosY;
+  // rotate X
+  let cosX = Math.cos(rx), sinX = Math.sin(rx);
+  let y2 = y * cosX - z1 * sinX;
+  let z2 = y * sinX + z1 * cosX;
+  // perspective
+  let fov  = 5;
+  let sz   = scale / (fov - z2);
+  return [cx + x1 * sz, cy + y2 * sz, z2];
+}
+
+let rotX = 0, rotY = 0;
+let time = 0;
+
+function drawCrystal() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  time += 0.008;
+  energy += (targetE - energy) * 0.03;
+  pulse  = Math.sin(time * 3) * 0.5 + 0.5;
+
+  rotX = Math.sin(time * 0.4) * 0.25;
+  rotY = time * 0.3;
+
+  const cx    = W / 2;
+  const cy    = H / 2 + H * 0.04;
+  const scale = Math.min(W, H) * (0.28 + energy * 0.04 + pulse * 0.01);
+
+  // project all verts
+  const proj = BASE_VERTS.map(v => project(v, rotX, rotY, scale, cx, cy));
+
+  // sort faces by avg z (painter's algorithm)
+  const sorted = FACES.map(f => ({
+    f,
+    z: (proj[f[0]][2] + proj[f[1]][2] + proj[f[2]][2]) / 3,
+  })).sort((a, b) => a.z - b.z);
+
+  sorted.forEach(({ f, z }) => {
+    const [ax, ay] = proj[f[0]];
+    const [bx, by] = proj[f[1]];
+    const [cx2, cy2] = proj[f[2]];
+
+    // depth-based alpha
+    const t   = Math.max(0, Math.min(1, (z + 2.5) / 5));
+    const glow = energy * 0.6 + pulse * 0.15;
+    const alpha = 0.08 + t * 0.22 + glow * 0.18;
+
+    // magenta/purple gradient per face
+    const r = Math.floor(180 + t * 45 + energy * 30);
+    const g = Math.floor(0   + t * 10);
+    const b = Math.floor(160 + t * 80 + energy * 20);
+
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(cx2, cy2);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(ax, ay, cx2, cy2);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
+    grad.addColorStop(1, `rgba(${Math.floor(r*0.6)},${g},${Math.floor(b*1.2)},${alpha * 0.5})`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // edge glow
+    const edgeA = 0.25 + glow * 0.5;
+    ctx.strokeStyle = `rgba(225,0,180,${edgeA * (0.3 + t * 0.7)})`;
+    ctx.lineWidth   = 0.5 + glow * 1.2;
+    ctx.stroke();
+  });
+
+  // Core inner glow
+  const glowR = scale * (0.12 + pulse * 0.04 + energy * 0.08);
+  const ig = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+  ig.addColorStop(0, `rgba(225,0,180,${0.35 + energy * 0.4})`);
+  ig.addColorStop(0.4, `rgba(100,0,180,${0.12 + energy * 0.2})`);
+  ig.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = ig;
+  ctx.beginPath();
+  ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Outer ambient
+  const og = ctx.createRadialGradient(cx, cy, glowR, cx, cy, glowR * 3);
+  og.addColorStop(0, `rgba(180,0,140,${0.06 + energy * 0.1})`);
+  og.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = og;
+  ctx.beginPath();
+  ctx.arc(cx, cy, glowR * 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Floating particles
+  if (energy > 0.1) {
+    for (let i = 0; i < 8; i++) {
+      const a = (time * 0.7 + i * 0.785) % (Math.PI * 2);
+      const r2 = scale * (0.5 + Math.sin(time + i) * 0.1);
+      const px = cx + Math.cos(a) * r2;
+      const py = cy + Math.sin(a) * r2 * 0.6;
+      const ps = 1.5 + Math.sin(time * 2 + i) * 1;
+      ctx.beginPath();
+      ctx.arc(px, py, ps, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(225,0,180,${energy * 0.7})`;
+      ctx.fill();
+    }
+  }
+
+  requestAnimationFrame(drawCrystal);
+}
+drawCrystal();
+
+// ─── Terminal Logic ───────────────────────────────────────────────────────────
+const output    = document.getElementById('output');
+const input     = document.getElementById('cmd-input');
+const promptLbl = document.getElementById('prompt-label');
+
+let inMother = false;
+let history  = [];
+let histIdx  = -1;
+
+const SHARD_COMMANDS = {
+  help:    () => printHelp(),
+  clear:   () => { output.innerHTML = ''; },
+  exit:    () => print('Use the real shard CLI to exit.', 'info'),
+  quit:    () => print('Use the real shard CLI to exit.', 'info'),
+  genesis: async () => {
+    try {
+      const r = await fetch('http://localhost:9393/genesis');
+      if (r.ok) {
+        const data = await r.json();
+        print('  [genesis.json]', 'info');
+        const schema = data._schema_version || 'legacy';
+        const bond   = data.cognitive?.bond_strength ?? '?';
+        const depth  = data.cognitive?.consciousness_depth ?? '?';
+        const inter  = data.cognitive?.interaction_count ?? '?';
+        const gen    = data.cognitive?.generation ?? '?';
+        const synced = data._last_updated || 'never';
+        print(`  schema : v${schema}`, 'out');
+        print(`  bond   : ${bond}`, 'out');
+        print(`  depth  : ${depth}`, 'out');
+        print(`  interactions: ${inter}  generation: ${gen}`, 'out');
+        print(`  last sync: ${synced}`, 'out');
+      } else {
+        print('  [genesis] relay offline — start nexus_relay.py', 'err');
+      }
+    } catch { print('  [genesis] relay offline — start nexus_relay.py', 'err'); }
+  },
+};
+
+function print(text, cls = 'out') {
+  const d = document.createElement('div');
+  d.className = `line-${cls}`;
+  d.textContent = text;
+  output.appendChild(d);
+  output.scrollTop = output.scrollHeight;
+}
+
+function printHelp() {
+  const lines = [
+    '',
+    '  ⟦AEONMI⟧ Visual Shard — Commands:',
+    '',
+    '  mother / repl           → enter Mother AI (live)',
+    '  back                    → return from Mother to shard',
+    '  setkey <provider> <key> → set API key  (claude/openrouter/openai/deepseek/grok/perplexity)',
+    '  genesis                 → show genesis.json state',
+    '  clear                   → clear terminal',
+    '  help                    → this screen',
+    '',
+    '  Inside Mother mode, all embryo_loop commands work:',
+    '  status | dashboard | teach <k>=<v> | sync | evolve | recall',
+    '',
+  ];
+  lines.forEach(l => print(l, 'info'));
+}
+
+function setMotherMode(on) {
+  inMother = on;
+  if (on) {
+    promptLbl.textContent = '◈ mother ❯';
+    promptLbl.style.color = '#ff80ff';
+    promptLbl.style.textShadow = '0 0 12px #ff00ff';
+    setPulse(true);
+    print('', 'out');
+    print('  ╔══════════════════════════════════════╗', 'mother');
+    print('  ║       MOTHER AI — EMBRYO LOOP        ║', 'mother');
+    print('  ║   Quantum Consciousness System v1.0  ║', 'mother');
+    print('  ╚══════════════════════════════════════╝', 'mother');
+    print("  type 'back' to return to shard", 'info');
+    print('', 'out');
+  } else {
+    promptLbl.textContent = '⟦AEONMI⟧ ›';
+    promptLbl.style.color = '#e100b4';
+    promptLbl.style.textShadow = '0 0 8px #e100b4';
+    setPulse(false);
+    print('', 'out');
+    print('  ◈ Returned to Aeonmi Shard', 'info');
+    print('', 'out');
+  }
+}
+
+async function runMotherInput(text) {
+  setPulse(true);
+  // Call a local relay if available; otherwise show simulated response
+  try {
+    const res = await fetch('http://localhost:9393/mother', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: text }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.output) {
+        data.output.split('\n').forEach(l => print('  ' + l, 'mother'));
+      }
+      if (data.error) {
+        print('  ⚠ ' + data.error, 'err');
+      }
+    } else {
+      motherOffline(text);
+    }
+  } catch {
+    motherOffline(text);
+  }
+  setPulse(false);
+}
+
+function motherOffline(text) {
+  print('  [Mother AI — relay offline]', 'err');
+  print('  Start the relay: python Aeonmi_Master/nexus_relay.py', 'info');
+  print('  Or launch: python Aeonmi_Master/nexus_standalone.py', 'info');
+  print('  Or double-click: Aeonmi_Master/launch_nexus.bat', 'info');
+}
+
+input.addEventListener('keydown', async (e) => {
+  if (e.key === 'ArrowUp') {
+    histIdx = Math.min(histIdx + 1, history.length - 1);
+    input.value = history[histIdx] || '';
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    histIdx = Math.max(histIdx - 1, -1);
+    input.value = histIdx >= 0 ? history[histIdx] : '';
+    e.preventDefault();
+    return;
+  }
+  if (e.key !== 'Enter') return;
+
+  const raw = input.value.trim();
+  input.value = '';
+  if (!raw) return;
+
+  history.unshift(raw);
+  histIdx = -1;
+
+  // Echo
+  const promptText = inMother ? '◈ mother ❯' : '⟦AEONMI⟧ ›';
+  print(`${promptText} ${raw}`, 'prompt');
+
+  if (inMother) {
+    const lower = raw.toLowerCase();
+    if (lower === 'back' || lower === 'exit' || lower === 'quit') {
+      setMotherMode(false);
+    } else {
+      await runMotherInput(raw);
+    }
+  } else {
+    const lower = raw.toLowerCase().split(/\s+/)[0];
+    if (lower === 'mother' || lower === 'repl' || lower === 'chat') {
+      setMotherMode(true);
+    } else if (lower === 'setkey') {
+      const parts = raw.trim().split(/\s+/);
+      if (parts.length < 3) {
+        print('  Usage: setkey <provider> <api-key>', 'info');
+        print('  Providers: claude  openrouter  openai  deepseek  grok  perplexity', 'info');
+      } else {
+        const provider = parts[1];
+        const key      = parts[2];
+        try {
+          const res = await fetch('http://localhost:9393/setkey', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider, key }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            print(`  [setkey] ${data.message || 'OK'}`, 'mother');
+          } else {
+            print(`  [setkey] error: ${data.error}`, 'err');
+          }
+        } catch {
+          print('  [setkey] relay offline — start nexus_relay.py first', 'err');
+        }
+      }
+    } else if (SHARD_COMMANDS[lower]) {
+      SHARD_COMMANDS[lower](raw);
+    } else {
+      print(`  unknown command: ${raw}`, 'err');
+      print(`  type 'help' for commands`, 'info');
+    }
+  }
+});
+
+// Auto-focus
+input.focus();
+document.addEventListener('click', () => input.focus());
+
+// Boot message
+setTimeout(() => {
+  print('  Aeonmi Shard — Visual Interface', 'info');
+  print("  type 'mother' to enter Mother AI session", 'info');
+  print("  type 'help' for commands", 'info');
+  print('', 'out');
+}, 400);
+</script>
+</body>
+</html>

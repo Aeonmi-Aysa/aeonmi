@@ -1,0 +1,33 @@
+⍝ closer_agent_test.ai
+⍝ Total fns: 9 (closer) + check + main = 11
+import { clo_cart_weight, clo_close_prob, clo_hot_lead, clo_intent_tier, clo_offer, clo_score, clo_urgency, clo_warm_lead } from "./closer_agent";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "got=", got, "want=", want);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("cart_weight 250",  clo_cart_weight(250), 50);
+    p = p + check("cart_weight 500+", clo_cart_weight(600), 100);
+    p = p + check("intent_tier cold",    clo_intent_tier(20), 0);
+    p = p + check("intent_tier warm",    clo_intent_tier(50), 1);
+    p = p + check("intent_tier hot",     clo_intent_tier(70), 2);
+    p = p + check("intent_tier closing", clo_intent_tier(90), 3);
+    p = p + check("warm_lead yes",  clo_warm_lead(50), 1);
+    p = p + check("warm_lead no",   clo_warm_lead(30), 0);
+    p = p + check("hot_lead yes",   clo_hot_lead(80, 70), 1);
+    p = p + check("hot_lead no-top", clo_hot_lead(80, 50), 0);
+    p = p + check("urgency yes",    clo_urgency(80, 100), 1);
+    p = p + check("urgency no-cart", clo_urgency(80, 0),  0);
+    p = p + check("offer hot→discount",  clo_offer(80, 200, 75), 1);
+    p = p + check("offer hot-tier→urgency", clo_offer(70, 100, 50), 2);
+    p = p + check("offer warm→social", clo_offer(50, 50, 30), 3);
+    p = p + check("offer cold→none",   clo_offer(30, 0, 10),  0);
+
+    print("closer_agent tests passed:", p, "/ 16");
+    print("=== PASS ===");
+}

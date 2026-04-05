@@ -1,0 +1,40 @@
+⍝ oracle_agent_test.ai
+⍝ Total fns in scope: 9 (oracle) + check + main = 11
+import { ora_bearish, ora_bullish, ora_circuit, ora_confidence, ora_high_vol, ora_score, ora_signal, ora_verdict } from "./oracle_agent";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "got=", got, "want=", want);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("bullish +60",    ora_bullish(60),  1);
+    p = p + check("bullish +10",    ora_bullish(10),  0);
+    p = p + check("bearish -50",    ora_bearish(-50), 1);
+    p = p + check("bearish -10",    ora_bearish(-10), 0);
+    p = p + check("signal +80",     ora_signal(80),   80);
+    p = p + check("signal -40",     ora_signal(-40),  40);
+    p = p + check("high_vol 80",    ora_high_vol(80), 1);
+    p = p + check("high_vol 50",    ora_high_vol(50), 0);
+
+    ⍝ Circuit selection
+    p = p + check("circuit: bullish → qft",   ora_circuit(60, 30), 2);
+    p = p + check("circuit: bearish → qft",   ora_circuit(-70, 20), 2);
+    p = p + check("circuit: high-vol neutral → grover", ora_circuit(5, 80), 1);
+    p = p + check("circuit: neutral low-vol → bell",    ora_circuit(10, 20), 0);
+
+    ⍝ Confidence
+    p = p + check("conf bullish low-vol",  ora_confidence(80, 10), 75);
+    p = p + check("conf zero trend",       ora_confidence(0, 50),  0);
+
+    ⍝ Verdict array
+    let v = ora_verdict(60, 30, 70);
+    p = p + check("verdict circuit", v.slice(0,1).pop(), 2);
+    p = p + check("verdict conf",    v.slice(1,2).pop(), 45);
+
+    print("oracle_agent tests passed:", p, "/ 16");
+    print("=== PASS ===");
+}

@@ -1,0 +1,81 @@
+⍝ oracle_agent.ai — Quantum Oracle: market signal → circuit recommendation
+⍝ Input: trend (-100..100), vol (0..100), vscore (0..100)
+⍝ Circuit recs: 0=bell(entanglement/correlation)  1=grover(search/anomaly)  2=qft(pattern/cycles)
+⍝ Functions: 8 + main = 9, no imports
+
+◯ ora_bearish⟨trend⟩ {
+    if (trend < -20) { return 1; }
+    return 0;
+}
+
+◯ ora_bullish⟨trend⟩ {
+    if (trend > 20) { return 1; }
+    return 0;
+}
+
+◯ ora_circuit⟨trend, vol⟩ {
+    ⍝ High vol + no clear trend → Grover (anomaly search)
+    if (vol > 65) {
+        let nb = ora_bearish(trend);
+        let nl = ora_bullish(trend);
+        if (nb == 0) {
+            if (nl == 0) { return 1; }
+        }
+    }
+    ⍝ Clear trend → QFT (cyclical pattern analysis)
+    let b = ora_bullish(trend);
+    if (b == 1) { return 2; }
+    let be = ora_bearish(trend);
+    if (be == 1) { return 2; }
+    ⍝ Neutral/mixed → Bell (correlation mapping)
+    return 0;
+}
+
+◯ ora_confidence⟨trend, vol⟩ {
+    ⍝ Confidence = |trend| * (1 - vol/200)  clamped 0..100
+    let abs_trend = trend;
+    if (trend < 0) { abs_trend = 0 - trend; }
+    let vol_pen = vol / 2;
+    let conf = abs_trend - vol_pen;
+    if (conf < 0) { conf = 0; }
+    if (conf > 100) { conf = 100; }
+    return conf;
+}
+
+◯ ora_high_vol⟨vol⟩ {
+    if (vol > 65) { return 1; }
+    return 0;
+}
+
+◯ ora_score⟨trend, vol, vscore⟩ {
+    ⍝ Composite: 40% trend signal + 30% volume + 30% inverse volatility
+    let abs_trend = trend;
+    if (trend < 0) { abs_trend = 0 - trend; }
+    let inv_vol = 100 - vol;
+    let s = abs_trend * 40 / 100 + vscore * 30 / 100 + inv_vol * 30 / 100;
+    return s;
+}
+
+◯ ora_signal⟨trend⟩ {
+    ⍝ Absolute signal strength 0..100
+    if (trend < 0) { return 0 - trend; }
+    return trend;
+}
+
+◯ ora_verdict⟨trend, vol, vscore⟩ {
+    ⍝ Returns [circuit_type, confidence, score]
+    let circ = ora_circuit(trend, vol);
+    let conf = ora_confidence(trend, vol);
+    let sc   = ora_score(trend, vol, vscore);
+    let r = [];
+    r.push(circ);
+    r.push(conf);
+    r.push(sc);
+    return r;
+}
+
+◯ main⟨⟩ {
+    ⍝ Demo: bullish trend, moderate volatility
+    let v = ora_verdict(60, 30, 70);
+    print("oracle: circuit=", v.slice(0,1).pop(), "conf=", v.slice(1,2).pop(), "score=", v.slice(2,3).pop());
+}

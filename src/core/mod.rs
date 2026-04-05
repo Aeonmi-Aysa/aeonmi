@@ -22,6 +22,8 @@ pub mod qpoly;
 pub mod quantum_extract;
 pub mod quantum_simulator; // Quantum simulation capabilities
 pub mod quantum_algorithms; // Standard quantum algorithms library
+pub mod quantum_circuits;   // QuantumCircuit IR — gate sequence representation
+pub mod quantum_operations; // QuantumOperation enum — individual gate instructions
 pub mod hardware_integration; // Real quantum hardware integration
 pub mod artifact_cache;
 pub mod api_keys;

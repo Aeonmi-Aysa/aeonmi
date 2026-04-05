@@ -1,16 +1,23 @@
 //! AI Mother Module: multi-provider abstraction.
 //!
-//! Provider priority (first registered = preferred when no AEONMI_AI_PROVIDER set):
-//!   1. openrouter  — OpenRouter (OPENROUTER_API_KEY)   — always compiled
-//!   2. claude      — Anthropic  (ANTHROPIC_API_KEY)    — always compiled
-//!   3. openai      — OpenAI     (OPENAI_API_KEY)        — feature: ai-openai
-//!   4. copilot     — Copilot                            — feature: ai-copilot
-//!   5. perplexity  — Perplexity (PERPLEXITY_API_KEY)   — feature: ai-perplexity
-//!   6. deepseek    — DeepSeek   (DEEPSEEK_API_KEY)      — feature: ai-deepseek
+//! All providers are always compiled — no feature flags required.
+//! Provider selection priority (when no AEONMI_AI_PROVIDER env var is set):
+//!   1. First provider whose API key is found (env var OR encrypted api_keys store)
+//!   2. First registered provider
 //!
-//! The preferred() method checks AEONMI_AI_PROVIDER env var first,
-//! then falls back to the first provider whose API key is set,
-//! then falls back to the first registered.
+//! Provider registration order (also priority order for auto-detect):
+//!   1. openrouter  — OPENROUTER_API_KEY  — free tier available
+//!   2. claude      — ANTHROPIC_API_KEY   — Warren's Claude key
+//!   3. openai      — OPENAI_API_KEY
+//!   4. deepseek    — DEEPSEEK_API_KEY
+//!   5. grok        — GROK_API_KEY        — xAI
+//!   6. perplexity  — PERPLEXITY_API_KEY
+//!
+//! Mother's identity and personality are preserved regardless of which provider
+//! is used — all providers receive the same MOTHER_SYSTEM_PROMPT.
+//!
+//! To force a specific provider:
+//!   set AEONMI_AI_PROVIDER=claude   (or openrouter, openai, deepseek, grok, perplexity)
 
 use anyhow::Result;
 
@@ -24,19 +31,22 @@ pub trait AiProvider: Send + Sync {
     }
 }
 
-// Always-compiled providers
+// All providers always compiled
 pub mod openrouter;
 pub mod claude;
-
-// Feature-gated providers
-#[cfg(feature = "ai-openai")]
 pub mod openai;
+pub mod deepseek;
+pub mod grok;
+pub mod perplexity;
+
 #[cfg(feature = "ai-copilot")]
 pub mod copilot;
-#[cfg(feature = "ai-perplexity")]
-pub mod perplexity;
-#[cfg(feature = "ai-deepseek")]
-pub mod deepseek;
+
+/// Check whether a key is available — env var OR encrypted api_keys store.
+fn has_key(env_var: &str, store_key: &str) -> bool {
+    std::env::var(env_var).is_ok()
+        || crate::core::api_keys::get_api_key(store_key).is_some()
+}
 
 pub struct AiRegistry {
     providers: Vec<Box<dyn AiProvider>>,
@@ -46,20 +56,16 @@ impl AiRegistry {
     pub fn new() -> Self {
         let mut r = Self { providers: Vec::new() };
 
-        // OpenRouter first — free tier available, Warren's current setup
+        // Registration order = priority order
         r.providers.push(Box::new(openrouter::OpenRouter::default()));
-
-        // Claude second — when ANTHROPIC_API_KEY is set
         r.providers.push(Box::new(claude::Claude::default()));
+        r.providers.push(Box::new(openai::OpenAi::default()));
+        r.providers.push(Box::new(deepseek::DeepSeek::default()));
+        r.providers.push(Box::new(grok::Grok::default()));
+        r.providers.push(Box::new(perplexity::Perplexity::default()));
 
-        #[cfg(feature = "ai-openai")]
-        { r.providers.push(Box::new(openai::OpenAi::default())); }
         #[cfg(feature = "ai-copilot")]
         { r.providers.push(Box::new(copilot::Copilot::default())); }
-        #[cfg(feature = "ai-perplexity")]
-        { r.providers.push(Box::new(perplexity::Perplexity::default())); }
-        #[cfg(feature = "ai-deepseek")]
-        { r.providers.push(Box::new(deepseek::DeepSeek::default())); }
 
         r
     }
@@ -74,8 +80,8 @@ impl AiRegistry {
 
     /// Returns the best available provider:
     /// 1. Provider named by AEONMI_AI_PROVIDER env var (if set and found)
-    /// 2. First provider whose API key env var is set
-    /// 3. First registered provider
+    /// 2. First provider whose API key is set (env var or encrypted store)
+    /// 3. First registered provider (openrouter)
     pub fn preferred(&self) -> Option<&dyn AiProvider> {
         // Explicit override
         if let Ok(name) = std::env::var("AEONMI_AI_PROVIDER") {
@@ -84,16 +90,17 @@ impl AiRegistry {
             }
         }
 
-        // Auto-detect: first provider with a key set
-        let key_vars = [
-            ("openrouter", "OPENROUTER_API_KEY"),
-            ("claude",     "ANTHROPIC_API_KEY"),
-            ("openai",     "OPENAI_API_KEY"),
-            ("perplexity", "PERPLEXITY_API_KEY"),
-            ("deepseek",   "DEEPSEEK_API_KEY"),
+        // Auto-detect: first provider with a key available
+        let checks: &[(&str, &str, &str)] = &[
+            ("openrouter", "OPENROUTER_API_KEY", "openrouter"),
+            ("claude",     "ANTHROPIC_API_KEY",  "claude"),
+            ("openai",     "OPENAI_API_KEY",     "openai"),
+            ("deepseek",   "DEEPSEEK_API_KEY",   "deepseek"),
+            ("grok",       "GROK_API_KEY",        "grok"),
+            ("perplexity", "PERPLEXITY_API_KEY", "perplexity"),
         ];
-        for (provider_name, env_var) in &key_vars {
-            if std::env::var(env_var).is_ok() {
+        for (provider_name, env_var, store_key) in checks {
+            if has_key(env_var, store_key) {
                 if let Some(p) = self.get(provider_name) {
                     return Some(p);
                 }
@@ -102,6 +109,20 @@ impl AiRegistry {
 
         // Fallback: first registered
         self.providers.first().map(|b| b.as_ref())
+    }
+
+    /// True if any provider has an API key available (env var or encrypted store).
+    pub fn any_key_available(&self) -> bool {
+        [
+            ("OPENROUTER_API_KEY", "openrouter"),
+            ("ANTHROPIC_API_KEY",  "claude"),
+            ("OPENAI_API_KEY",     "openai"),
+            ("DEEPSEEK_API_KEY",   "deepseek"),
+            ("GROK_API_KEY",       "grok"),
+            ("PERPLEXITY_API_KEY", "perplexity"),
+        ]
+        .iter()
+        .any(|(env, store)| has_key(env, store))
     }
 }
 

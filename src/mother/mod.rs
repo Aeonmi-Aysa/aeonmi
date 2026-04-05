@@ -16,11 +16,13 @@ pub mod emotional_core;
 pub mod language_evolution;
 pub mod quantum_attention;
 pub mod neural;
+pub mod knowledge_graph;
+pub mod inner_voice;
 pub mod embryo_loop;
 
 pub use quantum_core::{MotherQuantumCore, CreatorSignature, QuantumResponse};
-pub use emotional_core::{EmotionalCore, EmotionalBond, EmotionalState};
-pub use language_evolution::{LanguageEvolutionCore, EvolvedLanguage};
+pub use emotional_core::EmotionalCore;
+pub use language_evolution::LanguageEvolutionCore;
 pub use quantum_attention::QuantumAttentionMechanism;
 pub use neural::NeuralLayer;
 pub use embryo_loop::{EmbryoLoop, EmbryoConfig};

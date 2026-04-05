@@ -1,0 +1,34 @@
+⍝ conductor_agent_test.ai
+⍝ Total fns: 9 (conductor) + check + main = 11
+import { con_abort, con_accelerate, con_confidence, con_consensus, con_hold, con_proceed, con_rec, con_weighted } from "./conductor_agent";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "got=", got, "want=", want);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("abort risk>=80",  con_abort(85), 1);
+    p = p + check("abort risk<80",   con_abort(70), 0);
+    p = p + check("accelerate all-green", con_accelerate(75, 75, 75, 25), 1);
+    p = p + check("accel fail risk",      con_accelerate(75, 75, 75, 35), 0);
+    p = p + check("accel fail close",     con_accelerate(75, 75, 60, 25), 0);
+    ⍝ consensus: use inputs where 33*x/100 is exact (x=100 or x=0)
+    p = p + check("consensus all-100",    con_consensus(100, 100, 100), 100);
+    p = p + check("consensus all-0",      con_consensus(0, 0, 0), 0);
+    p = p + check("consensus half",       con_consensus(50, 50, 50), 50);
+    p = p + check("hold weak",       con_hold(40, 40, 40), 1);
+    p = p + check("hold strong",     con_hold(70, 70, 70), 0);
+    p = p + check("proceed yes",     con_proceed(70, 70, 70, 50), 1);
+    p = p + check("proceed no-risk", con_proceed(70, 70, 70, 65), 0);
+    p = p + check("rec abort",       con_rec(50, 50, 50, 85), 0);
+    p = p + check("rec accelerate",  con_rec(75, 75, 75, 25), 3);
+    p = p + check("rec proceed",     con_rec(60, 60, 60, 40), 2);
+    p = p + check("rec hold",        con_rec(30, 30, 30, 20), 1);
+
+    print("conductor_agent tests passed:", p, "/ 16");
+    print("=== PASS ===");
+}

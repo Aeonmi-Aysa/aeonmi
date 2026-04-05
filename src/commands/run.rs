@@ -1,9 +1,6 @@
 use colored::Colorize;
 use std::path::PathBuf;
 
-use super::compile::compile_pipeline;
-use crate::cli::EmitKind;
-
 // Native interpreter pieces
 use crate::core::lexer::Lexer;
 use crate::core::parser::{Parser as AeParser, ParserError};
@@ -12,7 +9,7 @@ use crate::core::vm::Interpreter;
 use crate::core::diagnostics::{print_error, emit_json_error, Span};
 use crate::core::lexer::LexerError;
 
-/// Public native interpreter entry (no JS emission)
+/// Native interpreter entry — Lex → Parse → Lower → VM. No JS involved.
 pub fn run_native(
     input: &PathBuf,
     pretty: bool,
@@ -48,7 +45,7 @@ pub fn run_native(
             } else {
                 eprintln!("{} Lexing error: {}", "error:".bright_red(), e);
             }
-            return Ok(()); // mimic compile path exit(1) without aborting process
+            return Ok(());
         }
     };
     // Parse
@@ -77,7 +74,7 @@ pub fn run_native(
     if no_sema {
         println!("note: semantic analysis skipped (native)");
     }
-    // Lower & interpret
+    // Lower → IR → VM
     match lower_ast_to_ir(&ast, "main") {
         Ok(module) => {
             let mut interp = Interpreter::new();
@@ -92,51 +89,12 @@ pub fn run_native(
     Ok(())
 }
 
+/// Run a .ai file — always uses the native Rust VM.
 pub fn main_with_opts(
     input: PathBuf,
-    out: Option<PathBuf>,
+    _out: Option<PathBuf>,
     pretty: bool,
     no_sema: bool,
 ) -> anyhow::Result<()> {
-    // Force native interpreter path if env requests or if node missing
-    let force_native = std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1");
-    let node_available = std::process::Command::new("node")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
-    if force_native || !node_available {
-        if !node_available && !force_native {
-            println!("(node not found — falling back to native interpreter)");
-        }
-        return run_native(&input, pretty, no_sema);
-    }
-
-    let out_path = out.unwrap_or_else(|| PathBuf::from("aeonmi.run.js"));
-    compile_pipeline(
-        Some(input.clone()),
-        EmitKind::Js,
-        out_path.clone(),
-        false,
-        false,
-        pretty,
-        no_sema,
-        false,
-    )?;
-    match std::process::Command::new("node").arg(&out_path).status() {
-        Ok(status) if !status.success() => eprintln!(
-            "{} JS runtime exited with status: {}",
-            "warn:".yellow().bold(),
-            status
-        ),
-        Err(err) => eprintln!(
-            "{} Could not launch Node.js: {} (compiled output is at '{}')",
-            "warn:".yellow().bold(),
-            err,
-            out_path.display()
-        ),
-        _ => {}
-    }
-    Ok(())
+    run_native(&input, pretty, no_sema)
 }

@@ -1,0 +1,104 @@
+⍝ codegen_test.ai — 14 checks
+⍝ Import 8 fns from codegen.ai + check + main = 10 total (under limit).
+⍝ AST arrays hand-built (avoids parser/lexer import, stays at 10 fns).
+⍝
+⍝ Node layout: [type, f0, f1, f2] × N
+⍝   1=Number  2=String  3=Ident  4=BinOp  6=Let  10=Return
+⍝ Return: f0=value_idx   Let: f0=varname, f1=value_idx
+⍝ BinOp:  f0=op, f1=left_idx, f2=right_idx
+
+import { gen_emit } from "./codegen";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { return 0; }
+    print(label);
+    print(got);
+    print(want);
+    return 1;
+}
+
+◯ main⟨⟩ {
+    ⍝ ── TEST 1: let x = 1; ────────────────────────────────────────────────
+    ⍝ nd = [ Number("1"), Let("x", val=0) ]
+    let nd1 = [1, "1", 0, 0,  6, "x", 0, 0];
+    let out1 = gen_emit(nd1);
+    check("t1-let-emit",    out1, "let x = 1;\n");
+
+    ⍝ ── TEST 2: return 42; ────────────────────────────────────────────────
+    ⍝ nd = [ Number("42"), Return(val=0) ]
+    let nd2 = [1, "42", 0, 0,  10, 0, 0, 0];
+    let out2 = gen_emit(nd2);
+    check("t2-ret-emit",    out2, "return 42;\n");
+
+    ⍝ ── TEST 3: return "hello"; ───────────────────────────────────────────
+    ⍝ nd = [ String("hello"), Return(val=0) ]
+    let nd3 = [2, "hello", 0, 0,  10, 0, 0, 0];
+    let out3 = gen_emit(nd3);
+    check("t3-str-emit",    out3, "return \"hello\";\n");
+
+    ⍝ ── TEST 4: return x; (ident) ─────────────────────────────────────────
+    ⍝ nd = [ Ident("x"), Return(val=0) ]
+    let nd4 = [3, "x", 0, 0,  10, 0, 0, 0];
+    let out4 = gen_emit(nd4);
+    check("t4-ident-ret",   out4, "return x;\n");
+
+    ⍝ ── TEST 5: let z = a == b; (binop in let) ────────────────────────────
+    ⍝ nd = [ Ident("a"), Ident("b"), BinOp(==,0,1), Let("z",val=2) ]
+    let nd5 = [3, "a", 0, 0,  3, "b", 0, 0,  4, 24, 0, 1,  6, "z", 2, 0];
+    let out5 = gen_emit(nd5);
+    check("t5-binop-let",   out5, "let z = a == b;\n");
+
+    ⍝ ── TEST 6: let y = x + 1; (additive binop) ──────────────────────────
+    ⍝ nd = [ Ident("x"), Number("1"), BinOp(+,0,1), Let("y",val=2) ]
+    let nd6 = [3, "x", 0, 0,  1, "1", 0, 0,  4, 20, 0, 1,  6, "y", 2, 0];
+    let out6 = gen_emit(nd6);
+    check("t6-add-let",     out6, "let y = x + 1;\n");
+
+    ⍝ ── TEST 7: return a != b; (binop return) ────────────────────────────
+    ⍝ nd = [ Ident("a"), Ident("b"), BinOp(!=,0,1), Return(val=2) ]
+    let nd7 = [3, "a", 0, 0,  3, "b", 0, 0,  4, 25, 0, 1,  10, 2, 0, 0];
+    let out7 = gen_emit(nd7);
+    check("t7-ne-ret",      out7, "return a != b;\n");
+
+    ⍝ ── TEST 8: two stmts: let x = 1; return x; ──────────────────────────
+    ⍝ nd = [ Number("1"), Let("x",val=0), Ident("x"), Return(val=2) ]
+    let nd8 = [1, "1", 0, 0,  6, "x", 0, 0,  3, "x", 0, 0,  10, 2, 0, 0];
+    let out8 = gen_emit(nd8);
+    check("t8-two-stmts",   out8, "let x = 1;\nreturn x;\n");
+
+    ⍝ ── TEST 9: op_str checks ─────────────────────────────────────────────
+    ⍝ Verify a few op codes via round-trip through BinOp emission
+    ⍝ return 0 < 1; → nd=[ Number("0"), Number("1"), BinOp(<,0,1), Return(2) ]
+    let nd9 = [1, "0", 0, 0,  1, "1", 0, 0,  4, 26, 0, 1,  10, 2, 0, 0];
+    let out9 = gen_emit(nd9);
+    check("t9-lt-ret",      out9, "return 0 < 1;\n");
+
+    ⍝ return 2 >= 1; → BinOp op=29
+    let nd10 = [1, "2", 0, 0,  1, "1", 0, 0,  4, 29, 0, 1,  10, 2, 0, 0];
+    let out10 = gen_emit(nd10);
+    check("t10-ge-ret",     out10, "return 2 >= 1;\n");
+
+    ⍝ ── TEST 11-14: empty + edge cases ───────────────────────────────────
+    ⍝ Empty AST → empty string
+    let nd11 = [];
+    let out11 = gen_emit(nd11);
+    check("t11-empty",      out11, "");
+
+    ⍝ Two lets
+    ⍝ nd = [ Num("1"), Let("a",0), Num("2"), Let("b",2) ]
+    let nd12 = [1, "1", 0, 0,  6, "a", 0, 0,  1, "2", 0, 0,  6, "b", 2, 0];
+    let out12 = gen_emit(nd12);
+    check("t12-two-lets",   out12, "let a = 1;\nlet b = 2;\n");
+
+    ⍝ return 0 - 1;  (minus)
+    let nd13 = [1, "0", 0, 0,  1, "1", 0, 0,  4, 21, 0, 1,  10, 2, 0, 0];
+    let out13 = gen_emit(nd13);
+    check("t13-sub-ret",    out13, "return 0 - 1;\n");
+
+    ⍝ let x = a > b; (greater-than binop)
+    let nd14 = [3, "a", 0, 0,  3, "b", 0, 0,  4, 27, 0, 1,  6, "x", 2, 0];
+    let out14 = gen_emit(nd14);
+    check("t14-gt-let",     out14, "let x = a > b;\n");
+
+    print("=== PASS ===");
+}

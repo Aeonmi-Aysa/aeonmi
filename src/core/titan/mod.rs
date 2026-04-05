@@ -1,5 +1,4 @@
 //! Titan math/quantum library (pre-integration)
-//! Many public APIs aren’t referenced yet; keep builds clean while we wire them in.
 #![allow(dead_code)]
 
 pub mod advanced_fourier_signal_processing;
@@ -31,6 +30,14 @@ pub mod statistics;
 pub mod stochastic_processes;
 pub mod symbolic_math;
 pub mod tensor_calculus;
+pub mod arc_bridge;  // Aeonmic Intelligence — ARC task solver
+
+// Re-exports for ARC solver
+pub use arc_bridge::{
+    AeonmicArcSolver, ArcTask, ArcGrid, ArcPair, ArcSolution,
+    RuleVerifier, RuleApplier, RuleSpace, TransformRule,
+    QuantumGridEncoder, GroverRuleSearch,
+};
 
 // --- Quantum core (feature-gated) ---
 #[cfg(feature = "quantum")]

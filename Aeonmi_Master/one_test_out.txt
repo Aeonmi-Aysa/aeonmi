@@ -1,0 +1,2 @@
+]0;Aeonmi Shardok: wrote js to '__exec_tmp.js'.
+Exit code: 0 

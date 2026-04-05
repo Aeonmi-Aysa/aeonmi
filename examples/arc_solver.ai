@@ -1,0 +1,443 @@
+// ============================================================================
+// arc_solver.ai - Aeonmic Intelligence ARC-AGI Task Solver
+// Native Aeonmi / shard-only implementation
+//
+// Run:
+//   aeonmi run examples/arc_solver.ai
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Math helpers
+// ---------------------------------------------------------------------------
+
+function pi() {
+    return 3.14159;
+}
+
+function abs_number(x) {
+    if x < 0 {
+        return x * -1;
+    }
+    return x;
+}
+
+// Color c -> quantum rotation angle theta = (c / 9.0) * pi
+function encode_color(color) {
+    return (color / 9.0) * pi();
+}
+
+// ---------------------------------------------------------------------------
+// Grid helpers
+// ---------------------------------------------------------------------------
+
+function grid_similarity(grid_a, grid_b) {
+    if grid_a.length != grid_b.length {
+        return 0.0;
+    }
+
+    let total = 0.0;
+    let count = 0;
+    let r = 0;
+
+    while r < grid_a.length {
+        if grid_a[r].length != grid_b[r].length {
+            return 0.0;
+        }
+
+        let c = 0;
+        while c < grid_a[r].length {
+            let a1 = encode_color(grid_a[r][c]);
+            let a2 = encode_color(grid_b[r][c]);
+            let diff = abs_number(a1 - a2);
+
+            total = total + (1.0 - (diff / pi()));
+            count = count + 1;
+            c = c + 1;
+        }
+
+        r = r + 1;
+    }
+
+    if count == 0 {
+        return 0.0;
+    }
+
+    return total / count;
+}
+
+function grids_equal(a, b) {
+    if a.length != b.length {
+        return false;
+    }
+
+    let r = 0;
+    while r < a.length {
+        if a[r].length != b[r].length {
+            return false;
+        }
+
+        let c = 0;
+        while c < a[r].length {
+            if a[r][c] != b[r][c] {
+                return false;
+            }
+            c = c + 1;
+        }
+
+        r = r + 1;
+    }
+
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Transformation rules
+// ---------------------------------------------------------------------------
+
+function rule_identity(grid) {
+    return grid;
+}
+
+function rule_flip_h(grid) {
+    let result = [];
+    let r = 0;
+
+    while r < grid.length {
+        let row = grid[r];
+        let new_row = [];
+        let c = row.length - 1;
+
+        while c >= 0 {
+            new_row.push(row[c]);
+            c = c - 1;
+        }
+
+        result.push(new_row);
+        r = r + 1;
+    }
+
+    return result;
+}
+
+function rule_flip_v(grid) {
+    let result = [];
+    let r = grid.length - 1;
+
+    while r >= 0 {
+        result.push(grid[r]);
+        r = r - 1;
+    }
+
+    return result;
+}
+
+function rule_rotate_180(grid) {
+    return rule_flip_v(rule_flip_h(grid));
+}
+
+function rule_color_map(grid, from_c, to_c) {
+    let result = [];
+    let r = 0;
+
+    while r < grid.length {
+        let new_row = [];
+        let c = 0;
+
+        while c < grid[r].length {
+            if grid[r][c] == from_c {
+                new_row.push(to_c);
+            } else {
+                new_row.push(grid[r][c]);
+            }
+            c = c + 1;
+        }
+
+        result.push(new_row);
+        r = r + 1;
+    }
+
+    return result;
+}
+
+function rule_invert(grid) {
+    let result = [];
+    let r = 0;
+
+    while r < grid.length {
+        let new_row = [];
+        let c = 0;
+
+        while c < grid[r].length {
+            if grid[r][c] == 0 {
+                new_row.push(0);
+            } else {
+                new_row.push(10 - grid[r][c]);
+            }
+            c = c + 1;
+        }
+
+        result.push(new_row);
+        r = r + 1;
+    }
+
+    return result;
+}
+
+function column_non_zero_values(grid, col) {
+    let vals = [];
+    let row = 0;
+
+    while row < grid.length {
+        if grid[row][col] != 0 {
+            vals.push(grid[row][col]);
+        }
+        row = row + 1;
+    }
+
+    return vals;
+}
+
+function gravity_cell(grid, out_row, col) {
+    let vals = column_non_zero_values(grid, col);
+    let pad = grid.length - vals.length;
+
+    if out_row < pad {
+        return 0;
+    }
+
+    return vals[out_row - pad];
+}
+
+function rule_gravity_down(grid) {
+    let num_rows = grid.length;
+    let num_cols = grid[0].length;
+    let result = [];
+    let row = 0;
+
+    while row < num_rows {
+        let new_row = [];
+        let col = 0;
+
+        while col < num_cols {
+            new_row.push(gravity_cell(grid, row, col));
+            col = col + 1;
+        }
+
+        result.push(new_row);
+        row = row + 1;
+    }
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Rule indexing
+// ---------------------------------------------------------------------------
+
+function rule_count() {
+    return 6;
+}
+
+function rule_name_from_index(index) {
+    if index == 0 { return "identity"; }
+    if index == 1 { return "flip_horizontal"; }
+    if index == 2 { return "flip_vertical"; }
+    if index == 3 { return "rotate_180"; }
+    if index == 4 { return "invert_colors"; }
+    if index == 5 { return "gravity_down"; }
+    return "identity";
+}
+
+function apply_rule_index(index, grid) {
+    if index == 0 { return rule_identity(grid); }
+    if index == 1 { return rule_flip_h(grid); }
+    if index == 2 { return rule_flip_v(grid); }
+    if index == 3 { return rule_rotate_180(grid); }
+    if index == 4 { return rule_invert(grid); }
+    if index == 5 { return rule_gravity_down(grid); }
+    return grid;
+}
+
+function apply_rule(rule_name, grid) {
+    if rule_name == "identity"        { return rule_identity(grid); }
+    if rule_name == "flip_horizontal" { return rule_flip_h(grid); }
+    if rule_name == "flip_vertical"   { return rule_flip_v(grid); }
+    if rule_name == "rotate_180"      { return rule_rotate_180(grid); }
+    if rule_name == "invert_colors"   { return rule_invert(grid); }
+    if rule_name == "gravity_down"    { return rule_gravity_down(grid); }
+    return grid;
+}
+
+// ---------------------------------------------------------------------------
+// Training evaluation
+// ---------------------------------------------------------------------------
+
+function score_rule_on_training(rule_index, train_inputs, train_outputs) {
+    if train_inputs.length == 0 {
+        return 0.0;
+    }
+
+    let total = 0.0;
+    let i = 0;
+
+    while i < train_inputs.length {
+        let prediction = apply_rule_index(rule_index, train_inputs[i]);
+        let score = grid_similarity(prediction, train_outputs[i]);
+        total = total + score;
+        i = i + 1;
+    }
+
+    return total / train_inputs.length;
+}
+
+function verify_rule_index(rule_index, train_inputs, train_outputs) {
+    let i = 0;
+
+    while i < train_inputs.length {
+        let prediction = apply_rule_index(rule_index, train_inputs[i]);
+        if !grids_equal(prediction, train_outputs[i]) {
+            return false;
+        }
+        i = i + 1;
+    }
+
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Quantum-assisted rule search
+// ---------------------------------------------------------------------------
+
+function quantum_rule_search(train_inputs, train_outputs) {
+    log("");
+    log("Initializing quantum rule search...");
+
+    // Qubits represent rule indices in superposition
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    qubit oracle_q;
+
+    superpose(q0);
+    superpose(q1);
+    superpose(q2);
+
+    log("Rule-index qubits are in superposition");
+
+    let best_index = 0;
+    let best_score = -1.0;
+    let idx = 0;
+
+    while idx < rule_count() {
+        let score = score_rule_on_training(idx, train_inputs, train_outputs);
+
+        if score > best_score {
+            best_score = score;
+            best_index = idx;
+        }
+
+        idx = idx + 1;
+    }
+
+    // Quantum flavor + shard builtin use
+    entangle(q0, oracle_q);
+    let measurement = measure(oracle_q);
+    let grover_index = grovers_search(rule_count(), best_index);
+
+    let best_rule = rule_name_from_index(best_index);
+
+    log("Quantum measurement: " + measurement);
+    log("Grover suggested index: " + grover_index);
+    log("Best rule index: " + best_index);
+    log("Best rule name: " + best_rule);
+    log("Best score: " + best_score);
+
+    return [best_index, best_rule, best_score];
+}
+
+// ---------------------------------------------------------------------------
+// ARC task solver
+// ---------------------------------------------------------------------------
+
+function solve_task(task_id, train_inputs, train_outputs, test_input) {
+    log("--------------------------------------------------");
+    log("Solving task: " + task_id);
+    log("Training pairs: " + train_inputs.length);
+
+    if train_inputs.length == 0 {
+        log("No training pairs found; returning test input unchanged");
+        return test_input;
+    }
+
+    let search_result = quantum_rule_search(train_inputs, train_outputs);
+
+    let best_index = search_result[0];
+    let best_rule = search_result[1];
+    let best_score = search_result[2];
+
+    let verified = verify_rule_index(best_index, train_inputs, train_outputs);
+
+    if verified {
+        log("Rule verified across all training pairs");
+    } else {
+        log("Rule did not perfectly verify; using best available rule");
+    }
+
+    let solution = apply_rule(best_rule, test_input);
+
+    log("Selected rule: " + best_rule);
+    log("Confidence: " + best_score);
+    log("Solution computed for: " + task_id);
+
+    return solution;
+}
+
+// ---------------------------------------------------------------------------
+// Demo
+// ---------------------------------------------------------------------------
+
+function main() {
+    log("==================================================");
+    log("AEONMIC INTELLIGENCE - ARC SOLVER v1.0");
+    log("Quantum-native reasoning in Aeonmi");
+    log("==================================================");
+
+    log("");
+    log("Running demo ARC task...");
+    log("");
+
+    // Training pair 1: horizontal flip
+    let train_in_1 = [[1, 2, 3], [4, 5, 6]];
+    let train_out_1 = [[3, 2, 1], [6, 5, 4]];
+
+    // Training pair 2: horizontal flip
+    let train_in_2 = [[7, 8, 9]];
+    let train_out_2 = [[9, 8, 7]];
+
+    // Test input
+    let test_in = [[2, 4, 6], [1, 3, 5]];
+
+    let solution = solve_task(
+        "demo_flip_h",
+        [train_in_1, train_in_2],
+        [train_out_1, train_out_2],
+        test_in
+    );
+
+    log("");
+    log("Test input: [[2,4,6],[1,3,5]]");
+    log("Solution:   " + solution);
+    log("Expected:   [[6,4,2],[5,3,1]]");
+    log("");
+
+    if grids_equal(solution, [[6, 4, 2], [5, 3, 1]]) {
+        log("PASS");
+    } else {
+        log("FAIL");
+    }
+
+    log("");
+    log("ARC solver ready.");
+    log("==================================================");
+}
+        if grid_a[r

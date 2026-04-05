@@ -1,0 +1,157 @@
+⍝ loop.ai — Phase 3: Learning Loop
+⍝ Mother accumulates signals, reinforces memory on correct predictions,
+⍝ decays stale patterns, and evolves its bias over multiple cycles.
+⍝ Standalone. 10 fns + main = 11 total (budget ≤ 13).
+⍝
+⍝ Memory layout : flat [key, val, strength, ...]  3 fields/entry
+⍝ strength ∈ [0,1] — 1 = fresh reinforced, decays toward 0 each cycle
+
+◯ a_clamp⟨v, lo, hi⟩ {
+    if (v < lo) { return lo; }
+    if (v > hi) { return hi; }
+    return v;
+}
+
+◯ b_m_count⟨m⟩ {
+    return len(m) / 3;
+}
+
+◯ b_m_recall⟨m, key⟩ {
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { return m.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ b_m_store⟨m, key, val⟩ {
+    let total = len(m) / 3;
+    let found = -1;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    let result = [];
+    let j = 0;
+    while (j < total) {
+        let b = j * 3;
+        let ek = m.slice(b, b + 1).pop();
+        let ev = m.slice(b + 1, b + 2).pop();
+        let es = m.slice(b + 2, b + 3).pop();
+        if (j == found) {
+            result.push(ek);
+            result.push(val);
+            result.push(1);
+        } else {
+            result.push(ek);
+            result.push(ev);
+            result.push(es);
+        }
+        j = j + 1;
+    }
+    return result;
+}
+
+◯ b_m_decay⟨m, rate⟩ {
+    ⍝ multiply every strength field by rate (0 < rate < 1)
+    let result = [];
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        let v = m.slice(base + 1, base + 2).pop();
+        let s = m.slice(base + 2, base + 3).pop();
+        result.push(k);
+        result.push(v);
+        result.push(s * rate);
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ c_reinforce⟨m, verdict⟩ {
+    ⍝ PROCEED/ACCELERATE → bump proceed_count + confidence_sum
+    ⍝ ABORT/HOLD         → bump abort_count
+    let is_pos = 0;
+    if (verdict == 2) { is_pos = 1; }
+    if (verdict == 3) { is_pos = 1; }
+    if (is_pos == 1) {
+        let pc = b_m_recall(m, "proceed_count");
+        let cs = b_m_recall(m, "confidence_sum");
+        m = b_m_store(m, "proceed_count",   pc + 1);
+        m = b_m_store(m, "confidence_sum",  cs + verdict);
+        return m;
+    }
+    let ac = b_m_recall(m, "abort_count");
+    m = b_m_store(m, "abort_count", ac + 1);
+    return m;
+}
+
+◯ c_bias⟨m⟩ {
+    ⍝ learned bias = proceed_count / (proceed_count + abort_count)
+    ⍝ returns 0-100 integer percent
+    let pc = b_m_recall(m, "proceed_count");
+    let ac = b_m_recall(m, "abort_count");
+    let total = pc + ac;
+    if (total == 0) { return 50; }
+    let bias = pc * 100 / total;
+    return a_clamp(bias, 0, 100);
+}
+
+◯ d_learn_cycle⟨m, verdict, conf⟩ {
+    ⍝ one learning cycle: decay → reinforce → update last signal
+    m = b_m_decay(m, 9 / 10);  ⍝ decay rate 0.9 — keeps recent signals fresher
+    m = c_reinforce(m, verdict);
+    m = b_m_store(m, "last_verdict", verdict);
+    m = b_m_store(m, "last_conf",    conf);
+    return m;
+}
+
+◯ main⟨⟩ {
+    ⍝ ── Simulate 5 signal cycles ────────────────────────────────────────
+    ⍝ Signals: [verdict, conf]
+    ⍝ 0=ABORT 1=HOLD 2=PROCEED 3=ACCELERATE
+    let m = [];
+
+    ⍝ cycle 1: PROCEED 16
+    m = d_learn_cycle(m, 2, 16);
+    ⍝ cycle 2: PROCEED 18
+    m = d_learn_cycle(m, 2, 18);
+    ⍝ cycle 3: HOLD 5
+    m = d_learn_cycle(m, 1, 5);
+    ⍝ cycle 4: ACCELERATE 20
+    m = d_learn_cycle(m, 3, 20);
+    ⍝ cycle 5: PROCEED 14
+    m = d_learn_cycle(m, 2, 14);
+
+    ⍝ ── Read learned state ───────────────────────────────────────────────
+    let pc   = b_m_recall(m, "proceed_count");
+    let ac   = b_m_recall(m, "abort_count");
+    let cs   = b_m_recall(m, "confidence_sum");
+    let bias = c_bias(m);
+    let lv   = b_m_recall(m, "last_verdict");
+    let lc   = b_m_recall(m, "last_conf");
+
+    print("=== MOTHER LEARNING LOOP ===");
+    print("Cycles       : 5");
+    print("Proceed      : " + pc);
+    print("Abort/Hold   : " + ac);
+    print("Conf sum     : " + cs);
+    print("Learned bias : " + bias + "%  (toward PROCEED)");
+    print("Last signal  : verdict=" + lv + "  conf=" + lc);
+    print("=== END LEARNING ===");
+}

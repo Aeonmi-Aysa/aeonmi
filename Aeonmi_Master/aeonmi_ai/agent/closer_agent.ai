@@ -1,0 +1,65 @@
+⍝ closer_agent.ai — Closer: ecommerce conversion optimizer
+⍝ Input: intent (0..100), cart_val (0..N), time_on_page (0..100)
+⍝ Offer types: 0=none  1=discount  2=urgency  3=social_proof
+⍝ Functions: 8 + main = 9, no imports
+
+◯ clo_cart_weight⟨cart_val⟩ {
+    ⍝ Normalize cart value to 0..100 (cap at 500 units)
+    if (cart_val >= 500) { return 100; }
+    return cart_val * 100 / 500;
+}
+
+◯ clo_close_prob⟨intent, cart_val, top⟩ {
+    ⍝ Conversion probability 0..100
+    let cw = clo_cart_weight(cart_val);
+    return intent * 50 / 100 + cw * 30 / 100 + top * 20 / 100;
+}
+
+◯ clo_hot_lead⟨intent, top⟩ {
+    if (intent > 75) {
+        if (top > 60) { return 1; }
+    }
+    return 0;
+}
+
+◯ clo_intent_tier⟨intent⟩ {
+    ⍝ 0=cold  1=warm  2=hot  3=closing
+    if (intent >= 85) { return 3; }
+    if (intent >= 65) { return 2; }
+    if (intent >= 40) { return 1; }
+    return 0;
+}
+
+◯ clo_offer⟨intent, cart_val, top⟩ {
+    ⍝ Select best offer type
+    let hot = clo_hot_lead(intent, top);
+    if (hot == 1) { return 1; }
+    let tier = clo_intent_tier(intent);
+    if (tier == 2) { return 2; }
+    if (tier == 1) { return 3; }
+    return 0;
+}
+
+◯ clo_score⟨intent, cart_val, top⟩ {
+    return clo_close_prob(intent, cart_val, top);
+}
+
+◯ clo_urgency⟨top, cart_val⟩ {
+    ⍝ Urgency signal: high time on page + has cart items
+    if (top > 70) {
+        if (cart_val > 0) { return 1; }
+    }
+    return 0;
+}
+
+◯ clo_warm_lead⟨intent⟩ {
+    let t = clo_intent_tier(intent);
+    if (t >= 1) { return 1; }
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let prob = clo_close_prob(80, 200, 75);
+    let offer = clo_offer(80, 200, 75);
+    print("closer: close_prob=", prob, "offer=", offer);
+}

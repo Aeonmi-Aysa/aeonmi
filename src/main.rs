@@ -1,3 +1,5 @@
+// Entry point shared across Aeonmi, aeonmi, and aeonmi_project binaries.
+// Allow attrs are declared in each bin's entry file; see src/bin/aeonmi*.rs.
 mod ai; // AI provider registry & implementations
 mod cli;
 mod cli_vault;
@@ -183,18 +185,18 @@ fn main() -> anyhow::Result<()> {
         let input = args.input_pos.or(args.input_opt).unwrap();
 
         let emit_kind = match args.emit_legacy.as_deref() {
-            None | Some("js") => EmitKind::Js,
-            Some("ai") => EmitKind::Ai,
+            None | Some("ai") => EmitKind::Ai,
+            Some("js") => EmitKind::Js,
             Some(other) => {
                 eprintln!("Unsupported --emit kind: {}", other);
                 proc_exit(2);
             }
         };
 
-        let default_out = if matches!(emit_kind, EmitKind::Ai) {
-            "output.ai"
-        } else {
+        let default_out = if matches!(emit_kind, EmitKind::Js) {
             "output.js"
+        } else {
+            "output.ai"
         };
 
         let out = args
@@ -299,21 +301,11 @@ fn main() -> anyhow::Result<()> {
                                 args.debug_titan,
                             );
                         }
-                        if native || std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1") {
-                            std::env::set_var("AEONMI_NATIVE", "1");
-                            crate::commands::run::run_native(
-                                &input,
-                                args.pretty_errors,
-                                args.no_sema,
-                            )
-                        } else {
-                            commands::run::main_with_opts(
-                                input.clone(),
-                                out.clone(),
-                                args.pretty_errors,
-                                args.no_sema,
-                            )
-                        }
+                        crate::commands::run::run_native(
+                            &input,
+                            args.pretty_errors,
+                            args.no_sema,
+                        )
                     };
                     sleep(Duration::from_millis(500));
                     if let Ok(meta) = std::fs::metadata(&input) {
@@ -424,14 +416,6 @@ fn main() -> anyhow::Result<()> {
                             eprintln!("warning: stack overflow detected (frame limit)");
                         }
                     }
-                } else if native || std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1") {
-                    std::env::set_var("AEONMI_NATIVE", "1");
-                    return commands::run::main_with_opts(
-                        input,
-                        out,
-                        args.pretty_errors,
-                        args.no_sema,
-                    );
                 } else {
                     return commands::run::main_with_opts(
                         input,
@@ -547,21 +531,9 @@ fn main() -> anyhow::Result<()> {
                         args.debug_titan,
                     );
                     if run {
-                        // For run we still need JS path: compile JS then execute
-                        let out_js = PathBuf::from("output.js");
-                        let _ = commands::compile::compile_pipeline(
-                            Some(p.clone()),
-                            EmitKind::Js,
-                            out_js.clone(),
-                            false,
-                            false,
-                            args.pretty_errors,
-                            args.no_sema,
-                            args.debug_titan,
-                        );
                         let _ = commands::run::main_with_opts(
                             p,
-                            Some(out_js),
+                            None,
                             args.pretty_errors,
                             args.no_sema,
                         );
@@ -581,8 +553,8 @@ fn main() -> anyhow::Result<()> {
 
         Some(Command::Tokens { input }) => commands::compile::compile_pipeline(
             Some(input),
-            EmitKind::Js,
-            PathBuf::from("output.js"),
+            EmitKind::Ai,
+            PathBuf::from("output.ai"),
             /*tokens*/ true,
             /*ast*/ false,
             args.pretty_errors,
@@ -592,8 +564,8 @@ fn main() -> anyhow::Result<()> {
 
         Some(Command::Ast { input }) => commands::compile::compile_pipeline(
             Some(input),
-            EmitKind::Js,
-            PathBuf::from("output.js"),
+            EmitKind::Ai,
+            PathBuf::from("output.ai"),
             /*tokens*/ false,
             /*ast*/ true,
             args.pretty_errors,
@@ -723,15 +695,6 @@ fn main() -> anyhow::Result<()> {
                 Ok(s) if s.success() => Ok(()),
                 Ok(s) => anyhow::bail!("python exited with status {}", s),
                 Err(e) => anyhow::bail!("failed to execute python: {e}"),
-            }
-        }
-
-        Some(Command::Node { args }) => {
-            let status = std::process::Command::new("node").args(&args).status();
-            match status {
-                Ok(s) if s.success() => Ok(()),
-                Ok(s) => anyhow::bail!("node exited with status {}", s),
-                Err(e) => anyhow::bail!("failed to execute node: {e}"),
             }
         }
 
@@ -1143,167 +1106,26 @@ fn main() -> anyhow::Result<()> {
                     .to_lowercase();
                 match ext.as_str() {
                     "ai" => {
-                        let force_native =
-                            std::env::var("AEONMI_NATIVE").ok().as_deref() == Some("1");
-                        let node_available = std::process::Command::new("node")
-                            .arg("--version")
-                            .output()
-                            .map(|o| o.status.success())
-                            .unwrap_or(false);
-                        if force_native || !node_available {
-                            if no_run {
-                                // Even in native/ no node environment, honor --no-run by producing JS artifact for tests.
-                                let out_js = PathBuf::from("__exec_tmp.js");
-                                commands::compile::compile_pipeline(
-                                    Some(file.clone()),
-                                    EmitKind::Js,
-                                    out_js.clone(),
-                                    false,
-                                    false,
-                                    pretty,
-                                    skip_sema,
-                                    debug_titan,
-                                )?;
-                                if !keep_temp {
-                                    let _ = std::fs::remove_file(&out_js);
-                                }
-                                Ok(())
-                            } else {
-                                // Native interpretation path
-    
-                                use crate::core::diagnostics::{
-                                    emit_json_error, print_error, Span,
-                                };
-                                use crate::core::lexer::Lexer;
-                                use crate::core::lexer::LexerError;
-                                use crate::core::lowering::lower_ast_to_ir;
-                                use crate::core::parser::{Parser as AeParser, ParserError};
-                                use crate::core::vm::Interpreter;
-                                let src = match std::fs::read_to_string(file) {
-                                    Ok(s) => s,
-                                    Err(e) => anyhow::bail!("read error: {e}"),
-                                };
-                                let mut lexer = Lexer::from_str(&src);
-                                let tokens = match lexer.tokenize() {
-                                    Ok(t) => t,
-                                    Err(e) => {
-                                        if pretty {
-                                            match e {
-                                                LexerError::UnexpectedCharacter(_, line, col)
-                                                | LexerError::UnterminatedString(line, col)
-                                                | LexerError::InvalidNumber(_, line, col)
-                                                | LexerError::InvalidQubitLiteral(_, line, col)
-                                                | LexerError::UnterminatedComment(line, col) => {
-                                                    emit_json_error(
-                                                        &file.display().to_string(),
-                                                        &format!("{}", e),
-                                                        &Span::single(line, col),
-                                                    );
-                                                    print_error(
-                                                        &file.display().to_string(),
-                                                        &src,
-                                                        &format!("{}", e),
-                                                        Span::single(line, col),
-                                                    );
-                                                }
-                                                _ => eprintln!("lex error: {e}"),
-                                            }
-                                        } else {
-                                            eprintln!("lex error: {e}");
-                                        }
-                                        return Ok(());
-                                    }
-                                };
-                                let mut parser = AeParser::new(tokens.clone());
-                                let ast = match parser.parse() {
-                                    Ok(a) => a,
-                                    Err(ParserError {
-                                        message,
-                                        line,
-                                        column,
-                                    }) => {
-                                        if pretty {
-                                            emit_json_error(
-                                                &file.display().to_string(),
-                                                &format!("Parsing error: {message}"),
-                                                &Span::single(line, column),
-                                            );
-                                            print_error(
-                                                &file.display().to_string(),
-                                                &src,
-                                                &format!("Parsing error: {message}"),
-                                                Span::single(line, column),
-                                            );
-                                        } else {
-                                            eprintln!("parse error: {message}");
-                                        }
-                                        return Ok(());
-                                    }
-                                };
-                                if skip_sema {
-                                    println!("note: semantic analysis skipped (native)");
-                                }
-                                match lower_ast_to_ir(&ast, "main") {
-                                    Ok(module) => {
-                                        let mut interp = Interpreter::new();
-                                        interp.base_dir = file.parent().map(|p| p.to_path_buf());
-                                        if !no_run {
-                                            if let Err(e) = interp.run_module(&module) {
-                                                eprintln!("TEST ERROR: {}", e.message);
-                                            }
-                                        }
-                                    }
-                                    Err(e) => eprintln!("lowering error: {e}"),
-                                }
-                                Ok(())
-                            }
-                        } else {
-                            let out_js = PathBuf::from("__exec_tmp.js");
-                            commands::compile::compile_pipeline(
-                                Some(file.clone()),
-                                EmitKind::Js,
-                                out_js.clone(),
-                                false,
-                                false,
-                                pretty,
-                                skip_sema,
-                                debug_titan,
-                            )?;
-                            // If user only wants compilation (--no-run) and didn't request keep-temp, remove temp now
-                            if no_run {
-                                if !keep_temp {
-                                    let _ = std::fs::remove_file(&out_js);
-                                }
-                            } else {
-                                let status = std::process::Command::new("node")
-                                    .arg(&out_js)
-                                    .args(passthrough)
-                                    .status();
-                                match status {
-                                    Ok(s) if s.success() => {}
-                                    Ok(s) => anyhow::bail!("node exited with status {}", s),
-                                    Err(e) => anyhow::bail!("failed to execute node: {e}"),
-                                }
-                                if !keep_temp {
-                                    let _ = std::fs::remove_file(&out_js);
-                                }
-                            }
-                            Ok(())
-                        }
-                    }
-                    "js" => {
                         if no_run {
                             return Ok(());
                         }
-                        let status = std::process::Command::new("node")
-                            .arg(&file)
-                            .args(passthrough)
-                            .status();
-                        match status {
-                            Ok(s) if s.success() => Ok(()),
-                            Ok(s) => anyhow::bail!("node exited with status {}", s),
-                            Err(e) => anyhow::bail!("failed to execute node: {e}"),
+                        commands::run::run_native(file, pretty, skip_sema)
+                    }
+                    "qube" => {
+                        if no_run {
+                            return Ok(());
                         }
+                        use crate::qube::{QubeParser, QubeExecutor};
+                        let src = std::fs::read_to_string(file)
+                            .map_err(|e| anyhow::anyhow!("read error: {e}"))?;
+                        let mut parser = QubeParser::from_str(&src);
+                        let prog = parser.parse()
+                            .map_err(|e| anyhow::anyhow!("QUBE parse error: {}", e))?;
+                        let mut exec = QubeExecutor::new();
+                        exec.execute(&prog)
+                            .map_err(|e| anyhow::anyhow!("QUBE execution error: {}", e))?;
+                        println!("{}", exec.summary());
+                        Ok(())
                     }
                     "py" => {
                         let exe = if cfg!(windows) { "python" } else { "python3" };
@@ -1361,7 +1183,7 @@ fn main() -> anyhow::Result<()> {
                     }
                     other => {
                         anyhow::bail!(
-                            "Unsupported extension '{other}'. Supported: .ai .js .py .rs"
+                            "Unsupported extension '{other}'. Supported: .ai .qube .py .rs"
                         );
                     }
                 }

@@ -2,6 +2,8 @@
 //! Standard quantum algorithms implemented for the AEONMI quantum simulator
 
 use crate::core::quantum_simulator::QuantumSimulator;
+use crate::core::quantum_circuits::QuantumCircuit;
+use crate::core::quantum_operations::QuantumOperation;
 use anyhow::Result;
 
 /// Quantum Algorithm Library providing standard quantum algorithms as AEONMI built-ins
@@ -353,6 +355,78 @@ impl QuantumAlgorithms {
             }
         }
         Ok(())
+    }
+
+    /// Build a Grover search circuit over `num_qubits` targeting the given `marked_states`.
+    ///
+    /// This produces the gate sequence for amplitude amplification:
+    ///   1. H⊗n — equal superposition
+    ///   2. Oracle — phase-flips marked states
+    ///   3. Diffuser — Grover diffusion operator
+    ///
+    /// Used by the ARC bridge to build rule-search circuits before classical verification.
+    pub fn create_grovers_circuit(num_qubits: usize, marked_states: Vec<usize>) -> QuantumCircuit {
+        let iterations = {
+            let n = 1usize << num_qubits;
+            let m = marked_states.len().max(1);
+            ((std::f64::consts::PI / 4.0) * ((n as f64) / (m as f64)).sqrt()) as usize + 1
+        };
+
+        let mut circuit = QuantumCircuit::with_label(
+            num_qubits,
+            format!("Grover({} qubits, {} marked, {} iters)", num_qubits, marked_states.len(), iterations),
+        );
+
+        // Step 1: initialise uniform superposition
+        circuit.apply_hadamard_all();
+
+        for _iter in 0..iterations {
+            // Step 2: oracle — phase-kick marked states via Z on ancilla qubit of each target
+            for &state in &marked_states {
+                // Encode which qubits need X gates to flip the marked state into |111…1⟩
+                for bit in 0..num_qubits {
+                    if (state >> bit) & 1 == 0 {
+                        circuit.add_operation(QuantumOperation::PauliX { target: bit });
+                    }
+                }
+                // Multi-controlled Z: approximate with chain of phase + entanglement
+                if num_qubits > 0 {
+                    circuit.add_operation(QuantumOperation::Phase {
+                        target: num_qubits - 1,
+                        angle: std::f64::consts::PI,
+                    });
+                }
+                // Undo X flips
+                for bit in 0..num_qubits {
+                    if (state >> bit) & 1 == 0 {
+                        circuit.add_operation(QuantumOperation::PauliX { target: bit });
+                    }
+                }
+            }
+
+            // Step 3: Grover diffusion operator (H⊗n · (2|0⟩⟨0| − I) · H⊗n)
+            circuit.apply_hadamard_all();
+            for i in 0..num_qubits {
+                circuit.add_operation(QuantumOperation::PauliX { target: i });
+            }
+            if num_qubits > 0 {
+                circuit.add_operation(QuantumOperation::Phase {
+                    target: num_qubits - 1,
+                    angle: std::f64::consts::PI,
+                });
+            }
+            for i in 0..num_qubits {
+                circuit.add_operation(QuantumOperation::PauliX { target: i });
+            }
+            circuit.apply_hadamard_all();
+        }
+
+        // Measure all qubits
+        for i in 0..num_qubits {
+            circuit.add_operation(QuantumOperation::Measure { target: i });
+        }
+
+        circuit
     }
 }
 

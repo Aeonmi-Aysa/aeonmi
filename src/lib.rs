@@ -1,4 +1,8 @@
-#![allow(dead_code)] // Large experimental surface; many analysis/AI/quantum scaffolds not yet invoked.
+#![allow(dead_code, unused_imports, unused_variables, unreachable_patterns)]
+// Large experimental surface: analysis/AI/quantum scaffolds, Titan math library,
+// blockchain/mint scaffolds, and many pre-integration modules are intentionally
+// retained for future phases. Warnings suppressed at lib level to keep build output
+// clean without gutting the research surface.
 // Make the same modules available from the library crate so anything under
 // src/tui/* (compiled as part of lib) can reach them via `crate::...`.
 pub mod cli;

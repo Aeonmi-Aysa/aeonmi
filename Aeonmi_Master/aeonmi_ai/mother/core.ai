@@ -55,3 +55,41 @@ import { r_new, r_register } from "./rules_min";
     let m = state.slice(1, 2).pop();
     return m_recall(m, key);
 }
+
+@@ core_sync_genesis: emit all memory+journal state as parseable log lines
+@@ genesis_sync.py reads these AI_MEMORY_STATE: lines from probe output
+
+function ai_core_sync_genesis(state) {
+    let j = state.slice(0, 1).pop();
+    let m = state.slice(1, 2).pop();
+    let r = state.slice(2, 3).pop();
+
+    let mem_total = len(m) / 3;
+    let jrn_total = len(j) / 3;
+    let rules_total = len(r) / 2;
+
+    log("AI_MEMORY_STATE:memory_count:" + mem_total);
+    log("AI_MEMORY_STATE:journal_count:" + jrn_total);
+    log("AI_MEMORY_STATE:rules_count:" + rules_total);
+    log("AI_MEMORY_STATE:layer_active:true");
+
+    let i = 0;
+    while (i < mem_total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        let v = m.slice(base + 1, base + 2).pop();
+        log("AI_MEMORY_STATE:mem_key:" + k + ":" + v);
+        i = i + 1;
+    }
+
+    let ji = 0;
+    while (ji < jrn_total) {
+        let jbase = ji * 3;
+        let tag = j.slice(jbase, jbase + 1).pop();
+        let payload = j.slice(jbase + 1, jbase + 2).pop();
+        log("AI_MEMORY_STATE:journal_entry:" + tag + ":" + payload);
+        ji = ji + 1;
+    }
+
+    return state;
+}

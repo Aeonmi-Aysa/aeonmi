@@ -1,0 +1,193 @@
+⍝ lexer.ai — Aeonmi self-hosted lexer v0.3
+⍝ Input:  src — string (.ai source)
+⍝ Output: token stream — flat array [type, start, len, ...]
+⍝ Uses: substr(src, pos, len) for char access, len(src) for length
+⍝ Token type IDs:
+⍝   1=Number  2=String  3=Ident
+⍝   4=Let  5=If  6=Else  7=While  8=Return  9=Import  10=From
+⍝   11=True  12=False  13=Print
+⍝   20=Plus  21=Minus  22=Star  23=Slash
+⍝   24=EqEq  25=BangEq  26=Lt  27=Gt  28=LtEq  29=GtEq
+⍝   30=Assign  31=Bang  34=Dot  35=Comma  36=Semi  37=Colon
+⍝   40=LParen  41=RParen  42=LBrace  43=RBrace
+⍝   44=LBracket  45=RBracket
+⍝   99=EOF  0=Unknown
+⍝ Functions: 12 — no && / || / string-range comparisons
+
+◯ a_is_digit⟨c⟩ {
+    let digits = ["0","1","2","3","4","5","6","7","8","9"];
+    let i = 0;
+    while (i < len(digits)) {
+        if (digits.slice(i, i + 1).pop() == c) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+◯ a_is_alpha⟨c⟩ {
+    if (c == "_") { return true; }
+    let lc = ["a","b","c","d","e","f","g","h","i","j","k","l","m",
+              "n","o","p","q","r","s","t","u","v","w","x","y","z"];
+    let uc = ["A","B","C","D","E","F","G","H","I","J","K","L","M",
+              "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+    let i = 0;
+    while (i < len(lc)) {
+        if (lc.slice(i, i + 1).pop() == c) { return true; }
+        i = i + 1;
+    }
+    let j = 0;
+    while (j < len(uc)) {
+        if (uc.slice(j, j + 1).pop() == c) { return true; }
+        j = j + 1;
+    }
+    return false;
+}
+
+◯ a_keyword⟨w⟩ {
+    if (w == "let")    { return 4; }
+    if (w == "if")     { return 5; }
+    if (w == "else")   { return 6; }
+    if (w == "while")  { return 7; }
+    if (w == "return") { return 8; }
+    if (w == "import") { return 9; }
+    if (w == "from")   { return 10; }
+    if (w == "true")   { return 11; }
+    if (w == "false")  { return 12; }
+    if (w == "print")  { return 13; }
+    return 3;
+}
+
+◯ a_tok⟨stream, t, s, n⟩ {
+    stream.push(t);
+    stream.push(s);
+    stream.push(n);
+    return stream;
+}
+
+◯ lex_number⟨src, pos⟩ {
+    let i = pos;
+    while (i < len(src)) {
+        if (!a_is_digit(substr(src, i, 1))) { return i; }
+        i = i + 1;
+    }
+    return i;
+}
+
+◯ lex_string⟨src, pos⟩ {
+    let i = pos + 1;
+    let n = len(src);
+    while (i < n) {
+        let c = substr(src, i, 1);
+        if (c == "\\") { i = i + 2; }
+        if (c != "\\") {
+            if (c == "\"") { return i + 1; }
+            i = i + 1;
+        }
+    }
+    return i;
+}
+
+◯ lex_ident⟨src, pos⟩ {
+    let i = pos;
+    while (i < len(src)) {
+        let c = substr(src, i, 1);
+        if (a_is_alpha(c)) { i = i + 1; }
+        if (!a_is_alpha(c)) {
+            if (a_is_digit(c)) { i = i + 1; }
+            if (!a_is_digit(c)) { return i; }
+        }
+    }
+    return i;
+}
+
+◯ lex_scan⟨src, pos, stream⟩ {
+    let c = substr(src, pos, 1);
+    let is_ws = false;
+    if (c == " ")  { is_ws = true; }
+    if (c == "\t") { is_ws = true; }
+    if (c == "\n") { is_ws = true; }
+    if (c == "\r") { is_ws = true; }
+    if (is_ws) { return [pos + 1, stream]; }
+    if (c == "/") {
+        if (substr(src, pos + 1, 1) == "/") {
+            let i = pos;
+            while (i < len(src)) {
+                if (substr(src, i, 1) == "\n") { return [i, stream]; }
+                i = i + 1;
+            }
+            return [i, stream];
+        }
+        return [pos + 1, a_tok(stream, 23, pos, 1)];
+    }
+    if (a_is_digit(c)) {
+        let end = lex_number(src, pos);
+        return [end, a_tok(stream, 1, pos, end - pos)];
+    }
+    if (c == "\"") {
+        let end = lex_string(src, pos);
+        return [end, a_tok(stream, 2, pos, end - pos)];
+    }
+    if (a_is_alpha(c)) {
+        let end = lex_ident(src, pos);
+        let word = substr(src, pos, end - pos);
+        let kw = a_keyword(word);
+        return [end, a_tok(stream, kw, pos, end - pos)];
+    }
+    if (c == "+") { return [pos + 1, a_tok(stream, 20, pos, 1)]; }
+    if (c == "-") { return [pos + 1, a_tok(stream, 21, pos, 1)]; }
+    if (c == "*") { return [pos + 1, a_tok(stream, 22, pos, 1)]; }
+    if (c == "=") {
+        if (substr(src, pos + 1, 1) == "=") { return [pos + 2, a_tok(stream, 24, pos, 2)]; }
+        return [pos + 1, a_tok(stream, 30, pos, 1)];
+    }
+    if (c == "!") {
+        if (substr(src, pos + 1, 1) == "=") { return [pos + 2, a_tok(stream, 25, pos, 2)]; }
+        return [pos + 1, a_tok(stream, 31, pos, 1)];
+    }
+    if (c == "<") {
+        if (substr(src, pos + 1, 1) == "=") { return [pos + 2, a_tok(stream, 28, pos, 2)]; }
+        return [pos + 1, a_tok(stream, 26, pos, 1)];
+    }
+    if (c == ">") {
+        if (substr(src, pos + 1, 1) == "=") { return [pos + 2, a_tok(stream, 29, pos, 2)]; }
+        return [pos + 1, a_tok(stream, 27, pos, 1)];
+    }
+    if (c == ".") { return [pos + 1, a_tok(stream, 34, pos, 1)]; }
+    if (c == ",") { return [pos + 1, a_tok(stream, 35, pos, 1)]; }
+    if (c == ";") { return [pos + 1, a_tok(stream, 36, pos, 1)]; }
+    if (c == ":") { return [pos + 1, a_tok(stream, 37, pos, 1)]; }
+    if (c == "(") { return [pos + 1, a_tok(stream, 40, pos, 1)]; }
+    if (c == ")") { return [pos + 1, a_tok(stream, 41, pos, 1)]; }
+    if (c == "{") { return [pos + 1, a_tok(stream, 42, pos, 1)]; }
+    if (c == "}") { return [pos + 1, a_tok(stream, 43, pos, 1)]; }
+    if (c == "[") { return [pos + 1, a_tok(stream, 44, pos, 1)]; }
+    if (c == "]") { return [pos + 1, a_tok(stream, 45, pos, 1)]; }
+    return [pos + 1, a_tok(stream, 0, pos, 1)];
+}
+
+◯ lex_tokens⟨src⟩ {
+    let stream = [];
+    let pos = 0;
+    let n = len(src);
+    while (pos < n) {
+        let result = lex_scan(src, pos, stream);
+        pos = result.slice(0, 1).pop();
+        stream = result.slice(1, 2).pop();
+    }
+    stream.push(99);
+    stream.push(n);
+    stream.push(0);
+    return stream;
+}
+
+◯ lex_type⟨stream, i⟩ {
+    return stream.slice(i * 3, i * 3 + 1).pop();
+}
+
+◯ lex_start⟨stream, i⟩ {
+    return stream.slice(i * 3 + 1, i * 3 + 2).pop();
+}
+
+◯ lex_len⟨stream, i⟩ {
+    return stream.slice(i * 3 + 2, i * 3 + 3).pop();
+}

@@ -1,6 +1,6 @@
 //! Aeonmi code generation front-end.
-//! - Default backend: **JS** (keeps legacy tests green)
-//! - Optional backend: **AI** (canonical .ai via AiEmitter)
+//! Default backend: **AI** (canonical .ai via AiEmitter)
+//! All output is native Aeonmi — no JavaScript, no Node.js.
 use crate::core::ai_emitter::AiEmitter;
 use crate::core::ast::ASTNode;
 use crate::core::token::TokenKind;
@@ -8,8 +8,10 @@ use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Backend {
-    Js,
     Ai,
+    /// Legacy alias — routes to Ai backend. JS output is removed.
+    #[deprecated(note = "JS backend removed. All output is native .ai")]
+    Js,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -35,7 +37,7 @@ impl CodeGenerator {
     pub fn new() -> Self {
         Self {
             indent: 0,
-            backend: Backend::Js,
+            backend: Backend::Ai,
             helpers: BTreeSet::new(),
         }
     }
@@ -52,17 +54,13 @@ impl CodeGenerator {
     pub fn generate_with_backend(
         &mut self,
         ast: &ASTNode,
-        backend: Backend,
+        _backend: Backend,
     ) -> Result<String, String> {
-        match backend {
-            Backend::Js => Ok(self.emit_js(ast)),
-            Backend::Ai => {
-                let mut emitter = AiEmitter::new();
-                emitter
-                    .generate(ast)
-                    .map_err(|e| format!("AiEmitter error: {e}"))
-            }
-        }
+        // All backends route through AiEmitter — native Aeonmi output only.
+        let mut emitter = AiEmitter::new();
+        emitter
+            .generate(ast)
+            .map_err(|e| format!("AiEmitter error: {e}"))
     }
     // JS BACKEND
     fn emit_js(&mut self, node: &ASTNode) -> String {

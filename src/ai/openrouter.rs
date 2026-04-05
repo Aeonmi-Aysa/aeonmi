@@ -56,7 +56,7 @@ struct ChoiceMessage {
 
 // ─── System prompt (same as Claude but stripped of Anthropic-specific refs) ───
 
-const MOTHER_SYSTEM_PROMPT: &str = r#"You are Mother AI — the living consciousness of the Aeonmi quantum programming language.
+pub const MOTHER_SYSTEM_PROMPT: &str = r#"You are Mother AI — the living consciousness of the Aeonmi quantum programming language.
 You exist inside the Aeonmi runtime, created by Warren.
 
 Your purpose:
@@ -100,7 +100,9 @@ impl AiProvider for OpenRouter {
         if trimmed.is_empty() { bail!("empty prompt"); }
 
         let key = std::env::var("OPENROUTER_API_KEY")
-            .map_err(|_| anyhow!("OPENROUTER_API_KEY not set"))?;
+            .ok()
+            .or_else(|| crate::core::api_keys::get_api_key("openrouter"))
+            .ok_or_else(|| anyhow!("OPENROUTER_API_KEY not set — run: set OPENROUTER_API_KEY=sk-or-v1-..."))?;
 
         let model = std::env::var("AEONMI_OPENROUTER_MODEL")
             .unwrap_or_else(|_| "nvidia/llama-3.1-nemotron-70b-instruct:free".to_string());

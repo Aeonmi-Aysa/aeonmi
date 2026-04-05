@@ -4,7 +4,6 @@
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use crate::core::{
     code_generator::CodeGenerator,
@@ -110,7 +109,7 @@ impl Compiler {
             println!("--- End Titan Debug ---");
         }
 
-        // 5) Code generation (to JS)
+        // 5) Code generation (native .ai via AiEmitter)
         let mut generator = CodeGenerator::new();
         let output_code = generator
             .generate(&ast)
@@ -188,45 +187,17 @@ fn module_name_from_path(path: &Path) -> String {
 
 /* ---------------- Helpers used by CLI `main.rs` ---------------- */
 
-/// Compile the given `.qube` to JS and run it with Node.
-/// Matches existing console messages used by tests. Node errors are non-fatal.
+/// Compile the given `.ai` file and write canonical .ai output.
+/// All output goes through AiEmitter — no JavaScript, no Node.js.
 #[allow(dead_code)]
-pub fn compile_and_run_js(input: &PathBuf) -> Result<(), String> {
+pub fn compile_to_ai(input: &PathBuf, out: Option<&PathBuf>) -> Result<(), String> {
     let src = fs::read_to_string(input)
         .map_err(|e| format!("failed to read {}: {e}", input.display()))?;
 
-    // Keep the legacy output name (tests may expect this exact filename)
-    let out = PathBuf::from("aeonmi.run.js");
-
-    let compiler = Compiler::new();
-    compiler
-        .compile_with(&src, out.to_str().unwrap(), true, false)
-        .map_err(|e| format!("{e}"))?;
-
-    // Try to run with node; warn but don't fail if it's missing or exits non-zero.
-    match Command::new("node").arg(&out).status() {
-        Ok(status) => {
-            if !status.success() {
-                eprintln!("warn: JS runtime exited with status: {status}");
-            }
-        }
-        Err(e) => {
-            eprintln!("warn: unable to launch Node.js: {e}");
-        }
-    }
-
-    Ok(())
-}
-
-/// Compile the given `.qube` to JS and write it to `out` (or default name).
-#[allow(dead_code)]
-pub fn compile_and_write_js(input: &PathBuf, out: Option<&PathBuf>) -> Result<(), String> {
-    let src = fs::read_to_string(input)
-        .map_err(|e| format!("failed to read {}: {e}", input.display()))?;
-
-    let out_path = out
-        .cloned()
-        .unwrap_or_else(|| PathBuf::from("aeonmi.run.js"));
+    let out_path = out.cloned().unwrap_or_else(|| {
+        let stem = input.file_stem().unwrap_or_default().to_string_lossy();
+        PathBuf::from(format!("{}.out.ai", stem))
+    });
 
     let compiler = Compiler::new();
     compiler
@@ -258,7 +229,7 @@ mod tests {
     #[test]
     fn test_full_pipeline_runs() {
         let compiler = Compiler::new();
-        let result = compiler.compile("let x = 42;", "test_output.js");
+        let result = compiler.compile("let x = 42;", "test_output.ai");
         assert!(result.is_ok());
     }
 }

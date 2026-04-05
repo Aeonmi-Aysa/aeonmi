@@ -175,6 +175,95 @@ impl NeuralNetwork {
         }
         Ok(current)
     }
+
+    /// Full backpropagation training step.
+    /// Returns MSE loss. Updates all layer weights in-place.
+    pub fn train_step(&mut self, input: &[f64], targets: &[f64], lr: f64) -> Result<f64, String> {
+        // Forward pass — collect activations at each layer boundary
+        let mut activations: Vec<Vec<f64>> = Vec::with_capacity(self.layers.len() + 1);
+        activations.push(input.to_vec());
+        let mut current = input.to_vec();
+        for (i, layer) in self.layers.iter().enumerate() {
+            current = layer.forward(&current)
+                .map_err(|e| format!("Layer {} forward: {}", i, e))?;
+            activations.push(current.clone());
+        }
+
+        let output = activations.last().unwrap();
+        if output.len() != targets.len() {
+            return Err(format!(
+                "target length {} != output length {}",
+                targets.len(),
+                output.len()
+            ));
+        }
+
+        // MSE loss
+        let loss: f64 = output.iter().zip(targets.iter())
+            .map(|(o, t)| (t - o).powi(2))
+            .sum::<f64>() / output.len() as f64;
+
+        let n = self.layers.len();
+        let mut deltas: Vec<Vec<f64>> = vec![vec![]; n];
+
+        // Output layer delta: (target - output) * activation'(output)
+        {
+            let layer = &self.layers[n - 1];
+            deltas[n - 1] = output.iter().zip(targets.iter())
+                .map(|(o, t)| (t - o) * layer.activation.derivative(*o))
+                .collect();
+        }
+
+        // Backpropagate through hidden layers
+        for l in (0..n - 1).rev() {
+            let mut d = vec![0.0_f64; self.layers[l].output_size];
+            for j in 0..self.layers[l].output_size {
+                let grad: f64 = self.layers[l + 1].weights.iter()
+                    .zip(deltas[l + 1].iter())
+                    .map(|(row, &nd)| row[j] * nd)
+                    .sum();
+                d[j] = grad * self.layers[l].activation.derivative(activations[l + 1][j]);
+            }
+            deltas[l] = d;
+        }
+
+        // Update weights and biases
+        for l in 0..n {
+            let layer_input = activations[l].clone();
+            let layer = &mut self.layers[l];
+            for (i, row) in layer.weights.iter_mut().enumerate() {
+                let d = deltas[l][i];
+                for (j, w) in row.iter_mut().enumerate() {
+                    *w += lr * d * layer_input[j];
+                }
+                layer.biases[i] += lr * d;
+            }
+        }
+
+        Ok(loss)
+    }
+
+    /// Serialize layer weights and biases for persistence.
+    /// Returns a Vec of (weights, biases) per layer.
+    pub fn export_weights(&self) -> Vec<(Vec<Vec<f64>>, Vec<f64>)> {
+        self.layers.iter()
+            .map(|l| (l.weights.clone(), l.biases.clone()))
+            .collect()
+    }
+
+    /// Restore weights from a previously exported snapshot.
+    /// Layer count and dimensions must match; mismatches are silently ignored.
+    pub fn import_weights(&mut self, snapshot: Vec<(Vec<Vec<f64>>, Vec<f64>)>) {
+        for (layer, (weights, biases)) in self.layers.iter_mut().zip(snapshot.into_iter()) {
+            if weights.len() == layer.output_size
+                && weights.first().map(|r| r.len()).unwrap_or(0) == layer.input_size
+                && biases.len() == layer.output_size
+            {
+                layer.weights = weights;
+                layer.biases  = biases;
+            }
+        }
+    }
 }
 
 #[cfg(test)]

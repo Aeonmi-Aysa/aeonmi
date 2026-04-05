@@ -5,10 +5,12 @@ use crate::cli_vault::VaultCommand as VaultSubcommand;
 
 #[derive(Copy, Clone, Debug, ValueEnum, Default)]
 pub enum EmitKind {
+    /// Emit JavaScript (legacy, kept for artifact-cache compat)
     #[clap(alias = "js")]
-    #[default]
     Js,
+    /// Emit canonical Aeonmi .ai source (default)
     #[clap(alias = "ai")]
+    #[default]
     Ai,
 }
 
@@ -73,27 +75,27 @@ pub struct AeonmiCli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Emit compiled output
+    /// Emit compiled .ai output
     ///
     /// Examples:
-    ///   aeonmi emit --format ai demo.qube -o out.ai
-    ///   aeonmi emit demo.qube --format js -o out.js
+    ///   aeonmi emit demo.ai -o out.ai
+    ///   aeonmi emit demo.qube --format ai -o out.ai
     Emit {
         /// Input file (.qube / .ai)
         #[arg(value_name = "INPUT")]
         input: PathBuf,
 
         /// Output format (alias: --format)
-        #[arg(long = "emit", value_enum, default_value_t = EmitKind::Js, visible_alias = "format")]
+        #[arg(long = "emit", value_enum, default_value_t = EmitKind::Ai, visible_alias = "format")]
         emit: EmitKind,
 
-        /// Output file path (short: -o). Defaults by format.
+        /// Output file path (short: -o). Defaults to output.ai.
         #[arg(
             short = 'o',
             long = "out",
             value_name = "FILE",
-            default_value = "output.js",
-            default_value_if("emit", "ai", "output.ai")
+            default_value = "output.ai",
+            default_value_if("emit", "js", "output.js")
         )]
         out: PathBuf,
 
@@ -113,7 +115,7 @@ pub enum Command {
         watch: bool,
     },
 
-    /// Run an .ai file directly (compile-to-js + execute with Node if available)
+    /// Run an .ai file through the native Aeonmi VM
     Run {
         #[arg(value_name = "INPUT")]
         input: PathBuf,
@@ -208,10 +210,10 @@ pub enum Command {
         /// Open TUI editor after creating
         #[arg(long = "tui", action = ArgAction::SetTrue)]
         tui: bool,
-        /// Compile immediately after creating (saves to output.js or output.ai depending on --emit js default)
+        /// Compile to .ai output immediately after creating
         #[arg(long = "compile", action = ArgAction::SetTrue)]
         compile: bool,
-        /// Run (implies JS target) after creation (compiles then runs with node)
+        /// Run through native VM after creation
         #[arg(long = "run", action = ArgAction::SetTrue)]
         run: bool,
     },
@@ -288,12 +290,6 @@ pub enum Command {
 
     /// Run a Python command / script (passthrough to `python`). Example: aeonmi python script.py
     Python {
-        #[arg(value_name = "ARGS", trailing_var_arg = true)]
-        args: Vec<String>,
-    },
-
-    /// Run a Node.js command / script (passthrough to `node`). Example: aeonmi node file.js
-    Node {
         #[arg(value_name = "ARGS", trailing_var_arg = true)]
         args: Vec<String>,
     },
@@ -445,15 +441,15 @@ pub enum Command {
         verbose: bool,
     },
 
-    /// Auto-detect and run a file by extension (.ai, .js, .py, .rs)
+    /// Auto-detect and run a file by extension (.ai, .qube, .py, .rs)
     ///
     /// Examples:
     ///   aeonmi exec script.py arg1 arg2
-    ///   aeonmi exec tool.js --flag
     ///   aeonmi exec module.rs            (temporary rustc build & run)
-    ///   aeonmi exec program.ai           (compile to JS then node)
+    ///   aeonmi exec program.ai           (native Aeonmi VM)
+    ///   aeonmi exec circuit.qube         (QUBE quantum executor)
     Exec {
-        /// File to execute (.ai | .js | .py | .rs)
+        /// File to execute (.ai | .qube | .py | .rs)
         #[arg(value_name = "FILE")]
         file: PathBuf,
         /// Additional arguments passed to the underlying runtime
@@ -462,10 +458,10 @@ pub enum Command {
         /// Watch the file and re-run on change
         #[arg(long = "watch", action = ArgAction::SetTrue)]
         watch: bool,
-        /// Keep temporary compiled artifacts (e.g., __exec_tmp.js)
+        /// Keep temporary compiled artifacts
         #[arg(long = "keep-temp", action = ArgAction::SetTrue)]
         keep_temp: bool,
-        /// (AI/JS only) Compile but skip executing node (useful for tests without node installed)
+        /// Compile only, skip execution (test hook)
         #[arg(long = "no-run", action = ArgAction::SetTrue, hide = true)]
         no_run: bool,
     },

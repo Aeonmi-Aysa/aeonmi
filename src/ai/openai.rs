@@ -30,11 +30,14 @@ struct ChoiceMessage { content: String }
 
 impl AiProvider for OpenAi {
     fn name(&self) -> &'static str { "openai" }
+    fn chat_stream(&self, prompt: &str, cb: &mut dyn FnMut(&str)) -> Result<()> { self.stream_chat(prompt, cb) }
     fn chat(&self, prompt: &str) -> Result<String> {
         let trimmed = prompt.trim();
         if trimmed.is_empty() { bail!("empty prompt"); }
         let key = std::env::var("OPENAI_API_KEY")
-            .map_err(|_| anyhow!("OPENAI_API_KEY not set in environment"))?;
+            .ok()
+            .or_else(|| crate::core::api_keys::get_api_key("openai"))
+            .ok_or_else(|| anyhow!("OPENAI_API_KEY not set in environment"))?;
         let model = std::env::var("AEONMI_OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
     let req = ChatRequest { model: &model, messages: vec![ChatMessage { role: "user", content: trimmed }], temperature: 0.7, stream: None };
         let client = reqwest::blocking::Client::builder()
@@ -65,7 +68,9 @@ impl OpenAi {
         let trimmed = prompt.trim();
         if trimmed.is_empty() { bail!("empty prompt"); }
         let key = std::env::var("OPENAI_API_KEY")
-            .map_err(|_| anyhow!("OPENAI_API_KEY not set in environment"))?;
+            .ok()
+            .or_else(|| crate::core::api_keys::get_api_key("openai"))
+            .ok_or_else(|| anyhow!("OPENAI_API_KEY not set in environment"))?;
         let model = std::env::var("AEONMI_OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
         let req = ChatRequest { model: &model, messages: vec![ChatMessage { role: "user", content: trimmed }], temperature: 0.7, stream: Some(true) };
         let client = reqwest::blocking::Client::builder().timeout(Duration::from_secs(120)).build()?;
@@ -99,6 +104,3 @@ impl OpenAi {
     }
 }
 
-impl super::AiProvider for OpenAi {
-    fn chat_stream(&self, prompt: &str, cb: &mut dyn FnMut(&str)) -> Result<()> { self.stream_chat(prompt, cb) }
-}

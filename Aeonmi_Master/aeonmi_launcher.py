@@ -22,17 +22,29 @@ import shutil
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
-AEONMI_EXE  = os.path.join(SCRIPT_DIR, "Aeonmi.exe")
 AI_ROOT     = os.path.join(SCRIPT_DIR, "aeonmi_ai")
 
-# Fallback: look for exe next to script or on PATH
-if not os.path.exists(AEONMI_EXE):
-    found = shutil.which("Aeonmi")
-    if found:
-        AEONMI_EXE = found
-    else:
-        # Try default build location
-        AEONMI_EXE = r"C:\RustTarget\release\Aeonmi.exe"
+# Binary resolution — checks all known locations in order
+def _find_binary():
+    candidates = [
+        os.path.join(SCRIPT_DIR, "Aeonmi.exe"),
+        os.path.join(SCRIPT_DIR, "aeonmi_project.exe"),
+        os.path.join(os.path.dirname(SCRIPT_DIR), "target", "release", "Aeonmi.exe"),
+        os.path.join(os.path.dirname(SCRIPT_DIR), "target", "release", "aeonmi_project.exe"),
+        r"C:\RustTarget\release\aeonmi_project.exe",
+        r"C:\RustTarget\release\Aeonmi.exe",
+    ]
+    # Also check PATH
+    for name in ("Aeonmi", "aeonmi_project"):
+        found = shutil.which(name)
+        if found:
+            candidates.insert(0, found)
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    return candidates[-1]  # return last as fallback so error message is useful
+
+AEONMI_EXE = _find_binary()
 
 DEMOS = {
     "forge":   os.path.join(AI_ROOT, "demo", "forge.ai"),
@@ -81,7 +93,7 @@ def run_ai(path, cwd=None):
         print(f"{ANSI_RED}File not found: {path}{ANSI_RESET}")
         return 1
     result = subprocess.run(
-        [AEONMI_EXE, "exec", path],
+        [AEONMI_EXE, "native", path],
         cwd=cwd or SCRIPT_DIR,
     )
     return result.returncode

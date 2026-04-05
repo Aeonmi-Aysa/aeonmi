@@ -101,7 +101,7 @@ pub struct LanguageEvolutionCore {
     /// Evolution generation.
     pub generation: u64,
     /// Moving average of semantic depth (for trend tracking).
-    semantic_depth_avg: f64,
+    pub semantic_depth_avg: f64,
     /// History of recent inputs (for context analysis).
     history: Vec<String>,
     pub max_history: usize,

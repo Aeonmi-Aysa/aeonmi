@@ -1,0 +1,68 @@
+⍝ ast.ai — Aeonmi self-hosted AST v0.2
+⍝ Node record: [type, f0, f1, f2]  — 4 fields per node, appended flat
+⍝ Convention: constructors return modified nodes array (caller must reassign)
+⍝             use len(nodes)/4 BEFORE call to get the new node's index
+⍝ Node type IDs:
+⍝   1=Number  2=String  3=Ident  4=BinOp  5=UnaryOp
+⍝   6=Let  7=Assign  8=If  9=While  10=Return  11=Call  12=Block
+⍝ f0/f1/f2 per node type:
+⍝   Number:  f0=value(num)    f1=0       f2=0
+⍝   String:  f0=value(str)    f1=0       f2=0
+⍝   Ident:   f0=name(str)     f1=0       f2=0
+⍝   BinOp:   f0=op_id(num)    f1=lhs_i   f2=rhs_i
+⍝   Let:     f0=name(str)     f1=init_i  f2=0
+⍝   Assign:  f0=name(str)     f1=val_i   f2=0
+⍝   Return:  f0=expr_i        f1=0       f2=0
+⍝ Functions: 12
+
+◯ a_push4⟨nodes, t, f0, f1, f2⟩ {
+    nodes.push(t);
+    nodes.push(f0);
+    nodes.push(f1);
+    nodes.push(f2);
+    return nodes;
+}
+
+◯ ast_new⟨⟩ {
+    return [];
+}
+
+◯ ast_type⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4, idx * 4 + 1).pop();
+}
+
+◯ ast_f0⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4 + 1, idx * 4 + 2).pop();
+}
+
+◯ ast_f1⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4 + 2, idx * 4 + 3).pop();
+}
+
+◯ ast_f2⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4 + 3, idx * 4 + 4).pop();
+}
+
+◯ ast_number⟨nodes, val⟩ {
+    return a_push4(nodes, 1, val, 0, 0);
+}
+
+◯ ast_string⟨nodes, val⟩ {
+    return a_push4(nodes, 2, val, 0, 0);
+}
+
+◯ ast_ident⟨nodes, name⟩ {
+    return a_push4(nodes, 3, name, 0, 0);
+}
+
+◯ ast_binop⟨nodes, op, lhs, rhs⟩ {
+    return a_push4(nodes, 4, op, lhs, rhs);
+}
+
+◯ ast_let⟨nodes, name, init⟩ {
+    return a_push4(nodes, 6, name, init, 0);
+}
+
+◯ ast_return⟨nodes, expr⟩ {
+    return a_push4(nodes, 10, expr, 0, 0);
+}

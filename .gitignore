@@ -1,75 +1,40 @@
-### Rust build output
-/target/
-**/target/
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+secrets/
 
-### Compiled binaries — never commit .exe to source repo (use AeonmiDist/ for releases)
-*.exe
-*.dll
-*.so
-*.dylib
+# Rust build artifacts
+target/
+**/*.rs.bk
 
-### Debug symbols / incremental build artifacts
-*.pdb
-*.rmeta
-*.rlib
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
 
-### Virtual envs / Python
-/.venv/
-**/*.pyc
-**/__pycache__/
-
-### Node modules (prevent huge vendor commits)
-/node_modules/
-**/node_modules/
-
-### Generated runtime artifacts
-aeonmi.run.js
-output.js
-output.ai
-__exec_tmp*.js
-__exec_tmp_rs*
-workspace_build.log
-workspace_test.log
-tui_crash.log
-.aeonmi_last_search
-
-### Test output files (large, auto-generated)
-all_tests_out.txt
-*_test_out.txt
-test_results*.txt
-
-### Temp / scratch files at repo root
-read_tail.py
-apply_fixes.ps1
-apply_fixes.py
-extract_*.py
-patch_*.py
-build_*.bat
-fix_*.py
-C:/Temp/
-
-### Large PDFs and distribution archives — store separately
-*.pdf
-AeonmiDist/*.zip
-AeonmiDist/*.tar.gz
-
-### OS / editor
-*.swp
-*.DS_Store
+# OS
+.DS_Store
 Thumbs.db
-.idea/
-.vscode/settings.json
+desktop.ini
 
-### Leftover parser token names accidentally committed in old .gitignore
-return
-true
-self.parse_for()
-self.parse_function_decl()
-self.parse_hieroglyphic_op()
-self.parse_if()
-self.parse_log()
-self.parse_return()
-self.parse_variable_decl()
-self.parse_while()
-stmts
-sym
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+nexus_error.log
+
+# Archive
+_archive_*/

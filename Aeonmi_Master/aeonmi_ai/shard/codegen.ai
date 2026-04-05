@@ -1,0 +1,112 @@
+⍝ codegen.ai — Aeonmi self-hosted code emitter v0.2
+⍝ Input:  nd — flat AST array [type, f0, f1, f2] × N (from parser.ai)
+⍝ Output: emitted .ai source string
+⍝
+⍝ AST node types:
+⍝   1=Number  2=String  3=Ident  4=BinOp  6=LetStmt  10=ReturnStmt
+⍝ BinOp op codes (match lexer.ai):
+⍝   20=+  21=-  22=*  23=/  24===  25=!=  26=<  27=>  28=<=  29=>=
+⍝
+⍝ Strategy: single forward pass over nodes array.
+⍝ strs[i] = string representation of node i (children always before parents).
+⍝ Top-level stmt lines collected into out[], joined at end.
+⍝
+⍝ Node field conventions (from parser.ai):
+⍝   Let(6):    f0=varname  f1=value_node_idx  f2=0
+⍝   Return(10): f0=value_node_idx  f1=0  f2=0
+⍝   BinOp(4):  f0=op_code  f1=left_idx  f2=right_idx
+⍝   Number(1)/String(2)/Ident(3): f0=literal_value  f1=0  f2=0
+⍝
+⍝ Tiered prefix (alphabetical capture rule):
+⍝   a_* helpers  b_* op-string  c_* node emitter  d_* stmt collector  gen_* API
+⍝ Functions: 8
+
+◯ a_nf0⟨nd, i⟩ {
+    return nd.slice(i * 4 + 1, i * 4 + 2).pop();
+}
+
+◯ a_nf1⟨nd, i⟩ {
+    return nd.slice(i * 4 + 2, i * 4 + 3).pop();
+}
+
+◯ a_nf2⟨nd, i⟩ {
+    return nd.slice(i * 4 + 3, i * 4 + 4).pop();
+}
+
+◯ a_ntype⟨nd, i⟩ {
+    return nd.slice(i * 4, i * 4 + 1).pop();
+}
+
+◯ b_op_str⟨op⟩ {
+    if (op == 20) { return "+"; }
+    if (op == 21) { return "-"; }
+    if (op == 22) { return "*"; }
+    if (op == 23) { return "/"; }
+    if (op == 24) { return "=="; }
+    if (op == 25) { return "!="; }
+    if (op == 26) { return "<"; }
+    if (op == 27) { return ">"; }
+    if (op == 28) { return "<="; }
+    if (op == 29) { return ">="; }
+    return "?";
+}
+
+◯ c_emit_node⟨nd, i, strs⟩ {
+    ⍝ Returns string for node i. Leaves use f0. BinOp looks up children.
+    ⍝ Let/Return return "" — d_collect handles those.
+    let tt = a_ntype(nd, i);
+    if (tt == 1) { return a_nf0(nd, i); }
+    if (tt == 2) { return "\"" + a_nf0(nd, i) + "\""; }
+    if (tt == 3) { return a_nf0(nd, i); }
+    if (tt == 4) {
+        let op = b_op_str(a_nf0(nd, i));
+        let li = a_nf1(nd, i);
+        let ri = a_nf2(nd, i);
+        let ls = strs.slice(li, li + 1).pop();
+        let rs = strs.slice(ri, ri + 1).pop();
+        return ls + " " + op + " " + rs;
+    }
+    return "";
+}
+
+◯ d_collect⟨nd, strs, out⟩ {
+    ⍝ Forward pass: builds strs[] and collects stmt lines into out[].
+    ⍝ NOTE: strs is a local accumulator — arrays copy on call but mutations
+    ⍝ within this fn persist; c_emit_node only reads strs (no side-effects).
+    let count = len(nd) / 4;
+    let i = 0;
+    while (i < count) {
+        let tt  = a_ntype(nd, i);
+        let f0  = a_nf0(nd, i);
+        let f1  = a_nf1(nd, i);
+        ⍝ Base string from node type (leaves + BinOp)
+        let s   = c_emit_node(nd, i, strs);
+        ⍝ Value-index for stmt nodes: Let uses f1, Return uses f0
+        let vi  = f1;
+        if (tt == 10) { vi = f0; }
+        let vs  = strs.slice(vi, vi + 1).pop();
+        ⍝ Overwrite s for statement nodes
+        let is_stmt = false;
+        if (tt == 6)  { s = "let " + f0 + " = " + vs + ";"; is_stmt = true; }
+        if (tt == 10) { s = "return " + vs + ";";            is_stmt = true; }
+        ⍝ Accumulate into local strs and (maybe) out
+        strs.push(s);
+        if (is_stmt) { out.push(s); }
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ gen_emit⟨nd⟩ {
+    ⍝ Public entry: walks AST, returns emitted source string.
+    let strs = [];
+    let out  = [];
+    out = d_collect(nd, strs, out);
+    let result = "";
+    let j = 0;
+    while (j < len(out)) {
+        result = result + out.slice(j, j + 1).pop() + "\n";
+        j = j + 1;
+    }
+    return result;
+}

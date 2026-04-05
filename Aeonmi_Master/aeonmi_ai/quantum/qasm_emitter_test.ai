@@ -1,0 +1,60 @@
+⍝ qasm_emitter_test.ai — Tests for qasm_emitter.ai
+⍝ Total functions in scope: 9 (qasm_emitter) + check + main = 11
+import { a_gate_str, a_int_str, a_op_ctrl, a_op_tgt, a_op_type, b_emit_op, c_emit_ops, qasm_emit } from "./qasm_emitter";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "got=", got, "want=", want);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Unit: a_int_str
+    p = p + check("int_str 0",  a_int_str(0),  "0");
+    p = p + check("int_str 9",  a_int_str(9),  "9");
+    p = p + check("int_str 15", a_int_str(15), "15");
+
+    ⍝ Unit: a_gate_str
+    p = p + check("gate_str 0(h)",    a_gate_str(0), "h");
+    p = p + check("gate_str 4(cx)",   a_gate_str(4), "cx");
+    p = p + check("gate_str 7(meas)", a_gate_str(7), "measure");
+
+    ⍝ Bell circuit descriptor (hand-built, no qiskit.ai import)
+    ⍝ [nq=2, nc=2, shots=1024, ops=4, H(0), CX(ctrl=0,tgt=1), M(0,0), M(1,1)]
+    let desc = [2, 2, 1024, 4, 0, 0, -1, 4, 1, 0, 7, 0, 0, 7, 1, 1];
+
+    ⍝ Unit: accessors
+    p = p + check("op0 type(H)",   a_op_type(desc, 0), 0);
+    p = p + check("op0 tgt=0",     a_op_tgt(desc, 0),  0);
+    p = p + check("op0 ctrl=-1",   a_op_ctrl(desc, 0), -1);
+    p = p + check("op1 type(CX)",  a_op_type(desc, 1), 4);
+    p = p + check("op1 tgt=1",     a_op_tgt(desc, 1),  1);
+    p = p + check("op1 ctrl=0",    a_op_ctrl(desc, 1), 0);
+
+    ⍝ Unit: b_emit_op
+    p = p + check("emit H",    b_emit_op(desc, 0), "h q[0];
+");
+    p = p + check("emit CX",   b_emit_op(desc, 1), "cx q[0],q[1];
+");
+    p = p + check("emit M0",   b_emit_op(desc, 2), "measure q[0] -> c[0];
+");
+    p = p + check("emit M1",   b_emit_op(desc, 3), "measure q[1] -> c[1];
+");
+
+    ⍝ Integration: full QASM
+    let qasm = qasm_emit(desc);
+    let want = "OPENQASM 2.0;
+qreg q[2];
+creg c[2];
+h q[0];
+cx q[0],q[1];
+measure q[0] -> c[0];
+measure q[1] -> c[1];
+";
+    p = p + check("full bell qasm", qasm, want);
+
+    print("qasm_emitter tests passed:", p, "/ 16");
+    print("=== PASS ===");
+}

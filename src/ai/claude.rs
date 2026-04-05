@@ -95,7 +95,10 @@ impl AiProvider for Claude {
         if trimmed.is_empty() { bail!("empty prompt"); }
 
         let key = std::env::var("ANTHROPIC_API_KEY")
-            .map_err(|_| anyhow!("ANTHROPIC_API_KEY not set — run: set ANTHROPIC_API_KEY=sk-ant-..."))?;
+            .ok()
+            .or_else(|| crate::core::api_keys::get_api_key("claude"))
+            .or_else(|| crate::core::api_keys::get_api_key("anthropic"))
+            .ok_or_else(|| anyhow!("ANTHROPIC_API_KEY not set — run: set ANTHROPIC_API_KEY=sk-ant-..."))?;
 
         let model = std::env::var("AEONMI_CLAUDE_MODEL")
             .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string());
