@@ -1,0 +1,1340 @@
+================================================================================
+AEONMI TEXTBOOK SOURCE REVIEW — .AI FILE ANALYSIS
+Generated: 2026-04-05
+Purpose: Extract syntax patterns, module purposes, and instructive examples
+         from all .ai source files for use in the Aeonmi language textbook.
+================================================================================
+
+
+================================================================================
+SECTION 1: LANGUAGE DEFINITION FILES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/lang/ops.ai ===
+PURPOSE: Self-describing operator registry for the Aeonmi language. The language
+         defines its own operator table in Aeonmi itself — IDs, precedence,
+         associativity, and arity are all encoded as pure functions returning
+         integers. This is language self-description: Aeonmi models itself.
+SYNTAX DEMONSTRATED:
+  - Circle-function declaration:  ◯ fn_name⟨param⟩ { ... }
+  - Zero-parameter functions:     ◯ op_add⟨⟩ { return N; }
+  - Single-parameter functions:   ◯ op_arity⟨id⟩ { ... }
+  - Inline comment:               ⍝ comment text (APL-derived comment character)
+  - Integer return values
+  - if-statement with comparison: if (id == 10) { return 1; }
+  - Chained if blocks (no else-if): sequential if statements
+  - main function entry point:    ◯ main⟨⟩ { ... }
+  - print() builtin call
+  - String argument to print
+KEY CODE EXAMPLES:
+◯ op_arity⟨id⟩ {
+    ⍝ Arity (1=unary, 2=binary)
+    if (id == 10) { return 1; }  ⍝ not
+    return 2;
+}
+◯ op_prec⟨id⟩ {
+    ⍝ Precedence level (higher = binds tighter)
+    if (id == 3) { return 50; }   ⍝ *
+    if (id == 4) { return 50; }   ⍝ /
+    if (id == 1) { return 40; }   ⍝ +
+    if (id == 2) { return 40; }   ⍝ -
+    if (id == 5) { return 30; }   ⍝ ==
+    if (id == 9) { return 20; }   ⍝ &&
+    if (id == 11) { return 10; }  ⍝ ||
+    if (id == 10) { return 60; }  ⍝ ! (unary, high prec)
+    return 0;
+}
+◯ main⟨⟩ {
+    print("ops module loaded — add sub mul div eq neq gt lt and or not + arity prec assoc");
+}
+TEXTBOOK RELEVANCE: Chapter 2 — Operators and Expressions; Chapter 9 —
+  Self-Hosting (the language modeling its own operator table)
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/lang/types.ai ===
+PURPOSE: Self-describing type registry. Encodes the entire Aeonmi type system
+         as integer IDs returned from functions. Includes type predicates
+         (is_numeric, is_quantum). The language knows what types it has by
+         running Aeonmi code — not by consulting an external schema.
+SYNTAX DEMONSTRATED:
+  - Circle-function zero-parameter returning int: ◯ ty_bool⟨⟩ { return 1; }
+  - Type predicate functions returning bool:      ◯ ty_is_numeric⟨id⟩ { ... }
+  - Boolean literals:  return true; / return false;
+  - Inline APL comment: ⍝ True if type is int or float
+  - Function call within print:  print("... ", ty_is_numeric(ty_int()), ...)
+  - Multi-argument print with mixed literals and calls
+  - Type system IDs: 0=nil 1=bool 2=int 3=float 4=string 5=array 6=func 7=qubit 8=circuit 9=agent
+KEY CODE EXAMPLES:
+◯ ty_is_numeric⟨id⟩ {
+    ⍝ True if type is int or float
+    if (id == 2) { return true; }
+    if (id == 3) { return true; }
+    return false;
+}
+◯ ty_is_quantum⟨id⟩ {
+    ⍝ True if type is qubit or circuit
+    if (id == 7) { return true; }
+    if (id == 8) { return true; }
+    return false;
+}
+◯ main⟨⟩ {
+    print("types module loaded — nil bool int float string array func qubit circuit agent");
+    print("is_numeric(int):", ty_is_numeric(ty_int()), "is_quantum(qubit):", ty_is_quantum(ty_qubit()));
+}
+TEXTBOOK RELEVANCE: Chapter 3 — The Aeonmi Type System; Chapter 9 —
+  Self-Hosting; sidebar on qubit and agent as first-class types
+
+
+================================================================================
+SECTION 2: LEARNING / REINFORCEMENT FILES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/learn/learn.ai ===
+PURPOSE: Learning loop orchestrator. Combines the pattern tracker (pattern.ai)
+         and reinforcement memory (reinforce.ai) into a unified state machine.
+         State is a 2-element flat array: [pattern_store, memory_store]. All
+         operations are pure functions returning new state — no mutation.
+SYNTAX DEMONSTRATED:
+  - Import statement:  import { fn1, fn2, fn3 } from "./module";
+  - Destructured named imports
+  - State represented as flat array: let state = []; state.push(x); state.push(y);
+  - Array element extraction pattern: state.slice(0, 1).pop()
+  - Let binding: let pat = state.slice(0, 1).pop();
+  - Building a new array and returning it
+  - Function composition (calling imported functions)
+  - Multiple return values via array
+KEY CODE EXAMPLES:
+import { pat_add, pat_count, pat_new, pat_top } from "./pattern";
+import { reinf_decay, reinf_new, reinf_score, reinf_touch } from "./reinforce";
+
+◯ learn_absorb⟨state, key⟩ {
+    let pat = state.slice(0, 1).pop();
+    let mem = state.slice(1, 2).pop();
+    let pat2 = pat_add(pat, key);
+    let mem2 = reinf_touch(mem, key);
+    let out = [];
+    out.push(pat2);
+    out.push(mem2);
+    return out;
+}
+◯ learn_new⟨⟩ {
+    let pat = pat_new();
+    let mem = reinf_new();
+    let out = [];
+    out.push(pat);
+    out.push(mem);
+    return out;
+}
+TEXTBOOK RELEVANCE: Chapter 7 — AI-Native Patterns; Chapter 8 — Module System
+  and Imports; Chapter 10 — Building Cognitive State Machines
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/learn/pattern.ai ===
+PURPOSE: Frequency-tracking module. Implements an associative map over a flat
+         array using the [key, count] * N layout (2 fields per record). Provides
+         pat_add (insert/increment), pat_count (lookup), pat_top (argmax).
+         No imports — fully self-contained.
+SYNTAX DEMONSTRATED:
+  - Flat-array record pattern: 2 fields per entry, index arithmetic
+  - len(arr) / 2 to get record count
+  - While loop with manual index:  while (i < n) { ... i = i + 1; }
+  - Array index arithmetic:  let base = i * 2;
+  - Conditional record update (found/not-found pattern)
+  - Rebuilding array on update (immutable-style copy)
+  - Empty array initializer:  return [];
+  - Best-value tracking (argmax pattern)
+KEY CODE EXAMPLES:
+◯ pat_add⟨pat, key⟩ {
+    let n = len(pat) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        pat.push(key);
+        pat.push(1);
+        return pat;
+    }
+    // rebuild with incremented count at found position
+    ...
+}
+◯ pat_top⟨pat⟩ {
+    let n = len(pat) / 2;
+    if (n == 0) { return ""; }
+    let best_key = "";
+    let best_count = 0;
+    while (i < n) {
+        if (c > best_count) { best_key = k; best_count = c; }
+        i = i + 1;
+    }
+    return best_key;
+}
+TEXTBOOK RELEVANCE: Chapter 6 — Flat-Array Data Structures; Chapter 7 —
+  AI-Native Patterns (frequency learning without maps/dictionaries)
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/learn/reinforce.ai ===
+PURPOSE: Strength-weighted reinforcement memory. Flat array layout:
+         [key, val, strength] * N (3 fields per record). Implements
+         reinf_touch (add/strengthen), reinf_decay (weaken all by rate),
+         reinf_score (lookup strength). Memory that forgets over time.
+SYNTAX DEMONSTRATED:
+  - 3-field flat-array record layout
+  - len(mem) / 3 record count
+  - Strength arithmetic:  out.push(s * rate);
+  - "touch" (seen again = strengthen) vs "decay" (time passes = weaken)
+  - Upsert pattern: add if not found, strengthen if found
+  - Initial strength of 1 on first observation
+  - Rebuilding arrays immutably on update
+KEY CODE EXAMPLES:
+◯ reinf_decay⟨mem, rate⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        let v = mem.slice(base + 1, base + 2).pop();
+        let s = mem.slice(base + 2, base + 3).pop();
+        out.push(k);
+        out.push(v);
+        out.push(s * rate);
+        i = i + 1;
+    }
+    return out;
+}
+◯ reinf_touch⟨mem, key⟩ {
+    // if not found: push [key, "observed", 1]
+    // if found: rebuild with strength + 1 at that entry
+}
+TEXTBOOK RELEVANCE: Chapter 7 — Reinforcement Memory; Chapter 10 —
+  Temporal Decay in AI State
+
+
+================================================================================
+SECTION 3: MOTHER AI COGNITIVE MODULES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/core.ai ===
+PURPOSE: Mother Memory bootstrap — unified state combining journal, memory,
+         and rules into a single 3-element flat array: [journal, memory, rules].
+         Imports from _min (minimal) versions of each submodule to cap total
+         function count. Includes ai_core_sync_genesis which emits parseable
+         log lines for the Python genesis_sync.py bridge.
+SYNTAX DEMONSTRATED:
+  - Import from relative path:  import { j_append, j_new } from "./journal_min";
+  - Composite state as nested array:  [journal_arr, memory_arr, rules_arr]
+  - State decomposition pattern:  state.slice(0,1).pop() / slice(1,2) / slice(2,3)
+  - State reconstruction:  result.push(j); result.push(m); result.push(r);
+  - Mixed syntax: ◯ function declarations alongside bare function declarations
+  - @@ comment (genesis sync annotation):  @@ core_sync_genesis: ...
+  - log() builtin (distinct from print — goes to structured output)
+  - String concatenation in log:  log("AI_MEMORY_STATE:mem_key:" + k + ":" + v);
+  - While loop over memory entries with base arithmetic
+KEY CODE EXAMPLES:
+◯ core_learn⟨state, key, val⟩ {
+    let j = state.slice(0, 1).pop();
+    let m = state.slice(1, 2).pop();
+    let r = state.slice(2, 3).pop();
+    let m2 = m_store(m, key, val);
+    let j2 = j_append(j, "learn", key);
+    let result = [];
+    result.push(j2);
+    result.push(m2);
+    result.push(r);
+    return result;
+}
+// Genesis sync bridge:
+function ai_core_sync_genesis(state) {
+    log("AI_MEMORY_STATE:memory_count:" + mem_total);
+    log("AI_MEMORY_STATE:mem_key:" + k + ":" + v);
+    log("AI_MEMORY_STATE:journal_entry:" + tag + ":" + payload);
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Mother Architecture; Chapter 8 — Module
+  Composition; Chapter 11 — Bridging Aeonmi to External Systems (genesis sync)
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/journal.ai ===
+PURPOSE: Flat-array event log. Layout: [tag, payload, ts] * N (3 fields/entry).
+         Full journal API: new, append, count, get by index, query by tag,
+         recent(n). Pure functions — no mutation, returns new arrays.
+SYNTAX DEMONSTRATED:
+  - 3-field flat-array with timestamps (ts=0 placeholder)
+  - len(j) / 3 entry count
+  - Index arithmetic: let base = idx * 3;
+  - Named field access via arithmetic: idx*3+1 for payload, idx*3+2 for ts
+  - Query returning a result array (filter by tag)
+  - Windowed-read pattern (recent N entries)
+  - Zero-guard:  if (n == 0) { return "none"; }
+KEY CODE EXAMPLES:
+◯ journal_append⟨j, tag, payload⟩ {
+    j.push(tag);
+    j.push(payload);
+    j.push(0);
+    return j;
+}
+◯ journal_query_payloads⟨j, target_tag⟩ {
+    let result = [];
+    let total = journal_count(j);
+    let i = 0;
+    while (i < total) {
+        let t = journal_get_tag(j, i);
+        if (t == target_tag) {
+            let p = journal_get_payload(j, i);
+            result.push(p);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+◯ journal_recent⟨j, n⟩ {
+    let total = journal_count(j);
+    let start = total - n;
+    if (start < 0) { start = 0; }
+    // ... collect last n entries
+}
+TEXTBOOK RELEVANCE: Chapter 6 — Flat-Array Structures; Chapter 10 —
+  Persistent Event Logging in AI Systems
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/memory.ai ===
+PURPOSE: Associative flat-array memory store. Layout: [key, val, strength] * N.
+         Strength is a float 0.0-1.0. Full API: store (upsert), recall, reinforce
+         (boost strength), decay_all, active_count (above threshold), delete.
+         Helpers prefixed a_ to ensure alphabetical declaration order.
+SYNTAX DEMONSTRATED:
+  - Helper prefix convention (a_ sorts before mem_):  ◯ a_mem_find_idx⟨m, key⟩
+  - Find-then-rebuild pattern (no in-place mutation)
+  - Float strength: let ns = cur_str + boost; if (ns > 1) { ns = 1; }
+  - Threshold filtering:  if (s >= threshold) { count = count + 1; }
+  - Delete by key (rebuild excluding matching key)
+  - Returning sentinel -1 for not-found
+  - Helper calling helper (mem_reinforce calls a_mem_find_idx + a_mem_rebuild)
+KEY CODE EXAMPLES:
+◯ mem_store⟨m, key, val⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    return a_mem_rebuild(m, idx, val, 1);
+}
+◯ mem_decay_all⟨m, rate⟩ {
+    // multiply every strength by rate, clamp to 0
+    let ns = s - rate;
+    if (ns < 0) { ns = 0; }
+}
+◯ m_delete⟨m, key⟩ {
+    // rebuild excluding the matching key
+    if (k != key) { result.push(k); result.push(v); result.push(s); }
+}
+TEXTBOOK RELEVANCE: Chapter 6 — Flat-Array Structures; Chapter 7 —
+  Associative Memory; Chapter 10 — Strength-Weighted Recall
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/rules.ai ===
+PURPOSE: Flat-array rule engine. Layout: [name, cond_name, action_name, pri, enabled] * N
+         (5 fields per rule). Rules store condition and action as STRING names —
+         the caller holds actual function references. Supports register, enable,
+         disable, fire (match condition name, return action name).
+SYNTAX DEMONSTRATED:
+  - 5-field flat-array records
+  - len(rules) / 5 record count
+  - Boolean field storage:  rules.push(true); / if (en == true)
+  - rule_register adds entry with enabled=true by default
+  - r_fire returns action name string or "none"
+  - a_rule_set_enabled: generic setter used by both enable and disable
+  - Nested field extraction at fixed offsets: base+1, base+2, base+3, base+4
+KEY CODE EXAMPLES:
+◯ rule_register⟨rules, name, cond_name, action_name, pri⟩ {
+    rules.push(name);
+    rules.push(cond_name);
+    rules.push(action_name);
+    rules.push(pri);
+    rules.push(true);
+    return rules;
+}
+◯ r_fire⟨rules, cond_name⟩ {
+    let total = len(rules) / 5;
+    let i = 0;
+    while (i < total) {
+        let c  = rules.slice(base + 1, base + 2).pop();
+        let ac = rules.slice(base + 2, base + 3).pop();
+        let en = rules.slice(base + 4, base + 5).pop();
+        if (c == cond_name) {
+            if (en == true) { return ac; }
+        }
+        i = i + 1;
+    }
+    return "none";
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Rule Engines in Aeonmi; Chapter 7 —
+  AI-Native Patterns (production rule systems)
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/maintenance.ai ===
+PURPOSE: Scheduled upkeep module. Runs decay passes on memory and logs them to
+         journal. Computes a health score (active_memory / total_memory ratio).
+         Deliberately minimized to 3 functions only to avoid function-count
+         explosion when composed with other modules.
+SYNTAX DEMONSTRATED:
+  - Import from _min variants:  import { m_active, m_count, m_decay } from "./memory_min";
+  - Multi-return via array: return [m2, j2];
+  - Health score calculation: active / total (float division)
+  - Report array: push 4 values, return as data tuple
+  - Comment explaining design constraint: ⍝ avoids O(2^n) clone hang
+KEY CODE EXAMPLES:
+◯ maint_decay_pass⟨mem, journal, decay_rate⟩ {
+    let m2 = m_decay(mem, decay_rate);
+    let j2 = j_append(journal, "maint", "decay_pass");
+    let result = [];
+    result.push(m2);
+    result.push(j2);
+    return result;
+}
+◯ maint_health_score⟨mem, threshold⟩ {
+    let total = m_count(mem);
+    if (total == 0) { return 0; }
+    let active = m_active(mem, threshold);
+    return active / total;
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Maintenance and Decay Cycles; Chapter 4 —
+  Performance Constraints (function budget, clone cost)
+
+
+================================================================================
+SECTION 4: DEMO / SHOWCASE FILES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/forge.ai ===
+PURPOSE: Meta code generator — Aeonmi writing Aeonmi. Takes module specs
+         (function count, type count) and generates function blueprints with
+         Halstead-inspired complexity analysis. Demonstrates meta-programming:
+         the AI language modeling its own structure. No imports, 12 functions.
+SYNTAX DEMONSTRATED:
+  - a_/b_/c_/d_ prefix ordering for alphabetical environment capture
+  - Integer division trick as modulo substitute:  v = func_id - (func_id / 3) * 3;
+  - Complexity formula inlined:  n_funcs * n_types + n_deps * 2
+  - Function count limit (VM limit = 14): if (n_funcs > 14) { return 0; }
+  - Print with concatenation of string + number + string:  print("fn m", module_id, "_f", func_id, ...)
+  - Array literal with multiple values:  let result = [module_id, n_funcs, n_types];
+  - Pipeline pattern: validate → emit → analyze → render → report
+  - Comment explaining the VM constraint inline
+KEY CODE EXAMPLES:
+◯ a_forge_param_ct⟨func_id⟩ {
+    ⍝ Param count cycles 1-2-3-1-2-3 (no % operator: use integer division trick)
+    let v = func_id - (func_id / 3) * 3;
+    return v + 1;
+}
+◯ b_forge_complexity⟨n_funcs, n_types, n_deps⟩ {
+    ⍝ Halstead-inspired complexity: funcs * types + deps * 2
+    return n_funcs * n_types + n_deps * 2;
+}
+◯ d_forge_run⟨module_id, n_funcs, n_types⟩ {
+    let valid = c_forge_validate(n_funcs, n_types);
+    if (valid == 0) {
+        print("[FORGE ERROR] Invalid spec: module=", module_id, ...);
+        return 0;
+    }
+    let emitted = d_forge_emit(module_id, n_funcs, n_types);
+    let deps    = b_forge_deps(n_funcs);
+    let score   = b_forge_complexity(n_funcs, n_types, deps);
+    // ...
+    return emitted;
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Self-Hosting and Meta-Programming; Chapter 5 —
+  VM Constraints and Function Budgets; Chapter 11 — Aeonmi Generating Aeonmi
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/quantum_cognition.ai ===
+PURPOSE: Quantum Cognition Engine — a 3-qubit AI decision model. Each qubit
+         represents a cognitive dimension: Explore (always superposed via
+         Hadamard), Confidence, Novelty. Decisions emerge from qubit collapse,
+         not classical logic. Maps 3-bit outcomes to 8 cognitive actions.
+SYNTAX DEMONSTRATED:
+  - Qubit state as 4-element array: [re0, im0, re1, im1]
+  - |0⟩ literal:  return [1, 0, 0, 0];
+  - Hadamard gate math:  (re0 + re1) * k  where k = 0.70710678
+  - Pauli-X gate (bit flip): swap re0,im0 with re1,im1
+  - Measurement: if P(|1⟩) > 0.5 return 1 else 0
+  - 3-bit integer from 3 bits:  b0 + b1 * 2 + b2 * 4
+  - Normalization check: p0 + p1 should be ~1.0
+  - a_/b_/c_/d_ prefix system for quantum module
+  - Float literal 0.70710678 (1/sqrt(2))
+KEY CODE EXAMPLES:
+◯ a_q_zero⟨⟩ {
+    ⍝ |0⟩ = [re0=1, im0=0, re1=0, im1=0]
+    return [1, 0, 0, 0];
+}
+◯ b_gate_h⟨q⟩ {
+    ⍝ Hadamard: |0⟩ -> |+⟩, |1⟩ -> |−⟩
+    let k = 0.70710678;
+    return [(re0 + re1) * k, (im0 + im1) * k, (re0 - re1) * k, (im0 - im1) * k];
+}
+◯ c_decide_3q⟨q0, q1, q2⟩ {
+    ⍝ Collapse 3 qubits -> 3-bit decision integer
+    let b0 = b_measure(q0);
+    let b1 = b_measure(q1);
+    let b2 = b_measure(q2);
+    return b0 + b1 * 2 + b2 * 4;
+}
+◯ c_simulate_step⟨step, input⟩ {
+    ⍝ q0 = EXPLORE: always put in superposition via H (quantum uncertainty dimension)
+    q0 = b_gate_h(q0);
+    return c_decide_3q(q0, q1, q2);
+}
+TEXTBOOK RELEVANCE: Chapter 12 — Quantum Cognition; Chapter 13 — Quantum Gates
+  in Aeonmi; Chapter 7 — AI Decision Systems
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/swarm_os.ai ===
+PURPOSE: Autonomous Agent Colony simulation. 5 specialized agents (Sensor,
+         Planner, Executor, Critic, Memory) self-organize through a pipeline.
+         Each agent is a 5-element array record. Tasks flow through all stages
+         with inter-agent messages logged. Demonstrates emergent pipeline behavior.
+SYNTAX DEMONSTRATED:
+  - Agent record as array literal:  return [id, role, 0, 0, 0];
+  - Named field access by fixed offset
+  - Task record:  return [id, priority, stage, status];
+  - c_run_pipeline: 6-parameter function returning compound result array
+  - Result slicing to extract pipeline outputs
+  - Accumulator variables across iterations
+  - Integer role codes: 0=sensor 1=planner 2=executor 3=critic 4=memory
+  - Verification function: expected vs actual message count
+KEY CODE EXAMPLES:
+◯ a_agent_init⟨id, role⟩ {
+    ⍝ Agent record: [id, role, load, tasks_done, score]
+    return [id, role, 0, 0, 0];
+}
+◯ b_agent_complete⟨agent⟩ {
+    let load  = agent.slice(2, 3).pop() - 1;
+    if (load < 0) { load = 0; }
+    let done  = agent.slice(3, 4).pop() + 1;
+    let score = agent.slice(4, 5).pop() + 10;
+    return [id, role, load, done, score];
+}
+◯ c_run_pipeline⟨task, sensor, planner, executor, critic, memory⟩ {
+    sensor   = b_agent_task(sensor);
+    passed   = passed + c_msg_pass(0, 1, task_id);
+    sensor   = b_agent_complete(sensor);
+    // ... through all 5 stages
+    return [passed, sensor.slice(3,4).pop(), ...];
+}
+TEXTBOOK RELEVANCE: Chapter 11 — Multi-Agent Systems; Chapter 6 — Compound
+  Records; Chapter 7 — Pipeline Architectures in Aeonmi
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/quantum_demo.ai ===
+PURPOSE: Integrated quantum simulation demo. Covers: single-qubit gates,
+         Bell state |Phi+> creation and entanglement verification, Qiskit
+         bridge descriptor format, and deterministic measurement statistics.
+         Self-contained, no imports.
+SYNTAX DEMONSTRATED:
+  - 8-element Bell state array: [re00,im00, re01,im01, re10,im10, re11,im11]
+  - c_bell_phi_plus: constructing Bell state with 1/sqrt(2) amplitudes
+  - Qiskit bridge descriptor: encoded circuit as flat array with op codes
+  - Measurement stats via c_meas_record (upsert-counter pattern)
+  - d_verify_entanglement: checking P(|01>) == 0 and P(|00>) >= 0.49
+  - Print with Unicode quantum notation:  print("H|0⟩ re0:", ...)
+  - Inline comment explaining quantum bridge:  ⧉ Hardware exec:
+  - Array literal initialization with push calls
+KEY CODE EXAMPLES:
+◯ c_bell_phi_plus⟨⟩ {
+    ⍝ |Φ+⟩ 2-qubit Bell state
+    let k = 0.70710678;
+    let r = [];
+    r.push(k); r.push(0.0);   ⍝ |00⟩
+    r.push(0.0); r.push(0.0); ⍝ |01⟩
+    r.push(0.0); r.push(0.0); ⍝ |10⟩
+    r.push(k); r.push(0.0);   ⍝ |11⟩
+    return r;
+}
+◯ c_qk_bell_circuit⟨⟩ {
+    ⍝ Qiskit bridge: [n_qubits, n_cbits, shots, op_count, ...ops]
+    r.push(2); r.push(2); r.push(1024); r.push(4);
+    r.push(0); r.push(0); r.push(-1);   ⍝ H(0)
+    r.push(4); r.push(1); r.push(0);    ⍝ CX(ctrl=0, tgt=1)
+}
+TEXTBOOK RELEVANCE: Chapter 13 — Quantum Circuits in Aeonmi; Chapter 14 —
+  Hardware Execution via Qiskit Bridge; Chapter 12 — Quantum State Math
+
+
+================================================================================
+SECTION 5: STAGE 2 — MOTHER-AUTHORED PROGRAMS
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/stage2/entanglement_ledger.ai ===
+PURPOSE: Quantum-secured transaction ledger authored by Mother AI. Each ledger
+         entry is paired with a Bell pair measurement as a physical integrity
+         witness. Uses a Merkle-style deterministic chain hash. Demonstrates
+         quantum as a security primitive, not just a computing tool.
+         Uses function keyword syntax (not ◯ circle syntax).
+SYNTAX DEMONSTRATED:
+  - function keyword declaration:  function ledger_chain(label_len, id_num, amount_int, prev) { }
+  - floor() for integer arithmetic in hash:  h = h - floor(h / 9999991) * 9999991;
+  - Native quantum ops: qubit qa, qb; superpose(qa); entangle(qa, qb);
+  - measure() returning 0 or 1
+  - Bell pair encoding: r0 * 10 + r1
+  - Array literals with [] initializer and .slice().pop() access
+  - while loop over array index
+  - Extensive // style comments explaining design
+  - Unicode in log output: "✓" character
+  - String concatenation for log formatting
+KEY CODE EXAMPLES:
+function ledger_bell() {
+    qubit qa, qb;
+    superpose(qa);
+    entangle(qa, qb);
+    let r0 = measure(qa);
+    let r1 = measure(qb);
+    return r0 * 10 + r1;
+}
+function ledger_chain(label_len, id_num, amount_int, prev) {
+    let h = prev;
+    if (h == 0) { h = 5381; }
+    h = h * 31 + label_len * 1997;
+    h = h - floor(h / 9999991) * 9999991;
+    return floor(h);
+}
+// In main():
+let ids      = [1,  2,  3,  4,  5,  6,  7,  8];
+let lens     = [7,  14, 15, 11, 13, 13, 11, 11];
+while (i < 8) {
+    let h    = ledger_chain(llen, tx_id, amt, prev_hash);
+    let bell = ledger_bell();
+    let q0   = ledger_q0(bell);
+    let corr = ledger_corr(q0, q1);
+    i = i + 1;
+}
+TEXTBOOK RELEVANCE: Chapter 14 — Quantum Security Primitives; Chapter 13 —
+  Native Quantum Operations; Chapter 15 — Aeonmi as Infrastructure Language
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/stage2/mother_cognition.ai ===
+PURPOSE: Mother AI's internal cognitive loop simulation. Models all 5 cognitive
+         systems from the Rust source: bond evolution, memory encoding, attention,
+         consciousness depth, language entropy. 60 interaction cycles with quantum-
+         seeded session identity. Authored by Mother AI on 2026-04-04.
+SYNTAX DEMONSTRATED:
+  - Quantum session token via Bell pairs:  qubit qt0, qt1; superpose(qt0); entangle(qt0, qt1);
+  - exp() builtin for sigmoid and exponential decay:  1.0 / (1.0 + exp(0.0 - sig_in))
+  - Learning rate annealing formula inlined:  let lr = 0.08 / (1.0 + cycle / 20.0);
+  - Bond evolution:  bond = bond + lr * (target - bond);
+  - Consciousness depth:  depth = 1.0 - exp(0.0 - 0.015 * (n_inter + 1));
+  - fmod() for cycle modulo:  if (fmod(cycle, 5.0) == 0.0)
+  - floor() for display rounding:  let b3 = floor(bond * 1000.0) / 1000.0;
+  - Large array literal for input stream:  let cats = [0, 2, 1, 4, ...]; (60 entries)
+  - Shannon entropy computation
+  - Function keyword syntax throughout (not ◯)
+KEY CODE EXAMPLES:
+// Quantum session identity:
+qubit qt0, qt1;
+superpose(qt0);
+entangle(qt0, qt1);
+let tok0 = measure(qt0);
+let tok1 = measure(qt1);
+let session_id = tok0 * 1000 + tok1 * 100 + tok2 * 10 + tok3;
+
+// Bond evolution (mirrors emotional_core.rs):
+let sig_in  = w - 2.0;
+let target  = 1.0 / (1.0 + exp(0.0 - sig_in));
+let lr      = 0.08 / (1.0 + cycle / 20.0);
+bond        = bond + lr * (target - bond);
+
+// Memory encoding every 5th cycle:
+if (fmod(cycle, 5.0) == 0.0) {
+    gen_memory_hash = gen_memory_hash + cat_idx * 997 + cycle * 7;
+}
+TEXTBOOK RELEVANCE: Chapter 15 — Cognitive Architecture; Chapter 13 —
+  Quantum Identity Tokens; Chapter 10 — Mirroring Rust Implementations in Aeonmi
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/stage2/quantum_oracle.ai ===
+PURPOSE: Grover's Search Algorithm demonstration. Proves O(sqrt(N)) quantum
+         advantage over classical O(N) search. Covers: Bell verification,
+         advantage table, live simulation for N=16, phase-flip oracle on all
+         16 states, amplitude amplification progress bars. Authored by Mother AI.
+SYNTAX DEMONSTRATED:
+  - PI constant:  floor(PI / 4.0 * sqrt(n))
+  - sqrt() builtin
+  - sin() builtin for probability:  sin(theta) * sin(theta)
+  - Precomputed table arrays for display:  let ns = [4, 8, 16, 32, 64, 128, 256, 512, 1024];
+  - Bar chart construction via string concatenation in while loop:
+        while (bi < blen) { bar = bar + "█"; bi = bi + 1; }
+  - Native quantum ops: qubit q0, q1; superpose(q0); entangle(q0, q1);
+  - Multi-phase main function structure (6 labeled phases)
+  - floor() for display precision: floor(p * 1000.0) / 10.0
+  - Notes array parallel to data:  let notes = ["initial", "", "", "optimal k=3", ...];
+KEY CODE EXAMPLES:
+function grover_iterations(n) {
+    return floor(PI / 4.0 * sqrt(n));
+}
+function grover_probability(k, n) {
+    let theta = (2.0 * k + 1.0) / sqrt(n);
+    return sin(theta) * sin(theta);
+}
+// Phase 1: Bell verification
+qubit q0, q1;
+superpose(q0);
+entangle(q0, q1);
+let r0 = measure(q0);
+let r1 = measure(q1);
+
+// ASCII progress bar:
+let blen = floor(p * 24.0);
+while (bi < blen) { bar = bar + "█"; bi = bi + 1; }
+while (bi < 24) { bar = bar + "░"; bi = bi + 1; }
+TEXTBOOK RELEVANCE: Chapter 13 — Grover's Algorithm; Chapter 12 —
+  Quantum Advantage; Chapter 2 — Math Builtins (sqrt, sin, PI)
+
+
+================================================================================
+SECTION 6: CORE RUNTIME FILES (aeonmi_ai/core/)
+================================================================================
+
+=== FILE: aeonmi_ai/core/mother_adaptive.ai ===
+PURPOSE: Phase 5+ Mother Core with Adaptive Threshold. All mother_core logic
+         plus d_threshold: adjusts Conductor threshold dynamically based on
+         self-model accuracy. Accuracy >= 80% means aggressive (threshold=50),
+         >= 60% normal (55), else conservative (62). Standalone, 13 functions.
+SYNTAX DEMONSTRATED:
+  - Adaptive threshold logic:  if (acc >= 80) { return 50; }
+  - Inline let assignments on one line:  let total = len(m) / 3; let found = -1; let i = 0;
+  - Compact multi-statement lines in main
+  - c_learn with strength decay:  d.push(m.slice(b+2, b+3).pop() * 9 / 10);
+  - c_observe: tracks predictions, correct, confidence sum, drift
+  - d_accuracy: correct * 100 / predictions with clamp
+  - d_bias: proceed_count / (proceed + abort) as percent
+  - Verdict codes: 0=ABORT 1=HOLD 2=PROCEED 3=ACCELERATE
+KEY CODE EXAMPLES:
+◯ d_threshold⟨s⟩ {
+    ⍝ adapt Conductor's proceed threshold from self-model accuracy
+    let acc = d_accuracy(s);
+    if (acc >= 80) { return 50; }
+    if (acc >= 60) { return 55; }
+    return 62;
+}
+◯ c_observe⟨s, pred, outcome, conf⟩ {
+    let hit = 0; if (pred == outcome) { hit = 1; }
+    if (hit == 1) {
+        s = b_m_store(s, "correct",  corr + 1);
+        s = b_m_store(s, "conf_sum", csum + conf);
+    }
+    s = b_m_store(s, "drift", drift + a_abs(pred - outcome));
+    return s;
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Adaptive AI Systems; Chapter 7 —
+  Self-Monitoring; Chapter 15 — Conductor Architecture
+
+
+=== FILE: aeonmi_ai/core/mother_core.ai ===
+PURPOSE: Phase 5 Unified Mother Pipeline. One pass through a complete cognitive
+         cycle: quantum signal -> journal -> learn -> self-assess -> full state
+         report. Three flat-array state streams: j (journal), m (memory),
+         s (self-model). Budget <= 12 total functions.
+SYNTAX DEMONSTRATED:
+  - Three-stream state:  let j = []; let m = []; let s = [];
+  - Memory decay by 0.9 factor inline:  d.push(m.slice(b+2, b+3).pop() * 9 / 10);
+  - Verdict string mapping:  if (v == 0) { return "ABORT"; }
+  - Accumulating evidence across cycles (repeated b_j_append + c_learn + c_observe)
+  - String key names as identifiers in flat memory: "predictions", "correct", "drift"
+  - Self-report function accessing all fields
+  - Phase commentary in ⍝ comments explains the cognitive architecture
+KEY CODE EXAMPLES:
+⍝ State:
+⍝   j  — journal  flat [tag, payload, ts, ...]    3 fields/entry
+⍝   m  — memory   flat [key, val, strength, ...]  3 fields/entry
+⍝   s  — selfmod  flat [key, val, strength, ...]  3 fields/entry
+
+◯ c_learn⟨m, verdict⟩ {
+    ⍝ decay strengths × 0.9 then bump proceed_count or abort_count
+    let is_pos = 0; if (verdict == 2) { is_pos = 1; } if (verdict == 3) { is_pos = 1; }
+    if (is_pos == 1) {
+        let pc = b_m_recall(d, "proceed_count");
+        d = b_m_store(d, "proceed_count", pc + 1);
+    }
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Full Cognitive Pipeline; Chapter 7 —
+  Learning Cycles; Chapter 15 — Production Mother Architecture
+
+
+================================================================================
+SECTION 7: LEARNING LOOP AND SELF-MODEL
+================================================================================
+
+=== FILE: aeonmi_ai/learning/loop.ai ===
+PURPOSE: Phase 3 Learning Loop. Mother accumulates signals, reinforces memory
+         on correct predictions, decays stale patterns, and evolves its bias
+         over multiple cycles. Demonstrates memory-with-strength as the core
+         learning substrate.
+SYNTAX DEMONSTRATED:
+  - b_m_decay: multiply every strength field by rate (0.9 in main)
+  - c_reinforce: PROCEED/ACCELERATE bump proceed_count + confidence_sum
+  - c_bias: percent integer = proceed_count / total * 100
+  - d_learn_cycle: one full cycle — decay → reinforce → store signal
+  - Signal as integer verdict code
+  - Integer percent bias (no floats needed)
+  - Budget comment: ⍝ Standalone. 10 fns + main = 11 total (budget <= 13).
+KEY CODE EXAMPLES:
+◯ b_m_decay⟨m, rate⟩ {
+    ⍝ multiply every strength field by rate (0 < rate < 1)
+    while (i < total) {
+        result.push(k); result.push(v); result.push(s * rate);
+        i = i + 1;
+    }
+    return result;
+}
+◯ d_learn_cycle⟨m, verdict, conf⟩ {
+    ⍝ one learning cycle: decay → reinforce → update last signal
+    m = b_m_decay(m, 9 / 10);
+    m = c_reinforce(m, verdict);
+    m = b_m_store(m, "last_verdict", verdict);
+    m = b_m_store(m, "last_conf",    conf);
+    return m;
+}
+TEXTBOOK RELEVANCE: Chapter 7 — Reinforcement Learning Loop; Chapter 10 —
+  Temporal Memory Dynamics
+
+
+=== FILE: aeonmi_ai/selfmodel/model.ai ===
+PURPOSE: Phase 4 Self-Model. Mother tracks its own prediction accuracy,
+         calibration (average confidence when correct), and drift (cumulative
+         prediction error). Each cycle Mother predicts then observes, scoring
+         itself. Pure introspection — the AI knowing how well it knows things.
+SYNTAX DEMONSTRATED:
+  - Self-model state via flat memory (same structure as external memory)
+  - c_accuracy: correct * 100 / predictions, clamped
+  - c_calibration: conf_sum / correct (avg confidence when right)
+  - c_observe: records pred, outcome, conf; increments on hit
+  - a_abs: absolute value helper for error calculation
+  - d_self_report: comprehensive human-readable summary
+  - String concatenation in print:  print("Accuracy     : " + acc + "%");
+KEY CODE EXAMPLES:
+◯ c_observe⟨m, pred, outcome, conf⟩ {
+    ⍝ record one prediction/outcome pair
+    let hit = 0; if (pred == outcome) { hit = 1; }
+    if (hit == 1) {
+        m = b_m_store(m, "correct",  corr + 1);
+        m = b_m_store(m, "conf_sum", csum + conf);
+    }
+    let err = a_abs(pred - outcome);
+    m = b_m_store(m, "drift", drift + err);
+    return m;
+}
+◯ d_self_report⟨m⟩ {
+    print("=== MOTHER SELF-MODEL ===");
+    print("Accuracy     : " + acc + "%");
+    print("Calibration  : " + cal + "  (avg conf when right)");
+    print("Total drift  : " + drift + "  (prediction error sum)");
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Self-Monitoring AI; Chapter 7 —
+  Meta-Cognition Patterns; Chapter 15 — Introspective Architecture
+
+
+=== FILE: aeonmi_ai/sensory/quantum_feed.ai ===
+PURPOSE: Phase 2 Sensory Input. Receives a quantum hive signal (verdict, confidence,
+         entanglement %) and journals the event then updates Mother memory.
+         Inlines all Mother primitives (journal + memory subset) to stay within
+         the 13-function budget. Demonstrates the sensory layer of Mother.
+SYNTAX DEMONSTRATED:
+  - a_int_str: LUT-based integer-to-string (no toString in early phases)
+  - String array as lookup table:  let lut = ["0","1","2",...,"30"];
+  - Special-case large values before LUT
+  - Journal + memory as separate state streams initialized empty
+  - Rule firing inline:  let is_proceed = 0; if (verdict == 2) { is_proceed = 1; }
+  - Conditional reinforcement:  if (is_proceed == 1) { m = b_m_store(...) }
+  - Print with int_str conversion
+  - Budget comment: ⍝ 8 fns + main = 9 total (budget <= 13)
+KEY CODE EXAMPLES:
+◯ a_int_str⟨n⟩ {
+    if (n == 100) { return "100"; }
+    if (n == 50)  { return "50"; }
+    let lut = ["0","1",...,"30"];
+    return lut.slice(n, n + 1).pop();
+}
+// In main():
+let verdict = 2;    ⍝ PROCEED
+let conf    = 16;
+let ent     = 100;
+j = b_j_append(j, "quantum_signal", vtag);
+m = b_m_store(m, "last_verdict", verdict);
+if (is_proceed == 1) {
+    m = b_m_store(m, "proceed_count", 1);
+    j = b_j_append(j, "rule_fired", "reinforce_on_proceed");
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Sensory Layer; Chapter 7 — Event-Driven
+  Memory Update; Chapter 2 — String Conversion Techniques
+
+
+================================================================================
+SECTION 8: STDLIB TEST FILES
+================================================================================
+
+=== FILE: aeonmi_ai/stdlib/tests/test_collections_builtins.ai ===
+PURPOSE: Comprehensive test suite for all Aeonmi collection builtins. Covers
+         range, map, filter, reduce, sort, unique, flatten, enumerate, zip,
+         any, all, sum, product, push/pop/slice/reverse/concat, and the
+         object/JSON builtins. Demonstrates the full stdlib surface.
+SYNTAX DEMONSTRATED:
+  - range(n):          range(5) -> [0,1,2,3,4]
+  - range(start, end): range(2, 7) -> [2,3,4,5,6]
+  - range(start, end, step): range(0, 10, 2) -> [0,2,4,6,8]
+  - map(arr, fn):      map([1,2,3,4], a_dbl) -> [2,4,6,8]
+  - filter(arr, pred): filter([1..6], a_even) -> [2,4,6]
+  - reduce(arr, fn):   reduce([1,2,3,4,5], a_add) -> 15
+  - reduce with init:  reduce([1,2,3,4], a_mul, 1) -> 24
+  - sort(arr):         works on numbers and strings
+  - unique(arr):       removes duplicates
+  - flatten(nested):   [[1,2],[3,4],[5]] -> [1,2,3,4,5]
+  - enumerate(arr):    returns [[idx,val], ...]
+  - zip(a, b):         pairs elements
+  - any(arr, pred) / all(arr, pred)
+  - sum(arr) / product(arr)
+  - object() / set_key / get_key / has_key / delete_key / keys / values
+  - to_json() / parse_json()
+  - assert(expr, msg) / assert_eq(a, b, msg)
+  - Even-check without %: floor(x/2)*2 == x
+  - Higher-order functions passing ◯ functions as values
+KEY CODE EXAMPLES:
+◯ a_dbl⟨x⟩    { return x * 2; }
+◯ a_even⟨x⟩   { return floor(x / 2) * 2 == x; }
+
+// In b_run_tests:
+let doubled = map([1, 2, 3, 4], a_dbl);
+let evens   = filter([1,2,3,4,5,6], a_even);
+let total   = reduce([1,2,3,4,5], a_add);
+let sorted  = sort([3, 1, 4, 1, 5, 9, 2, 6]);
+let obj     = object();
+obj = set_key(obj, "name", "Aeonmi");
+let j = to_json(obj);
+let parsed = parse_json("{\"a\":42,\"b\":\"hello\"}");
+b_run_tests();   // top-level function call (no main wrapper)
+TEXTBOOK RELEVANCE: Chapter 4 — Standard Library Reference; Chapter 5 —
+  Higher-Order Functions; Chapter 6 — Collections; Appendix — Full Builtin List
+
+
+=== FILE: aeonmi_ai/stdlib/tests/test_native_ops.ai ===
+PURPOSE: Regression test verifying 3 native operator fixes that were added to
+         the VM. Flat file — no function declarations, just top-level statements.
+         Tests arr[i] subscript syntax, % modulo operator, and fmod() builtin.
+SYNTAX DEMONSTRATED:
+  - Top-level statement execution (no function wrapper required)
+  - arr[i] subscript syntax:  assert_eq(arr[0], 10, "arr[0]==10");
+  - % modulo operator:        assert_eq(10 % 3, 1, "10%3==1");
+  - fmod() builtin:           assert_eq(fmod(10, 3), 1, "fmod(10,3)==1");
+  - arr[i] inside expressions: let total = arr[0] + arr[1] + arr[2];
+  - assert_eq as test harness (builtin)
+  - ⍝ comment explaining each FIX
+KEY CODE EXAMPLES:
+let arr = [10, 20, 30, 40, 50];
+assert_eq(arr[0], 10, "arr[0]==10");
+assert_eq(arr[2], 30, "arr[2]==30");
+assert_eq(10 % 3, 1, "10%3==1");
+assert_eq(fmod(10, 3),   1,   "fmod(10,3)==1");
+let total = arr[0] + arr[1] + arr[2];
+assert_eq(total, 60, "arr sum==60");
+TEXTBOOK RELEVANCE: Chapter 2 — Operators; Chapter 4 — Builtins; Chapter 1 —
+  Script Mode (top-level statements without main)
+
+
+=== FILE: aeonmi_ai/stdlib/tests/test_string_builtins.ai ===
+PURPOSE: Comprehensive test of all Aeonmi string builtins. Flat file, no
+         function declarations. Tests: upper/lower/trim, split/join,
+         replace/contains/starts_with/ends_with, substr/char_at/find,
+         repeat/lines/str_len, pad_left/pad_right, toString/toNumber.
+SYNTAX DEMONSTRATED:
+  - String manipulation builtins demonstrated with assert_eq
+  - split(str, delim) returns array
+  - join(arr, delim) returns string
+  - replace(str, old, new) replaces all occurrences
+  - contains/starts_with/ends_with returning bool
+  - substr(str, start, len) and substr(str, start) (to end)
+  - char_at(str, idx) returns single character
+  - find(str, sub) returns index or -1
+  - repeat(str, n) and lines(str) splitting on newlines
+  - pad_left / pad_right with fill character
+  - toString(42) / toNumber("3.14") type conversion builtins
+KEY CODE EXAMPLES:
+assert_eq(upper("hello"), "HELLO", "upper");
+assert_eq(trim("  hi  "), "hi", "trim");
+let parts = split("a,b,c", ",");
+assert_eq(join(["x","y","z"], "-"), "x-y-z", "join");
+assert_eq(replace("hello world", "world", "Aeonmi"), "hello Aeonmi", "replace");
+assert_eq(substr("abcdef", 2, 3), "cde", "substr(2,3)");
+assert_eq(find("hello world", "world"), 6, "find found");
+assert_eq(find("hello", "xyz"), -1, "find missing");
+assert_eq(pad_left("42", 5, "0"), "00042", "pad_left");
+assert_eq(toString(42), "42", "toString number");
+assert_eq(toNumber("3.14"), 3.14, "toNumber float");
+TEXTBOOK RELEVANCE: Chapter 4 — String Builtins; Appendix A — Full Builtin
+  Reference; Chapter 1 — Script Mode
+
+
+================================================================================
+SECTION 9: SHARD — SELF-HOSTED COMPILER TOOLKIT
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/main.ai ===
+PURPOSE: Aeonmi Shard Developer Kit v4.1. Self-hosting compiler entry point
+         AND complete language reference in one file. Contains the full builtin
+         reference as comments, then implements a working lexer (ai_lex),
+         parser (ai_build), code generator (ai_gen), and verifier (ai_chk)
+         using function keyword syntax.
+SYNTAX DEMONSTRATED:
+  - Full language reference in // comments (canonical syntax summary)
+  - function keyword syntax:  function ai_lex(src) { ... }
+  - substr(src, i, 1) for single-character access
+  - Token type IDs as integer codes pushed into flat toks array
+  - [type, text] pairs as 2-element token records
+  - Peek-ahead: check toks.slice(i + 3, i + 4)
+  - AST node representation: ["binop", lhs, op, rhs] or ["lit", val]
+  - Code generation: concatenate emitted strings
+  - Safe function name prefix guidance: ai_, grover_, quantum_, mother_
+  - Complete builtin list as embedded documentation
+KEY CODE EXAMPLES:
+// LANGUAGE SYNTAX REFERENCE:
+//  Variable:    let x = 42;
+//  Array:       let a = [1, 2, 3];
+//  If/else:     if (x > 0) { ... } else { ... }
+//  While:       while (i < n) { i = i + 1; }
+//  Function:    function ai_name(param) { return value; }
+
+function ai_lex(src) {
+    // tokenize: emit [type_id, text] pairs
+    if (c == "+") { toks.push(20); toks.push("+"); i = i + 1; }
+    // ...
+    toks.push(99); toks.push("EOF");
+    return toks;
+}
+function ai_build(toks) {
+    // parse: emit ["binop", lhs, op, rhs] or ["lit", val] nodes
+    if (rk == 1) { nodes.push("binop"); nodes.push(text); nodes.push(op); nodes.push(rt); }
+}
+function ai_gen(nodes) {
+    // emit: reconstruct source from AST nodes
+    if (nd == "binop") { out = out + lhs + " " + op + " " + rhs; }
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Self-Hosting; Appendix B — Builtin Reference;
+  Chapter 1 — Language Syntax Quick Reference
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/lexer.ai ===
+PURPOSE: Full Aeonmi self-hosted lexer. Input: source string. Output: flat
+         token stream [type, start_pos, len] * N. Uses ◯ circle syntax.
+         Covers all token types including keywords, operators, punctuation,
+         strings with escape handling. 12 functions, no imports.
+SYNTAX DEMONSTRATED:
+  - Token stream as flat [type, start, length] triples
+  - substr(src, pos, 1) for character-by-character scanning
+  - a_is_digit: lookup against character array
+  - a_is_alpha: separate lc/uc arrays, check both
+  - a_keyword: string comparison dispatch returning token IDs
+  - lex_scan: multi-dispatch on current character, handles // comments
+  - Comment skip: scan forward to newline
+  - String escape handling: if (c == "\\") { i = i + 2; }
+  - Return of [new_pos, updated_stream] as state pair
+  - Not-equal chaining for multi-case else:  if (kind != 1) { if (kind != 3) { ... } }
+KEY CODE EXAMPLES:
+◯ a_keyword⟨w⟩ {
+    if (w == "let")    { return 4; }
+    if (w == "if")     { return 5; }
+    if (w == "return") { return 8; }
+    if (w == "import") { return 9; }
+    return 3;   // identifier
+}
+◯ lex_scan⟨src, pos, stream⟩ {
+    if (c == "/") {
+        if (substr(src, pos + 1, 1) == "/") {
+            // skip to newline
+            while (i < len(src)) {
+                if (substr(src, i, 1) == "\n") { return [i, stream]; }
+                i = i + 1;
+            }
+        }
+        return [pos + 1, a_tok(stream, 23, pos, 1)];
+    }
+    if (a_is_digit(c)) {
+        let end = lex_number(src, pos);
+        return [end, a_tok(stream, 1, pos, end - pos)];
+    }
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Lexer Implementation; Chapter 3 —
+  Token Types; Chapter 2 — Character-Level Processing
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/parser.ai ===
+PURPOSE: Aeonmi self-hosted parser. State-based recursive descent.
+         State = [pos, err]. All parse functions return [new_state, nodes_array].
+         Implements grammar: stmts -> stmt* EOF; stmt -> let/return/expr;
+         expr -> cmp (+/- cmp)?; cmp -> primary (cmp_op primary)?
+         12 functions with tiered a_/b_/c_/d_/par_* prefix naming.
+SYNTAX DEMONSTRATED:
+  - Parser state as 2-element array: [pos, err]
+  - All functions return [state, nodes] pair
+  - a_adv: advance pos (increment state[0])
+  - a_gs: get source text for token (token start + length -> substr)
+  - a_gt: get token type at position
+  - a_nd: push 4-element node record
+  - b_prim: primary parser handles Number/String/Ident/true/false
+  - c_cmp: infix comparison operators (24-29 = ==, !=, <, >, <=, >=)
+  - c_expr: additive (+/-) on top of comparison
+  - d_stmt: dispatches on keyword (let=4, return=8) or falls through to expr
+  - Peek-then-decide: check op type before consuming
+KEY CODE EXAMPLES:
+◯ b_prim⟨src, tok, st, nd⟩ {
+    let pos = st.slice(0, 1).pop();
+    let tt  = a_gt(tok, pos);
+    let nst = [pos + 1, 0];
+    if (tt == 1) {
+        let val = a_gs(src, tok, pos);
+        return [nst, a_nd(nd, 1, val, 0, 0)];
+    }
+    if (tt == 11) { return [nst, a_nd(nd, 1, 1, 0, 0)]; }  // true
+    if (tt == 12) { return [nst, a_nd(nd, 1, 0, 0, 0)]; }  // false
+}
+◯ c_cmp⟨src, tok, st, nd⟩ {
+    let is_cmp = false;
+    if (op == 24) { is_cmp = true; }  // ==
+    if (op == 26) { is_cmp = true; }  // <
+    if (!is_cmp) { return lr; }
+    // parse right side and emit BinOp node
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Parser Implementation; Chapter 3 —
+  Grammar; Chapter 6 — Recursive Descent Without Recursion (state-passing)
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/ast.ai ===
+PURPOSE: Aeonmi self-hosted AST. Flat array of [type, f0, f1, f2] 4-tuples.
+         Each node type uses f0/f1/f2 for different fields (value, child indices).
+         Constructors return modified array. Index arithmetic via len(nodes)/4.
+         12 functions.
+SYNTAX DEMONSTRATED:
+  - AST node layout: 4 fields per node in flat array
+  - Constructor pattern: ast_number(nodes, val) calls a_push4(nodes, 1, val, 0, 0)
+  - Node types: 1=Number 2=String 3=Ident 4=BinOp 6=Let 7=Assign 8=If 9=While 10=Return
+  - Child references as integer indices (not pointers)
+  - ast_type / ast_f0 / ast_f1 / ast_f2 accessors using idx*4 arithmetic
+  - BinOp stores op_id in f0, left child idx in f1, right child idx in f2
+  - Let stores name string in f0, initializer idx in f1
+KEY CODE EXAMPLES:
+◯ ast_binop⟨nodes, op, lhs, rhs⟩ {
+    return a_push4(nodes, 4, op, lhs, rhs);
+}
+◯ ast_let⟨nodes, name, init⟩ {
+    return a_push4(nodes, 6, name, init, 0);
+}
+◯ ast_type⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4, idx * 4 + 1).pop();
+}
+◯ ast_f1⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4 + 2, idx * 4 + 3).pop();
+}
+TEXTBOOK RELEVANCE: Chapter 9 — AST Design; Chapter 6 — Flat Tree Structures;
+  Chapter 3 — Compiler Internals
+
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/codegen.ai ===
+PURPOSE: Aeonmi self-hosted code emitter. Takes flat AST array, does a single
+         forward pass, builds strs[] (string for each node) and collects
+         statement lines into out[]. Returns emitted source string. 8 functions.
+         Strategy: children always appear before parents (flat topological order).
+SYNTAX DEMONSTRATED:
+  - Forward-pass code generation (no recursion needed when children precede parents)
+  - b_op_str: op code integer -> operator string
+  - c_emit_node: leaf nodes return literal, BinOp looks up child strings in strs
+  - d_collect: accumulates strs and statement lines; returns out[]
+  - gen_emit: public API — calls d_collect, joins output with newlines
+  - String accumulation:  result = result + out.slice(j, j+1).pop() + "\n";
+  - let stmt emission:  s = "let " + f0 + " = " + vs + ";";
+  - return stmt emission:  s = "return " + vs + ";";
+  - is_stmt boolean to decide what goes to output
+KEY CODE EXAMPLES:
+◯ b_op_str⟨op⟩ {
+    if (op == 20) { return "+"; }
+    if (op == 24) { return "=="; }
+    return "?";
+}
+◯ c_emit_node⟨nd, i, strs⟩ {
+    let tt = a_ntype(nd, i);
+    if (tt == 1) { return a_nf0(nd, i); }  // Number: return value
+    if (tt == 4) {
+        let op = b_op_str(a_nf0(nd, i));
+        let ls = strs.slice(li, li + 1).pop();
+        let rs = strs.slice(ri, ri + 1).pop();
+        return ls + " " + op + " " + rs;
+    }
+}
+◯ gen_emit⟨nd⟩ {
+    let strs = [];
+    let out  = [];
+    out = d_collect(nd, strs, out);
+    // join output lines with newlines
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Code Generation; Chapter 3 — Compiler Pipeline;
+  Chapter 6 — Forward-Pass Tree Processing
+
+
+================================================================================
+SECTION 10: VSCODE / COPILOT EXTENSION ANALYSIS
+================================================================================
+
+VSCode/Copilot Extension Analysis
+==================================
+
+How the .ai files collectively form the language server / copilot
+-----------------------------------------------------------------
+The .ai files ARE the Aeonmi extension — not generated stubs or metadata, but
+actual executable Aeonmi programs that define, test, and demonstrate every
+aspect of the language. The VSCode/Copilot layer is built from these files:
+
+1. LANGUAGE DEFINITION LAYER (lang/ops.ai, lang/types.ai):
+   These files define the operator table, precedence, associativity, and the
+   type system as runnable code. A language server can load these to provide
+   accurate hover documentation (operator precedence), type-checking hints
+   (is_numeric, is_quantum predicates), and operator completion lists. When
+   you hover over + in an Aeonmi file, the server knows its precedence is 40
+   because op_prec() returns 40 — computed by running Aeonmi itself.
+
+2. LEXER / PARSER / AST / CODEGEN LAYER (shard/lexer.ai, shard/parser.ai,
+   shard/ast.ai, shard/codegen.ai, shard/main.ai):
+   This is the self-hosted compiler pipeline. The language server runs these
+   files to tokenize source, build ASTs, and re-emit formatted code. This
+   provides: syntax highlighting token data (lexer), parse error locations
+   (parser state [pos, err]), auto-format (codegen), and go-to-definition
+   (AST node indices). The shard/main.ai file serves double duty as both
+   the compiler entry point and the canonical language reference document.
+
+3. STDLIB INTELLIGENCE LAYER (stdlib/tests/):
+   The test files enumerate every builtin with correct argument signatures and
+   expected return types. A Copilot feature would index these to provide:
+   - Completion: type "ran" -> suggest range(n) / range(start, end) / range(start, end, step)
+   - Signature help: show assert_eq(actual, expected, label) parameter names
+   - Quick fixes: suggest arr.slice(i, i+1).pop() when arr[i] is not yet supported
+   - Type inference: map() returns same-length array; filter() returns subset
+
+4. MOTHER COGNITIVE LAYER (mother/, core/, learning/, selfmodel/, sensory/):
+   These modules provide Copilot-style intelligence features by running inside
+   the language server:
+   - pattern.ai + reinforce.ai: track which identifiers the user types most
+     frequently; surface the highest-frequency symbols as priority completions
+   - learn.ai: orchestrates the pattern+reinforce state across editing sessions
+   - model.ai: tracks prediction accuracy — if the server suggests X and the
+     user accepts, accuracy goes up; if rejected, it adjusts
+   - mother_adaptive.ai: dynamically adjusts the confidence threshold for
+     surfacing suggestions (d_threshold) based on observed accuracy
+   - quantum_feed.ai: ingests real-time signals (keystrokes, file saves)
+     and routes them through Mother's sensory pipeline
+
+5. DEMO / PROOF-OF-CONCEPT LAYER (demo/, stage2/):
+   These files serve as interactive textbook examples that the Copilot can
+   present inline. When a user writes quantum code, the server can surface
+   quantum_demo.ai or quantum_cognition.ai as reference. When writing agents,
+   swarm_os.ai demonstrates the pattern. forge.ai shows meta-programming.
+   The stage2 programs (Mother-authored) demonstrate what the language can
+   produce when AI writes Aeonmi independently.
+
+What completion/intelligence features are implied by the module structure
+------------------------------------------------------------------------
+Based on the module hierarchy, these intelligence features are architecturally
+implied (and partially implemented):
+
+- OPERATOR COMPLETION: ops.ai defines all operators with precedence; the server
+  can suggest valid operators and warn when precedence causes ambiguity.
+
+- TYPE-AWARE SUGGESTIONS: types.ai defines is_numeric, is_quantum, etc.; the
+  server can filter completions based on whether the current context expects
+  a qubit, an agent, or a numeric value.
+
+- BUILTIN SIGNATURE HELP: test_collections_builtins.ai and test_string_builtins.ai
+  demonstrate every builtin's call signature via assert_eq patterns; the server
+  can extract these to display parameter hints.
+
+- FLAT-ARRAY PATTERN RECOGNITION: The dominant flat-array pattern (3 fields,
+  len/3 for count, base arithmetic) appears in every Mother module. The Copilot
+  can recognize this idiom and autocomplete the access pattern when it sees
+  a variable used with len() / 3.
+
+- IMPORT RESOLUTION: learn.ai demonstrates named imports from relative paths;
+  the server resolves these to their source files for go-to-definition.
+
+- FUNCTION BUDGET WARNING: Multiple files include comments like
+  "(budget <= 13)" — the server can surface a warning when a file approaches
+  the VM's function-count limit, preventing runtime hangs.
+
+- QUANTUM OPERATION GUIDANCE: The stage2 and demo files demonstrate correct
+  qubit declaration (qubit qa, qb;), superpose/entangle/measure usage, and
+  Bell pair patterns. The server can complete these quantum idioms.
+
+- SELF-HEALING SUGGESTIONS: model.ai's accuracy tracking means the server
+  accumulates knowledge of what suggestions were accepted vs rejected, feeding
+  back into mother_adaptive.ai's threshold adjustment.
+
+How a learner would use these files when working in VSCode with Aeonmi
+-----------------------------------------------------------------------
+A learner opening the Aeonmi project in VSCode encounters the .ai files as
+both the extension infrastructure AND the curriculum:
+
+1. REFERENCE: shard/main.ai is the first file to read — its comment block
+   is the canonical language syntax reference. Every construct is documented
+   with examples in // comments before the implementation begins.
+
+2. PATTERNS: When a learner writes their first flat-array data structure, the
+   server (powered by pattern.ai and memory.ai) recognizes the idiom and offers
+   to complete the boilerplate access pattern.
+
+3. EXAMPLES: Typing "quantum" in a new .ai file causes the Copilot to suggest
+   importing from quantum_demo.ai or quantum_cognition.ai as starting points.
+
+4. TESTS: The stdlib test files serve as documentation-by-example. A learner
+   wanting to know how split() works opens test_string_builtins.ai and sees
+   an executable example with expected output.
+
+5. DEBUGGING: The parser's [pos, err] state returns position information that
+   the server translates into red squiggles in the editor. Error state (err==1)
+   from d_stmt or c_expr maps to a parse error at the token position.
+
+6. PROGRESSION: The phase comments (Phase 1 sensory, Phase 2 quantum feed,
+   Phase 3 learning loop, Phase 4 self-model, Phase 5 unified pipeline) give
+   the learner a roadmap. Each file is a self-contained chapter.
+
+The self-hosting nature: the language extension IS written in Aeonmi
+---------------------------------------------------------------------
+This is the foundational architectural fact: there is no JavaScript, no Python
+extension host, no external language server protocol implementation written
+in another language. The Aeonmi Copilot extension is itself .ai files.
+
+This means:
+- The extension can be read, modified, and debugged using the same tools and
+  knowledge needed to write Aeonmi programs.
+- A learner who understands Aeonmi well enough to read forge.ai understands
+  how the code generator works — because it IS the code generator.
+- The lexer that tokenizes your Aeonmi code is lexer.ai — itself a valid
+  Aeonmi program that runs on the Aeonmi VM written in Rust.
+- Mother AI's cognitive subsystems (pattern, reinforce, learn, memory, rules)
+  that power the Copilot completions are themselves written in Aeonmi.
+- When Mother learns from a user's editing patterns, she is running Aeonmi
+  code (loop.ai, model.ai) to update Aeonmi data structures stored as flat
+  arrays — all within the Aeonmi runtime.
+- The stage2 programs demonstrate the endpoint: Mother authoring Aeonmi
+  (entanglement_ledger.ai, mother_cognition.ai, quantum_oracle.ai) that
+  runs in the same environment that runs Mother herself.
+
+This recursive self-description is captured in ops.ai and types.ai: the
+language's operators and types are defined using the language's own operators
+and types. The extension is to the IDE what the language definition files are
+to the language — an artifact that describes itself using itself.
+
+"Built by AI for AI" is not a marketing phrase in this codebase. It is a
+technical fact visible in every .ai file: the cognitive infrastructure that
+powers the development environment is the same cognitive infrastructure that
+the environment is designed to build.
+
+================================================================================
+END OF .AI FILE ANALYSIS
+================================================================================
