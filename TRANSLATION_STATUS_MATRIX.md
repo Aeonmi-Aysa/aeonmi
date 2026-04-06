@@ -53,8 +53,8 @@ Total Rust files tracked: **241**
 | `src/core/blockchain.rs` | `translated/core/blockchain.ai` | PARTIAL | Seed translation created at translated/core/blockchain.ai |
 | `src/core/bytecode.rs` | `translated/src/core/bytecode.ai` | PARTIAL | Seed translation created at translated/core/bytecode.ai |
 | `src/core/circuit_builder.rs` | `translated/core/circuit_builder.ai` | PARTIAL | Seed translation created at translated/core/circuit_builder.ai |
-| `src/core/circuit_compiler.rs` | `translated/src/core/circuit_compiler.ai` | PENDING | Not translated in this branch yet |
-| `src/core/circuit_visualization.rs` | `translated/src/core/circuit_visualization.ai` | PENDING | Not translated in this branch yet |
+| `src/core/circuit_compiler.rs` | `translated/core/circuit_compiler.ai` | PARTIAL | Seed translation created at translated/core/circuit_compiler.ai |
+| `src/core/circuit_visualization.rs` | `translated/core/circuit_visualization.ai` | PARTIAL | Seed translation created at translated/core/circuit_visualization.ai |
 | `src/core/code_actions.rs` | `translated/src/core/code_actions.ai` | PENDING | Not translated in this branch yet |
 | `src/core/code_generator.rs` | `translated/src/core/code_generator.ai` | PARTIAL | Seed translation created at translated/core/code_generator.ai |
 | `src/core/compiler.rs` | `translated/src/core/compiler.ai` | PARTIAL | Seed translation created at translated/core/compiler.ai |

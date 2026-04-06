@@ -1,0 +1,25 @@
+⍝ TRANSLATION NOTE: src/core/circuit_visualization.rs
+⍝ Purpose: quantum circuit visualization and reporting for builder/compiler artifacts.
+⍝ Feature parity: PARTIAL (diagram/report export scaffolds and rendering modes).
+
+◇ VisualizationFormat = enum_seed(["Text", "Ascii", "Unicode", "Svg", "Json", "Mermaid"]);
+◇ VisualizationOptions = record_seed(["format", "show_parameters", "show_metadata", "show_depth", "compact"]);
+
+◯ default_visualization_options⟨⟩ {
+  return {"format":"Text","show_parameters":true,"show_metadata":false,"show_depth":true,"compact":false};
+}
+
+◯ render_circuit_visualization⟨circuit, options⟩ {
+  let f = options.format;
+  if (f == "Text") { return render_text_seed(circuit, options); }
+  if (f == "Ascii") { return render_ascii_seed(circuit, options); }
+  if (f == "Unicode") { return render_unicode_seed(circuit, options); }
+  if (f == "Svg") { return render_svg_seed(circuit, options); }
+  if (f == "Json") { return render_json_seed(circuit, options); }
+  if (f == "Mermaid") { return render_mermaid_seed(circuit, options); }
+  return err("unsupported visualization format");
+}
+
+◯ render_depth_report⟨circuit⟩ { return depth_report_seed(circuit); }
+◯ render_gate_histogram⟨circuit⟩ { return gate_histogram_seed(circuit); }
+◯ export_visualization⟨circuit, options, path⟩ { return write_visualization_seed(render_circuit_visualization(circuit, options), path); }

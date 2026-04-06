@@ -1,0 +1,47 @@
+⍝ TRANSLATION NOTE: src/core/circuit_compiler.rs
+⍝ Purpose: compile QuantumCircuitBuilder into multiple targets (QASM2/3, Qiskit, Cirq, Q#, JS, AEONMI, simulator).
+⍝ Feature parity: PARTIAL (compiler options/targets + multi-target dispatch + gate-conversion scaffolds).
+
+◇ CompilationTarget = enum_seed([
+  "OpenQASM2","OpenQASM3","Qiskit","Cirq","QSharp","IBM","IonQ","Rigetti","Simulator","JavaScript","AEONMI"
+]);
+
+◇ CompilationOptions = record_seed([
+  "target","optimization_level","target_coupling?","basis_gates?","max_qubits?",
+  "include_measurements","preserve_layout","error_mitigation"
+]);
+
+◯ default_compilation_options⟨⟩ {
+  return {
+    "target":"OpenQASM2","optimization_level":1,"target_coupling":none(),"basis_gates":none(),
+    "max_qubits":none(),"include_measurements":true,"preserve_layout":false,"error_mitigation":false
+  };
+}
+
+◇ QuantumCircuitCompiler = record_seed(["options","hardware_manager?"]);
+◯ compiler_new⟨options⟩ { return {"options": options, "hardware_manager": none()}; }
+◯ compiler_with_hardware_manager⟨compiler, manager⟩ { compiler.hardware_manager = some(manager); return compiler; }
+
+◯ compile⟨compiler, circuit⟩ {
+  let t = compiler.options.target;
+  if (t == "OpenQASM2") { return compile_to_qasm2(compiler, circuit); }
+  if (t == "OpenQASM3") { return compile_to_qasm3(compiler, circuit); }
+  if (t == "Qiskit") { return compile_to_qiskit(compiler, circuit); }
+  if (t == "Cirq") { return compile_to_cirq(compiler, circuit); }
+  if (t == "QSharp") { return compile_to_qsharp(compiler, circuit); }
+  if (t == "JavaScript") { return compile_to_javascript(compiler, circuit); }
+  if (t == "AEONMI") { return compile_to_aeonmi(compiler, circuit); }
+  if (t == "Simulator") { return compile_to_simulator(compiler, circuit); }
+  return err(compilation_error_seed("UnsupportedTarget", t));
+}
+
+◯ compile_to_qasm2⟨compiler, circuit⟩ { return qasm2_render_seed(circuit, compiler.options.include_measurements); }
+◯ compile_to_qasm3⟨compiler, circuit⟩ { return qasm3_render_seed(circuit, compiler.options.include_measurements); }
+◯ compile_to_qiskit⟨compiler, circuit⟩ { return qiskit_render_seed(circuit, compiler.options.include_measurements); }
+◯ compile_to_cirq⟨compiler, circuit⟩ { return cirq_render_seed(circuit); }
+◯ compile_to_qsharp⟨compiler, circuit⟩ { return qsharp_render_seed(circuit, compiler.options.include_measurements); }
+◯ compile_to_javascript⟨compiler, circuit⟩ { return js_quantum_render_seed(circuit, compiler.options.include_measurements); }
+◯ compile_to_aeonmi⟨compiler, circuit⟩ { return aeonmi_quantum_render_seed(circuit); }
+◯ compile_to_simulator⟨compiler, circuit⟩ { return simulator_config_seed(circuit, compiler.options.optimization_level); }
+
+◯ get_qubit_indices⟨gate, circuit⟩ { return resolve_qubit_indices_seed(gate, circuit); }
