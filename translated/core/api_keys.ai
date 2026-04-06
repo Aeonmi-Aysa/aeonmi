@@ -1,0 +1,50 @@
+⍝ TRANSLATION NOTE: src/core/api_keys.rs
+⍝ Purpose: encrypted API-key storage/retrieval/rotation with provider-indexed persistence.
+⍝ Feature parity: PARTIAL (KDF/key-material flow, encrypt/decrypt pipeline, provider CRUD, rotation report).
+
+◇ KEY_FORMAT_VERSION = 1;
+
+◯ key_material⟨⟩ {
+    let user = username_seed();
+    let host = hostname_seed("unknown-host");
+    let salt = bytes_seed("AEONMI_API_KEY_SALT_v1");
+    if (feature_enabled_seed("kdf-argon2")) {
+        let key = argon2id_seed(user + ":" + host, salt, 32);
+        if (is_err(key)) { return fallback_sha256(user, host, salt); }
+        return unwrap_ok(key);
+    }
+    return fallback_sha256(user, host, salt);
+}
+
+◯ fallback_sha256⟨user, host, salt⟩ { return sha256_bytes_seed([user, host, salt], 32); }
+◯ storage_path⟨⟩ { return config_path_seed("AEONMI_CONFIG_DIR", "aeonmi/keys.json"); }
+
+◯ set_api_key⟨provider, key⟩ {
+    let data = load_all_raw_seed();
+    let km = key_material();
+    let nonce = random_bytes_seed(12);
+    let ct = chacha20_encrypt_seed(km, nonce, utf8_bytes_seed(key));
+    let entry = json_seed({"v": KEY_FORMAT_VERSION, "alg": "ChaCha20", "nonce_ct_b64": b64_seed(concat_bytes_seed(nonce, ct))});
+    map_put_seed(data, provider, json_string_seed(entry));
+    return save_all_raw_seed(data);
+}
+
+◯ get_api_key⟨provider⟩ {
+    let data = load_all_raw_seed();
+    let raw = map_get_seed(data, provider);
+    if (is_none(raw)) { return none(); }
+    let b64 = decode_entry_b64_seed(unwrap_some(raw));
+    if (is_empty_seed(b64)) { return none(); }
+    let bytes = b64_decode_seed(b64);
+    if (len_seed(bytes) < 13) { return none(); }
+    let nonce = slice_seed(bytes, 0, 12);
+    let ct = slice_seed(bytes, 12, -1);
+    let pt = chacha20_decrypt_seed(key_material(), nonce, ct);
+    return some(utf8_string_seed(pt));
+}
+
+◯ delete_api_key⟨provider⟩ { return delete_and_save_seed(provider); }
+◯ list_providers⟨⟩ { return list_provider_keys_seed(load_all_raw_seed()); }
+
+◇ RotationReport = record_seed(["attempted", "rotated", "errors"]);
+◯ rotate_all_keys⟨⟩ { return rotate_each_provider_seed(); }

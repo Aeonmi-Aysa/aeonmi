@@ -47,8 +47,8 @@ Total Rust files tracked: **241**
 | `src/config.rs` | `translated/config.ai` | PARTIAL | Seed translation created at translated/config.ai |
 | `src/core/ai_emitter.rs` | `translated/core/ai_emitter.ai` | PARTIAL | Seed translation created at translated/core/ai_emitter.ai |
 | `src/core/ai_provider.rs` | `translated/core/ai_provider.ai` | PARTIAL | Seed translation created at translated/core/ai_provider.ai |
-| `src/core/api_keys.rs` | `translated/src/core/api_keys.ai` | PENDING | Not translated in this branch yet |
-| `src/core/artifact_cache.rs` | `translated/src/core/artifact_cache.ai` | PENDING | Not translated in this branch yet |
+| `src/core/api_keys.rs` | `translated/core/api_keys.ai` | PARTIAL | Seed translation created at translated/core/api_keys.ai |
+| `src/core/artifact_cache.rs` | `translated/core/artifact_cache.ai` | PARTIAL | Seed translation created at translated/core/artifact_cache.ai |
 | `src/core/ast.rs` | `translated/src/core/ast.qube` | PARTIAL | Seed translation created at translated/core/ast.ai (path normalization pending) |
 | `src/core/blockchain.rs` | `translated/src/core/blockchain.ai` | PENDING | Not translated in this branch yet |
 | `src/core/bytecode.rs` | `translated/src/core/bytecode.ai` | PARTIAL | Seed translation created at translated/core/bytecode.ai |

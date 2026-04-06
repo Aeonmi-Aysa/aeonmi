@@ -1,0 +1,42 @@
+⍝ TRANSLATION NOTE: src/core/artifact_cache.rs
+⍝ Purpose: in-memory artifact cache with LRU-like pruning by entry-count and total-bytes caps.
+⍝ Feature parity: PARTIAL (entry model, get/put, prune, stats, clear, logging toggle).
+
+◇ MAX_ENTRIES = 128;
+◇ MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+
+◇ ArtifactEntry = record_seed(["hash", "data", "size", "last_used"]);
+◇ ARTIFACT_CACHE = mutex_map_seed();
+◇ LOGGING_ENABLED = atomic_bool_seed(true);
+
+◯ get_artifact⟨hash⟩ {
+    let m = lock_seed(ARTIFACT_CACHE);
+    let e = map_get_mut_seed(m, hash);
+    if (is_none(e)) { return none(); }
+    set_field_seed(unwrap_some(e), "last_used", now_instant_seed());
+    return some(clone_seed(unwrap_some(e)));
+}
+
+◯ put_artifact⟨hash, data⟩ {
+    let m = lock_seed(ARTIFACT_CACHE);
+    map_put_seed(m, hash, {"hash": hash, "data": data, "size": len_seed(data), "last_used": now_instant_seed()});
+    prune_locked(m);
+}
+
+◯ prune_locked⟨m⟩ {
+    if (map_len_seed(m) <= MAX_ENTRIES && total_bytes_seed(m) <= MAX_TOTAL_BYTES) { return; }
+    let before_entries = map_len_seed(m);
+    let before_bytes = total_bytes_seed(m);
+    let entries = sort_by_last_used_seed(map_values_seed(m));
+    for e in entries {
+        if (map_len_seed(m) <= MAX_ENTRIES && total_bytes_seed(m) <= MAX_TOTAL_BYTES) { break; }
+        map_remove_seed(m, field_seed(e, "hash"));
+    }
+    if (atomic_load_seed(LOGGING_ENABLED)) {
+        log_stderr_seed("[artifact_cache] pruned", before_entries, map_len_seed(m), before_bytes, total_bytes_seed(m));
+    }
+}
+
+◯ set_cache_logging⟨enabled⟩ { atomic_store_seed(LOGGING_ENABLED, enabled); }
+◯ cache_stats⟨⟩ { let m = lock_seed(ARTIFACT_CACHE); return tuple_seed(map_len_seed(m), total_bytes_seed(m)); }
+◯ clear_artifacts⟨⟩ { clear_map_seed(lock_seed(ARTIFACT_CACHE)); }
