@@ -65,13 +65,13 @@ Total Rust files tracked: **241**
 | `src/core/hardware_integration.rs` | `translated/src/core/hardware_integration.ai` | PENDING | Not translated in this branch yet |
 | `src/core/incremental.rs` | `translated/src/core/incremental.ai` | PENDING | Not translated in this branch yet |
 | `src/core/ir.rs` | `translated/src/core/ir.qube` | PARTIAL | Seed translation created at translated/core/ir.ai (target ext review needed) |
-| `src/core/lexer.rs` | `translated/src/core/lexer.qube` | PENDING | Not translated in this branch yet |
+| `src/core/lexer.rs` | `translated/core/lexer.ai` | PARTIAL | Seed translation created at translated/core/lexer.ai |
 | `src/core/lib.rs` | `translated/src/core/lib.ai` | PENDING | Not translated in this branch yet |
 | `src/core/lowering.rs` | `translated/src/core/lowering.ai` | PARTIAL | Seed translation created at translated/core/lowering.ai |
 | `src/core/mint.rs` | `translated/src/core/mint.ai` | PENDING | Not translated in this branch yet |
 | `src/core/mod.rs` | `translated/src/core/mod.ai` | PENDING | Not translated in this branch yet |
 | `src/core/mother_core.rs` | `translated/src/core/mother_core.ai` | PENDING | Not translated in this branch yet |
-| `src/core/parser.rs` | `translated/src/core/parser.qube` | PENDING | Not translated in this branch yet |
+| `src/core/parser.rs` | `translated/core/parser.ai` | PARTIAL | Seed translation created at translated/core/parser.ai |
 | `src/core/qpoly.rs` | `translated/src/core/qpoly.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_algorithms.rs` | `translated/src/core/quantum_algorithms.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_circuits.rs` | `translated/src/core/quantum_circuits.ai` | PENDING | Not translated in this branch yet |
@@ -143,7 +143,7 @@ Total Rust files tracked: **241**
 | `src/core/titan/types.rs` | `translated/src/core/titan/types.ai` | PENDING | Not translated in this branch yet |
 | `src/core/token.rs` | `translated/src/core/token.ai` | PENDING | Not translated in this branch yet |
 | `src/core/types.rs` | `translated/src/core/types.ai` | PARTIAL | Seed translation created at translated/core/types.ai |
-| `src/core/vm.rs` | `translated/src/core/vm.ai` | PENDING | Not translated in this branch yet |
+| `src/core/vm.rs` | `translated/core/vm.ai` | PARTIAL | Seed translation created at translated/core/vm.ai |
 | `src/core/vm_bytecode.rs` | `translated/src/core/vm_bytecode.ai` | PENDING | Not translated in this branch yet |
 | `src/encryption.rs` | `translated/src/encryption.ai` | PENDING | Not translated in this branch yet |
 | `src/glyph/anomaly.rs` | `translated/src/glyph/anomaly.ai` | PENDING | Not translated in this branch yet |

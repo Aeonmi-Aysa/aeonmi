@@ -1,0 +1,105 @@
+⍝ TRANSLATION NOTE: src/core/parser.rs
+⍝ Purpose: token stream -> AST for statements/expressions.
+⍝ Feature parity: PARTIAL (parser cursor, basic advance/match, simple expression/statement envelopes).
+⍝ Known deviation: precedence ladder and full grammar branches are staged for subsequent batches.
+⍝ Test needs: parse fixtures for declarations, control flow, call/index, and error recovery.
+
+◯ parser_new⟨tokens⟩ {
+    let p = [];
+    p.push(tokens);
+    p.push(0);   ⍝ current index
+    p.push([]);  ⍝ diagnostics
+    return p;
+}
+
+◯ parser_tokens⟨p⟩ { return p.slice(0,1).pop(); }
+◯ parser_current⟨p⟩ { return p.slice(1,2).pop(); }
+◯ parser_diags⟨p⟩ { return p.slice(2,3).pop(); }
+
+◯ parser_set_current⟨p, idx⟩ {
+    let out = [];
+    out.push(parser_tokens(p));
+    out.push(idx);
+    out.push(parser_diags(p));
+    return out;
+}
+
+◯ parser_is_at_end⟨p⟩ {
+    let toks = parser_tokens(p);
+    if (len(toks) == 0) { return 1; }
+    let t = toks[parser_current(p)];
+    return token_kind(t) == token_kind_eof();
+}
+
+◯ parser_peek⟨p⟩ {
+    let toks = parser_tokens(p);
+    return toks[parser_current(p)];
+}
+
+◯ parser_advance⟨p⟩ {
+    if (!parser_is_at_end(p)) {
+        p = parser_set_current(p, parser_current(p) + 1);
+    }
+    return p;
+}
+
+◯ parser_previous⟨p⟩ {
+    let toks = parser_tokens(p);
+    return toks[parser_current(p) - 1];
+}
+
+◯ parser_match⟨p, kind⟩ {
+    if (parser_is_at_end(p)) {
+        let r = [];
+        r.push(p);
+        r.push(0);
+        return r;
+    }
+    if (token_kind(parser_peek(p)) == kind) {
+        p = parser_advance(p);
+        let r = [];
+        r.push(p);
+        r.push(1);
+        return r;
+    }
+    let r = [];
+    r.push(p);
+    r.push(0);
+    return r;
+}
+
+◯ parser_parse_primary_seed⟨p⟩ {
+    if (parser_is_at_end(p)) {
+        let r = [];
+        r.push(p);
+        r.push(ast_error_expr("unexpected eof"));
+        return r;
+    }
+    let t = parser_peek(p);
+    p = parser_advance(p);
+    let r = [];
+    r.push(p);
+    r.push(ast_identifier_expr(token_lexeme(t)));
+    return r;
+}
+
+◯ parser_parse_statement_seed⟨p⟩ {
+    let x = parser_parse_primary_seed(p);
+    p = x.slice(0,1).pop();
+    let expr = x.slice(1,2).pop();
+    let r = [];
+    r.push(p);
+    r.push(ast_expr_stmt(expr));
+    return r;
+}
+
+◯ parser_parse_program_seed⟨tokens⟩ {
+    let p = parser_new(tokens);
+    let stmts = [];
+    while (!parser_is_at_end(p)) {
+        let st = parser_parse_statement_seed(p);
+        p = st.slice(0,1).pop();
+        stmts.push(st.slice(1,2).pop());
+    }
+    return ast_program(stmts);
+}

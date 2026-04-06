@@ -1,0 +1,85 @@
+⍝ TRANSLATION NOTE: src/core/vm.rs
+⍝ Purpose: bytecode/runtime execution engine with stack, globals, call frames, and builtins.
+⍝ Feature parity: PARTIAL (value constructors, stack helpers, seed opcode dispatch loop).
+⍝ Known deviation: only core arithmetic/constant/return path implemented in seed VM.
+⍝ Test needs: runtime parity fixtures for stack ops, env lookup, branching, calls, and builtins.
+
+◯ vm_new⟨chunk⟩ {
+    let vm = [];
+    vm.push(chunk); ⍝ bytecode chunk
+    vm.push(0);     ⍝ ip
+    vm.push([]);    ⍝ stack
+    vm.push([]);    ⍝ globals (seed map-like array)
+    return vm;
+}
+
+◯ vm_chunk⟨vm⟩ { return vm.slice(0,1).pop(); }
+◯ vm_ip⟨vm⟩ { return vm.slice(1,2).pop(); }
+◯ vm_stack⟨vm⟩ { return vm.slice(2,3).pop(); }
+◯ vm_globals⟨vm⟩ { return vm.slice(3,4).pop(); }
+
+◯ vm_set_state⟨vm, chunk, ip, stack, globals⟩ {
+    let out = [];
+    out.push(chunk);
+    out.push(ip);
+    out.push(stack);
+    out.push(globals);
+    return out;
+}
+
+◯ vm_push⟨vm, value⟩ {
+    let st = vm_stack(vm);
+    st.push(value);
+    return vm_set_state(vm, vm_chunk(vm), vm_ip(vm), st, vm_globals(vm));
+}
+
+◯ vm_pop⟨vm⟩ {
+    let st = vm_stack(vm);
+    let value = st.pop();
+    let vm2 = vm_set_state(vm, vm_chunk(vm), vm_ip(vm), st, vm_globals(vm));
+    let r = [];
+    r.push(vm2);
+    r.push(value);
+    return r;
+}
+
+◯ vm_read_inst⟨vm⟩ {
+    let chunk = vm_chunk(vm);
+    let code = chunk.slice(0,1).pop();
+    let ip = vm_ip(vm);
+    let inst = code[ip];
+    vm = vm_set_state(vm, vm_chunk(vm), ip + 1, vm_stack(vm), vm_globals(vm));
+    let r = [];
+    r.push(vm);
+    r.push(inst);
+    return r;
+}
+
+◯ vm_run_seed⟨chunk⟩ {
+    let vm = vm_new(chunk);
+    while (1) {
+        let ri = vm_read_inst(vm);
+        vm = ri.slice(0,1).pop();
+        let inst = ri.slice(1,2).pop();
+        let op = inst[0];
+
+        if (op == bc_op_const()) {
+            let idx = inst[1];
+            let consts = vm_chunk(vm).slice(1,2).pop();
+            vm = vm_push(vm, consts[idx]);
+        } else if (op == bc_op_add()) {
+            let b = vm_pop(vm);
+            vm = b.slice(0,1).pop();
+            let bv = b.slice(1,2).pop();
+            let a = vm_pop(vm);
+            vm = a.slice(0,1).pop();
+            let av = a.slice(1,2).pop();
+            vm = vm_push(vm, av + bv);
+        } else if (op == bc_op_return()) {
+            let r = vm_pop(vm);
+            return r.slice(1,2).pop();
+        } else {
+            return runtime_error("unsupported opcode in seed vm");
+        }
+    }
+}
