@@ -1,0 +1,34 @@
+⍝ TRANSLATION NOTE: src/cli.rs
+⍝ Purpose: top-level CLI schema (global flags, subcommands, action enums).
+⍝ Feature parity: PARTIAL (command surface mapped as seed definitions).
+
+◇ EmitKind = enum_seed(["Ai", "Js"]);
+◇ BackendKind = enum_seed(["Titan", "Aer", "Ibmq"]);
+
+◯ aeonmi_cli_schema⟨⟩ {
+    return cli_schema_seed({
+        "name": "aeonmi",
+        "globals": [
+            "pretty-errors",
+            "no-sema",
+            "debug-titan",
+            "config",
+            "input_pos",
+            "input"
+        ],
+        "legacy": ["emit", "out", "tokens", "ast", "metrics-dump"],
+        "subcommands": [
+            "emit", "run", "quantum", "format", "lint", "repl", "edit",
+            "new", "open", "save", "save-as", "close", "import", "export",
+            "upload", "download", "tokens", "ast", "vm", "ai", "vault",
+            "cargo", "python", "node", "metrics-dump", "metrics-flush",
+            "metrics-path", "metrics-top", "metrics-config", "metrics-deep",
+            "key-rotate", "key-list", "key-get", "key-set", "key-delete",
+            "qube", "mint", "mother", "exec", "native", "metrics-export"
+        ]
+    });
+}
+
+◯ vm_action_schema⟨⟩ { return enum_seed(["Start","Stop","Status","Reset","Snapshot","Restore","Mount"]); }
+◯ qube_action_schema⟨⟩ { return enum_seed(["Run","Check"]); }
+◯ ai_action_schema⟨⟩ { return enum_seed(["Suggest","Debug","Optimize","Explain","Refactor","Chat"]); }

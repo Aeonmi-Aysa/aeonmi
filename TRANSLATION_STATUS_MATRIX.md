@@ -29,8 +29,8 @@ Total Rust files tracked: **241**
 | `src/bin/aeonmi_hybrid_demo.rs` | `translated/bin/aeonmi_hybrid_demo.ai` | PARTIAL | Seed translation created at translated/bin/aeonmi_hybrid_demo.ai |
 | `src/bin/aeonmi_project.rs` | `translated/bin/aeonmi_project.ai` | PARTIAL | Seed translation created at translated/bin/aeonmi_project.ai |
 | `src/bin/quantum_validation.rs` | `translated/bin/quantum_validation.ai` | PARTIAL | Seed translation created at translated/bin/quantum_validation.ai |
-| `src/cli.rs` | `translated/src/cli.ai` | PENDING | Not translated in this branch yet |
-| `src/cli_vault.rs` | `translated/src/cli_vault.ai` | PENDING | Not translated in this branch yet |
+| `src/cli.rs` | `translated/cli.ai` | PARTIAL | Seed translation created at translated/cli.ai |
+| `src/cli_vault.rs` | `translated/cli_vault.ai` | PARTIAL | Seed translation created at translated/cli_vault.ai |
 | `src/commands/ast.rs` | `translated/commands/ast.ai` | PARTIAL | Seed translation created at translated/commands/ast.ai |
 | `src/commands/compile.rs` | `translated/commands/compile.ai` | PARTIAL | Seed translation created at translated/commands/compile.ai |
 | `src/commands/edit.rs` | `translated/commands/edit.ai` | PARTIAL | Seed translation created at translated/commands/edit.ai |

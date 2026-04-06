@@ -1,0 +1,31 @@
+⍝ TRANSLATION NOTE: src/cli_vault.rs
+⍝ Purpose: Vault command-line schema and argument structs.
+⍝ Feature parity: PARTIAL (vault command surface + argument contracts mapped).
+
+◇ VaultCommand = enum_seed([
+    "Init", "Register", "Transfer", "Fortify", "QubeRun", "VaultStatus", "VaultAnalyze",
+    "Add", "Renew", "Lock", "Audit", "Watch", "Sync", "Backup", "Recover", "ExportMerkle"
+]);
+
+◯ vault_cli_schema⟨⟩ {
+    return cli_schema_seed({
+        "commands": [
+            {"name":"init", "args":["passphrase?", "force"]},
+            {"name":"register", "args":["domain", "registrar", "expiration", "auto_renew", "dnssec", "lock", "blockchain?", "metadata_path?", "secret_path"]},
+            {"name":"transfer", "args":["domain", "new_registrar", "auth_token_path?"]},
+            {"name":"fortify", "args":["domain", "dnssec", "lock", "blockchain?"]},
+            {"name":"qube-run", "args":["script", "profile?"]},
+            {"name":"vault-status", "args":["json"]},
+            {"name":"vault-analyze", "args":["domain?", "mitigate"]},
+            {"name":"add", "args":["domain", "registrar", "expiration", "secret_path", "metadata_path?"]},
+            {"name":"renew", "args":["domain", "expiration"]},
+            {"name":"lock", "args":["domain", "unlock"]},
+            {"name":"audit", "args":["category", "detail?"]},
+            {"name":"watch", "args":["interval", "once"]},
+            {"name":"sync", "args":[]},
+            {"name":"backup", "args":["path"]},
+            {"name":"recover", "args":["path"]},
+            {"name":"export-merkle", "args":[]}
+        ]
+    });
+}
