@@ -1,0 +1,33 @@
+⍝ TRANSLATION NOTE: src/commands/vm.rs
+⍝ Purpose: VM lifecycle/snapshot command surface.
+⍝ Feature parity: PARTIAL (placeholders for lifecycle ops + snapshot/restore flow shape).
+
+◯ vm_start_seed⟨⟩ { print("vm: start (placeholder)"); return ok(); }
+◯ vm_stop_seed⟨⟩ { print("vm: stop (placeholder)"); return ok(); }
+◯ vm_status_seed⟨⟩ { print("vm: status: running (placeholder)"); return ok(); }
+◯ vm_reset_seed⟨⟩ { print("vm: reset (placeholder)"); return ok(); }
+◯ vm_mount_seed⟨dir⟩ { print("vm: mount '" + dir + "' (placeholder)"); return ok(); }
+
+◯ vm_snapshot_seed⟨name⟩ {
+    let repo = cwd();
+    let snaps = join_path(join_path(repo, ".aeonmi"), "vm_snapshots");
+    ensure_dir(snaps);
+    let dest = join_path(snaps, name);
+    if (exists(dest)) { remove_dir(dest); }
+    copy_dir_seed(repo, dest);
+    print("vm: snapshot '" + name + "' created");
+    return ok();
+}
+
+◯ vm_restore_seed⟨name⟩ {
+    let repo = cwd();
+    let src = join_path(join_path(join_path(repo, ".aeonmi"), "vm_snapshots"), name);
+    if (!exists(src)) { return error("snapshot not found"); }
+    let tmp = join_path(join_path(repo, ".aeonmi"), "tmp_restore");
+    if (exists(tmp)) { remove_dir(tmp); }
+    copy_dir_seed(src, tmp);
+    restore_tree_seed(tmp, repo);
+    remove_dir(tmp);
+    print("vm: restored snapshot '" + name + "'");
+    return ok();
+}

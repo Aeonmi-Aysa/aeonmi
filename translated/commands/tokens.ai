@@ -1,0 +1,9 @@
+⍝ TRANSLATION NOTE: src/commands/tokens.rs
+⍝ Purpose: CLI tokens command entrypoint (placeholder behavior).
+⍝ Feature parity: PARTIAL (argument passthrough + placeholder output).
+
+◯ command_tokens_main⟨input_path⟩ {
+    let _ignored = input_path;
+    print("(tokens) placeholder: showing tokens...");
+    return ok();
+}

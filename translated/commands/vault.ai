@@ -1,0 +1,27 @@
+⍝ TRANSLATION NOTE: src/commands/vault.rs
+⍝ Purpose: domain quantum vault command dispatcher (register/transfer/fortify/status/analyze/watch/sync/backup/recover/export/init).
+⍝ Feature parity: PARTIAL (dispatch map, status/analyze reporting, init ceremony flow).
+
+◯ vault_dispatch_seed⟨command, use_tui⟩ {
+    if (command.kind == "Init") { return dispatch_glyph_init_seed(command.args); }
+
+    let vault = domain_quantum_vault_open_default_seed();
+
+    if (command.kind == "Register") { return vault_register_seed(vault, command.args); }
+    if (command.kind == "Transfer") { return vault_transfer_seed(vault, command.args); }
+    if (command.kind == "Fortify") { return vault_fortify_seed(vault, command.args); }
+    if (command.kind == "QubeRun") { return vault_qube_run_seed(vault, command.args); }
+    if (command.kind == "VaultStatus") { return vault_status_seed(vault, command.args, use_tui); }
+    if (command.kind == "VaultAnalyze") { return vault_analyze_seed(vault, command.args); }
+    if (command.kind == "Add") { return vault_add_seed(vault, command.args); }
+    if (command.kind == "Renew") { return vault_renew_seed(vault, command.args); }
+    if (command.kind == "Lock") { return vault_lock_seed(vault, command.args); }
+    if (command.kind == "Audit") { return vault_audit_seed(vault, command.args); }
+    if (command.kind == "Watch") { return vault_watch_seed(vault, command.args, use_tui); }
+    if (command.kind == "Sync") { return vault_sync_seed(vault); }
+    if (command.kind == "Backup") { return vault_backup_seed(vault, command.args); }
+    if (command.kind == "Recover") { return vault_recover_seed(vault, command.args); }
+    if (command.kind == "ExportMerkle") { return vault_export_merkle_seed(vault); }
+
+    return ok();
+}

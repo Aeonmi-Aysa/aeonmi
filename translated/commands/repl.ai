@@ -1,0 +1,11 @@
+⍝ TRANSLATION NOTE: src/commands/repl.rs
+⍝ Purpose: quantum REPL entry using mother embryo loop.
+⍝ Feature parity: PARTIAL (config setup and run loop delegation).
+
+◯ command_repl_main⟨⟩ {
+    let config = embryo_config_seed();
+    config.interactive = true;
+    config.verbose = false;
+    let mother = embryo_loop_new_seed(config);
+    return embryo_run_repl_seed(mother);
+}

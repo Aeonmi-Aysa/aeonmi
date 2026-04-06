@@ -1,0 +1,31 @@
+⍝ TRANSLATION NOTE: src/commands/run.rs
+⍝ Purpose: native .ai execution pipeline (lex/parse/lower/interpret) with diagnostics.
+⍝ Feature parity: PARTIAL (pipeline structure + user-visible markers).
+
+◯ run_native_seed⟨input, pretty, no_sema⟩ {
+    print("native: executing " + input);
+    let source = read_file(input);
+
+    let tokens = lex_or_diag_seed(source, input, pretty);
+    if (is_error(tokens)) { return ok(); }
+
+    let ast = parse_or_diag_seed(unwrap_ok(tokens), source, input, pretty);
+    if (is_error(ast)) { return ok(); }
+
+    if (no_sema) { print("note: semantic analysis skipped (native)"); }
+
+    print("native: executing " + input);
+    let module = lower_to_ir_seed(unwrap_ok(ast), "main");
+    if (is_error(module)) { eprint("error: lowering error"); return ok(); }
+
+    let interp = interpreter_new_seed();
+    interp.base_dir = parent_dir(input);
+    let r = interpreter_run_module_seed(interp, unwrap_ok(module));
+    if (is_error(r)) { eprint("error: runtime error"); }
+    return ok();
+}
+
+◯ command_run_main_with_opts⟨input, out_opt, pretty, no_sema⟩ {
+    let _ = out_opt;
+    return run_native_seed(input, pretty, no_sema);
+}

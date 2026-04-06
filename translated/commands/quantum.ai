@@ -1,0 +1,32 @@
+⍝ TRANSLATION NOTE: src/commands/quantum.rs
+⍝ Purpose: quantum command entrypoint for titan/aer/ibmq backends with simple IR execution.
+⍝ Feature parity: PARTIAL (backend dispatch, Titan op loop shape, 1q sampling, helper scaffolds).
+
+◯ command_quantum_main⟨file, shots, backend⟩ {
+    return quantum_run_seed(file, backend, shots);
+}
+
+◯ quantum_run_seed⟨file, backend, shots⟩ {
+    let be = lowercase(backend);
+    if (be == "titan") { return run_titan_seed(file, shots); }
+    if (be == "aer" || be == "qiskit") { return run_aer_seed(file, shots); }
+    if (be == "ibmq") { return error("IBMQ path not wired yet"); }
+    return error("unsupported backend");
+}
+
+◯ run_titan_seed⟨file, shots⟩ {
+    let circ = parse_ai_to_ir_seed(file);
+    let psi = qstate_zero_seed(circ.n_qubits);
+    for op in circ.ops {
+        if (op.kind == "H") { psi = apply_1q_seed(psi, circ.n_qubits, op.targets[0], "H"); }
+        if (op.kind == "X") { psi = apply_1q_seed(psi, circ.n_qubits, op.targets[0], "X"); }
+        if (op.kind == "CNOT") { psi = apply_cnot_seed(psi, circ.n_qubits, op.targets[0], op.targets[1]); }
+    }
+    if (is_some(shots) && circ.n_qubits == 1) {
+        let pair = sample_1q_seed(psi, unwrap_some(shots));
+        print("Titan shots => 0: " + to_string(pair[0]) + ", 1: " + to_string(pair[1]));
+    } else {
+        print("Titan |ψ_out> amplitudes: " + amplitudes_seed(psi));
+    }
+    return ok();
+}

@@ -38,12 +38,12 @@ Total Rust files tracked: **241**
 | `src/commands/fs.rs` | `translated/commands/fs.ai` | PARTIAL | Seed translation created at translated/commands/fs.ai |
 | `src/commands/lint.rs` | `translated/commands/lint.ai` | PARTIAL | Seed translation created at translated/commands/lint.ai |
 | `src/commands/mod.rs` | `translated/commands/mod.ai` | PARTIAL | Seed translation created at translated/commands/mod.ai |
-| `src/commands/quantum.rs` | `translated/src/commands/quantum.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/repl.rs` | `translated/src/commands/repl.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/run.rs` | `translated/src/commands/run.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/tokens.rs` | `translated/src/commands/tokens.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/vault.rs` | `translated/src/commands/vault.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/vm.rs` | `translated/src/commands/vm.ai` | PENDING | Not translated in this branch yet |
+| `src/commands/quantum.rs` | `translated/commands/quantum.ai` | PARTIAL | Seed translation created at translated/commands/quantum.ai |
+| `src/commands/repl.rs` | `translated/commands/repl.ai` | PARTIAL | Seed translation created at translated/commands/repl.ai |
+| `src/commands/run.rs` | `translated/commands/run.ai` | PARTIAL | Seed translation created at translated/commands/run.ai |
+| `src/commands/tokens.rs` | `translated/commands/tokens.ai` | PARTIAL | Seed translation created at translated/commands/tokens.ai |
+| `src/commands/vault.rs` | `translated/commands/vault.ai` | PARTIAL | Seed translation created at translated/commands/vault.ai |
+| `src/commands/vm.rs` | `translated/commands/vm.ai` | PARTIAL | Seed translation created at translated/commands/vm.ai |
 | `src/config.rs` | `translated/src/config.ai` | PENDING | Not translated in this branch yet |
 | `src/core/ai_emitter.rs` | `translated/src/core/ai_emitter.ai` | PENDING | Not translated in this branch yet |
 | `src/core/ai_provider.rs` | `translated/src/core/ai_provider.ai` | PENDING | Not translated in this branch yet |
