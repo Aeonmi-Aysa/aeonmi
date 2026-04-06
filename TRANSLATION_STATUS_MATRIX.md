@@ -58,8 +58,8 @@ Total Rust files tracked: **241**
 | `src/core/code_actions.rs` | `translated/src/core/code_actions.ai` | PENDING | Not translated in this branch yet |
 | `src/core/code_generator.rs` | `translated/src/core/code_generator.ai` | PENDING | Not translated in this branch yet |
 | `src/core/compiler.rs` | `translated/src/core/compiler.ai` | PENDING | Not translated in this branch yet |
-| `src/core/debug.rs` | `translated/src/core/debug.ai` | PENDING | Not translated in this branch yet |
-| `src/core/diagnostics.rs` | `translated/src/core/diagnostics.ai` | PENDING | Not translated in this branch yet |
+| `src/core/debug.rs` | `translated/src/core/debug.ai` | PARTIAL | Seed translation created at translated/core/debug.ai |
+| `src/core/diagnostics.rs` | `translated/src/core/diagnostics.ai` | PARTIAL | Seed translation created at translated/core/diagnostics.ai |
 | `src/core/error.rs` | `translated/src/core/error.ai` | PARTIAL | Seed translation created at translated/core/error.ai |
 | `src/core/formatter.rs` | `translated/src/core/formatter.ai` | PENDING | Not translated in this branch yet |
 | `src/core/hardware_integration.rs` | `translated/src/core/hardware_integration.ai` | PENDING | Not translated in this branch yet |
@@ -76,15 +76,15 @@ Total Rust files tracked: **241**
 | `src/core/quantum_algorithms.rs` | `translated/src/core/quantum_algorithms.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_circuits.rs` | `translated/src/core/quantum_circuits.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_extract.rs` | `translated/src/core/quantum_extract.ai` | PENDING | Not translated in this branch yet |
-| `src/core/quantum_ir.rs` | `translated/src/core/quantum_ir.qube` | PENDING | Not translated in this branch yet |
+| `src/core/quantum_ir.rs` | `translated/src/core/quantum_ir.qube` | PARTIAL | Seed translation created at translated/core/quantum_ir.ai (target ext review needed) |
 | `src/core/quantum_neural_network.rs` | `translated/src/core/quantum_neural_network.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_operations.rs` | `translated/src/core/quantum_operations.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_simulator.rs` | `translated/src/core/quantum_simulator.ai` | PENDING | Not translated in this branch yet |
 | `src/core/qube_ast.rs` | `translated/src/core/qube_ast.qube` | PENDING | Not translated in this branch yet |
 | `src/core/qube_parser.rs` | `translated/src/core/qube_parser.qube` | PENDING | Not translated in this branch yet |
-| `src/core/scope_map.rs` | `translated/src/core/scope_map.ai` | PENDING | Not translated in this branch yet |
+| `src/core/scope_map.rs` | `translated/src/core/scope_map.ai` | PARTIAL | Seed translation created at translated/core/scope_map.ai |
 | `src/core/semantic_analyzer.rs` | `translated/src/core/semantic_analyzer.ai` | PENDING | Not translated in this branch yet |
-| `src/core/symbols.rs` | `translated/src/core/symbols.ai` | PENDING | Not translated in this branch yet |
+| `src/core/symbols.rs` | `translated/src/core/symbols.ai` | PARTIAL | Seed translation created at translated/core/symbols.ai |
 | `src/core/titan/advanced_fourier_signal_processing.rs` | `translated/src/core/titan/advanced_fourier_signal_processing.ai` | PENDING | Not translated in this branch yet |
 | `src/core/titan/advanced_linear_algebra.rs` | `translated/src/core/titan/advanced_linear_algebra.ai` | PENDING | Not translated in this branch yet |
 | `src/core/titan/advanced_quantum_math.rs` | `translated/src/core/titan/advanced_quantum_math.ai` | PENDING | Not translated in this branch yet |

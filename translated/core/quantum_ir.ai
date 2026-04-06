@@ -1,0 +1,56 @@
+⍝ TRANSLATION NOTE: src/core/quantum_ir.rs
+⍝ Purpose: quantum intermediate representation for circuit operations and passes.
+⍝ Key translation decisions: IR nodes represented as tagged arrays with operation payloads.
+⍝ Feature parity: PARTIAL.
+
+◯ qir_op_h⟨target⟩ {
+    let op = [];
+    op.push(1); ⍝ H
+    op.push(target);
+    op.push(-1);
+    return op;
+}
+
+◯ qir_op_x⟨target⟩ {
+    let op = [];
+    op.push(2); ⍝ X
+    op.push(target);
+    op.push(-1);
+    return op;
+}
+
+◯ qir_op_cnot⟨control, target⟩ {
+    let op = [];
+    op.push(3); ⍝ CNOT
+    op.push(target);
+    op.push(control);
+    return op;
+}
+
+◯ qir_op_measure⟨target⟩ {
+    let op = [];
+    op.push(4); ⍝ MEASURE
+    op.push(target);
+    op.push(-1);
+    return op;
+}
+
+◯ qir_circuit_new⟨qubits⟩ {
+    let c = [];
+    c.push(qubits);
+    c.push([]); ⍝ ops
+    return c;
+}
+
+◯ qir_circuit_qubits⟨c⟩ { return c.slice(0,1).pop(); }
+◯ qir_circuit_ops⟨c⟩ { return c.slice(1,2).pop(); }
+
+◯ qir_circuit_add⟨c, op⟩ {
+    let q = qir_circuit_qubits(c);
+    let ops = qir_circuit_ops(c);
+    ops.push(op);
+    let out = [];
+    out.push(q);
+    out.push(ops);
+    return out;
+}

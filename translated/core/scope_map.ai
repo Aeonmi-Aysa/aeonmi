@@ -1,0 +1,76 @@
+⍝ TRANSLATION NOTE: src/core/scope_map.rs
+⍝ Purpose: symbol scope map utilities for semantic/runtime lookup.
+⍝ Key translation decisions: Rust map/stack approach represented as flat scope stack arrays.
+⍝ Feature parity: PARTIAL.
+
+⍝ scope map state = [scopes]
+⍝ each scope = [k1, v1, k2, v2, ...]
+
+◯ scope_map_new⟨⟩ {
+    let state = [];
+    let scopes = [];
+    scopes.push([]);
+    state.push(scopes);
+    return state;
+}
+
+◯ scope_map_scopes⟨state⟩ { return state.slice(0,1).pop(); }
+
+◯ scope_map_enter⟨state⟩ {
+    let scopes = scope_map_scopes(state);
+    scopes.push([]);
+    let out = [];
+    out.push(scopes);
+    return out;
+}
+
+◯ scope_map_exit⟨state⟩ {
+    let scopes = scope_map_scopes(state);
+    if (len(scopes) > 1) {
+        scopes.pop();
+    }
+    let out = [];
+    out.push(scopes);
+    return out;
+}
+
+◯ scope_bind⟨scope, key, value⟩ {
+    scope.push(key);
+    scope.push(value);
+    return scope;
+}
+
+◯ scope_get⟨scope, key⟩ {
+    let i = len(scope) - 2;
+    while (i >= 0) {
+        let k = scope.slice(i, i+1).pop();
+        if (k == key) {
+            return scope.slice(i+1, i+2).pop();
+        }
+        i = i - 2;
+    }
+    return "";
+}
+
+◯ scope_map_set⟨state, key, value⟩ {
+    let scopes = scope_map_scopes(state);
+    let top_index = len(scopes) - 1;
+    let top = scopes.slice(top_index, top_index+1).pop();
+    top = scope_bind(top, key, value);
+    scopes[top_index] = top;
+    let out = [];
+    out.push(scopes);
+    return out;
+}
+
+◯ scope_map_get⟨state, key⟩ {
+    let scopes = scope_map_scopes(state);
+    let i = len(scopes) - 1;
+    while (i >= 0) {
+        let scope = scopes.slice(i, i+1).pop();
+        let v = scope_get(scope, key);
+        if (v != "") { return v; }
+        i = i - 1;
+    }
+    return "";
+}

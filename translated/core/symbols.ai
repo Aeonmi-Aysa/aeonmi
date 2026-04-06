@@ -1,0 +1,39 @@
+⍝ TRANSLATION NOTE: src/core/symbols.rs
+⍝ Purpose: symbol table helper functions and record tagging.
+⍝ Key translation decisions: symbols modeled as flat records [name, kind, ty, scope_depth].
+⍝ Feature parity: PARTIAL.
+
+◯ sym_kind_var⟨⟩ { return 1; }
+◯ sym_kind_fn⟨⟩ { return 2; }
+◯ sym_kind_param⟨⟩ { return 3; }
+
+◯ symbol_new⟨name, kind, ty, depth⟩ {
+    let s = [];
+    s.push(name);
+    s.push(kind);
+    s.push(ty);
+    s.push(depth);
+    return s;
+}
+
+◯ symbol_name⟨s⟩ { return s.slice(0,1).pop(); }
+◯ symbol_kind⟨s⟩ { return s.slice(1,2).pop(); }
+◯ symbol_type⟨s⟩ { return s.slice(2,3).pop(); }
+◯ symbol_depth⟨s⟩ { return s.slice(3,4).pop(); }
+
+◯ symbols_new⟨⟩ { return []; }
+
+◯ symbols_add⟨table, symbol⟩ {
+    table.push(symbol);
+    return table;
+}
+
+◯ symbols_find⟨table, name⟩ {
+    let i = len(table) - 1;
+    while (i >= 0) {
+        let s = table.slice(i, i+1).pop();
+        if (symbol_name(s) == name) { return s; }
+        i = i - 1;
+    }
+    return [];
+}

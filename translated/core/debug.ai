@@ -1,0 +1,15 @@
+⍝ TRANSLATION NOTE: src/core/debug.rs
+⍝ Purpose: tiny debug toggles and logging helpers.
+⍝ Key translation decisions: simple env-style switch emulated with integer flag.
+⍝ Feature parity: PARTIAL.
+
+◯ debug_enabled⟨flag⟩ {
+    return flag == 1;
+}
+
+◯ debug_log⟨flag, msg⟩ {
+    if (debug_enabled(flag)) {
+        print("[debug] " + msg);
+    }
+    return 0;
+}
