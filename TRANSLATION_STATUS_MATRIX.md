@@ -74,8 +74,8 @@ Total Rust files tracked: **241**
 | `src/core/parser.rs` | `translated/core/parser.ai` | PARTIAL | Seed translation created at translated/core/parser.ai |
 | `src/core/qpoly.rs` | `translated/core/qpoly.ai` | PARTIAL | Seed translation created at translated/core/qpoly.ai |
 | `src/core/quantum_algorithms.rs` | `translated/core/quantum_algorithms.ai` | PARTIAL | Seed translation created at translated/core/quantum_algorithms.ai |
-| `src/core/quantum_circuits.rs` | `translated/src/core/quantum_circuits.ai` | PENDING | Not translated in this branch yet |
-| `src/core/quantum_extract.rs` | `translated/src/core/quantum_extract.ai` | PENDING | Not translated in this branch yet |
+| `src/core/quantum_circuits.rs` | `translated/core/quantum_circuits.ai` | PARTIAL | Placeholder seed created (source file missing in this branch) |
+| `src/core/quantum_extract.rs` | `translated/core/quantum_extract.ai` | PARTIAL | Seed translation created at translated/core/quantum_extract.ai |
 | `src/core/quantum_ir.rs` | `translated/src/core/quantum_ir.qube` | PARTIAL | Seed translation created at translated/core/quantum_ir.ai (target ext review needed) |
 | `src/core/quantum_neural_network.rs` | `translated/src/core/quantum_neural_network.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_operations.rs` | `translated/src/core/quantum_operations.ai` | PENDING | Not translated in this branch yet |

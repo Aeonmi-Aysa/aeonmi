@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/quantum_circuits.rs
+⍝ Source status: file not present in this branch at /home/runner/work/aeonmi/aeonmi/src/core/quantum_circuits.rs.
+⍝ Feature parity: PARTIAL placeholder (matrix continuity pending source restoration or path correction).
+
+◯ quantum_circuits_placeholder⟨⟩ {
+  return note_seed("Missing source file in current branch; placeholder seed only.");
+}

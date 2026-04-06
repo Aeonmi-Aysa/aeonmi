@@ -1,0 +1,31 @@
+⍝ TRANSLATION NOTE: src/core/quantum_extract.rs
+⍝ Purpose: extract quantum gate timeline/circuit view from AST and emit JSON / pseudo-QASM.
+⍝ Feature parity: PARTIAL (circuit models + AST walk + json/qasm emit scaffolds).
+
+◇ QuantumGate = record_seed(["gate", "qubits", "line"]);
+◇ QuantumCircuit = record_seed(["gates", "qubit_count"]);
+
+◯ extract_circuit⟨ast⟩ {
+  let gates = [];
+  let qubit_names = [];
+  walk_ast_for_quantum_ops_seed(ast, gates, qubit_names);
+  unique_sort_seed(qubit_names);
+  return {"gates": gates, "qubit_count": len_seed(qubit_names)};
+}
+
+◯ circuit_to_json⟨c⟩ { return json_pretty_seed(c); }
+
+◯ circuit_to_pseudo_qasm⟨c⟩ {
+  let names = unique_sort_seed(flatten_qubits_seed(c.gates));
+  let map = index_map_seed(names);
+  let out = "qreg q[" + text_seed(len_seed(names)) + "];\n";
+  for g in c.gates {
+    if (!is_empty_seed(g.qubits)) {
+      let idxs = map_qubits_to_indices_seed(g.qubits, map);
+      append_seed(out, lower_seed(g.gate) + " " + join_seed(idxs, ",") + "; // line" + text_seed(g.line) + "\n");
+    }
+  }
+  return out;
+}
+
+◯ walk⟨node, gates, qubits⟩ { return walk_ast_for_quantum_ops_seed(node, gates, qubits); }
