@@ -45,8 +45,8 @@ Total Rust files tracked: **241**
 | `src/commands/vault.rs` | `translated/commands/vault.ai` | PARTIAL | Seed translation created at translated/commands/vault.ai |
 | `src/commands/vm.rs` | `translated/commands/vm.ai` | PARTIAL | Seed translation created at translated/commands/vm.ai |
 | `src/config.rs` | `translated/config.ai` | PARTIAL | Seed translation created at translated/config.ai |
-| `src/core/ai_emitter.rs` | `translated/src/core/ai_emitter.ai` | PENDING | Not translated in this branch yet |
-| `src/core/ai_provider.rs` | `translated/src/core/ai_provider.ai` | PENDING | Not translated in this branch yet |
+| `src/core/ai_emitter.rs` | `translated/core/ai_emitter.ai` | PARTIAL | Seed translation created at translated/core/ai_emitter.ai |
+| `src/core/ai_provider.rs` | `translated/core/ai_provider.ai` | PARTIAL | Seed translation created at translated/core/ai_provider.ai |
 | `src/core/api_keys.rs` | `translated/src/core/api_keys.ai` | PENDING | Not translated in this branch yet |
 | `src/core/artifact_cache.rs` | `translated/src/core/artifact_cache.ai` | PENDING | Not translated in this branch yet |
 | `src/core/ast.rs` | `translated/src/core/ast.qube` | PARTIAL | Seed translation created at translated/core/ast.ai (path normalization pending) |

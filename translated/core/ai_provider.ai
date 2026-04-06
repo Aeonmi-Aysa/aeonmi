@@ -1,0 +1,37 @@
+⍝ TRANSLATION NOTE: src/core/ai_provider.rs
+⍝ Purpose: provider abstraction, chunk sink protocol, faux provider, registry with active-provider prefs.
+⍝ Feature parity: PARTIAL (provider contracts + faux stream + registry persistence flow).
+
+◇ ChatChunk = record_seed(["content", "done"]);
+
+◇ AiProvider = trait_seed([
+    "name() -> text",
+    "chat_stream(prompt, sink) -> result"
+]);
+
+◇ ChunkSink = trait_seed([
+    "emit(chunk) -> async"
+]);
+
+◯ faux_provider_chat_stream⟨prompt, sink⟩ {
+    let text = "Faux: " + prompt;
+    let parts = chunk_bytes_seed(text, 12);
+    for part in parts {
+        await sink_emit_seed(sink, {"content": part, "done": false});
+    }
+    await sink_emit_seed(sink, {"content": "", "done": true});
+    return ok();
+}
+
+◇ ProviderRegistry = record_seed(["providers", "active"]);
+
+◯ provider_registry_new⟨⟩ {
+    let reg = {"providers": ["faux"], "active": "faux"};
+    load_active_seed(reg);
+    return reg;
+}
+
+◯ provider_registry_list⟨reg⟩ { return list_provider_names_seed(reg.providers); }
+◯ provider_registry_set_active⟨reg, name⟩ { return set_active_and_save_seed(reg, name); }
+◯ provider_registry_active⟨reg⟩ { return find_active_provider_seed(reg.providers, reg.active); }
+◯ provider_registry_prefs_path⟨⟩ { return config_dir_seed("aeonmi/ai_prefs.json"); }

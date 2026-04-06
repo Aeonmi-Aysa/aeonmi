@@ -1,0 +1,38 @@
+⍝ TRANSLATION NOTE: src/core/ai_emitter.rs
+⍝ Purpose: canonical .ai emitter from IR/AST with deterministic formatting and FNV-1a header hash.
+⍝ Feature parity: PARTIAL (entrypoints + deterministic emit pipeline scaffolding).
+
+◇ AiEmitter = record_seed([]);
+
+◯ ai_emitter_new⟨⟩ { return {}; }
+
+◯ ai_emitter_generate_from_ir⟨module⟩ {
+    return ok(emit_ai(module));
+}
+
+◯ ai_emitter_generate_from_ast⟨ast⟩ {
+    let module = lower_ast_to_ir_seed(ast, "main");
+    if (is_err(module)) { return err("lowering error"); }
+    return ai_emitter_generate_from_ir(unwrap_ok(module));
+}
+
+◯ emit_ai⟨module⟩ {
+    let body = write_module_seed(module);
+    let hash = fnv1a64_seed(body);
+    let header = join_lines_seed([
+        "// aeonmi:1",
+        "// hash:" + to_hex64_seed(hash),
+        "// tool:aeonmi unknown",
+        ""
+    ]);
+    return header + body;
+}
+
+◯ write_module_seed⟨module⟩ {
+    return deterministic_module_render_seed({
+        "imports_sorted": true,
+        "decls_sorted_by_name": true,
+        "indent": 2,
+        "line_endings": "LF"
+    }, module);
+}
