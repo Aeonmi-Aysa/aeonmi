@@ -1,0 +1,131 @@
+⍝ TRANSLATION NOTE: src/core/ast.rs
+⍝ Purpose: core AST node representation used by parser/lowering/vm pipeline.
+⍝ Key translation decisions: Rust enum-based AST represented as tagged array nodes.
+⍝ Feature parity: PARTIAL (foundational node kinds and constructors covered).
+
+◯ ast_program⟨stmts⟩ {
+    let n = [];
+    n.push(0); ⍝ Program
+    n.push(stmts);
+    return n;
+}
+
+◯ ast_let_stmt⟨name, value_expr⟩ {
+    let n = [];
+    n.push(1); ⍝ LetStmt
+    n.push(name);
+    n.push(value_expr);
+    return n;
+}
+
+◯ ast_expr_stmt⟨expr⟩ {
+    let n = [];
+    n.push(2); ⍝ ExprStmt
+    n.push(expr);
+    return n;
+}
+
+◯ ast_return_stmt⟨expr⟩ {
+    let n = [];
+    n.push(3); ⍝ ReturnStmt
+    n.push(expr);
+    return n;
+}
+
+◯ ast_block_stmt⟨stmts⟩ {
+    let n = [];
+    n.push(4); ⍝ BlockStmt
+    n.push(stmts);
+    return n;
+}
+
+◯ ast_if_stmt⟨cond, then_branch, else_branch⟩ {
+    let n = [];
+    n.push(5); ⍝ IfStmt
+    n.push(cond);
+    n.push(then_branch);
+    n.push(else_branch);
+    return n;
+}
+
+◯ ast_while_stmt⟨cond, body⟩ {
+    let n = [];
+    n.push(6); ⍝ WhileStmt
+    n.push(cond);
+    n.push(body);
+    return n;
+}
+
+◯ ast_for_in_stmt⟨name, iterable, body⟩ {
+    let n = [];
+    n.push(7); ⍝ ForInStmt
+    n.push(name);
+    n.push(iterable);
+    n.push(body);
+    return n;
+}
+
+◯ ast_function_decl⟨name, params, body⟩ {
+    let n = [];
+    n.push(8); ⍝ FunctionDecl
+    n.push(name);
+    n.push(params);
+    n.push(body);
+    return n;
+}
+
+◯ ast_identifier⟨name⟩ {
+    let n = [];
+    n.push(100); ⍝ IdentifierExpr
+    n.push(name);
+    return n;
+}
+
+◯ ast_literal⟨value⟩ {
+    let n = [];
+    n.push(101); ⍝ LiteralExpr
+    n.push(value);
+    return n;
+}
+
+◯ ast_binary⟨op, left, right⟩ {
+    let n = [];
+    n.push(102); ⍝ BinaryExpr
+    n.push(op);
+    n.push(left);
+    n.push(right);
+    return n;
+}
+
+◯ ast_unary⟨op, expr⟩ {
+    let n = [];
+    n.push(103); ⍝ UnaryExpr
+    n.push(op);
+    n.push(expr);
+    return n;
+}
+
+◯ ast_call⟨callee, args⟩ {
+    let n = [];
+    n.push(104); ⍝ CallExpr
+    n.push(callee);
+    n.push(args);
+    return n;
+}
+
+◯ ast_assign⟨name, value_expr⟩ {
+    let n = [];
+    n.push(105); ⍝ AssignExpr
+    n.push(name);
+    n.push(value_expr);
+    return n;
+}
+
+◯ ast_array⟨items⟩ {
+    let n = [];
+    n.push(106); ⍝ ArrayExpr
+    n.push(items);
+    return n;
+}
+
+◯ ast_node_tag⟨n⟩ { return n.slice(0,1).pop(); }

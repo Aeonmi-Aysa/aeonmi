@@ -1,0 +1,57 @@
+⍝ TRANSLATION NOTE: src/core/token.rs
+⍝ Purpose: token kinds and token record representation for core language pipeline.
+⍝ Key translation decisions: Rust enums/structs represented as tag constants + array records.
+⍝ Feature parity: PARTIAL (core token constants + token record helpers).
+
+◯ tk_eof⟨⟩ { return 0; }
+◯ tk_identifier⟨⟩ { return 1; }
+◯ tk_integer⟨⟩ { return 2; }
+◯ tk_float⟨⟩ { return 3; }
+◯ tk_string⟨⟩ { return 4; }
+◯ tk_function⟨⟩ { return 5; }
+◯ tk_let⟨⟩ { return 6; }
+◯ tk_if⟨⟩ { return 7; }
+◯ tk_else⟨⟩ { return 8; }
+◯ tk_while⟨⟩ { return 9; }
+◯ tk_for⟨⟩ { return 10; }
+◯ tk_in⟨⟩ { return 11; }
+◯ tk_return⟨⟩ { return 12; }
+◯ tk_true⟨⟩ { return 13; }
+◯ tk_false⟨⟩ { return 14; }
+◯ tk_plus⟨⟩ { return 20; }
+◯ tk_minus⟨⟩ { return 21; }
+◯ tk_star⟨⟩ { return 22; }
+◯ tk_slash⟨⟩ { return 23; }
+◯ tk_percent⟨⟩ { return 24; }
+◯ tk_eq⟨⟩ { return 25; }
+◯ tk_eqeq⟨⟩ { return 26; }
+◯ tk_noteq⟨⟩ { return 27; }
+◯ tk_lt⟨⟩ { return 28; }
+◯ tk_lte⟨⟩ { return 29; }
+◯ tk_gt⟨⟩ { return 30; }
+◯ tk_gte⟨⟩ { return 31; }
+◯ tk_lparen⟨⟩ { return 40; }
+◯ tk_rparen⟨⟩ { return 41; }
+◯ tk_lbrace⟨⟩ { return 42; }
+◯ tk_rbrace⟨⟩ { return 43; }
+◯ tk_lbracket⟨⟩ { return 44; }
+◯ tk_rbracket⟨⟩ { return 45; }
+◯ tk_comma⟨⟩ { return 46; }
+◯ tk_dot⟨⟩ { return 47; }
+◯ tk_semicolon⟨⟩ { return 48; }
+◯ tk_colon⟨⟩ { return 49; }
+
+⍝ token record = [kind, lexeme, line, column]
+◯ token_new⟨kind, lexeme, line, column⟩ {
+    let t = [];
+    t.push(kind);
+    t.push(lexeme);
+    t.push(line);
+    t.push(column);
+    return t;
+}
+
+◯ token_kind⟨t⟩ { return t.slice(0,1).pop(); }
+◯ token_lexeme⟨t⟩ { return t.slice(1,2).pop(); }
+◯ token_line⟨t⟩ { return t.slice(2,3).pop(); }
+◯ token_column⟨t⟩ { return t.slice(3,4).pop(); }

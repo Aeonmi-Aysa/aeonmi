@@ -1,0 +1,49 @@
+⍝ TRANSLATION NOTE: src/core/error.rs
+⍝ Purpose: standardized core error/result payloads.
+⍝ Key translation decisions: Rust error enums converted to [code, message] arrays.
+⍝ Feature parity: PARTIAL (common compiler/runtime categories covered).
+
+◯ err_lex⟨msg⟩ {
+    let e = [];
+    e.push(1);
+    e.push(msg);
+    return e;
+}
+
+◯ err_parse⟨msg⟩ {
+    let e = [];
+    e.push(2);
+    e.push(msg);
+    return e;
+}
+
+◯ err_semantic⟨msg⟩ {
+    let e = [];
+    e.push(3);
+    e.push(msg);
+    return e;
+}
+
+◯ err_runtime⟨msg⟩ {
+    let e = [];
+    e.push(4);
+    e.push(msg);
+    return e;
+}
+
+◯ ok⟨value⟩ {
+    let r = [];
+    r.push(1);
+    r.push(value);
+    return r;
+}
+
+◯ fail⟨err⟩ {
+    let r = [];
+    r.push(0);
+    r.push(err);
+    return r;
+}
+
+◯ result_is_ok⟨r⟩ { return r.slice(0,1).pop() == 1; }
+◯ result_value⟨r⟩ { return r.slice(1,2).pop(); }

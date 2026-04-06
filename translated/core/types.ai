@@ -1,0 +1,34 @@
+⍝ TRANSLATION NOTE: src/core/types.rs
+⍝ Purpose: type system tags/helpers used by semantic analysis and runtime checks.
+⍝ Key translation decisions: Rust type enums converted to integer constants + predicates.
+⍝ Feature parity: PARTIAL (core language/runtime types).
+
+◯ ty_unknown⟨⟩ { return 0; }
+◯ ty_nil⟨⟩ { return 1; }
+◯ ty_bool⟨⟩ { return 2; }
+◯ ty_int⟨⟩ { return 3; }
+◯ ty_float⟨⟩ { return 4; }
+◯ ty_string⟨⟩ { return 5; }
+◯ ty_array⟨⟩ { return 6; }
+◯ ty_function⟨⟩ { return 7; }
+◯ ty_qubit⟨⟩ { return 8; }
+◯ ty_circuit⟨⟩ { return 9; }
+◯ ty_object⟨⟩ { return 10; }
+
+◯ ty_is_numeric⟨t⟩ {
+    if (t == ty_int()) { return true; }
+    if (t == ty_float()) { return true; }
+    return false;
+}
+
+◯ ty_is_quantum⟨t⟩ {
+    if (t == ty_qubit()) { return true; }
+    if (t == ty_circuit()) { return true; }
+    return false;
+}
+
+◯ ty_is_truthy⟨t, v⟩ {
+    if (t == ty_nil()) { return false; }
+    if (t == ty_bool()) { return v; }
+    return true;
+}
