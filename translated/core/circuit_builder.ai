@@ -1,0 +1,57 @@
+⍝ TRANSLATION NOTE: src/core/circuit_builder.rs
+⍝ Purpose: high-level quantum circuit builder DSL, gate APIs, depth/stats, hardware conversion, and display.
+⍝ Feature parity: PARTIAL (gate/qubit/circuit schemas and builder operation scaffolds).
+
+◇ QuantumGateType = enum_seed([
+    "Hadamard","PauliX","PauliY","PauliZ","Phase","RotationX","RotationY","RotationZ",
+    "S","T","SDagger","TDagger","CNOT","CZ","CY","SWAP","Toffoli","Fredkin",
+    "Measure","CPhase","Barrier","Comment","Custom"
+]);
+
+◇ QubitId = record_seed(["name", "index?"]);
+◇ QuantumGate = record_seed(["gate_type", "qubits", "classical_bits", "metadata"]);
+◇ QuantumCircuitBuilder = record_seed(["name", "qubits", "classical_registers", "gates", "parameters", "metadata", "optimization_level"]);
+
+◯ circuit_new⟨name⟩ {
+    return {
+        "name": name,
+        "qubits": [],
+        "classical_registers": [],
+        "gates": [],
+        "parameters": {},
+        "metadata": {},
+        "optimization_level": 1
+    };
+}
+
+◯ add_qubits⟨circuit, count⟩ { return add_indexed_qubits_seed(circuit, "q", count); }
+◯ add_named_qubit⟨circuit, name⟩ { return add_named_qubit_seed(circuit, name); }
+◯ add_classical_register⟨circuit, name, size⟩ { add_classical_bits_seed(circuit, name, size); return circuit; }
+◯ add_gate⟨circuit, gate_type, qubits⟩ { push_gate_seed(circuit, gate_type, qubits); return circuit; }
+
+◯ h⟨circuit, q⟩ { return add_gate(circuit, "Hadamard", [q]); }
+◯ x⟨circuit, q⟩ { return add_gate(circuit, "PauliX", [q]); }
+◯ y⟨circuit, q⟩ { return add_gate(circuit, "PauliY", [q]); }
+◯ z⟨circuit, q⟩ { return add_gate(circuit, "PauliZ", [q]); }
+◯ phase⟨circuit, q, angle⟩ { return add_gate_with_params_seed(circuit, "Phase", [q], [angle]); }
+◯ rx⟨circuit, q, angle⟩ { return add_gate_with_params_seed(circuit, "RotationX", [q], [angle]); }
+◯ ry⟨circuit, q, angle⟩ { return add_gate_with_params_seed(circuit, "RotationY", [q], [angle]); }
+◯ rz⟨circuit, q, angle⟩ { return add_gate_with_params_seed(circuit, "RotationZ", [q], [angle]); }
+◯ cnot⟨circuit, control, target⟩ { return add_gate(circuit, "CNOT", [control, target]); }
+◯ cz⟨circuit, control, target⟩ { return add_gate(circuit, "CZ", [control, target]); }
+◯ swap⟨circuit, q1, q2⟩ { return add_gate(circuit, "SWAP", [q1, q2]); }
+◯ toffoli⟨circuit, c1, c2, t⟩ { return add_gate(circuit, "Toffoli", [c1, c2, t]); }
+
+◯ measure⟨circuit, q⟩ { return measure_qubit_seed(circuit, q); }
+◯ measure_all⟨circuit⟩ { return measure_all_qubits_seed(circuit); }
+
+◯ set_parameter⟨circuit, name, value⟩ { map_put_seed(circuit.parameters, name, value); return circuit; }
+◯ cphase⟨circuit, control, target, angle⟩ { return add_gate_with_params_seed(circuit, "CPhase", [control, target], [angle]); }
+◯ barrier⟨circuit⟩ { return add_gate(circuit, "Barrier", clone_seed(circuit.qubits)); }
+◯ comment⟨circuit, text⟩ { return add_gate(circuit, "Comment", []); }
+◯ set_optimization_level⟨circuit, level⟩ { circuit.optimization_level = clamp_seed(level, 0, 3); return circuit; }
+
+◯ depth⟨circuit⟩ { return circuit_depth_seed(circuit); }
+◯ gate_count⟨circuit⟩ { return len_seed(circuit.gates); }
+◯ qubit_count⟨circuit⟩ { return len_seed(circuit.qubits); }
+◯ to_hardware_circuit⟨circuit⟩ { return hw_convert_seed(circuit); }

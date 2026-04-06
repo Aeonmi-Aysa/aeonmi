@@ -50,9 +50,9 @@ Total Rust files tracked: **241**
 | `src/core/api_keys.rs` | `translated/core/api_keys.ai` | PARTIAL | Seed translation created at translated/core/api_keys.ai |
 | `src/core/artifact_cache.rs` | `translated/core/artifact_cache.ai` | PARTIAL | Seed translation created at translated/core/artifact_cache.ai |
 | `src/core/ast.rs` | `translated/src/core/ast.qube` | PARTIAL | Seed translation created at translated/core/ast.ai (path normalization pending) |
-| `src/core/blockchain.rs` | `translated/src/core/blockchain.ai` | PENDING | Not translated in this branch yet |
+| `src/core/blockchain.rs` | `translated/core/blockchain.ai` | PARTIAL | Seed translation created at translated/core/blockchain.ai |
 | `src/core/bytecode.rs` | `translated/src/core/bytecode.ai` | PARTIAL | Seed translation created at translated/core/bytecode.ai |
-| `src/core/circuit_builder.rs` | `translated/src/core/circuit_builder.ai` | PENDING | Not translated in this branch yet |
+| `src/core/circuit_builder.rs` | `translated/core/circuit_builder.ai` | PARTIAL | Seed translation created at translated/core/circuit_builder.ai |
 | `src/core/circuit_compiler.rs` | `translated/src/core/circuit_compiler.ai` | PENDING | Not translated in this branch yet |
 | `src/core/circuit_visualization.rs` | `translated/src/core/circuit_visualization.ai` | PENDING | Not translated in this branch yet |
 | `src/core/code_actions.rs` | `translated/src/core/code_actions.ai` | PENDING | Not translated in this branch yet |

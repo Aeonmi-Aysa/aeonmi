@@ -1,0 +1,53 @@
+⍝ TRANSLATION NOTE: src/core/blockchain.rs
+⍝ Purpose: SHA256 hash-chain ledger with pending transactions, block sealing/mining, and verification.
+⍝ Feature parity: PARTIAL (transaction/block/chain models + hash/mine/verify flows).
+
+◇ Transaction = record_seed(["sender", "receiver", "amount", "data?"]);
+◇ Block = record_seed(["index", "timestamp", "transactions", "previous_hash", "hash", "nonce"]);
+◇ Blockchain = record_seed(["chain", "pending"]);
+
+◯ now_ts⟨⟩ { return unix_seconds_text_seed(); }
+
+◯ transaction_new⟨sender, receiver, amount⟩ {
+    return {"sender": sender, "receiver": receiver, "amount": amount, "data": none()};
+}
+
+◯ transaction_with_data⟨tx, data⟩ { set_field_seed(tx, "data", some(data)); return tx; }
+◯ transaction_hash_input⟨tx⟩ { return join_seed([tx.sender, "->", tx.receiver, ":", text_seed(tx.amount), ":", default_text_seed(tx.data, "")]); }
+
+◯ block_genesis⟨⟩ {
+    let b = {"index":0, "timestamp":now_ts(), "transactions":[], "previous_hash":"0", "hash":"", "nonce":0};
+    set_field_seed(b, "hash", block_calculate_hash(b));
+    return b;
+}
+
+◯ block_new⟨index, transactions, previous_hash⟩ {
+    let b = {"index":index, "timestamp":now_ts(), "transactions":transactions, "previous_hash":previous_hash, "hash":"", "nonce":0};
+    set_field_seed(b, "hash", block_calculate_hash(b));
+    return b;
+}
+
+◯ block_calculate_hash⟨b⟩ { return sha256_hex_seed(hash_block_fields_seed(b)); }
+◯ block_mine⟨b, difficulty⟩ { return pow_mine_seed(b, difficulty); }
+◯ block_is_valid⟨b⟩ { return field_seed(b, "hash") == block_calculate_hash(b); }
+
+◯ blockchain_new⟨⟩ { return {"chain":[block_genesis()], "pending":[]}; }
+◯ blockchain_latest_hash⟨bc⟩ { return field_seed(last_seed(bc.chain), "hash"); }
+◯ blockchain_height⟨bc⟩ { return len_seed(bc.chain); }
+◯ blockchain_add_transaction⟨bc, tx⟩ { push_seed(bc.pending, tx); }
+
+◯ blockchain_seal_block⟨bc⟩ {
+    let b = block_new(blockchain_height(bc), take_seed(bc.pending), blockchain_latest_hash(bc));
+    push_seed(bc.chain, b);
+    return last_seed(bc.chain);
+}
+
+◯ blockchain_mine_block⟨bc, difficulty⟩ {
+    let b = block_new(blockchain_height(bc), take_seed(bc.pending), blockchain_latest_hash(bc));
+    block_mine(b, difficulty);
+    push_seed(bc.chain, b);
+    return last_seed(bc.chain);
+}
+
+◯ blockchain_verify⟨bc⟩ { return verify_chain_links_seed(bc.chain); }
+◯ blockchain_summary⟨bc⟩ { return summary_seed("Blockchain", blockchain_height(bc), blockchain_latest_hash(bc)); }
