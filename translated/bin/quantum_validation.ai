@@ -1,0 +1,23 @@
+⍝ TRANSLATION NOTE: src/bin/quantum_validation.rs
+⍝ Purpose: quantum AST integration validation demo.
+⍝ Feature parity: PARTIAL (construct demo AST nodes and emit JS for smoke validation).
+
+◯ quantum_validation_main⟨⟩ {
+    print("AEONMI Quantum AST Integration Validation");
+
+    let quantum_xor = quantum_binary_expr_seed("|0⟩", "XOR", "|1⟩");
+    let generator = code_generator_new_seed();
+    print("Generated JS: " + emit_js_seed(generator, quantum_xor));
+
+    let quantum_func = quantum_function_seed("quantum_teleport", ["source", "target"]);
+    print("Generated JS: " + first_line_seed(emit_js_seed(generator, quantum_func)));
+
+    let prob_branch = probability_branch_seed("quantum_state", 0.8, "outcome", "success", "failure");
+    print("Generated JS: " + first_line_seed(emit_js_seed(generator, prob_branch)));
+
+    let ai_block = ai_learning_block_seed("training_dataset", "neural_quantum_model");
+    print("Generated JS: " + first_line_seed(emit_js_seed(generator, ai_block)));
+
+    print("All quantum AST implementations are working correctly!");
+    return ok();
+}

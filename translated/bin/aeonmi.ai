@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/bin/aeonmi.rs
+⍝ Purpose: lowercase CLI entrypoint wrapper for tooling/tests.
+⍝ Feature parity: PARTIAL (include/delegate main entry).
+
+◯ aeonmi_bin_main⟨⟩ {
+    return include_main_seed("src/main.rs");
+}

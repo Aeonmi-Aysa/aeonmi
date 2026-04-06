@@ -1,0 +1,20 @@
+⍝ TRANSLATION NOTE: src/config.rs
+⍝ Purpose: config path resolution and parent-dir creation helpers.
+⍝ Feature parity: PARTIAL (default path, CLI override, ensure parent dir).
+
+◯ default_config_path⟨⟩ {
+    let home = home_dir_seed();
+    if (is_none(home)) { return none(); }
+    return some(join_path(join_path(unwrap_some(home), ".aeonmi"), "qpoly.toml"));
+}
+
+◯ resolve_config_path⟨cli_path⟩ {
+    if (is_some(cli_path)) { return cli_path; }
+    return default_config_path();
+}
+
+◯ ensure_parent_dir⟨path⟩ {
+    let parent = parent_dir(path);
+    if (is_some(parent)) { mkdir_p_seed(unwrap_some(parent)); }
+    return ok();
+}

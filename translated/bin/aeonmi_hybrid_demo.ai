@@ -1,0 +1,29 @@
+⍝ TRANSLATION NOTE: src/bin/aeonmi_hybrid_demo.rs
+⍝ Purpose: interactive hybrid demo for sample viewing, lexing, parsing, execution, and export.
+⍝ Feature parity: PARTIAL (menu flow + lex/parse/run/export scaffolds).
+
+◇ SAMPLE_CODE = include_text_seed("examples/aeonmi_hybrid_showcase.ai");
+
+◯ aeonmi_hybrid_demo_main⟨⟩ {
+    print("Aeonmi Hybrid Interactive Demo");
+    while (true) {
+        let choice = prompt_menu_seed([
+            "1) View sample",
+            "2) Lex sample",
+            "3) Parse sample",
+            "4) Execute sample",
+            "5) Analyze custom snippet",
+            "6) Export sample",
+            "q) Quit"
+        ]);
+        if (choice == "1") { show_sample_seed(SAMPLE_CODE); }
+        else if (choice == "2") { display_tokens_seed(SAMPLE_CODE); }
+        else if (choice == "3") { display_ast_seed(SAMPLE_CODE); }
+        else if (choice == "4") { run_sample_seed(SAMPLE_CODE); }
+        else if (choice == "5") { analyze_user_snippet_seed(); }
+        else if (choice == "6") { export_sample_seed(SAMPLE_CODE, "aeonmi_hybrid_sample.ai"); }
+        else if (choice == "q" || choice == "Q") { break; }
+        else { print("Unknown option."); }
+    }
+    return ok();
+}

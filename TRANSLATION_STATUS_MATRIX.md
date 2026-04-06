@@ -25,10 +25,10 @@ Total Rust files tracked: **241**
 | `src/ai/openai.rs` | `translated/ai/openai.ai` | PARTIAL | Seed translation created at translated/ai/openai.ai |
 | `src/ai/openrouter.rs` | `translated/ai/openrouter.ai` | PARTIAL | Seed translation created at translated/ai/openrouter.ai |
 | `src/ai/perplexity.rs` | `translated/ai/perplexity.ai` | PARTIAL | Seed translation created at translated/ai/perplexity.ai |
-| `src/bin/aeonmi.rs` | `translated/src/bin/aeonmi.ai` | PENDING | Not translated in this branch yet |
-| `src/bin/aeonmi_hybrid_demo.rs` | `translated/src/bin/aeonmi_hybrid_demo.ai` | PENDING | Not translated in this branch yet |
-| `src/bin/aeonmi_project.rs` | `translated/src/bin/aeonmi_project.ai` | PENDING | Not translated in this branch yet |
-| `src/bin/quantum_validation.rs` | `translated/src/bin/quantum_validation.ai` | PENDING | Not translated in this branch yet |
+| `src/bin/aeonmi.rs` | `translated/bin/aeonmi.ai` | PARTIAL | Seed translation created at translated/bin/aeonmi.ai |
+| `src/bin/aeonmi_hybrid_demo.rs` | `translated/bin/aeonmi_hybrid_demo.ai` | PARTIAL | Seed translation created at translated/bin/aeonmi_hybrid_demo.ai |
+| `src/bin/aeonmi_project.rs` | `translated/bin/aeonmi_project.ai` | PARTIAL | Seed translation created at translated/bin/aeonmi_project.ai |
+| `src/bin/quantum_validation.rs` | `translated/bin/quantum_validation.ai` | PARTIAL | Seed translation created at translated/bin/quantum_validation.ai |
 | `src/cli.rs` | `translated/src/cli.ai` | PENDING | Not translated in this branch yet |
 | `src/cli_vault.rs` | `translated/src/cli_vault.ai` | PENDING | Not translated in this branch yet |
 | `src/commands/ast.rs` | `translated/commands/ast.ai` | PARTIAL | Seed translation created at translated/commands/ast.ai |
@@ -44,7 +44,7 @@ Total Rust files tracked: **241**
 | `src/commands/tokens.rs` | `translated/commands/tokens.ai` | PARTIAL | Seed translation created at translated/commands/tokens.ai |
 | `src/commands/vault.rs` | `translated/commands/vault.ai` | PARTIAL | Seed translation created at translated/commands/vault.ai |
 | `src/commands/vm.rs` | `translated/commands/vm.ai` | PARTIAL | Seed translation created at translated/commands/vm.ai |
-| `src/config.rs` | `translated/src/config.ai` | PENDING | Not translated in this branch yet |
+| `src/config.rs` | `translated/config.ai` | PARTIAL | Seed translation created at translated/config.ai |
 | `src/core/ai_emitter.rs` | `translated/src/core/ai_emitter.ai` | PENDING | Not translated in this branch yet |
 | `src/core/ai_provider.rs` | `translated/src/core/ai_provider.ai` | PENDING | Not translated in this branch yet |
 | `src/core/api_keys.rs` | `translated/src/core/api_keys.ai` | PENDING | Not translated in this branch yet |
