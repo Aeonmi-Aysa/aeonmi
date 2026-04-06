@@ -69,8 +69,8 @@ Total Rust files tracked: **241**
 | `src/core/lib.rs` | `translated/core/lib.ai` | PARTIAL | Seed translation created at translated/core/lib.ai |
 | `src/core/lowering.rs` | `translated/src/core/lowering.ai` | PARTIAL | Seed translation created at translated/core/lowering.ai |
 | `src/core/mint.rs` | `translated/core/mint.ai` | PARTIAL | Seed translation created at translated/core/mint.ai |
-| `src/core/mod.rs` | `translated/src/core/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/core/mother_core.rs` | `translated/src/core/mother_core.ai` | PENDING | Not translated in this branch yet |
+| `src/core/mod.rs` | `translated/core/mod.ai` | PARTIAL | Seed translation created at translated/core/mod.ai |
+| `src/core/mother_core.rs` | `translated/core/mother_core.ai` | PARTIAL | Seed translation created at translated/core/mother_core.ai |
 | `src/core/parser.rs` | `translated/core/parser.ai` | PARTIAL | Seed translation created at translated/core/parser.ai |
 | `src/core/qpoly.rs` | `translated/src/core/qpoly.ai` | PENDING | Not translated in this branch yet |
 | `src/core/quantum_algorithms.rs` | `translated/src/core/quantum_algorithms.ai` | PENDING | Not translated in this branch yet |

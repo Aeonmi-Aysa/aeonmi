@@ -1,0 +1,16 @@
+⍝ TRANSLATION NOTE: src/core/mod.rs
+⍝ Purpose: canonical core module registry and feature-gated exports.
+⍝ Feature parity: PARTIAL (module declarations + conditional exports scaffold).
+
+◯ core_mod_registry⟨features⟩ {
+  let mods = [
+    "ai_emitter","ai_provider","ast","circuit_builder","circuit_visualization","circuit_compiler",
+    "code_generator","code_actions","compiler","diagnostics","error","formatter","ir","lexer",
+    "lowering","incremental","parser","qpoly","quantum_extract","quantum_simulator","quantum_algorithms",
+    "hardware_integration","artifact_cache","api_keys","semantic_analyzer","symbols","scope_map","types",
+    "titan","token","debug","vm","quantum_neural_network","mother_core","blockchain","mint"
+  ];
+  if (feature_has_seed(features, "bytecode")) { append_seed(mods, "bytecode"); append_seed(mods, "vm_bytecode"); }
+  if (feature_has_seed(features, "quantum")) { append_seed(mods, "quantum_ir"); }
+  return mods;
+}
