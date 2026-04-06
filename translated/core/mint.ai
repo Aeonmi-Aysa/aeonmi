@@ -1,0 +1,60 @@
+⍝ TRANSLATION NOTE: src/core/mint.rs
+⍝ Purpose: NFT metadata + anchor stub generation for Aeonmi artifact mint flows.
+⍝ Feature parity: PARTIAL (attribute/metadata/stub/minter schemas and mint pipeline scaffolding).
+
+◇ NftAttribute = record_seed(["trait_type", "value"]);
+◇ MintMetadata = record_seed(["name","symbol","description","image","animation_url","external_url","attributes","glyph_seed","artifact_hash","timestamp"]);
+◇ AnchorStub = record_seed(["program_id","mint_address","metadata_uri"]);
+◇ Minter = record_seed(["personality"]);
+
+◯ now_secs⟨⟩ { return unix_seconds_seed(); }
+◯ sha256_hex⟨data⟩ { return sha256_hex_seed(data); }
+◯ nft_attribute_new⟨trait_type, value⟩ { return {"trait_type": trait_type, "value": value}; }
+
+◯ mint_metadata_to_json⟨meta⟩ { return mint_metadata_json_seed(meta); }
+◯ anchor_stub_to_rust⟨stub⟩ { return anchor_stub_rust_seed(stub); }
+
+◯ minter_default⟨⟩ { return {"personality":"quantum-titan"}; }
+◯ minter_new⟨personality⟩ { return {"personality":personality}; }
+
+◯ mint_artifact⟨minter, file_name, source_content, glyph_seed?⟩ {
+  let artifact_hash = sha256_hex(source_content);
+  let glyph = coalesce_seed(glyph_seed, substring_seed(sha256_hex(artifact_hash), 0, 16));
+  let clean_name = sanitize_name_seed(file_name, ".ai");
+  let attrs = [
+    nft_attribute_new("language", "Aeonmi"),
+    nft_attribute_new("extension", ".ai"),
+    nft_attribute_new("personality", minter.personality),
+    nft_attribute_new("artifact_hash", substring_seed(artifact_hash, 0, 16)),
+    nft_attribute_new("glyph_seed", glyph),
+    nft_attribute_new("timestamp", text_seed(now_secs()))
+  ];
+  conditional_quantum_attrs_seed(attrs, source_content);
+  return {
+    "name": "Aeonmi Artifact: " + clean_name,
+    "symbol": "AEONMI",
+    "description": "A quantum-native Aeonmi .ai artifact. Hash: " + substring_seed(artifact_hash, 0, 16),
+    "image": "ipfs://QmAeonmiGlyph-" + substring_seed(glyph, 0, 8),
+    "animation_url": "",
+    "external_url": "https://aeonmi.ai",
+    "attributes": attrs,
+    "glyph_seed": glyph,
+    "artifact_hash": artifact_hash,
+    "timestamp": now_secs()
+  };
+}
+
+◯ anchor_stub⟨minter, metadata⟩ {
+  return {
+    "program_id": "AeonmiProgramXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "mint_address": "Aeonmi" + substring_seed(metadata.artifact_hash, 0, 16),
+    "metadata_uri": "ipfs://QmAeonmiMeta-" + substring_seed(metadata.artifact_hash, 0, 16)
+  };
+}
+
+◯ mint_and_print⟨minter, file_name, source⟩ {
+  let meta = mint_artifact(minter, file_name, source, none());
+  print(mint_metadata_to_json(meta));
+  let stub = anchor_stub(minter, meta);
+  print(anchor_stub_to_rust(stub));
+}

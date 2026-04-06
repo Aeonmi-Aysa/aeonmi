@@ -1,0 +1,13 @@
+⍝ TRANSLATION NOTE: src/core/lib.rs
+⍝ Purpose: core module linkage/index for compiler/interpreter/runtime subsystems.
+⍝ Feature parity: PARTIAL (module export map scaffold).
+
+◯ core_module_exports⟨⟩ {
+  return [
+    "token", "lexer", "ast", "parser",
+    "semantic_analyzer", "ir_generator", "code_generator", "runtime",
+    "symbol_table", "syntax_validator", "error", "utils",
+    "quantum_math", "neural", "neural_network", "probability_statistics", "stochastic_processes",
+    "debugger", "compiler", "formatter"
+  ];
+}

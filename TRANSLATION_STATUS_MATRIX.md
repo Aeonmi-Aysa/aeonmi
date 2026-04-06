@@ -66,9 +66,9 @@ Total Rust files tracked: **241**
 | `src/core/incremental.rs` | `translated/core/incremental.ai` | PARTIAL | Seed translation created at translated/core/incremental.ai |
 | `src/core/ir.rs` | `translated/src/core/ir.qube` | PARTIAL | Seed translation created at translated/core/ir.ai (target ext review needed) |
 | `src/core/lexer.rs` | `translated/core/lexer.ai` | PARTIAL | Seed translation created at translated/core/lexer.ai |
-| `src/core/lib.rs` | `translated/src/core/lib.ai` | PENDING | Not translated in this branch yet |
+| `src/core/lib.rs` | `translated/core/lib.ai` | PARTIAL | Seed translation created at translated/core/lib.ai |
 | `src/core/lowering.rs` | `translated/src/core/lowering.ai` | PARTIAL | Seed translation created at translated/core/lowering.ai |
-| `src/core/mint.rs` | `translated/src/core/mint.ai` | PENDING | Not translated in this branch yet |
+| `src/core/mint.rs` | `translated/core/mint.ai` | PARTIAL | Seed translation created at translated/core/mint.ai |
 | `src/core/mod.rs` | `translated/src/core/mod.ai` | PENDING | Not translated in this branch yet |
 | `src/core/mother_core.rs` | `translated/src/core/mother_core.ai` | PENDING | Not translated in this branch yet |
 | `src/core/parser.rs` | `translated/core/parser.ai` | PARTIAL | Seed translation created at translated/core/parser.ai |
