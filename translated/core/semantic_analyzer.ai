@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/semantic_analyzer.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_semantic_analyzer⟨⟩ {
+  return note_seed("Seed translation scaffold for src/core/semantic_analyzer.rs");
+}

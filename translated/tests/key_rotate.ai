@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/key_rotate.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_key_rotate⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/key_rotate.rs");
+}

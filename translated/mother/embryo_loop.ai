@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/mother/embryo_loop.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_embryo_loop⟨⟩ {
+  return note_seed("Seed translation scaffold for src/mother/embryo_loop.rs");
+}

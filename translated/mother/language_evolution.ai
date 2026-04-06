@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/mother/language_evolution.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_language_evolution⟨⟩ {
+  return note_seed("Seed translation scaffold for src/mother/language_evolution.rs");
+}

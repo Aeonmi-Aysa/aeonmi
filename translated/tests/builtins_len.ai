@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/builtins_len.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_builtins_len⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/builtins_len.rs");
+}

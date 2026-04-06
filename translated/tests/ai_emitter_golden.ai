@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/ai_emitter_golden.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_ai_emitter_golden⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/ai_emitter_golden.rs");
+}

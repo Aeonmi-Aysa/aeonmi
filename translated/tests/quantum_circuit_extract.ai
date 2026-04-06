@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/quantum_circuit_extract.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_quantum_circuit_extract⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/quantum_circuit_extract.rs");
+}

@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/var_deps.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_var_deps⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/var_deps.rs");
+}

@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/encryption.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_encryption⟨⟩ {
+  return note_seed("Seed translation scaffold for src/encryption.rs");
+}

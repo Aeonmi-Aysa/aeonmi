@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/native_top_level_lets.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_native_top_level_lets⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/native_top_level_lets.rs");
+}

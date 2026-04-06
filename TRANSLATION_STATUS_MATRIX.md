@@ -4,23 +4,23 @@ Total Rust files tracked: **241**
 
 | Rust file | Target | Status | Notes |
 |---|---|---|---|
-| `build.rs` | `translated/build.ai` | PENDING | Not translated in this branch yet |
-| `examples/branches.rs` | `translated/examples/branches.ai` | PENDING | Not translated in this branch yet |
-| `examples/quantum_demo.rs` | `translated/examples/quantum_demo.ai` | PENDING | Not translated in this branch yet |
-| `examples/vm_smoke.rs` | `translated/examples/vm_smoke.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_bridge/src/commands.rs` | `translated/gui/tauri_bridge/src/commands.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_bridge/src/lib.rs` | `translated/gui/tauri_bridge/src/lib.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_bridge/src/main.rs` | `translated/gui/tauri_bridge/src/main.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_bridge/tests/smoke_test.rs` | `translated/gui/tauri_bridge/tests/smoke_test.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_bridge/tests/token_snapshot.rs` | `translated/gui/tauri_bridge/tests/token_snapshot.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_tauri/src-tauri/build.rs` | `translated/gui/tauri_tauri/src-tauri/build.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_tauri/src-tauri/src/main.rs` | `translated/gui/tauri_tauri/src-tauri/src/main.ai` | PENDING | Not translated in this branch yet |
-| `gui/tauri_tauri/src-tauri/src/quantum_ide.rs` | `translated/gui/tauri_tauri/src-tauri/src/quantum_ide.ai` | PENDING | Not translated in this branch yet |
-| `mother_ai/main.rs` | `translated/mother_ai/main.ai` | PENDING | Not translated in this branch yet |
+| `build.rs` | `translated/build.ai` | PARTIAL | Seed translation created at translated/build.ai |
+| `examples/branches.rs` | `translated/examples/branches.ai` | PARTIAL | Seed translation created at translated/examples/branches.ai |
+| `examples/quantum_demo.rs` | `translated/examples/quantum_demo.ai` | PARTIAL | Seed translation created at translated/examples/quantum_demo.ai |
+| `examples/vm_smoke.rs` | `translated/examples/vm_smoke.ai` | PARTIAL | Seed translation created at translated/examples/vm_smoke.ai |
+| `gui/tauri_bridge/src/commands.rs` | `translated/gui/tauri_bridge/src/commands.ai` | PARTIAL | Seed translation created at translated/gui/tauri_bridge/src/commands.ai |
+| `gui/tauri_bridge/src/lib.rs` | `translated/gui/tauri_bridge/src/lib.ai` | PARTIAL | Seed translation created at translated/gui/tauri_bridge/src/lib.ai |
+| `gui/tauri_bridge/src/main.rs` | `translated/gui/tauri_bridge/src/main.ai` | PARTIAL | Seed translation created at translated/gui/tauri_bridge/src/main.ai |
+| `gui/tauri_bridge/tests/smoke_test.rs` | `translated/gui/tauri_bridge/tests/smoke_test.ai` | PARTIAL | Seed translation created at translated/gui/tauri_bridge/tests/smoke_test.ai |
+| `gui/tauri_bridge/tests/token_snapshot.rs` | `translated/gui/tauri_bridge/tests/token_snapshot.ai` | PARTIAL | Seed translation created at translated/gui/tauri_bridge/tests/token_snapshot.ai |
+| `gui/tauri_tauri/src-tauri/build.rs` | `translated/gui/tauri_tauri/src-tauri/build.ai` | PARTIAL | Seed translation created at translated/gui/tauri_tauri/src-tauri/build.ai |
+| `gui/tauri_tauri/src-tauri/src/main.rs` | `translated/gui/tauri_tauri/src-tauri/src/main.ai` | PARTIAL | Seed translation created at translated/gui/tauri_tauri/src-tauri/src/main.ai |
+| `gui/tauri_tauri/src-tauri/src/quantum_ide.rs` | `translated/gui/tauri_tauri/src-tauri/src/quantum_ide.ai` | PARTIAL | Seed translation created at translated/gui/tauri_tauri/src-tauri/src/quantum_ide.ai |
+| `mother_ai/main.rs` | `translated/mother_ai/main.ai` | PARTIAL | Seed translation created at translated/mother_ai/main.ai |
 | `src/ai/claude.rs` | `translated/ai/claude.ai` | PARTIAL | Seed translation created at translated/ai/claude.ai |
 | `src/ai/copilot.rs` | `translated/ai/copilot.ai` | PARTIAL | Seed translation created at translated/ai/copilot.ai |
 | `src/ai/deepseek.rs` | `translated/ai/deepseek.ai` | PARTIAL | Seed translation created at translated/ai/deepseek.ai |
-| `src/ai/grok.rs` | `translated/src/ai/grok.ai` | PENDING | Not translated in this branch yet |
+| `src/ai/grok.rs` | `translated/ai/grok.ai` | PARTIAL | Placeholder seed created (src/ai/grok.rs missing in this branch) |
 | `src/ai/mod.rs` | `translated/ai/mod.ai` | PARTIAL | Seed translation created at translated/ai/mod.ai |
 | `src/ai/openai.rs` | `translated/ai/openai.ai` | PARTIAL | Seed translation created at translated/ai/openai.ai |
 | `src/ai/openrouter.rs` | `translated/ai/openrouter.ai` | PARTIAL | Seed translation created at translated/ai/openrouter.ai |
@@ -77,171 +77,171 @@ Total Rust files tracked: **241**
 | `src/core/quantum_circuits.rs` | `translated/core/quantum_circuits.ai` | PARTIAL | Placeholder seed created (source file missing in this branch) |
 | `src/core/quantum_extract.rs` | `translated/core/quantum_extract.ai` | PARTIAL | Seed translation created at translated/core/quantum_extract.ai |
 | `src/core/quantum_ir.rs` | `translated/src/core/quantum_ir.qube` | PARTIAL | Seed translation created at translated/core/quantum_ir.ai (target ext review needed) |
-| `src/core/quantum_neural_network.rs` | `translated/src/core/quantum_neural_network.ai` | PENDING | Not translated in this branch yet |
-| `src/core/quantum_operations.rs` | `translated/src/core/quantum_operations.ai` | PENDING | Not translated in this branch yet |
-| `src/core/quantum_simulator.rs` | `translated/src/core/quantum_simulator.ai` | PENDING | Not translated in this branch yet |
-| `src/core/qube_ast.rs` | `translated/src/core/qube_ast.qube` | PENDING | Not translated in this branch yet |
-| `src/core/qube_parser.rs` | `translated/src/core/qube_parser.qube` | PENDING | Not translated in this branch yet |
+| `src/core/quantum_neural_network.rs` | `translated/core/quantum_neural_network.ai` | PARTIAL | Seed translation created at translated/core/quantum_neural_network.ai |
+| `src/core/quantum_operations.rs` | `translated/core/quantum_operations.ai` | PARTIAL | Placeholder seed created (src/core/quantum_operations.rs missing in this branch) |
+| `src/core/quantum_simulator.rs` | `translated/core/quantum_simulator.ai` | PARTIAL | Seed translation created at translated/core/quantum_simulator.ai |
+| `src/core/qube_ast.rs` | `translated/core/qube_ast.qube` | PARTIAL | Seed translation created at translated/core/qube_ast.qube |
+| `src/core/qube_parser.rs` | `translated/core/qube_parser.qube` | PARTIAL | Seed translation created at translated/core/qube_parser.qube |
 | `src/core/scope_map.rs` | `translated/src/core/scope_map.ai` | PARTIAL | Seed translation created at translated/core/scope_map.ai |
-| `src/core/semantic_analyzer.rs` | `translated/src/core/semantic_analyzer.ai` | PENDING | Not translated in this branch yet |
+| `src/core/semantic_analyzer.rs` | `translated/core/semantic_analyzer.ai` | PARTIAL | Seed translation created at translated/core/semantic_analyzer.ai |
 | `src/core/symbols.rs` | `translated/src/core/symbols.ai` | PARTIAL | Seed translation created at translated/core/symbols.ai |
-| `src/core/titan/advanced_fourier_signal_processing.rs` | `translated/src/core/titan/advanced_fourier_signal_processing.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/advanced_linear_algebra.rs` | `translated/src/core/titan/advanced_linear_algebra.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/advanced_quantum_math.rs` | `translated/src/core/titan/advanced_quantum_math.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/advanced_tensor_calculus.rs` | `translated/src/core/titan/advanced_tensor_calculus.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/algebra.rs` | `translated/src/core/titan/algebra.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/algorithmic_crypto.rs` | `translated/src/core/titan/algorithmic_crypto.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/algorithmic_ml.rs` | `translated/src/core/titan/algorithmic_ml.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/algorithmic_ml2.rs` | `translated/src/core/titan/algorithmic_ml2.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/algorithmic_optimization.rs` | `translated/src/core/titan/algorithmic_optimization.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/algorithmiccrypto.rs` | `translated/src/core/titan/algorithmiccrypto.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/anumerics.rs` | `translated/src/core/titan/anumerics.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/arc_bridge.rs` | `translated/src/core/titan/arc_bridge.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/arithmetic.rs` | `translated/src/core/titan/arithmetic.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/calculus.rs` | `translated/src/core/titan/calculus.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/chaos_theory_dynamical_systems.rs` | `translated/src/core/titan/chaos_theory_dynamical_systems.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/complex_numbers.rs` | `translated/src/core/titan/complex_numbers.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/crypto.rs` | `translated/src/core/titan/crypto.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/differential_equations.rs` | `translated/src/core/titan/differential_equations.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/differential_geometry.rs` | `translated/src/core/titan/differential_geometry.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/discrete_math.rs` | `translated/src/core/titan/discrete_math.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/energy.rs` | `translated/src/core/titan/energy.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/energy2.rs` | `translated/src/core/titan/energy2.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/experimental.rs` | `translated/src/core/titan/experimental.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/experimentals.rs` | `translated/src/core/titan/experimentals.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/fourier_wavelet.rs` | `translated/src/core/titan/fourier_wavelet.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/fractals.rs` | `translated/src/core/titan/fractals.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/gates.rs` | `translated/src/core/titan/gates.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/geometry.rs` | `translated/src/core/titan/geometry.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/interdimensional.rs` | `translated/src/core/titan/interdimensional.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/lattice.rs` | `translated/src/core/titan/lattice.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/linear_algebra.rs` | `translated/src/core/titan/linear_algebra.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/mathquantum.rs` | `translated/src/core/titan/mathquantum.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/merkle.rs` | `translated/src/core/titan/merkle.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/mod.rs` | `translated/src/core/titan/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/multi_dimensional_math.rs` | `translated/src/core/titan/multi_dimensional_math.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/numerical_solvers.rs` | `translated/src/core/titan/numerical_solvers.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/numerics.rs` | `translated/src/core/titan/numerics.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/ops.rs` | `translated/src/core/titan/ops.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/optimization.rs` | `translated/src/core/titan/optimization.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/probability_statistics.rs` | `translated/src/core/titan/probability_statistics.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/qiskit_bridge.rs` | `translated/src/core/titan/qiskit_bridge.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/qkd.rs` | `translated/src/core/titan/qkd.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/quantum_gates.rs` | `translated/src/core/titan/quantum_gates.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/quantum_math.rs` | `translated/src/core/titan/quantum_math.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/quantum_superposition.rs` | `translated/src/core/titan/quantum_superposition.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/quantum_tensor_ops.rs` | `translated/src/core/titan/quantum_tensor_ops.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/quantum_vault.rs` | `translated/src/core/titan/quantum_vault.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/quantummath2.rs` | `translated/src/core/titan/quantummath2.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/sound.rs` | `translated/src/core/titan/sound.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/sound2.rs` | `translated/src/core/titan/sound2.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/sound3.rs` | `translated/src/core/titan/sound3.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/statistics.rs` | `translated/src/core/titan/statistics.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/stochastic_processes.rs` | `translated/src/core/titan/stochastic_processes.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/symbolic_math.rs` | `translated/src/core/titan/symbolic_math.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/tensor_calculus.rs` | `translated/src/core/titan/tensor_calculus.ai` | PENDING | Not translated in this branch yet |
-| `src/core/titan/types.rs` | `translated/src/core/titan/types.ai` | PENDING | Not translated in this branch yet |
-| `src/core/token.rs` | `translated/src/core/token.ai` | PENDING | Not translated in this branch yet |
+| `src/core/titan/advanced_fourier_signal_processing.rs` | `translated/core/titan/advanced_fourier_signal_processing.ai` | PARTIAL | Seed translation created at translated/core/titan/advanced_fourier_signal_processing.ai |
+| `src/core/titan/advanced_linear_algebra.rs` | `translated/core/titan/advanced_linear_algebra.ai` | PARTIAL | Seed translation created at translated/core/titan/advanced_linear_algebra.ai |
+| `src/core/titan/advanced_quantum_math.rs` | `translated/core/titan/advanced_quantum_math.ai` | PARTIAL | Seed translation created at translated/core/titan/advanced_quantum_math.ai |
+| `src/core/titan/advanced_tensor_calculus.rs` | `translated/core/titan/advanced_tensor_calculus.ai` | PARTIAL | Seed translation created at translated/core/titan/advanced_tensor_calculus.ai |
+| `src/core/titan/algebra.rs` | `translated/core/titan/algebra.ai` | PARTIAL | Seed translation created at translated/core/titan/algebra.ai |
+| `src/core/titan/algorithmic_crypto.rs` | `translated/core/titan/algorithmic_crypto.ai` | PARTIAL | Seed translation created at translated/core/titan/algorithmic_crypto.ai |
+| `src/core/titan/algorithmic_ml.rs` | `translated/core/titan/algorithmic_ml.ai` | PARTIAL | Seed translation created at translated/core/titan/algorithmic_ml.ai |
+| `src/core/titan/algorithmic_ml2.rs` | `translated/core/titan/algorithmic_ml2.ai` | PARTIAL | Seed translation created at translated/core/titan/algorithmic_ml2.ai |
+| `src/core/titan/algorithmic_optimization.rs` | `translated/core/titan/algorithmic_optimization.ai` | PARTIAL | Seed translation created at translated/core/titan/algorithmic_optimization.ai |
+| `src/core/titan/algorithmiccrypto.rs` | `translated/core/titan/algorithmiccrypto.ai` | PARTIAL | Seed translation created at translated/core/titan/algorithmiccrypto.ai |
+| `src/core/titan/anumerics.rs` | `translated/core/titan/anumerics.ai` | PARTIAL | Seed translation created at translated/core/titan/anumerics.ai |
+| `src/core/titan/arc_bridge.rs` | `translated/core/titan/arc_bridge.ai` | PARTIAL | Placeholder seed created (src/core/titan/arc_bridge.rs missing in this branch) |
+| `src/core/titan/arithmetic.rs` | `translated/core/titan/arithmetic.ai` | PARTIAL | Seed translation created at translated/core/titan/arithmetic.ai |
+| `src/core/titan/calculus.rs` | `translated/core/titan/calculus.ai` | PARTIAL | Seed translation created at translated/core/titan/calculus.ai |
+| `src/core/titan/chaos_theory_dynamical_systems.rs` | `translated/core/titan/chaos_theory_dynamical_systems.ai` | PARTIAL | Seed translation created at translated/core/titan/chaos_theory_dynamical_systems.ai |
+| `src/core/titan/complex_numbers.rs` | `translated/core/titan/complex_numbers.ai` | PARTIAL | Seed translation created at translated/core/titan/complex_numbers.ai |
+| `src/core/titan/crypto.rs` | `translated/core/titan/crypto.ai` | PARTIAL | Seed translation created at translated/core/titan/crypto.ai |
+| `src/core/titan/differential_equations.rs` | `translated/core/titan/differential_equations.ai` | PARTIAL | Seed translation created at translated/core/titan/differential_equations.ai |
+| `src/core/titan/differential_geometry.rs` | `translated/core/titan/differential_geometry.ai` | PARTIAL | Seed translation created at translated/core/titan/differential_geometry.ai |
+| `src/core/titan/discrete_math.rs` | `translated/core/titan/discrete_math.ai` | PARTIAL | Seed translation created at translated/core/titan/discrete_math.ai |
+| `src/core/titan/energy.rs` | `translated/core/titan/energy.ai` | PARTIAL | Seed translation created at translated/core/titan/energy.ai |
+| `src/core/titan/energy2.rs` | `translated/core/titan/energy2.ai` | PARTIAL | Seed translation created at translated/core/titan/energy2.ai |
+| `src/core/titan/experimental.rs` | `translated/core/titan/experimental.ai` | PARTIAL | Seed translation created at translated/core/titan/experimental.ai |
+| `src/core/titan/experimentals.rs` | `translated/core/titan/experimentals.ai` | PARTIAL | Seed translation created at translated/core/titan/experimentals.ai |
+| `src/core/titan/fourier_wavelet.rs` | `translated/core/titan/fourier_wavelet.ai` | PARTIAL | Seed translation created at translated/core/titan/fourier_wavelet.ai |
+| `src/core/titan/fractals.rs` | `translated/core/titan/fractals.ai` | PARTIAL | Seed translation created at translated/core/titan/fractals.ai |
+| `src/core/titan/gates.rs` | `translated/core/titan/gates.ai` | PARTIAL | Seed translation created at translated/core/titan/gates.ai |
+| `src/core/titan/geometry.rs` | `translated/core/titan/geometry.ai` | PARTIAL | Seed translation created at translated/core/titan/geometry.ai |
+| `src/core/titan/interdimensional.rs` | `translated/core/titan/interdimensional.ai` | PARTIAL | Seed translation created at translated/core/titan/interdimensional.ai |
+| `src/core/titan/lattice.rs` | `translated/core/titan/lattice.ai` | PARTIAL | Seed translation created at translated/core/titan/lattice.ai |
+| `src/core/titan/linear_algebra.rs` | `translated/core/titan/linear_algebra.ai` | PARTIAL | Seed translation created at translated/core/titan/linear_algebra.ai |
+| `src/core/titan/mathquantum.rs` | `translated/core/titan/mathquantum.ai` | PARTIAL | Seed translation created at translated/core/titan/mathquantum.ai |
+| `src/core/titan/merkle.rs` | `translated/core/titan/merkle.ai` | PARTIAL | Seed translation created at translated/core/titan/merkle.ai |
+| `src/core/titan/mod.rs` | `translated/core/titan/mod.ai` | PARTIAL | Seed translation created at translated/core/titan/mod.ai |
+| `src/core/titan/multi_dimensional_math.rs` | `translated/core/titan/multi_dimensional_math.ai` | PARTIAL | Seed translation created at translated/core/titan/multi_dimensional_math.ai |
+| `src/core/titan/numerical_solvers.rs` | `translated/core/titan/numerical_solvers.ai` | PARTIAL | Seed translation created at translated/core/titan/numerical_solvers.ai |
+| `src/core/titan/numerics.rs` | `translated/core/titan/numerics.ai` | PARTIAL | Seed translation created at translated/core/titan/numerics.ai |
+| `src/core/titan/ops.rs` | `translated/core/titan/ops.ai` | PARTIAL | Seed translation created at translated/core/titan/ops.ai |
+| `src/core/titan/optimization.rs` | `translated/core/titan/optimization.ai` | PARTIAL | Seed translation created at translated/core/titan/optimization.ai |
+| `src/core/titan/probability_statistics.rs` | `translated/core/titan/probability_statistics.ai` | PARTIAL | Seed translation created at translated/core/titan/probability_statistics.ai |
+| `src/core/titan/qiskit_bridge.rs` | `translated/core/titan/qiskit_bridge.ai` | PARTIAL | Seed translation created at translated/core/titan/qiskit_bridge.ai |
+| `src/core/titan/qkd.rs` | `translated/core/titan/qkd.ai` | PARTIAL | Seed translation created at translated/core/titan/qkd.ai |
+| `src/core/titan/quantum_gates.rs` | `translated/core/titan/quantum_gates.ai` | PARTIAL | Seed translation created at translated/core/titan/quantum_gates.ai |
+| `src/core/titan/quantum_math.rs` | `translated/core/titan/quantum_math.ai` | PARTIAL | Seed translation created at translated/core/titan/quantum_math.ai |
+| `src/core/titan/quantum_superposition.rs` | `translated/core/titan/quantum_superposition.ai` | PARTIAL | Seed translation created at translated/core/titan/quantum_superposition.ai |
+| `src/core/titan/quantum_tensor_ops.rs` | `translated/core/titan/quantum_tensor_ops.ai` | PARTIAL | Seed translation created at translated/core/titan/quantum_tensor_ops.ai |
+| `src/core/titan/quantum_vault.rs` | `translated/core/titan/quantum_vault.ai` | PARTIAL | Seed translation created at translated/core/titan/quantum_vault.ai |
+| `src/core/titan/quantummath2.rs` | `translated/core/titan/quantummath2.ai` | PARTIAL | Seed translation created at translated/core/titan/quantummath2.ai |
+| `src/core/titan/sound.rs` | `translated/core/titan/sound.ai` | PARTIAL | Seed translation created at translated/core/titan/sound.ai |
+| `src/core/titan/sound2.rs` | `translated/core/titan/sound2.ai` | PARTIAL | Seed translation created at translated/core/titan/sound2.ai |
+| `src/core/titan/sound3.rs` | `translated/core/titan/sound3.ai` | PARTIAL | Seed translation created at translated/core/titan/sound3.ai |
+| `src/core/titan/statistics.rs` | `translated/core/titan/statistics.ai` | PARTIAL | Seed translation created at translated/core/titan/statistics.ai |
+| `src/core/titan/stochastic_processes.rs` | `translated/core/titan/stochastic_processes.ai` | PARTIAL | Seed translation created at translated/core/titan/stochastic_processes.ai |
+| `src/core/titan/symbolic_math.rs` | `translated/core/titan/symbolic_math.ai` | PARTIAL | Seed translation created at translated/core/titan/symbolic_math.ai |
+| `src/core/titan/tensor_calculus.rs` | `translated/core/titan/tensor_calculus.ai` | PARTIAL | Seed translation created at translated/core/titan/tensor_calculus.ai |
+| `src/core/titan/types.rs` | `translated/core/titan/types.ai` | PARTIAL | Seed translation created at translated/core/titan/types.ai |
+| `src/core/token.rs` | `translated/core/token.ai` | PARTIAL | Seed translation created at translated/core/token.ai |
 | `src/core/types.rs` | `translated/src/core/types.ai` | PARTIAL | Seed translation created at translated/core/types.ai |
 | `src/core/vm.rs` | `translated/core/vm.ai` | PARTIAL | Seed translation created at translated/core/vm.ai |
-| `src/core/vm_bytecode.rs` | `translated/src/core/vm_bytecode.ai` | PENDING | Not translated in this branch yet |
-| `src/encryption.rs` | `translated/src/encryption.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/anomaly.rs` | `translated/src/glyph/anomaly.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/ceremony.rs` | `translated/src/glyph/ceremony.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/gdf.rs` | `translated/src/glyph/gdf.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/mgk.rs` | `translated/src/glyph/mgk.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/mod.rs` | `translated/src/glyph/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/ugst.rs` | `translated/src/glyph/ugst.ai` | PENDING | Not translated in this branch yet |
-| `src/glyph/vault.rs` | `translated/src/glyph/vault.ai` | PENDING | Not translated in this branch yet |
-| `src/gui_bridge.rs` | `translated/src/gui_bridge.ai` | PENDING | Not translated in this branch yet |
-| `src/integration.rs` | `translated/src/integration.ai` | PENDING | Not translated in this branch yet |
-| `src/io/atomic.rs` | `translated/src/io/atomic.ai` | PENDING | Not translated in this branch yet |
-| `src/io/mod.rs` | `translated/src/io/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/lib.rs` | `translated/src/lib.ai` | PENDING | Not translated in this branch yet |
-| `src/main.rs` | `translated/src/main.ai` | PENDING | Not translated in this branch yet |
-| `src/mint/mod.rs` | `translated/src/mint/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/embryo_loop.rs` | `translated/src/mother/embryo_loop.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/emotional_core.rs` | `translated/src/mother/emotional_core.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/inner_voice.rs` | `translated/src/mother/inner_voice.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/knowledge_graph.rs` | `translated/src/mother/knowledge_graph.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/language_evolution.rs` | `translated/src/mother/language_evolution.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/mod.rs` | `translated/src/mother/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/neural.rs` | `translated/src/mother/neural.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/quantum_attention.rs` | `translated/src/mother/quantum_attention.ai` | PENDING | Not translated in this branch yet |
-| `src/mother/quantum_core.rs` | `translated/src/mother/quantum_core.ai` | PENDING | Not translated in this branch yet |
-| `src/quantum_ast_tests.rs` | `translated/src/quantum_ast_tests.ai` | PENDING | Not translated in this branch yet |
-| `src/qube/ast.rs` | `translated/src/qube/ast.qube` | PENDING | Not translated in this branch yet |
-| `src/qube/executor.rs` | `translated/src/qube/executor.qube` | PENDING | Not translated in this branch yet |
-| `src/qube/lexer.rs` | `translated/src/qube/lexer.qube` | PENDING | Not translated in this branch yet |
-| `src/qube/mod.rs` | `translated/src/qube/mod.qube` | PENDING | Not translated in this branch yet |
-| `src/qube/parser.rs` | `translated/src/qube/parser.qube` | PENDING | Not translated in this branch yet |
-| `src/shell/mod.rs` | `translated/src/shell/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/tui/editor.rs` | `translated/src/tui/editor.ai` | PENDING | Not translated in this branch yet |
-| `src/tui/mod.rs` | `translated/src/tui/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/vault.rs` | `translated/src/vault.ai` | PENDING | Not translated in this branch yet |
-| `tests/ai_emitter_golden.rs` | `translated/tests/ai_emitter_golden.ai` | PENDING | Not translated in this branch yet |
-| `tests/assign_and_calls.rs` | `translated/tests/assign_and_calls.ai` | PENDING | Not translated in this branch yet |
-| `tests/builtins_len.rs` | `translated/tests/builtins_len.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_associative_fold.rs` | `translated/tests/bytecode_associative_fold.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_basic.rs` | `translated/tests/bytecode_basic.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_const_folding.rs` | `translated/tests/bytecode_const_folding.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_disasm.rs` | `translated/tests/bytecode_disasm.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_for.rs` | `translated/tests/bytecode_for.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_function.rs` | `translated/tests/bytecode_function.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_if.rs` | `translated/tests/bytecode_if.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_logical.rs` | `translated/tests/bytecode_logical.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_max_frames.rs` | `translated/tests/bytecode_max_frames.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_opt_stats.rs` | `translated/tests/bytecode_opt_stats.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_overflow.rs` | `translated/tests/bytecode_overflow.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_recursion.rs` | `translated/tests/bytecode_recursion.ai` | PENDING | Not translated in this branch yet |
-| `tests/bytecode_while.rs` | `translated/tests/bytecode_while.ai` | PENDING | Not translated in this branch yet |
-| `tests/cli_opt_stats_json.rs` | `translated/tests/cli_opt_stats_json.ai` | PENDING | Not translated in this branch yet |
-| `tests/cli_smoke.rs` | `translated/tests/cli_smoke.ai` | PENDING | Not translated in this branch yet |
-| `tests/code_actions_new.rs` | `translated/tests/code_actions_new.ai` | PENDING | Not translated in this branch yet |
-| `tests/comparisons.rs` | `translated/tests/comparisons.ai` | PENDING | Not translated in this branch yet |
-| `tests/compiler_pipeline.rs` | `translated/tests/compiler_pipeline.ai` | PENDING | Not translated in this branch yet |
-| `tests/control_flow.rs` | `translated/tests/control_flow.ai` | PENDING | Not translated in this branch yet |
-| `tests/deep_propagation.rs` | `translated/tests/deep_propagation.ai` | PENDING | Not translated in this branch yet |
-| `tests/diagnostics.rs` | `translated/tests/diagnostics.ai` | PENDING | Not translated in this branch yet |
-| `tests/errors_extra.rs` | `translated/tests/errors_extra.ai` | PENDING | Not translated in this branch yet |
-| `tests/exec_cleanup.rs` | `translated/tests/exec_cleanup.ai` | PENDING | Not translated in this branch yet |
-| `tests/exec_smoke.rs` | `translated/tests/exec_smoke.ai` | PENDING | Not translated in this branch yet |
-| `tests/exec_watch.rs` | `translated/tests/exec_watch.ai` | PENDING | Not translated in this branch yet |
-| `tests/format_snapshots.rs` | `translated/tests/format_snapshots.ai` | PENDING | Not translated in this branch yet |
-| `tests/functions.rs` | `translated/tests/functions.ai` | PENDING | Not translated in this branch yet |
-| `tests/incremental_partial.rs` | `translated/tests/incremental_partial.ai` | PENDING | Not translated in this branch yet |
-| `tests/key_rotate.rs` | `translated/tests/key_rotate.ai` | PENDING | Not translated in this branch yet |
-| `tests/legacy_flags.rs` | `translated/tests/legacy_flags.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_bench.rs` | `translated/tests/metrics_bench.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_function.rs` | `translated/tests/metrics_function.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_history_reload.rs` | `translated/tests/metrics_history_reload.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_history_reload_feature.rs` | `translated/tests/metrics_history_reload_feature.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_numeric.rs` | `translated/tests/metrics_numeric.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_numeric_deep.rs` | `translated/tests/metrics_numeric_deep.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_savings.rs` | `translated/tests/metrics_savings.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_schema.rs` | `translated/tests/metrics_schema.ai` | PENDING | Not translated in this branch yet |
-| `tests/metrics_window.rs` | `translated/tests/metrics_window.ai` | PENDING | Not translated in this branch yet |
-| `tests/native_top_level_lets.rs` | `translated/tests/native_top_level_lets.ai` | PENDING | Not translated in this branch yet |
-| `tests/precedence.rs` | `translated/tests/precedence.ai` | PENDING | Not translated in this branch yet |
-| `tests/qiskit_bridge.rs` | `translated/tests/qiskit_bridge.ai` | PENDING | Not translated in this branch yet |
-| `tests/qpoly.rs` | `translated/tests/qpoly.ai` | PENDING | Not translated in this branch yet |
-| `tests/quantum_circuit_export.rs` | `translated/tests/quantum_circuit_export.ai` | PENDING | Not translated in this branch yet |
-| `tests/quantum_circuit_extract.rs` | `translated/tests/quantum_circuit_extract.ai` | PENDING | Not translated in this branch yet |
-| `tests/quantum_circuit_integration.rs` | `translated/tests/quantum_circuit_integration.ai` | PENDING | Not translated in this branch yet |
-| `tests/quantum_core.rs` | `translated/tests/quantum_core.ai` | PENDING | Not translated in this branch yet |
-| `tests/quantum_glyph.rs` | `translated/tests/quantum_glyph.ai` | PENDING | Not translated in this branch yet |
-| `tests/quantum_syntax_tests.rs` | `translated/tests/quantum_syntax_tests.ai` | PENDING | Not translated in this branch yet |
-| `tests/run_native_no_js.rs` | `translated/tests/run_native_no_js.ai` | PENDING | Not translated in this branch yet |
-| `tests/run_smoke.rs` | `translated/tests/run_smoke.ai` | PENDING | Not translated in this branch yet |
-| `tests/scoped_rename.rs` | `translated/tests/scoped_rename.ai` | PENDING | Not translated in this branch yet |
-| `tests/semantic_diagnostics.rs` | `translated/tests/semantic_diagnostics.ai` | PENDING | Not translated in this branch yet |
-| `tests/semantic_returns_quantum.rs` | `translated/tests/semantic_returns_quantum.ai` | PENDING | Not translated in this branch yet |
-| `tests/semantic_types.rs` | `translated/tests/semantic_types.ai` | PENDING | Not translated in this branch yet |
-| `tests/shell_native_no_js.rs` | `translated/tests/shell_native_no_js.ai` | PENDING | Not translated in this branch yet |
-| `tests/titan_linear_algebra.rs` | `translated/tests/titan_linear_algebra.ai` | PENDING | Not translated in this branch yet |
-| `tests/titan_quantum_math.rs` | `translated/tests/titan_quantum_math.ai` | PENDING | Not translated in this branch yet |
-| `tests/titan_stats.rs` | `translated/tests/titan_stats.ai` | PENDING | Not translated in this branch yet |
-| `tests/types_inference.rs` | `translated/tests/types_inference.ai` | PENDING | Not translated in this branch yet |
-| `tests/var_deps.rs` | `translated/tests/var_deps.ai` | PENDING | Not translated in this branch yet |
-| `tests/var_deps_edge.rs` | `translated/tests/var_deps_edge.ai` | PENDING | Not translated in this branch yet |
-| `tests/vm_smoke.rs` | `translated/tests/vm_smoke.ai` | PENDING | Not translated in this branch yet |
+| `src/core/vm_bytecode.rs` | `translated/core/vm_bytecode.ai` | PARTIAL | Seed translation created at translated/core/vm_bytecode.ai |
+| `src/encryption.rs` | `translated/encryption.ai` | PARTIAL | Seed translation created at translated/encryption.ai |
+| `src/glyph/anomaly.rs` | `translated/glyph/anomaly.ai` | PARTIAL | Seed translation created at translated/glyph/anomaly.ai |
+| `src/glyph/ceremony.rs` | `translated/glyph/ceremony.ai` | PARTIAL | Seed translation created at translated/glyph/ceremony.ai |
+| `src/glyph/gdf.rs` | `translated/glyph/gdf.ai` | PARTIAL | Seed translation created at translated/glyph/gdf.ai |
+| `src/glyph/mgk.rs` | `translated/glyph/mgk.ai` | PARTIAL | Seed translation created at translated/glyph/mgk.ai |
+| `src/glyph/mod.rs` | `translated/glyph/mod.ai` | PARTIAL | Seed translation created at translated/glyph/mod.ai |
+| `src/glyph/ugst.rs` | `translated/glyph/ugst.ai` | PARTIAL | Seed translation created at translated/glyph/ugst.ai |
+| `src/glyph/vault.rs` | `translated/glyph/vault.ai` | PARTIAL | Seed translation created at translated/glyph/vault.ai |
+| `src/gui_bridge.rs` | `translated/gui_bridge.ai` | PARTIAL | Seed translation created at translated/gui_bridge.ai |
+| `src/integration.rs` | `translated/integration.ai` | PARTIAL | Seed translation created at translated/integration.ai |
+| `src/io/atomic.rs` | `translated/io/atomic.ai` | PARTIAL | Seed translation created at translated/io/atomic.ai |
+| `src/io/mod.rs` | `translated/io/mod.ai` | PARTIAL | Seed translation created at translated/io/mod.ai |
+| `src/lib.rs` | `translated/lib.ai` | PARTIAL | Seed translation created at translated/lib.ai |
+| `src/main.rs` | `translated/main.ai` | PARTIAL | Seed translation created at translated/main.ai |
+| `src/mint/mod.rs` | `translated/mint/mod.ai` | PARTIAL | Seed translation created at translated/mint/mod.ai |
+| `src/mother/embryo_loop.rs` | `translated/mother/embryo_loop.ai` | PARTIAL | Seed translation created at translated/mother/embryo_loop.ai |
+| `src/mother/emotional_core.rs` | `translated/mother/emotional_core.ai` | PARTIAL | Seed translation created at translated/mother/emotional_core.ai |
+| `src/mother/inner_voice.rs` | `translated/mother/inner_voice.ai` | PARTIAL | Placeholder seed created (src/mother/inner_voice.rs missing in this branch) |
+| `src/mother/knowledge_graph.rs` | `translated/mother/knowledge_graph.ai` | PARTIAL | Placeholder seed created (src/mother/knowledge_graph.rs missing in this branch) |
+| `src/mother/language_evolution.rs` | `translated/mother/language_evolution.ai` | PARTIAL | Seed translation created at translated/mother/language_evolution.ai |
+| `src/mother/mod.rs` | `translated/mother/mod.ai` | PARTIAL | Seed translation created at translated/mother/mod.ai |
+| `src/mother/neural.rs` | `translated/mother/neural.ai` | PARTIAL | Seed translation created at translated/mother/neural.ai |
+| `src/mother/quantum_attention.rs` | `translated/mother/quantum_attention.ai` | PARTIAL | Seed translation created at translated/mother/quantum_attention.ai |
+| `src/mother/quantum_core.rs` | `translated/mother/quantum_core.ai` | PARTIAL | Seed translation created at translated/mother/quantum_core.ai |
+| `src/quantum_ast_tests.rs` | `translated/quantum_ast_tests.ai` | PARTIAL | Seed translation created at translated/quantum_ast_tests.ai |
+| `src/qube/ast.rs` | `translated/qube/ast.qube` | PARTIAL | Seed translation created at translated/qube/ast.qube |
+| `src/qube/executor.rs` | `translated/qube/executor.qube` | PARTIAL | Seed translation created at translated/qube/executor.qube |
+| `src/qube/lexer.rs` | `translated/qube/lexer.qube` | PARTIAL | Seed translation created at translated/qube/lexer.qube |
+| `src/qube/mod.rs` | `translated/qube/mod.qube` | PARTIAL | Seed translation created at translated/qube/mod.qube |
+| `src/qube/parser.rs` | `translated/qube/parser.qube` | PARTIAL | Seed translation created at translated/qube/parser.qube |
+| `src/shell/mod.rs` | `translated/shell/mod.ai` | PARTIAL | Seed translation created at translated/shell/mod.ai |
+| `src/tui/editor.rs` | `translated/tui/editor.ai` | PARTIAL | Seed translation created at translated/tui/editor.ai |
+| `src/tui/mod.rs` | `translated/tui/mod.ai` | PARTIAL | Seed translation created at translated/tui/mod.ai |
+| `src/vault.rs` | `translated/vault.ai` | PARTIAL | Seed translation created at translated/vault.ai |
+| `tests/ai_emitter_golden.rs` | `translated/tests/ai_emitter_golden.ai` | PARTIAL | Seed translation created at translated/tests/ai_emitter_golden.ai |
+| `tests/assign_and_calls.rs` | `translated/tests/assign_and_calls.ai` | PARTIAL | Seed translation created at translated/tests/assign_and_calls.ai |
+| `tests/builtins_len.rs` | `translated/tests/builtins_len.ai` | PARTIAL | Seed translation created at translated/tests/builtins_len.ai |
+| `tests/bytecode_associative_fold.rs` | `translated/tests/bytecode_associative_fold.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_associative_fold.ai |
+| `tests/bytecode_basic.rs` | `translated/tests/bytecode_basic.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_basic.ai |
+| `tests/bytecode_const_folding.rs` | `translated/tests/bytecode_const_folding.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_const_folding.ai |
+| `tests/bytecode_disasm.rs` | `translated/tests/bytecode_disasm.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_disasm.ai |
+| `tests/bytecode_for.rs` | `translated/tests/bytecode_for.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_for.ai |
+| `tests/bytecode_function.rs` | `translated/tests/bytecode_function.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_function.ai |
+| `tests/bytecode_if.rs` | `translated/tests/bytecode_if.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_if.ai |
+| `tests/bytecode_logical.rs` | `translated/tests/bytecode_logical.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_logical.ai |
+| `tests/bytecode_max_frames.rs` | `translated/tests/bytecode_max_frames.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_max_frames.ai |
+| `tests/bytecode_opt_stats.rs` | `translated/tests/bytecode_opt_stats.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_opt_stats.ai |
+| `tests/bytecode_overflow.rs` | `translated/tests/bytecode_overflow.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_overflow.ai |
+| `tests/bytecode_recursion.rs` | `translated/tests/bytecode_recursion.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_recursion.ai |
+| `tests/bytecode_while.rs` | `translated/tests/bytecode_while.ai` | PARTIAL | Seed translation created at translated/tests/bytecode_while.ai |
+| `tests/cli_opt_stats_json.rs` | `translated/tests/cli_opt_stats_json.ai` | PARTIAL | Seed translation created at translated/tests/cli_opt_stats_json.ai |
+| `tests/cli_smoke.rs` | `translated/tests/cli_smoke.ai` | PARTIAL | Seed translation created at translated/tests/cli_smoke.ai |
+| `tests/code_actions_new.rs` | `translated/tests/code_actions_new.ai` | PARTIAL | Seed translation created at translated/tests/code_actions_new.ai |
+| `tests/comparisons.rs` | `translated/tests/comparisons.ai` | PARTIAL | Seed translation created at translated/tests/comparisons.ai |
+| `tests/compiler_pipeline.rs` | `translated/tests/compiler_pipeline.ai` | PARTIAL | Seed translation created at translated/tests/compiler_pipeline.ai |
+| `tests/control_flow.rs` | `translated/tests/control_flow.ai` | PARTIAL | Seed translation created at translated/tests/control_flow.ai |
+| `tests/deep_propagation.rs` | `translated/tests/deep_propagation.ai` | PARTIAL | Seed translation created at translated/tests/deep_propagation.ai |
+| `tests/diagnostics.rs` | `translated/tests/diagnostics.ai` | PARTIAL | Seed translation created at translated/tests/diagnostics.ai |
+| `tests/errors_extra.rs` | `translated/tests/errors_extra.ai` | PARTIAL | Seed translation created at translated/tests/errors_extra.ai |
+| `tests/exec_cleanup.rs` | `translated/tests/exec_cleanup.ai` | PARTIAL | Seed translation created at translated/tests/exec_cleanup.ai |
+| `tests/exec_smoke.rs` | `translated/tests/exec_smoke.ai` | PARTIAL | Seed translation created at translated/tests/exec_smoke.ai |
+| `tests/exec_watch.rs` | `translated/tests/exec_watch.ai` | PARTIAL | Seed translation created at translated/tests/exec_watch.ai |
+| `tests/format_snapshots.rs` | `translated/tests/format_snapshots.ai` | PARTIAL | Seed translation created at translated/tests/format_snapshots.ai |
+| `tests/functions.rs` | `translated/tests/functions.ai` | PARTIAL | Seed translation created at translated/tests/functions.ai |
+| `tests/incremental_partial.rs` | `translated/tests/incremental_partial.ai` | PARTIAL | Seed translation created at translated/tests/incremental_partial.ai |
+| `tests/key_rotate.rs` | `translated/tests/key_rotate.ai` | PARTIAL | Seed translation created at translated/tests/key_rotate.ai |
+| `tests/legacy_flags.rs` | `translated/tests/legacy_flags.ai` | PARTIAL | Seed translation created at translated/tests/legacy_flags.ai |
+| `tests/metrics_bench.rs` | `translated/tests/metrics_bench.ai` | PARTIAL | Seed translation created at translated/tests/metrics_bench.ai |
+| `tests/metrics_function.rs` | `translated/tests/metrics_function.ai` | PARTIAL | Seed translation created at translated/tests/metrics_function.ai |
+| `tests/metrics_history_reload.rs` | `translated/tests/metrics_history_reload.ai` | PARTIAL | Seed translation created at translated/tests/metrics_history_reload.ai |
+| `tests/metrics_history_reload_feature.rs` | `translated/tests/metrics_history_reload_feature.ai` | PARTIAL | Seed translation created at translated/tests/metrics_history_reload_feature.ai |
+| `tests/metrics_numeric.rs` | `translated/tests/metrics_numeric.ai` | PARTIAL | Seed translation created at translated/tests/metrics_numeric.ai |
+| `tests/metrics_numeric_deep.rs` | `translated/tests/metrics_numeric_deep.ai` | PARTIAL | Seed translation created at translated/tests/metrics_numeric_deep.ai |
+| `tests/metrics_savings.rs` | `translated/tests/metrics_savings.ai` | PARTIAL | Seed translation created at translated/tests/metrics_savings.ai |
+| `tests/metrics_schema.rs` | `translated/tests/metrics_schema.ai` | PARTIAL | Seed translation created at translated/tests/metrics_schema.ai |
+| `tests/metrics_window.rs` | `translated/tests/metrics_window.ai` | PARTIAL | Seed translation created at translated/tests/metrics_window.ai |
+| `tests/native_top_level_lets.rs` | `translated/tests/native_top_level_lets.ai` | PARTIAL | Seed translation created at translated/tests/native_top_level_lets.ai |
+| `tests/precedence.rs` | `translated/tests/precedence.ai` | PARTIAL | Seed translation created at translated/tests/precedence.ai |
+| `tests/qiskit_bridge.rs` | `translated/tests/qiskit_bridge.ai` | PARTIAL | Seed translation created at translated/tests/qiskit_bridge.ai |
+| `tests/qpoly.rs` | `translated/tests/qpoly.ai` | PARTIAL | Seed translation created at translated/tests/qpoly.ai |
+| `tests/quantum_circuit_export.rs` | `translated/tests/quantum_circuit_export.ai` | PARTIAL | Seed translation created at translated/tests/quantum_circuit_export.ai |
+| `tests/quantum_circuit_extract.rs` | `translated/tests/quantum_circuit_extract.ai` | PARTIAL | Seed translation created at translated/tests/quantum_circuit_extract.ai |
+| `tests/quantum_circuit_integration.rs` | `translated/tests/quantum_circuit_integration.ai` | PARTIAL | Seed translation created at translated/tests/quantum_circuit_integration.ai |
+| `tests/quantum_core.rs` | `translated/tests/quantum_core.ai` | PARTIAL | Seed translation created at translated/tests/quantum_core.ai |
+| `tests/quantum_glyph.rs` | `translated/tests/quantum_glyph.ai` | PARTIAL | Seed translation created at translated/tests/quantum_glyph.ai |
+| `tests/quantum_syntax_tests.rs` | `translated/tests/quantum_syntax_tests.ai` | PARTIAL | Seed translation created at translated/tests/quantum_syntax_tests.ai |
+| `tests/run_native_no_js.rs` | `translated/tests/run_native_no_js.ai` | PARTIAL | Seed translation created at translated/tests/run_native_no_js.ai |
+| `tests/run_smoke.rs` | `translated/tests/run_smoke.ai` | PARTIAL | Seed translation created at translated/tests/run_smoke.ai |
+| `tests/scoped_rename.rs` | `translated/tests/scoped_rename.ai` | PARTIAL | Seed translation created at translated/tests/scoped_rename.ai |
+| `tests/semantic_diagnostics.rs` | `translated/tests/semantic_diagnostics.ai` | PARTIAL | Seed translation created at translated/tests/semantic_diagnostics.ai |
+| `tests/semantic_returns_quantum.rs` | `translated/tests/semantic_returns_quantum.ai` | PARTIAL | Seed translation created at translated/tests/semantic_returns_quantum.ai |
+| `tests/semantic_types.rs` | `translated/tests/semantic_types.ai` | PARTIAL | Seed translation created at translated/tests/semantic_types.ai |
+| `tests/shell_native_no_js.rs` | `translated/tests/shell_native_no_js.ai` | PARTIAL | Seed translation created at translated/tests/shell_native_no_js.ai |
+| `tests/titan_linear_algebra.rs` | `translated/tests/titan_linear_algebra.ai` | PARTIAL | Seed translation created at translated/tests/titan_linear_algebra.ai |
+| `tests/titan_quantum_math.rs` | `translated/tests/titan_quantum_math.ai` | PARTIAL | Seed translation created at translated/tests/titan_quantum_math.ai |
+| `tests/titan_stats.rs` | `translated/tests/titan_stats.ai` | PARTIAL | Seed translation created at translated/tests/titan_stats.ai |
+| `tests/types_inference.rs` | `translated/tests/types_inference.ai` | PARTIAL | Seed translation created at translated/tests/types_inference.ai |
+| `tests/var_deps.rs` | `translated/tests/var_deps.ai` | PARTIAL | Seed translation created at translated/tests/var_deps.ai |
+| `tests/var_deps_edge.rs` | `translated/tests/var_deps_edge.ai` | PARTIAL | Seed translation created at translated/tests/var_deps_edge.ai |
+| `tests/vm_smoke.rs` | `translated/tests/vm_smoke.ai` | PARTIAL | Seed translation created at translated/tests/vm_smoke.ai |

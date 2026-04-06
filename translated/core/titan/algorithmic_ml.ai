@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/titan/algorithmic_ml.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_algorithmic_ml⟨⟩ {
+  return note_seed("Seed translation scaffold for src/core/titan/algorithmic_ml.rs");
+}

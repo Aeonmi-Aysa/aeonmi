@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: examples/branches.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_branches⟨⟩ {
+  return note_seed("Seed translation scaffold for examples/branches.rs");
+}

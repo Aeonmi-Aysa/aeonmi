@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/titan/qiskit_bridge.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_qiskit_bridge⟨⟩ {
+  return note_seed("Seed translation scaffold for src/core/titan/qiskit_bridge.rs");
+}

@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/titan/symbolic_math.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_symbolic_math⟨⟩ {
+  return note_seed("Seed translation scaffold for src/core/titan/symbolic_math.rs");
+}

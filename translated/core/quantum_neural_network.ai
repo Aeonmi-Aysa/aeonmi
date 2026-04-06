@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/quantum_neural_network.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_quantum_neural_network⟨⟩ {
+  return note_seed("Seed translation scaffold for src/core/quantum_neural_network.rs");
+}

@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: gui/tauri_tauri/src-tauri/build.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_build⟨⟩ {
+  return note_seed("Seed translation scaffold for gui/tauri_tauri/src-tauri/build.rs");
+}

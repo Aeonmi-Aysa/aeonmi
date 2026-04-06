@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/quantum_ast_tests.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_quantum_ast_tests⟨⟩ {
+  return note_seed("Seed translation scaffold for src/quantum_ast_tests.rs");
+}

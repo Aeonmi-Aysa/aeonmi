@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/deep_propagation.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_deep_propagation⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/deep_propagation.rs");
+}

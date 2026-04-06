@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/mother/inner_voice.rs
+⍝ Source status: file not present in this branch at /home/runner/work/aeonmi/aeonmi/src/mother/inner_voice.rs.
+⍝ Feature parity: PARTIAL placeholder (matrix continuity pending source restoration/path correction).
+
+◯ seed_inner_voice_placeholder⟨⟩ {
+  return note_seed("Missing source file in current branch; placeholder seed only.");
+}

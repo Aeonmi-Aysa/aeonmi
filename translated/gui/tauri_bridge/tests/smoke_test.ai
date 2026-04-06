@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: gui/tauri_bridge/tests/smoke_test.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_smoke_test⟨⟩ {
+  return note_seed("Seed translation scaffold for gui/tauri_bridge/tests/smoke_test.rs");
+}

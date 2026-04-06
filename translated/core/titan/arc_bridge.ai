@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/titan/arc_bridge.rs
+⍝ Source status: file not present in this branch at /home/runner/work/aeonmi/aeonmi/src/core/titan/arc_bridge.rs.
+⍝ Feature parity: PARTIAL placeholder (matrix continuity pending source restoration/path correction).
+
+◯ seed_arc_bridge_placeholder⟨⟩ {
+  return note_seed("Missing source file in current branch; placeholder seed only.");
+}

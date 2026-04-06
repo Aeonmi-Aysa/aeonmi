@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/semantic_returns_quantum.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_semantic_returns_quantum⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/semantic_returns_quantum.rs");
+}

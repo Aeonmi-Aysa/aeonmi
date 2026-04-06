@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/errors_extra.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_errors_extra⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/errors_extra.rs");
+}

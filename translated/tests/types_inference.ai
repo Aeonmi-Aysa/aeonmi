@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/types_inference.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_types_inference⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/types_inference.rs");
+}

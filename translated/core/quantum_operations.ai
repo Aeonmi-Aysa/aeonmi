@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/core/quantum_operations.rs
+⍝ Source status: file not present in this branch at /home/runner/work/aeonmi/aeonmi/src/core/quantum_operations.rs.
+⍝ Feature parity: PARTIAL placeholder (matrix continuity pending source restoration/path correction).
+
+◯ seed_quantum_operations_placeholder⟨⟩ {
+  return note_seed("Missing source file in current branch; placeholder seed only.");
+}

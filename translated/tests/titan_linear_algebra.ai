@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: tests/titan_linear_algebra.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_titan_linear_algebra⟨⟩ {
+  return note_seed("Seed translation scaffold for tests/titan_linear_algebra.rs");
+}

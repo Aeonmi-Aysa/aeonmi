@@ -1,0 +1,7 @@
+⍝ TRANSLATION NOTE: src/mother/neural.rs
+⍝ Purpose: seed translation scaffold for this module/file.
+⍝ Feature parity: PARTIAL (high-level structure captured; implementation translation pending).
+
+◯ seed_neural⟨⟩ {
+  return note_seed("Seed translation scaffold for src/mother/neural.rs");
+}
