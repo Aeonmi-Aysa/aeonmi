@@ -1,0 +1,169 @@
+// SHARD VM — tree-walking interpreter (max 15 functions)
+// Environment: { vars: {name:val pairs via parallel arrays}, parent: env|null }
+
+function env_new(parent) {
+    return { keys: [], vals: [], parent: parent };
+}
+
+function env_get(env, name) {
+    let i = env.keys.indexOf(name);
+    if i >= 0 { return env.vals[i]; }
+    if env.parent != null { return env_get(env.parent, name); }
+    return null;
+}
+
+function env_set(env, name, val) {
+    let i = env.keys.indexOf(name);
+    if i >= 0 { env.vals[i] = val; return val; }
+    if env.parent != null {
+        let pi = env.parent.keys.indexOf(name);
+        if pi >= 0 { env.parent.vals[pi] = val; return val; }
+    }
+    env.keys.push(name);
+    env.vals.push(val);
+    return val;
+}
+
+function vm_truthy(v) {
+    if v == null  { return 0; }
+    if v == 0     { return 0; }
+    if v == false { return 0; }
+    if v == ""    { return 0; }
+    return 1;
+}
+
+function vm_eval_bin(op, l, r) {
+    if op == "Plus"    { return l + r; }
+    if op == "Minus"   { return l - r; }
+    if op == "Star"    { return l * r; }
+    if op == "Slash"   { if r == 0 { return 0; } return l / r; }
+    if op == "Percent" { return l - math_floor(l / r) * r; }
+    if op == "EqEq"    { if l == r { return 1; } return 0; }
+    if op == "NotEq"   { if l != r { return 1; } return 0; }
+    if op == "Lt"      { if l < r  { return 1; } return 0; }
+    if op == "Gt"      { if l > r  { return 1; } return 0; }
+    if op == "LtEq"    { if l <= r { return 1; } return 0; }
+    if op == "GtEq"    { if l >= r { return 1; } return 0; }
+    if op == "And"     { if vm_truthy(l) == 1 { return vm_truthy(r); } return 0; }
+    if op == "Or"      { if vm_truthy(l) == 1 { return l; } return r; }
+    return null;
+}
+
+function vm_eval(node, env) {
+    if node == null { return null; }
+    let t = node.type;
+    if t == "Number" { return node.value; }
+    if t == "String" { return node.value; }
+    if t == "Bool"   { return node.value; }
+    if t == "Null"   { return null; }
+    if t == "Ident"  { return env_get(env, node.name); }
+    if t == "BinOp"  { let l = vm_eval(node.left, env); let r = vm_eval(node.right, env); return vm_eval_bin(node.op, l, r); }
+    if t == "UnOp"   {
+        let v = vm_eval(node.operand, env);
+        if node.op == "Minus" { return 0 - v; }
+        if node.op == "Not"   { if vm_truthy(v) == 1 { return 0; } return 1; }
+        return v;
+    }
+    if t == "Array" {
+        let arr = [];
+        let i = 0;
+        while i < node.len(elements) { arr.push(vm_eval(node.elements[i], env)); i = i + 1; }
+        return arr;
+    }
+    if t == "Index"  { let obj = vm_eval(node.object, env); let idx = vm_eval(node.index, env); return obj[idx]; }
+    if t == "Field"  { let obj = vm_eval(node.object, env); return obj[node.field]; }
+    if t == "Call"   { return vm_call(node, env); }
+    if t == "Assign" {
+        let val = vm_eval(node.value, env);
+        if node.target.type == "Ident" { env_set(env, node.target.name, val); }
+        return val;
+    }
+    return null;
+}
+
+function vm_call(node, env) {
+    let callee = node.callee;
+    let args = [];
+    let i = 0;
+    while i < node.len(args) { args.push(vm_eval(node.args[i], env)); i = i + 1; }
+    if callee == "log"       { log(args[0]); return null; }
+    if callee == "print"     { print(args[0]); return null; }
+    if callee == "toString"  { return toString(args[0]); }
+    if callee == "toNumber"  { return toNumber(args[0]); }
+    if callee == "len"       { return len(args[0]); }
+    if callee == "sha256"    { return sha256(args[0]); }
+    if callee == "time_ms"   { return time_ms(); }
+    if callee == "rand"      { return rand(); }
+    if callee == "math_floor" { return math_floor(args[0]); }
+    if callee == "math_sqrt"  { return math_sqrt(args[0]); }
+    if callee == "math_abs"   { return math_abs(args[0]); }
+    let fn_def = env_get(env, callee);
+    if fn_def == null { return null; }
+    let fn_env = env_new(env);
+    let j = 0;
+    while j < fn_def.len(params) { env_set(fn_env, fn_def.params[j], args[j]); j = j + 1; }
+    return vm_exec_block(fn_def.body, fn_env);
+}
+
+function vm_exec_block(stmts, env) {
+    let i = 0;
+    while i < len(stmts) {
+        let result = vm_exec(stmts[i], env);
+        if typeof(result) == "object" {
+            if result != null {
+                if object_has(result, "_return") { return result._return; }
+            }
+        }
+        i = i + 1;
+    }
+    return null;
+}
+
+function vm_exec(node, env) {
+    if node == null { return null; }
+    let t = node.type;
+    if t == "Let"    { let v = vm_eval(node.value, env); env_set(env, node.name, v); return null; }
+    if t == "Const"  { let v = vm_eval(node.value, env); env_set(env, node.name, v); return null; }
+    if t == "Return" { return { _return: vm_eval(node.value, env) }; }
+    if t == "ExprStmt" { vm_eval(node.expr, env); return null; }
+    if t == "Function" { env_set(env, node.name, node); return null; }
+    if t == "If" {
+        if vm_truthy(vm_eval(node.cond, env)) == 1 {
+            return vm_exec_block(node.then_body, env);
+        } else {
+            if node.else_body != null { return vm_exec_block(node.else_body, env); }
+        }
+        return null;
+    }
+    if t == "While" {
+        while vm_truthy(vm_eval(node.cond, env)) == 1 {
+            let r = vm_exec_block(node.body, env);
+            if r != null { return r; }
+        }
+        return null;
+    }
+    if t == "For" {
+        let iter = vm_eval(node.iter, env);
+        let i = 0;
+        while i < len(iter) {
+            let fe = env_new(env);
+            env_set(fe, node.var_name, iter[i]);
+            let r = vm_exec_block(node.body, fe);
+            if r != null { return r; }
+            i = i + 1;
+        }
+        return null;
+    }
+    return null;
+}
+
+function vm_run(ast) {
+    let env = env_new(null);
+    if ast.type == "Program" { return vm_exec_block(ast.body, env); }
+    return null;
+}
+
+let _e = env_new(null);
+env_set(_e, "x", 42);
+let _v = env_get(_e, "x");
+log("vm.ai loaded — vm_run(ast) ready, env test x=" + toString(_v));

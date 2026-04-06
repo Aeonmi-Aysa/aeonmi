@@ -1,0 +1,258 @@
+// Titan Linear Algebra — pure Aeonmi
+// Matrices as nested arrays, vectors as flat arrays
+
+log("=== Titan Linear Algebra ===");
+
+// --- Matrix creation ---
+function mat_new(rows, cols, fill_val) {
+    let m = [];
+    let i = 0;
+    while i < rows {
+        let row = [];
+        let j = 0;
+        while j < cols { row.push(fill_val); j = j + 1; }
+        m.push(row);
+        i = i + 1;
+    }
+    return m;
+}
+
+function mat_identity(n) {
+    let m = mat_new(n, n, 0);
+    let i = 0;
+    while i < n { m[i][i] = 1; i = i + 1; }
+    return m;
+}
+
+function mat_rows(m) { return len(m); }
+function mat_cols(m) { return m[0].len(); }
+
+// --- Matrix multiplication ---
+function mat_mul(A, B) {
+    let rA = mat_rows(A);
+    let cA = mat_cols(A);
+    let cB = mat_cols(B);
+    let C = mat_new(rA, cB, 0);
+    let i = 0;
+    while i < rA {
+        let j = 0;
+        while j < cB {
+            let sum = 0;
+            let k = 0;
+            while k < cA {
+                sum = sum + A[i][k] * B[k][j];
+                k = k + 1;
+            }
+            C[i][j] = sum;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return C;
+}
+
+// --- Matrix transpose ---
+function mat_transpose(A) {
+    let r = mat_rows(A);
+    let c = mat_cols(A);
+    let T = mat_new(c, r, 0);
+    let i = 0;
+    while i < r {
+        let j = 0;
+        while j < c {
+            T[j][i] = A[i][j];
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return T;
+}
+
+// --- Matrix addition ---
+function mat_add(A, B) {
+    let r = mat_rows(A);
+    let c = mat_cols(A);
+    let C = mat_new(r, c, 0);
+    let i = 0;
+    while i < r {
+        let j = 0;
+        while j < c {
+            C[i][j] = A[i][j] + B[i][j];
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return C;
+}
+
+// --- Scalar multiply ---
+function mat_scale(A, s) {
+    let r = mat_rows(A);
+    let c = mat_cols(A);
+    let C = mat_new(r, c, 0);
+    let i = 0;
+    while i < r {
+        let j = 0;
+        while j < c { C[i][j] = A[i][j] * s; j = j + 1; }
+        i = i + 1;
+    }
+    return C;
+}
+
+// --- Determinant (recursive, for small matrices) ---
+function mat_det(A) {
+    let n = mat_rows(A);
+    if n == 1 { return A[0][0]; }
+    if n == 2 { return A[0][0] * A[1][1] - A[0][1] * A[1][0]; }
+    let det = 0;
+    let j = 0;
+    while j < n {
+        let sub = mat_minor(A, 0, j);
+        let sign = 1;
+        if j % 2 != 0 { sign = -1; }
+        det = det + sign * A[0][j] * mat_det(sub);
+        j = j + 1;
+    }
+    return det;
+}
+
+function mat_minor(A, row, col) {
+    let n = mat_rows(A);
+    let sub = [];
+    let i = 0;
+    while i < n {
+        if i != row {
+            let new_row = [];
+            let j = 0;
+            while j < n {
+                if j != col { new_row.push(A[i][j]); }
+                j = j + 1;
+            }
+            sub.push(new_row);
+        }
+        i = i + 1;
+    }
+    return sub;
+}
+
+// --- Vector operations ---
+function vec_dot(a, b) {
+    let sum = 0;
+    let i = 0;
+    while i < len(a) { sum = sum + a[i] * b[i]; i = i + 1; }
+    return sum;
+}
+
+function vec_norm(v) {
+    let sum = 0;
+    let i = 0;
+    while i < len(v) { sum = sum + v[i] * v[i]; i = i + 1; }
+    return math_sqrt(sum);
+}
+
+function vec_normalize(v) {
+    let n = vec_norm(v);
+    let out = [];
+    let i = 0;
+    while i < len(v) { out.push(v[i] / n); i = i + 1; }
+    return out;
+}
+
+function vec_add(a, b) {
+    let out = [];
+    let i = 0;
+    while i < len(a) { out.push(a[i] + b[i]); i = i + 1; }
+    return out;
+}
+
+function vec_scale(v, s) {
+    let out = [];
+    let i = 0;
+    while i < len(v) { out.push(v[i] * s); i = i + 1; }
+    return out;
+}
+
+function vec_cross3(a, b) {
+    return [
+        a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0]
+    ];
+}
+
+// --- Matrix-vector product ---
+function mat_vec_mul(A, v) {
+    let r = mat_rows(A);
+    let c = mat_cols(A);
+    let out = [];
+    let i = 0;
+    while i < r {
+        let sum = 0;
+        let j = 0;
+        while j < c { sum = sum + A[i][j] * v[j]; j = j + 1; }
+        out.push(sum);
+        i = i + 1;
+    }
+    return out;
+}
+
+// --- Trace ---
+function mat_trace(A) {
+    let n = mat_rows(A);
+    let t = 0;
+    let i = 0;
+    while i < n { t = t + A[i][i]; i = i + 1; }
+    return t;
+}
+
+// --- Pretty print matrix ---
+function mat_print(A, name) {
+    log(name + " [" + toString(mat_rows(A)) + "x" + toString(mat_cols(A)) + "]:");
+    let i = 0;
+    while i < mat_rows(A) {
+        let parts = [];
+        let j = 0;
+        while j < mat_cols(A) {
+            parts.push(toString(A[i][j]));
+            j = j + 1;
+        }
+        log("  [ " + parts.join("  ") + " ]");
+        i = i + 1;
+    }
+}
+
+// --- Demo ---
+log("");
+let A = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+let B = [[9, 8, 7], [6, 5, 4], [3, 2, 1]];
+mat_print(A, "A");
+mat_print(B, "B");
+
+let C = mat_mul(A, B);
+mat_print(C, "A * B");
+
+let T = mat_transpose(A);
+mat_print(T, "A^T");
+
+let I3 = mat_identity(3);
+mat_print(I3, "I3");
+log("Trace(I3) = " + toString(mat_trace(I3)));
+
+let M2 = [[3, 8], [4, 6]];
+log("det([[3,8],[4,6]]) = " + toString(mat_det(M2)));
+
+let M3 = [[6, 1, 1], [4, -2, 5], [2, 8, 7]];
+log("det(3x3) = " + toString(mat_det(M3)));
+
+let v1 = [1, 2, 3];
+let v2 = [4, 5, 6];
+log("dot([1,2,3],[4,5,6]) = " + toString(vec_dot(v1, v2)));
+log("norm([1,2,3]) = " + toString(vec_norm(v1)));
+let vn = vec_normalize(v1);
+log("normalize([1,2,3]) = [" + toString(vn[0]) + ", " + toString(vn[1]) + ", " + toString(vn[2]) + "]");
+
+let cross = vec_cross3([1,0,0],[0,1,0]);
+log("cross([1,0,0],[0,1,0]) = [" + cross.join(", ") + "]");
+
+log("");
+log("=== Linear Algebra demo complete ===");

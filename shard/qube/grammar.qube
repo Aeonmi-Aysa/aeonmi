@@ -1,0 +1,163 @@
+// QUBE Grammar Documentation
+// Quantum Universal Bytecode Engine — Circuit Definition Language
+// Version 2.0
+
+// === QUBE OVERVIEW ===
+// QUBE files define quantum circuits using a declarative syntax.
+// They are executed by the Aeonmi QUBE executor.
+
+// === BASIC SYNTAX ===
+
+// Qubit declaration
+// qubit <name>;
+// qubit q0;
+// qubit q1;
+
+// Gate application
+// <gate> <qubit(s)>;
+// H q0;        -- Hadamard gate
+// X q0;        -- Pauli-X (NOT)
+// Y q0;        -- Pauli-Y
+// Z q0;        -- Pauli-Z
+// CNOT q0 q1;  -- Controlled-NOT (q0=control, q1=target)
+// T q0;        -- T gate (pi/8 phase)
+// S q0;        -- S gate (pi/4 phase)
+// SWAP q0 q1;  -- Swap two qubits
+
+// Parameterized gates
+// Rx(theta) q0;   -- X-axis rotation by theta radians
+// Ry(theta) q0;   -- Y-axis rotation by theta radians
+// Rz(theta) q0;   -- Z-axis rotation by theta radians
+
+// Measurement
+// measure q0 -> c0;   -- Measure q0 into classical bit c0
+
+// Classical bit declaration
+// bit c0;
+// bit c1;
+
+// Conditional gate (classically controlled)
+// if c0 { X q1; }   -- Apply X to q1 if c0 == 1
+
+// Circuit definition
+// circuit BellState {
+//     qubit q0;
+//     qubit q1;
+//     H q0;
+//     CNOT q0 q1;
+//     measure q0 -> c0;
+//     measure q1 -> c1;
+// }
+
+// === ADVANCED SYNTAX ===
+
+// Named registers
+// qreg q[3];   -- 3-qubit register
+// creg c[3];   -- 3-bit classical register
+
+// Barrier (synchronization point)
+// barrier q0 q1 q2;
+
+// Reset qubit to |0>
+// reset q0;
+
+// === BUILT-IN ALGORITHMS ===
+// grover(n, target)        -- Grover's search
+// qft(n)                   -- Quantum Fourier Transform
+// shor(n)                  -- Shor's factoring
+// teleport(src, alice, bob) -- Quantum teleportation
+// bell(q0, q1)             -- Create Bell pair
+
+// === EXAMPLE CIRCUITS ===
+
+// --- Bell State ---
+circuit BellState {
+    qubit q0;
+    qubit q1;
+    H q0;
+    CNOT q0 q1;
+    measure q0 -> c0;
+    measure q1 -> c1;
+}
+
+// --- GHZ State ---
+circuit GHZState {
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    H q0;
+    CNOT q0 q1;
+    CNOT q0 q2;
+    measure q0 -> c0;
+    measure q1 -> c1;
+    measure q2 -> c2;
+}
+
+// --- Quantum Teleportation ---
+circuit QuantumTeleport {
+    qubit message;
+    qubit alice;
+    qubit bob;
+    // Prepare message qubit
+    H message;
+    // Create Bell pair
+    H alice;
+    CNOT alice bob;
+    // Alice's operations
+    CNOT message alice;
+    H message;
+    // Measure
+    measure message -> c0;
+    measure alice   -> c1;
+    // Bob's corrections
+    if c0 { Z bob; }
+    if c1 { X bob; }
+    measure bob -> c2;
+}
+
+// --- Grover's Search (4 items, target=2) ---
+circuit GroverSearch4 {
+    grover(4, 2);
+}
+
+// --- QFT on 3 qubits ---
+circuit QFT3 {
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    H q0;
+    Rz(1.5708) q1;
+    CNOT q0 q1;
+    H q1;
+    Rz(0.7854) q2;
+    CNOT q0 q2;
+    Rz(1.5708) q2;
+    CNOT q1 q2;
+    H q2;
+    SWAP q0 q2;
+    measure q0 -> c0;
+    measure q1 -> c1;
+    measure q2 -> c2;
+}
+
+// --- Deutsch-Jozsa ---
+circuit DeutschJozsa {
+    qubit input;
+    qubit ancilla;
+    X ancilla;
+    H input;
+    H ancilla;
+    CNOT input ancilla;
+    H input;
+    measure input -> c0;
+}
+
+// === QUBE METADATA ===
+meta {
+    version: "2.0",
+    author: "Aeonmi Core",
+    description: "QUBE Grammar Reference and Example Circuits",
+    gates_supported: ["H", "X", "Y", "Z", "CNOT", "T", "S", "Rx", "Ry", "Rz", "SWAP", "Toffoli"],
+    max_qubits: 64,
+    simulator: "Aeonmi QUBE Executor"
+}

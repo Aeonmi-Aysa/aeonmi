@@ -1,0 +1,196 @@
+// Titan Neural Network — pure Aeonmi
+// Feedforward NN with sigmoid, forward pass, training loop
+
+log("=== Titan Neural Network ===");
+
+// --- Activation functions ---
+function sigmoid(x) {
+    return 1.0 / (1.0 + math_pow(2.71828, 0 - x));
+}
+
+function sigmoid_deriv(x) {
+    let s = sigmoid(x);
+    return s * (1.0 - s);
+}
+
+function relu(x) {
+    if x > 0 { return x; }
+    return 0;
+}
+
+function relu_deriv(x) {
+    if x > 0 { return 1; }
+    return 0;
+}
+
+function tanh_approx(x) {
+    let e2x = math_pow(2.71828, 2 * x);
+    return (e2x - 1) / (e2x + 1);
+}
+
+// --- Layer creation ---
+function layer_new(input_size, output_size) {
+    let weights = [];
+    let biases = [];
+    let i = 0;
+    while i < output_size {
+        let row = [];
+        let j = 0;
+        while j < input_size {
+            row.push((rand() - 0.5) * 2.0);
+            j = j + 1;
+        }
+        weights.push(row);
+        biases.push((rand() - 0.5) * 0.1);
+        i = i + 1;
+    }
+    return { weights: weights, biases: biases, input_size: input_size, output_size: output_size };
+}
+
+// --- Forward pass through a layer ---
+function layer_forward(layer, inputs) {
+    let outputs = [];
+    let i = 0;
+    while i < layer.output_size {
+        let sum = layer.biases[i];
+        let j = 0;
+        while j < layer.input_size {
+            sum = sum + layer.weights[i][j] * inputs[j];
+            j = j + 1;
+        }
+        outputs.push(sigmoid(sum));
+        i = i + 1;
+    }
+    return outputs;
+}
+
+// --- Network creation ---
+function nn_new(layer_sizes) {
+    let layers = [];
+    let i = 0;
+    while i < len(layer_sizes) - 1 {
+        layers.push(layer_new(layer_sizes[i], layer_sizes[i + 1]));
+        i = i + 1;
+    }
+    return { layers: layers, layer_sizes: layer_sizes };
+}
+
+// --- Full forward pass ---
+function nn_forward(nn, inputs) {
+    let current = inputs;
+    let i = 0;
+    while i < nn.len(layers) {
+        current = layer_forward(nn.layers[i], current);
+        i = i + 1;
+    }
+    return current;
+}
+
+// --- Loss (MSE) ---
+function mse_loss(predicted, actual) {
+    let sum = 0;
+    let i = 0;
+    while i < len(predicted) {
+        let diff = predicted[i] - actual[i];
+        sum = sum + diff * diff;
+        i = i + 1;
+    }
+    return sum / len(predicted);
+}
+
+// --- Simple gradient descent weight update (backprop approximation) ---
+function nn_train_step(nn, inputs, targets, lr) {
+    let pred = nn_forward(nn, inputs);
+    let loss = mse_loss(pred, targets);
+
+    // Numerical gradient for output layer only (simplified)
+    let last_layer = nn.layers[nn.len(layers) - 1];
+    let i = 0;
+    while i < last_layer.output_size {
+        let error = pred[i] - targets[i];
+        let j = 0;
+        while j < last_layer.input_size {
+            last_layer.weights[i][j] = last_layer.weights[i][j] - lr * error * 0.01;
+            j = j + 1;
+        }
+        last_layer.biases[i] = last_layer.biases[i] - lr * error * 0.01;
+        i = i + 1;
+    }
+    return loss;
+}
+
+// --- Training loop ---
+function nn_train(nn, dataset_x, dataset_y, epochs, lr) {
+    log("Training: " + toString(epochs) + " epochs, lr=" + toString(lr));
+    log("  Architecture: " + nn.layer_sizes.join(" -> "));
+    log("  Dataset size: " + toString(len(dataset_x)));
+
+    let i = 0;
+    while i < epochs {
+        let total_loss = 0;
+        let j = 0;
+        while j < len(dataset_x) {
+            let loss = nn_train_step(nn, dataset_x[j], dataset_y[j], lr);
+            total_loss = total_loss + loss;
+            j = j + 1;
+        }
+        let avg_loss = total_loss / len(dataset_x);
+        if i % 100 == 0 || i == epochs - 1 {
+            log("  Epoch " + toString(i) + " loss=" + toString(avg_loss));
+        }
+        i = i + 1;
+    }
+    log("Training complete");
+}
+
+// --- XOR dataset ---
+function make_xor_dataset() {
+    let x = [[0, 0], [0, 1], [1, 0], [1, 1]];
+    let y = [[0], [1], [1], [0]];
+    return { x: x, y: y };
+}
+
+// --- Demo ---
+log("");
+log(">>> Creating neural network [2->4->1] <<<");
+let net = nn_new([2, 4, 1]);
+
+log("");
+log(">>> XOR Training <<<");
+let xor_data = make_xor_dataset();
+nn_train(net, xor_data.x, xor_data.y, 500, 0.5);
+
+log("");
+log(">>> XOR Predictions <<<");
+let inputs = [[0, 0], [0, 1], [1, 0], [1, 1]];
+let expected = [0, 1, 1, 0];
+let i = 0;
+while i < len(inputs) {
+    let pred = nn_forward(net, inputs[i]);
+    let rounded = math_round(pred[0]);
+    if rounded == null { rounded = 0; }
+    log("  XOR(" + inputs[i].join(",") + ") -> " + toString(pred[0]) + " (expected " + toString(expected[i]) + ")");
+    i = i + 1;
+}
+
+log("");
+log(">>> Activation Functions <<<");
+let test_vals = [-2, -1, 0, 1, 2];
+let j = 0;
+while j < len(test_vals) {
+    let v = test_vals[j];
+    log("  sigmoid(" + toString(v) + ") = " + toString(sigmoid(v)));
+    log("  relu(" + toString(v) + ")    = " + toString(relu(v)));
+    j = j + 1;
+}
+
+log("");
+log(">>> Deeper Network [3->8->4->1] <<<");
+let deep = nn_new([3, 8, 4, 1]);
+let sample = [0.5, 0.3, 0.8];
+let out = nn_forward(deep, sample);
+log("  Input: [0.5, 0.3, 0.8]");
+log("  Output: " + toString(out[0]));
+
+log("");
+log("=== Neural Network demo complete ===");

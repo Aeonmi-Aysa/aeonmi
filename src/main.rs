@@ -1110,7 +1110,8 @@ fn main() -> anyhow::Result<()> {
                             return Ok(());
                         }
                         // Shard always executes .ai files natively — no JS temp files.
-                        commands::run::run_native(file, pretty, skip_sema)
+                        // Passthrough args are available in the script via get_args().
+                        commands::run::run_native_with_args(file, pretty, skip_sema, passthrough)
                     }
                     "js" => {
                         if no_run {

@@ -57,12 +57,20 @@ impl QubeParser {
                     self.advance();
                     stmts.push(QubeStmt::Comment(c));
                 }
+                // Original symbolic-syntax keywords
                 QubeTok::KwState    => stmts.push(self.parse_state_decl()?),
                 QubeTok::KwApply    => stmts.push(self.parse_gate_apply()?),
                 QubeTok::KwCollapse => stmts.push(self.parse_collapse()?),
                 QubeTok::KwAssert   => stmts.push(self.parse_assert()?),
                 QubeTok::KwPrint    => stmts.push(self.parse_print()?),
                 QubeTok::KwLet      => stmts.push(self.parse_let()?),
+                // Circuit-syntax keywords
+                QubeTok::KwCircuit  => stmts.push(self.parse_circuit_def()?),
+                QubeTok::KwMeta     => stmts.push(self.parse_meta_block()?),
+                QubeTok::KwExecute  => stmts.push(self.parse_execute_block()?),
+                QubeTok::KwExpected => stmts.push(self.parse_expected_block()?),
+                // Skip unknown tokens at top level (semicolons, etc.)
+                QubeTok::Semicolon  => { self.advance(); }
                 other => {
                     return Err(format!(
                         "Unexpected token in QUBE program: {:?}",
@@ -357,6 +365,347 @@ impl QubeParser {
             other => return Err(format!("Cannot parse let value from {:?}", other)),
         };
         Ok(QubeStmt::LetBinding { name, value })
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ── Circuit-syntax parsing ────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // ── circuit <name> { body } ───────────────────────────────────────────────
+
+    fn parse_circuit_def(&mut self) -> Result<QubeStmt, String> {
+        self.advance(); // consume `circuit`
+        let name = self.expect_ident()?;
+        self.skip_newlines();
+        match self.advance() {
+            QubeTok::LBrace => {}
+            other => return Err(format!("Expected '{{' after circuit name, got {:?}", other)),
+        }
+        let body = self.parse_circuit_body()?;
+        Ok(QubeStmt::CircuitDef { name, body })
+    }
+
+    /// Parse statements inside a `circuit { }` block until `}`.
+    fn parse_circuit_body(&mut self) -> Result<Vec<CircuitStmt>, String> {
+        let mut stmts = Vec::new();
+        loop {
+            // skip whitespace/newlines
+            while matches!(self.peek(), QubeTok::Newline | QubeTok::Semicolon) {
+                self.advance();
+            }
+            match self.peek().clone() {
+                QubeTok::RBrace | QubeTok::Eof => {
+                    self.advance();
+                    break;
+                }
+                QubeTok::Comment(c) => {
+                    let c = c.clone();
+                    self.advance();
+                    stmts.push(CircuitStmt::Comment(c));
+                }
+                QubeTok::KwQubit => {
+                    self.advance();
+                    let name = self.expect_ident()?;
+                    self.skip_opt_semicolon();
+                    stmts.push(CircuitStmt::QubitDecl(name));
+                }
+                QubeTok::KwBit => {
+                    self.advance();
+                    let name = self.expect_ident()?;
+                    self.skip_opt_semicolon();
+                    stmts.push(CircuitStmt::BitDecl(name));
+                }
+                QubeTok::KwQreg => {
+                    self.advance();
+                    let name = self.expect_ident()?;
+                    let size = self.parse_bracket_int()?;
+                    self.skip_opt_semicolon();
+                    stmts.push(CircuitStmt::QregDecl { name, size });
+                }
+                QubeTok::KwCreg => {
+                    self.advance();
+                    let name = self.expect_ident()?;
+                    let size = self.parse_bracket_int()?;
+                    self.skip_opt_semicolon();
+                    stmts.push(CircuitStmt::CregDecl { name, size });
+                }
+                QubeTok::KwMeasure => {
+                    stmts.push(self.parse_measure_stmt()?);
+                }
+                QubeTok::KwIf => {
+                    stmts.push(self.parse_if_stmt()?);
+                }
+                QubeTok::KwReset => {
+                    self.advance();
+                    let q = self.expect_ident()?;
+                    self.skip_opt_semicolon();
+                    stmts.push(CircuitStmt::Reset(q));
+                }
+                QubeTok::KwBarrier => {
+                    self.advance();
+                    let mut qubits = Vec::new();
+                    while matches!(self.peek(), QubeTok::Ident(_)) {
+                        qubits.push(self.expect_ident()?);
+                    }
+                    self.skip_opt_semicolon();
+                    stmts.push(CircuitStmt::Barrier(qubits));
+                }
+                // Gate application or built-in algorithm — starts with an Ident
+                QubeTok::Ident(name) => {
+                    let name = name.clone();
+                    self.advance();
+                    // Built-in algorithms: grover(n, t), qft(n), shor(n), teleport(...)
+                    if matches!(self.peek(), QubeTok::LParen) {
+                        let args = self.parse_float_arg_list()?;
+                        self.skip_opt_semicolon();
+                        stmts.push(CircuitStmt::BuiltinAlgo { name, args });
+                    } else {
+                        // Gate application: possibly parameterised Rx(theta)
+                        let gate = QuantumGate::from_str(&name);
+                        // Check for optional rotation param: Rx(1.5708)
+                        let param = if matches!(self.peek(), QubeTok::LParen) {
+                            Some(self.parse_single_float_arg()?)
+                        } else {
+                            None
+                        };
+                        // Read target qubits (one or two identifiers)
+                        let mut targets = Vec::new();
+                        while matches!(self.peek(), QubeTok::Ident(_)) {
+                            targets.push(self.expect_ident()?);
+                        }
+                        self.skip_opt_semicolon();
+                        stmts.push(CircuitStmt::GateApply { gate, param, targets });
+                    }
+                }
+                other => {
+                    return Err(format!(
+                        "Unexpected token in circuit body: {:?}", other
+                    ));
+                }
+            }
+        }
+        Ok(stmts)
+    }
+
+    /// Parse `measure <qubit> -> <classical>;`
+    fn parse_measure_stmt(&mut self) -> Result<CircuitStmt, String> {
+        self.advance(); // consume `measure`
+        let qubit = self.expect_ident()?;
+        // Expect `->`
+        match self.advance() {
+            QubeTok::DashArrow => {}
+            QubeTok::Arrow => {} // accept → too
+            other => return Err(format!("Expected '->' in measure, got {:?}", other)),
+        }
+        let classical = self.expect_ident()?;
+        self.skip_opt_semicolon();
+        Ok(CircuitStmt::Measure { qubit, classical })
+    }
+
+    /// Parse `if <cond> { <body> }`
+    fn parse_if_stmt(&mut self) -> Result<CircuitStmt, String> {
+        self.advance(); // consume `if`
+        let condition = self.expect_ident()?;
+        self.skip_newlines();
+        match self.advance() {
+            QubeTok::LBrace => {}
+            other => return Err(format!("Expected '{{' in if, got {:?}", other)),
+        }
+        let body = self.parse_circuit_body()?;
+        Ok(CircuitStmt::IfClassical { condition, body })
+    }
+
+    /// Parse `[n]` integer bracket (for qreg/creg).
+    fn parse_bracket_int(&mut self) -> Result<usize, String> {
+        match self.advance() {
+            QubeTok::LBracket => {}
+            other => return Err(format!("Expected '[', got {:?}", other)),
+        }
+        let n = match self.advance() {
+            QubeTok::Number(n) => *n as usize,
+            other => return Err(format!("Expected integer, got {:?}", other)),
+        };
+        match self.advance() {
+            QubeTok::RBracket => {}
+            other => return Err(format!("Expected ']', got {:?}", other)),
+        }
+        Ok(n)
+    }
+
+    /// Parse `(f1, f2, ...)` returning Vec<f64>.
+    fn parse_float_arg_list(&mut self) -> Result<Vec<f64>, String> {
+        match self.advance() {
+            QubeTok::LParen => {}
+            other => return Err(format!("Expected '(', got {:?}", other)),
+        }
+        let mut args = Vec::new();
+        while !matches!(self.peek(), QubeTok::RParen | QubeTok::Eof) {
+            match self.peek().clone() {
+                QubeTok::Number(n) => { args.push(n); self.advance(); }
+                QubeTok::Comma => { self.advance(); }
+                _ => { self.advance(); } // skip unexpected
+            }
+        }
+        match self.advance() {
+            QubeTok::RParen => {}
+            other => return Err(format!("Expected ')', got {:?}", other)),
+        }
+        Ok(args)
+    }
+
+    /// Parse `(f)` returning f64 (for single param gates like Rx).
+    fn parse_single_float_arg(&mut self) -> Result<f64, String> {
+        let args = self.parse_float_arg_list()?;
+        Ok(args.into_iter().next().unwrap_or(0.0))
+    }
+
+    /// Skip an optional semicolon.
+    fn skip_opt_semicolon(&mut self) {
+        if matches!(self.peek(), QubeTok::Semicolon) {
+            self.advance();
+        }
+    }
+
+    // ── meta { key: "value", ... } ────────────────────────────────────────────
+
+    fn parse_meta_block(&mut self) -> Result<QubeStmt, String> {
+        self.advance(); // consume `meta`
+        self.skip_newlines();
+        match self.advance() {
+            QubeTok::LBrace => {}
+            other => return Err(format!("Expected '{{' after meta, got {:?}", other)),
+        }
+        let entries = self.parse_kv_block()?;
+        Ok(QubeStmt::MetaBlock { entries })
+    }
+
+    // ── execute { run <name>; ... } ───────────────────────────────────────────
+
+    fn parse_execute_block(&mut self) -> Result<QubeStmt, String> {
+        self.advance(); // consume `execute`
+        self.skip_newlines();
+        match self.advance() {
+            QubeTok::LBrace => {}
+            other => return Err(format!("Expected '{{' after execute, got {:?}", other)),
+        }
+        let mut steps = Vec::new();
+        loop {
+            while matches!(self.peek(), QubeTok::Newline | QubeTok::Semicolon) { self.advance(); }
+            match self.peek().clone() {
+                QubeTok::RBrace | QubeTok::Eof => { self.advance(); break; }
+                QubeTok::Comment(_) => { self.advance(); }
+                QubeTok::KwRun => {
+                    self.advance(); // consume `run`
+                    let name = self.expect_ident()?;
+                    self.skip_opt_semicolon();
+                    steps.push(name);
+                }
+                _ => { self.advance(); } // skip unknown tokens inside execute
+            }
+        }
+        Ok(QubeStmt::ExecuteBlock { steps })
+    }
+
+    // ── expected { Name: { key: val, ... }, ... } ─────────────────────────────
+
+    fn parse_expected_block(&mut self) -> Result<QubeStmt, String> {
+        self.advance(); // consume `expected`
+        self.skip_newlines();
+        match self.advance() {
+            QubeTok::LBrace => {}
+            other => return Err(format!("Expected '{{' after expected, got {:?}", other)),
+        }
+        let mut results = Vec::new();
+        loop {
+            while matches!(self.peek(), QubeTok::Newline | QubeTok::Semicolon | QubeTok::Comma) {
+                self.advance();
+            }
+            match self.peek().clone() {
+                QubeTok::RBrace | QubeTok::Eof => { self.advance(); break; }
+                QubeTok::Comment(c) => { let _ = c; self.advance(); }
+                QubeTok::Ident(name) => {
+                    let name = name.clone();
+                    self.advance();
+                    // Consume `:` then `{`
+                    if matches!(self.peek(), QubeTok::Colon) { self.advance(); }
+                    self.skip_newlines();
+                    if matches!(self.peek(), QubeTok::LBrace) {
+                        self.advance();
+                        let entries = self.parse_kv_block()?;
+                        results.push((name, entries));
+                    }
+                }
+                _ => { self.advance(); }
+            }
+        }
+        Ok(QubeStmt::ExpectedBlock { results })
+    }
+
+    /// Parse `key: value, key: value }` key-value pairs until `}`.
+    fn parse_kv_block(&mut self) -> Result<Vec<(String, QubeExpr)>, String> {
+        let mut entries = Vec::new();
+        loop {
+            while matches!(self.peek(), QubeTok::Newline | QubeTok::Comma) { self.advance(); }
+            match self.peek().clone() {
+                QubeTok::RBrace | QubeTok::Eof => { self.advance(); break; }
+                QubeTok::Comment(_) => { self.advance(); }
+                QubeTok::Ident(k) => {
+                    let k = k.clone();
+                    self.advance();
+                    // consume `:` if present
+                    if matches!(self.peek(), QubeTok::Colon) { self.advance(); }
+                    // parse value
+                    let val = self.parse_kv_value()?;
+                    entries.push((k, val));
+                }
+                _ => { self.advance(); }
+            }
+        }
+        Ok(entries)
+    }
+
+    fn parse_kv_value(&mut self) -> Result<QubeExpr, String> {
+        match self.peek().clone() {
+            QubeTok::Number(n) => {
+                let n = n;
+                self.advance();
+                // Check for array [n, m] after number
+                Ok(QubeExpr::Number(n))
+            }
+            QubeTok::Ident(s) => {
+                let s = s.clone();
+                self.advance();
+                // true / false
+                if s == "true" { return Ok(QubeExpr::Bool(true)); }
+                if s == "false" { return Ok(QubeExpr::Bool(false)); }
+                Ok(QubeExpr::Variable(s))
+            }
+            QubeTok::LBracket => {
+                // Array literal [a, b, ...]
+                self.advance();
+                let mut elems = Vec::new();
+                while !matches!(self.peek(), QubeTok::RBracket | QubeTok::Eof) {
+                    match self.peek().clone() {
+                        QubeTok::Number(n) => { elems.push(QubeExpr::Number(n)); self.advance(); }
+                        QubeTok::Comma => { self.advance(); }
+                        QubeTok::Ident(s) => { elems.push(QubeExpr::Variable(s.clone())); self.advance(); }
+                        _ => { self.advance(); }
+                    }
+                }
+                if matches!(self.peek(), QubeTok::RBracket) { self.advance(); }
+                Ok(QubeExpr::Array(elems))
+            }
+            // String literal — look for content between quotes
+            // (quoted strings are not tokenized currently, handle Ident fallback)
+            _ => {
+                // Skip until comma or newline or '}'
+                while !matches!(self.peek(),
+                    QubeTok::Comma | QubeTok::Newline | QubeTok::RBrace | QubeTok::Eof) {
+                    self.advance();
+                }
+                Ok(QubeExpr::Variable("_".to_string()))
+            }
+        }
     }
 }
 

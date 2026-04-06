@@ -1,0 +1,267 @@
+// Vault CLI Commands — pure Aeonmi
+// init, add, list, status, lock, audit dispatched by command
+
+log("=== Vault CLI ===");
+
+const VCLI_VAULT_DIR  = ".aeonmi_vault";
+const VCLI_VAULT_FILE = ".aeonmi_vault/vault.json";
+
+function vcli_xor_enc(plaintext, key) {
+    let expanded = sha256(key);
+    while expanded.length < plaintext.length * 4 { expanded = sha256(expanded + key); }
+    let chars = plaintext.split("");
+    let kchars = expanded.split("");
+    let out = [];
+    let i = 0;
+    while i < len(chars) {
+        let pc = char_code(chars[i]);
+        let kc = char_code(kchars[i % len(kchars)]) % 128;
+        let enc = pc + kc;
+        if enc > 127 { enc = enc - 128; }
+        out.push(toString(enc));
+        i = i + 1;
+    }
+    return out.join(":");
+}
+
+function vcli_xor_dec(ciphertext, key) {
+    let expanded = sha256(key);
+    while expanded.length < 256 { expanded = sha256(expanded + key); }
+    let parts = ciphertext.split(":");
+    let kchars = expanded.split("");
+    let out = "";
+    let i = 0;
+    while i < len(parts) {
+        let ec = parse_int(parts[i]);
+        let kc = char_code(kchars[i % len(kchars)]) % 128;
+        let dec = ec - kc;
+        if dec < 0 { dec = dec + 128; }
+        out = out + char_from_code(dec);
+        i = i + 1;
+    }
+    return out;
+}
+
+function vcli_load_vault() {
+    if !file_exists(VCLI_VAULT_FILE) { return null; }
+    let content = read_file(VCLI_VAULT_FILE);
+    return json_parse(content);
+}
+
+function vcli_save_vault(vault) {
+    if !path_exists(VCLI_VAULT_DIR) { make_dir(VCLI_VAULT_DIR); }
+    write_file(VCLI_VAULT_FILE, json_stringify(vault));
+}
+
+function vcli_compute_root(vault) {
+    if vault.len(entries) == 0 { return sha256("empty"); }
+    let hashes = [];
+    let i = 0;
+    while i < vault.len(entries) {
+        hashes.push(sha256(vault.entries[i].id + vault.entries[i].domain));
+        i = i + 1;
+    }
+    while len(hashes) > 1 {
+        let next = [];
+        let j = 0;
+        while j < len(hashes) {
+            if j + 1 < len(hashes) { next.push(sha256(hashes[j] + hashes[j+1])); j = j + 2; }
+            else { next.push(sha256(hashes[j] + hashes[j])); j = j + 1; }
+        }
+        hashes = next;
+    }
+    return hashes[0];
+}
+
+// --- Commands ---
+
+function vcli_cmd_init(args) {
+    if file_exists(VCLI_VAULT_FILE) {
+        log("Vault already exists at " + VCLI_VAULT_FILE);
+        log("Use 'vault status' to see current state.");
+        return;
+    }
+    let name = "default";
+    let password = "changeme";
+    if len(args) > 0 { name = args[0]; }
+    if len(args) > 1 { password = args[1]; }
+    let vault = {
+        version: "1.0",
+        name: name,
+        master_hash: sha256(password + "aeonmi_vault_salt"),
+        created_at: time_ms(),
+        last_modified: time_ms(),
+        entries: [],
+        merkle_root: sha256("empty"),
+        sealed: false
+    };
+    vcli_save_vault(vault);
+    log("Vault initialized: " + name);
+    log("  Location: " + VCLI_VAULT_FILE);
+    log("  WARNING: Change your master password immediately.");
+}
+
+function vcli_cmd_add(args) {
+    if len(args) < 3 {
+        log("Usage: vault add <domain> <username> <password> [notes]");
+        return;
+    }
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault found. Run 'vault init' first."); return; }
+    let domain = args[0];
+    let username = args[1];
+    let password = args[2];
+    let notes = "";
+    if len(args) > 3 { notes = args[3]; }
+    let key = sha256(domain + username + toString(time_ms()));
+    let entry = {
+        id: sha256(domain + username).slice(0, 16),
+        domain: domain,
+        username: username,
+        enc_password: vcli_xor_enc(password, key),
+        enc_notes: vcli_xor_enc(notes, key),
+        key: key,
+        created_at: time_ms()
+    };
+    vault.entries.push(entry);
+    vault.last_modified = time_ms();
+    vault.merkle_root = vcli_compute_root(vault);
+    vcli_save_vault(vault);
+    log("Added: " + domain + " (" + username + ")");
+    log("  ID: " + entry.id);
+}
+
+function vcli_cmd_get(args) {
+    if len(args) < 1 { log("Usage: vault get <domain>"); return; }
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault."); return; }
+    let domain = args[0].toLowerCase();
+    let found = false;
+    let i = 0;
+    while i < vault.len(entries) {
+        let e = vault.entries[i];
+        if string_contains(e.domain.toLowerCase(), domain) {
+            log("Found: " + e.domain);
+            log("  Username: " + e.username);
+            let pw = vcli_xor_dec(e.enc_password, e.key);
+            log("  Password: " + pw);
+            let notes = vcli_xor_dec(e.enc_notes, e.key);
+            if notes != "" { log("  Notes: " + notes); }
+            found = true;
+        }
+        i = i + 1;
+    }
+    if !found { log("No entry found for: " + args[0]); }
+}
+
+function vcli_cmd_list(args) {
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault found."); return; }
+    log("Vault: " + vault.name + " (" + toString(vault.len(entries)) + " entries)");
+    let i = 0;
+    while i < vault.len(entries) {
+        let e = vault.entries[i];
+        log("  [" + toString(i) + "] " + e.domain + " | " + e.username + " | id:" + e.id);
+        i = i + 1;
+    }
+}
+
+function vcli_cmd_status(args) {
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault found. Run 'vault init' first."); return; }
+    log("Vault Status:");
+    log("  Name:        " + vault.name);
+    log("  Entries:     " + toString(vault.len(entries)));
+    log("  Sealed:      " + toString(vault.sealed));
+    log("  Modified:    " + toString(vault.last_modified));
+    log("  Merkle root: " + vault.merkle_root.slice(0, 32) + "...");
+}
+
+function vcli_cmd_lock(args) {
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault found."); return; }
+    vault.sealed = true;
+    vault.last_modified = time_ms();
+    vcli_save_vault(vault);
+    log("Vault locked (sealed=true).");
+}
+
+function vcli_cmd_audit(args) {
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault found."); return; }
+    log("Auditing vault...");
+    let expected_root = vcli_compute_root(vault);
+    if expected_root == vault.merkle_root {
+        log("  INTEGRITY OK: Merkle root matches.");
+    } else {
+        log("  WARNING: Merkle root mismatch! Data may be tampered.");
+    }
+    log("  Entries: " + toString(vault.len(entries)));
+    log("  Sealed:  " + toString(vault.sealed));
+}
+
+function vcli_cmd_delete(args) {
+    if len(args) < 1 { log("Usage: vault delete <domain>"); return; }
+    let vault = vcli_load_vault();
+    if vault == null { log("No vault found."); return; }
+    let domain = args[0].toLowerCase();
+    let new_entries = [];
+    let deleted = 0;
+    let i = 0;
+    while i < vault.len(entries) {
+        if !string_contains(vault.entries[i].domain.toLowerCase(), domain) {
+            new_entries.push(vault.entries[i]);
+        } else {
+            deleted = deleted + 1;
+        }
+        i = i + 1;
+    }
+    vault.entries = new_entries;
+    vault.merkle_root = vcli_compute_root(vault);
+    vault.last_modified = time_ms();
+    vcli_save_vault(vault);
+    log("Deleted " + toString(deleted) + " entry(s) matching '" + args[0] + "'.");
+}
+
+// --- Dispatch ---
+function vcli_dispatch(cmd, args) {
+    if cmd == "init"   { vcli_cmd_init(args);   return; }
+    if cmd == "add"    { vcli_cmd_add(args);    return; }
+    if cmd == "get"    { vcli_cmd_get(args);    return; }
+    if cmd == "list"   { vcli_cmd_list(args);   return; }
+    if cmd == "status" { vcli_cmd_status(args); return; }
+    if cmd == "lock"   { vcli_cmd_lock(args);   return; }
+    if cmd == "audit"  { vcli_cmd_audit(args);  return; }
+    if cmd == "delete" { vcli_cmd_delete(args); return; }
+    if cmd == "help"   {
+        log("Vault commands:");
+        log("  init [name] [password] — Create vault");
+        log("  add <domain> <user> <pass> [notes] — Add entry");
+        log("  get <domain> — Retrieve entry");
+        log("  list — List all entries");
+        log("  status — Show vault status");
+        log("  lock — Seal vault");
+        log("  audit — Verify integrity");
+        log("  delete <domain> — Remove entry");
+        return;
+    }
+    log("Unknown vault command: " + cmd);
+}
+
+// --- Demo ---
+log("");
+vcli_dispatch("init", ["demo_vault", "demo_password"]);
+vcli_dispatch("add", ["github.com", "alice", "ghp_secret123", "Work GitHub"]);
+vcli_dispatch("add", ["aeonmi.ai", "alice", "aeon_pass_456", "Main account"]);
+vcli_dispatch("add", ["gmail.com", "alice", "gmail_789!", "Personal email"]);
+vcli_dispatch("list", []);
+log("");
+vcli_dispatch("get", ["github"]);
+log("");
+vcli_dispatch("status", []);
+log("");
+vcli_dispatch("audit", []);
+log("");
+vcli_dispatch("help", []);
+log("");
+log("=== Vault CLI demo complete ===");

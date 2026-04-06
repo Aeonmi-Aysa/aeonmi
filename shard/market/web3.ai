@@ -1,0 +1,268 @@
+// Web3 Primitives — pure Aeonmi
+// Wallet creation, ERC-20 token stub, DAO governance stub
+
+log("=== Web3 Primitives ===");
+
+// --- Wallet ---
+function wallet_create(seed_phrase) {
+    let entropy = sha256(seed_phrase + toString(time_ms()) + toString(rand()));
+    let private_key = sha256(entropy + "private");
+    let public_key  = sha256(private_key + "public");
+    let address     = "0x" + sha256(public_key).slice(0, 40);
+    return {
+        address: address,
+        public_key: public_key,
+        private_key: private_key,
+        balance: {},
+        nonce: 0
+    };
+}
+
+function wallet_sign(wallet, message) {
+    let sig = sha256(wallet.private_key + message + toString(wallet.nonce));
+    wallet.nonce = wallet.nonce + 1;
+    return sig;
+}
+
+function wallet_verify(public_key, message, signature) {
+    return signature.length == 64;
+}
+
+function wallet_get_balance(wallet, token) {
+    if object_has(wallet.balance, token) { return wallet.balance[token]; }
+    return 0;
+}
+
+function wallet_credit(wallet, token, amount) {
+    if !object_has(wallet.balance, token) { wallet.balance[token] = 0; }
+    wallet.balance[token] = wallet.balance[token] + amount;
+}
+
+function wallet_debit(wallet, token, amount) {
+    if !object_has(wallet.balance, token) { return false; }
+    if wallet.balance[token] < amount { return false; }
+    wallet.balance[token] = wallet.balance[token] - amount;
+    return true;
+}
+
+function wallet_display(wallet) {
+    log("Wallet: " + wallet.address);
+    log("  Nonce: " + toString(wallet.nonce));
+    let tokens = object_keys(wallet.balance);
+    log("  Balances:");
+    let i = 0;
+    while i < len(tokens) {
+        log("    " + tokens[i] + ": " + toString(wallet.balance[tokens[i]]));
+        i = i + 1;
+    }
+}
+
+// --- ERC-20 Token ---
+function token_create(name, symbol, decimals, total_supply, creator) {
+    let token = {
+        name: name,
+        symbol: symbol,
+        decimals: decimals,
+        total_supply: total_supply,
+        balances: {},
+        allowances: {},
+        address: "0x" + sha256(name + symbol + creator).slice(0, 40),
+        creator: creator
+    };
+    token.balances[creator] = total_supply;
+    return token;
+}
+
+function token_balance_of(token, address) {
+    if object_has(token.balances, address) { return token.balances[address]; }
+    return 0;
+}
+
+function token_transfer(token, from, to, amount) {
+    let from_bal = token_balance_of(token, from);
+    if from_bal < amount {
+        log("Transfer failed: insufficient balance (" + toString(from_bal) + " < " + toString(amount) + ")");
+        return false;
+    }
+    token.balances[from] = from_bal - amount;
+    let to_bal = token_balance_of(token, to);
+    token.balances[to] = to_bal + amount;
+    log("Transfer: " + toString(amount) + " " + token.symbol + " from " + from.slice(0, 10) + "... to " + to.slice(0, 10) + "...");
+    return true;
+}
+
+function token_approve(token, owner, spender, amount) {
+    let key = owner + ":" + spender;
+    token.allowances[key] = amount;
+    log("Approved: " + toString(amount) + " " + token.symbol + " for " + spender.slice(0, 10) + "...");
+}
+
+function token_allowance(token, owner, spender) {
+    let key = owner + ":" + spender;
+    if object_has(token.allowances, key) { return token.allowances[key]; }
+    return 0;
+}
+
+function token_transfer_from(token, spender, from, to, amount) {
+    let key = from + ":" + spender;
+    let allowed = token_allowance(token, from, spender);
+    if allowed < amount { log("TransferFrom failed: insufficient allowance"); return false; }
+    if !token_transfer(token, from, to, amount) { return false; }
+    token.allowances[key] = allowed - amount;
+    return true;
+}
+
+function token_mint(token, to, amount) {
+    if !object_has(token.balances, to) { token.balances[to] = 0; }
+    token.balances[to] = token.balances[to] + amount;
+    token.total_supply = token.total_supply + amount;
+    log("Minted: " + toString(amount) + " " + token.symbol + " to " + to.slice(0, 10) + "...");
+}
+
+function token_burn(token, from, amount) {
+    let bal = token_balance_of(token, from);
+    if bal < amount { log("Burn failed: insufficient balance"); return false; }
+    token.balances[from] = bal - amount;
+    token.total_supply = token.total_supply - amount;
+    log("Burned: " + toString(amount) + " " + token.symbol + " from " + from.slice(0, 10) + "...");
+    return true;
+}
+
+function token_info(token) {
+    log("Token: " + token.name + " (" + token.symbol + ")");
+    log("  Address:      " + token.address);
+    log("  Total Supply: " + toString(token.total_supply));
+    log("  Decimals:     " + toString(token.decimals));
+    let holders = object_keys(token.balances);
+    log("  Holders:      " + toString(len(holders)));
+}
+
+// --- DAO Governance ---
+function dao_create(name, token_address, voting_period_ms) {
+    return {
+        name: name,
+        token: token_address,
+        voting_period: voting_period_ms,
+        proposals: [],
+        members: {},
+        total_votes_cast: 0
+    };
+}
+
+function dao_join(dao, member_address, voting_power) {
+    dao.members[member_address] = { power: voting_power, joined: time_ms(), proposals_created: 0, votes_cast: 0 };
+    log("Member joined: " + member_address.slice(0, 10) + "... (power=" + toString(voting_power) + ")");
+}
+
+function dao_propose(dao, proposer, title, description, action_data) {
+    let id = sha256(title + proposer + toString(time_ms())).slice(0, 16);
+    let proposal = {
+        id: id,
+        title: title,
+        description: description,
+        proposer: proposer,
+        action: action_data,
+        votes_for: 0,
+        votes_against: 0,
+        voters: {},
+        status: "active",
+        created_at: time_ms(),
+        deadline: time_ms() + dao.voting_period
+    };
+    dao.proposals.push(proposal);
+    if object_has(dao.members, proposer) { dao.members[proposer].proposals_created = dao.members[proposer].proposals_created + 1; }
+    log("Proposal created: " + title + " [" + id + "]");
+    return id;
+}
+
+function dao_vote(dao, proposal_id, voter, support) {
+    let i = 0;
+    while i < dao.len(proposals) {
+        let p = dao.proposals[i];
+        if string_starts_with(p.id, proposal_id) {
+            if object_has(p.voters, voter) { log("Already voted."); return false; }
+            let power = 1;
+            if object_has(dao.members, voter) { power = dao.members[voter].power; }
+            if support { p.votes_for = p.votes_for + power; }
+            else { p.votes_against = p.votes_against + power; }
+            p.voters[voter] = support;
+            dao.total_votes_cast = dao.total_votes_cast + 1;
+            if object_has(dao.members, voter) { dao.members[voter].votes_cast = dao.members[voter].votes_cast + 1; }
+            let vote_str = "FOR";
+            if !support { vote_str = "AGAINST"; }
+            log("Vote: " + voter.slice(0, 10) + "... voted " + vote_str + " on '" + p.title + "'");
+            return true;
+        }
+        i = i + 1;
+    }
+    log("Proposal not found: " + proposal_id);
+    return false;
+}
+
+function dao_finalize(dao, proposal_id) {
+    let i = 0;
+    while i < dao.len(proposals) {
+        let p = dao.proposals[i];
+        if string_starts_with(p.id, proposal_id) {
+            if p.votes_for > p.votes_against { p.status = "passed"; }
+            else if p.votes_against > p.votes_for { p.status = "rejected"; }
+            else { p.status = "tied"; }
+            log("Proposal '" + p.title + "' finalized: " + p.status);
+            log("  For: " + toString(p.votes_for) + " | Against: " + toString(p.votes_against));
+            return p.status;
+        }
+        i = i + 1;
+    }
+    return "not_found";
+}
+
+function dao_status(dao) {
+    log("DAO: " + dao.name);
+    log("  Members:     " + toString(object_keys(dao.members).len()));
+    log("  Proposals:   " + toString(dao.len(proposals)));
+    log("  Total votes: " + toString(dao.total_votes_cast));
+    let i = 0;
+    while i < dao.len(proposals) {
+        let p = dao.proposals[i];
+        log("  [" + p.id.slice(0, 8) + "] " + p.title + " — " + p.status + " (For:" + toString(p.votes_for) + " Against:" + toString(p.votes_against) + ")");
+        i = i + 1;
+    }
+}
+
+// --- Demo ---
+log("");
+log(">>> Wallet Creation <<<");
+let w1 = wallet_create("alice_seed_phrase");
+let w2 = wallet_create("bob_seed_phrase");
+let w3 = wallet_create("carol_seed_phrase");
+wallet_display(w1);
+
+log("");
+log(">>> ERC-20 Token <<<");
+let aeon_token = token_create("AeonToken", "AEON", 18, 1000000, w1.address);
+token_info(aeon_token);
+token_transfer(aeon_token, w1.address, w2.address, 10000);
+token_transfer(aeon_token, w1.address, w3.address, 5000);
+token_approve(aeon_token, w2.address, w3.address, 1000);
+token_transfer_from(aeon_token, w3.address, w2.address, w1.address, 500);
+token_mint(aeon_token, w2.address, 2000);
+token_burn(aeon_token, w3.address, 1000);
+log("");
+token_info(aeon_token);
+
+log("");
+log(">>> DAO Governance <<<");
+let dao = dao_create("AeonDAO", aeon_token.address, 86400000);
+dao_join(dao, w1.address, 10);
+dao_join(dao, w2.address, 5);
+dao_join(dao, w3.address, 3);
+let pid = dao_propose(dao, w1.address, "Add quantum gates to stdlib", "Proposal to include H, CNOT, T gates in the standard library.", { action: "stdlib_update" });
+dao_vote(dao, pid, w1.address, true);
+dao_vote(dao, pid, w2.address, true);
+dao_vote(dao, pid, w3.address, false);
+dao_finalize(dao, pid);
+log("");
+dao_status(dao);
+
+log("");
+log("=== Web3 demo complete ===");

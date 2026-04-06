@@ -6,9 +6,11 @@ pub struct QubeProgram {
     pub stmts: Vec<QubeStmt>,
 }
 
-/// A single QUBE statement.
+/// A single QUBE top-level statement.
 #[derive(Debug, Clone)]
 pub enum QubeStmt {
+    // ── Original symbolic-syntax statements ──
+
     /// `state <name> = <expr>`
     StateDecl {
         name: String,
@@ -38,9 +40,75 @@ pub enum QubeStmt {
         name: String,
         value: QubeExpr,
     },
+
+    // ── Circuit-syntax statements ──
+
+    /// `circuit <name> { body }`
+    CircuitDef {
+        name: String,
+        body: Vec<CircuitStmt>,
+    },
+    /// `meta { key: "value", ... }`
+    MetaBlock {
+        entries: Vec<(String, QubeExpr)>,
+    },
+    /// `execute { run Circuit1; run Circuit2; ... }`
+    ExecuteBlock {
+        steps: Vec<String>,
+    },
+    /// `expected { Circuit1: { key: val }, ... }`
+    ExpectedBlock {
+        results: Vec<(String, Vec<(String, QubeExpr)>)>,
+    },
+
     /// `// comment`
     Comment(String),
 }
+
+// ── Circuit body statements ───────────────────────────────────────────────────
+
+/// Statements that can appear inside a `circuit { }` body.
+#[derive(Debug, Clone)]
+pub enum CircuitStmt {
+    /// `qubit q0;`
+    QubitDecl(String),
+    /// `bit c0;`
+    BitDecl(String),
+    /// `qreg q[n];`
+    QregDecl { name: String, size: usize },
+    /// `creg c[n];`
+    CregDecl { name: String, size: usize },
+    /// Single-qubit gate: `H q0;`
+    GateApply {
+        gate: QuantumGate,
+        /// Optional rotation parameter for Rx/Ry/Rz
+        param: Option<f64>,
+        targets: Vec<String>,
+    },
+    /// Built-in algorithm call: `grover(16, 7);`
+    BuiltinAlgo {
+        name: String,
+        args: Vec<f64>,
+    },
+    /// `measure q0 -> c0;`
+    Measure {
+        qubit: String,
+        classical: String,
+    },
+    /// `if c0 { X q1; }`
+    IfClassical {
+        condition: String,
+        body: Vec<CircuitStmt>,
+    },
+    /// `reset q0;`
+    Reset(String),
+    /// `barrier q0 q1 q2;`
+    Barrier(Vec<String>),
+    /// `// comment`
+    Comment(String),
+}
+
+// ── Existing types (unchanged) ────────────────────────────────────────────────
 
 /// Quantum state expression: superposition, qubit literal, or named ref.
 #[derive(Debug, Clone)]
@@ -110,6 +178,10 @@ pub enum QuantumGate {
     CNOT, // controlled-NOT (2-qubit)
     CZ,   // controlled-Z (2-qubit)
     SWAP, // swap (2-qubit)
+    Rx,   // X-rotation (parameterised)
+    Ry,   // Y-rotation (parameterised)
+    Rz,   // Z-rotation (parameterised)
+    Toffoli, // 3-qubit CCX
     Custom(String),
 }
 
@@ -125,12 +197,20 @@ impl QuantumGate {
             "CNOT" | "CX" => Self::CNOT,
             "CZ" => Self::CZ,
             "SWAP" => Self::SWAP,
+            "Rx" | "RX" => Self::Rx,
+            "Ry" | "RY" => Self::Ry,
+            "Rz" | "RZ" => Self::Rz,
+            "Toffoli" | "CCX" => Self::Toffoli,
             other => Self::Custom(other.to_string()),
         }
     }
 
     pub fn is_two_qubit(&self) -> bool {
         matches!(self, Self::CNOT | Self::CZ | Self::SWAP)
+    }
+
+    pub fn is_three_qubit(&self) -> bool {
+        matches!(self, Self::Toffoli)
     }
 }
 
@@ -141,6 +221,7 @@ pub enum QubeExpr {
     String(String),
     Bool(bool),
     Variable(String),
+    Array(Vec<QubeExpr>),
 }
 
 /// Value in an assert ∈ {…} set.

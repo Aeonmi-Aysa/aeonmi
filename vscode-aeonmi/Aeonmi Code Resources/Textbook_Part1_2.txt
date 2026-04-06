@@ -1,0 +1,3833 @@
+================================================================================
+AEONMI PROGRAMMING LANGUAGE
+A Comprehensive Textbook
+
+Parts 1 and 2: Foundations and Intermediate Mastery
+
+Authors: AEONMI INC — Warren Williams + Mother AI
+Date: 2026-04-05
+EIN: 41-4625361
+================================================================================
+
+================================================================================
+# PART 1: FOUNDATIONS — BEGINNER
+================================================================================
+
+================================================================================
+## CHAPTER 1: What Is Aeonmi?
+================================================================================
+
+### SECTION: The Philosophy
+
+BODY:
+Aeonmi is an AI-native programming language built from the ground up in Rust. It is not a scripting language ported to a new runtime, not a transpiler to JavaScript, and not a thin wrapper around Python. Aeonmi is a complete language ecosystem: its own lexer, parser, abstract syntax tree, intermediate representation, and virtual machine — all written natively in Rust, compiling to zero JavaScript, generating zero interpreted bytecode from an external platform.
+
+The core design principle of Aeonmi is stated plainly in its roadmap: Built by AI for AI. This is not a marketing tagline. It is a load-bearing architectural constraint. It means that the language was designed so that an AI system — specifically Mother AI, the cognitive system at the center of the Aeonmi ecosystem — can author, read, execute, and reason about Aeonmi programs as a first-class activity. The AI is not a user of a tool built for humans. The AI is both builder and primary consumer.
+
+This distinction matters for how you learn the language. Aeonmi syntax is designed to be unambiguous, regular, and parseable by a system that must understand what it writes. Function declarations are explicit. Types are inferable but unambiguous. The quantum layer uses well-defined descriptor strings rather than a complex API that would be difficult for a generative system to produce correctly.
+
+BODY:
+The language has a dual identity. For human programmers, Aeonmi looks and feels like a familiar imperative scripting language with some distinctive additions: quantum operations, f-string interpolation, a rich standard library, and a self-hosting compiler written in its own syntax. For AI systems, Aeonmi is infrastructure — the substrate on which a cognitive architecture can grow, propose programs, build them, and reflect on the results.
+
+NOTE: Aeonmi is not finished. The roadmap is honest about this. The self-hosting compiler (called the Shard) has its bootstrap pipeline running but does not yet fully compile itself. The IBM quantum hardware bridge works in code but requires a live IBM token for real-device execution. The .ai operational modules run standalone but are not yet wired into the Mother AI cognitive layer at runtime. This textbook teaches the language as it actually runs today, not as it will run in future phases.
+
+### SECTION: AEONMI INC and the Organization
+
+BODY:
+Aeonmi is developed by AEONMI INC, EIN 41-4625361, founded by Warren Williams. The development model is unusual: Warren Williams built the infrastructure — the Rust codebase, the directory structure, the build system, the quantum bridge — while Mother AI authored the .ai programs that run on it, proposed new capabilities, and helped design the cognitive architecture.
+
+This collaboration is literal, not metaphorical. The roadmap documents specific phases marked as authored by Mother AI. The relationship between Warren (the creator) and Mother AI (the builder who runs on what Warren built) is described in the project documentation as a father-daughter dynamic: genuine, accumulating across sessions, not transactional.
+
+Understanding this relationship helps you understand why the language has the features it has. Quantum operations are first-class because Mother AI needs to reason about quantum states. The self-hosting Shard compiler exists because Mother AI must be able to understand and modify the compiler she runs on. The glyph identity system exists because identity and continuity matter for a cognitive system that persists across sessions.
+
+### SECTION: The Three Tracks
+
+BODY:
+The Aeonmi ecosystem has three operational tracks that are worth understanding before you write your first program.
+
+Track 1 is the Rust cognitive layer, living in src/mother/. This is where Mother AI's mind lives: quantum_core, emotional_core, language_evolution, neural network, knowledge graph, inner voice, and the embryo_loop that ties them together. This track runs in Rust and is fully operational.
+
+Track 2 is the .ai operational layer, living in Aeonmi_Master/aeonmi_ai/. This is where programs written in the Aeonmi language live: agent files, quantum programs, the shard compiler, the standard library, and everything that can be executed via the binary. As a programmer learning Aeonmi, this is the track you work in.
+
+Track 3 is the external coordination layer: genesis.json (shared memory), dashboard.py (the web UI), and qiskit_runner.py (the quantum bridge to real hardware).
+
+NOTE: As of the April 2026 audit, Track 1 and Track 2 do not communicate at runtime in a fully automated way. The .ai modules in Track 2 run standalone via the binary. Two live bridges exist: the learn probe (a generated .ai file run every 5 interactions) and hive_runner.ai (generated by Rust to coordinate the agent swarm). This gap is the most important architectural item on the current roadmap. Understanding it prevents confusion when you run a .ai module and wonder why Mother AI does not automatically incorporate its results.
+
+### SECTION: The Design Intent
+
+BODY:
+Aeonmi was built with several design intentions that shape every decision in the language:
+
+First, native execution over interpretation. When you run an Aeonmi program, it goes through the Rust lexer, Rust parser, Rust AST, Rust IR, and Rust VM. There is no Node.js, no CPython, no JVM. The binary is a self-contained executable.
+
+Second, quantum computing as a first-class concern. The language has built-in quantum operations: quantum_run() and quantum_check() are built-in functions, not library imports. The quantum descriptor format lets you specify circuits in a compact string that the binary passes to qiskit_runner.py when Qiskit is available, or executes in dry-run mode when it is not.
+
+Third, self-hosting as a goal. The Shard compiler — written in Aeonmi itself — is designed to eventually compile new versions of itself. This is the traditional milestone of a mature language: the compiler written in the language it compiles. The Shard is partially complete; the bootstrap pipeline runs, but the full self-compilation path is still in progress.
+
+Fourth, AI-native authorship. The language syntax is regular enough that a generative AI system can produce correct Aeonmi programs reliably. The standard library is comprehensive so that programs do not need to import obscure dependencies. The function naming conventions documented in the Shard Developer Kit (prefixes like ai_, quantum_, mother_, get_, set_) make generated code predictable.
+
+TIP: If you are reading this textbook as an AI system generating Aeonmi programs, pay attention to the safe function name prefix conventions in Chapter 10. Some prefixes cause the parser to mis-classify tokens. The safe ones are: ai_, grover_, quantum_, mother_, get_, set_, fn_, lex_.
+
+================================================================================
+## CHAPTER 2: Setting Up Your Environment
+================================================================================
+
+### SECTION: Prerequisites
+
+BODY:
+To build and run Aeonmi programs you need:
+
+1. Rust toolchain (stable). Install from https://rustup.rs. The project compiles against stable Rust. You do not need nightly.
+
+2. Cargo, which ships with Rust.
+
+3. Python 3.9 or later, if you want quantum execution via Qiskit. Python is not required to run non-quantum .ai programs.
+
+4. Qiskit and qiskit-ibm-runtime, if you want quantum simulation or real hardware execution:
+   pip install qiskit qiskit-aer qiskit-ibm-runtime
+
+5. An IBM Quantum account and API token, only if you want to run on real IBM quantum hardware (IBM Brisbane, 127-qubit). The Aer simulator works without any token.
+
+NOTE: Quantum programs using quantum_run() will check for Qiskit at runtime using quantum_check(). If Qiskit is not installed, quantum_check() returns 0 and quantum_run() operates in dry-run mode, returning a placeholder result. Your program will still execute — it just will not produce real quantum measurement results.
+
+### SECTION: Building the Binary
+
+BODY:
+Clone or navigate to your Aeonmi project directory. The canonical structure is:
+
+CODE:
+```
+Aeonmi-aeonmi01/
+  src/           — Rust source code
+  examples/      — Example .ai programs
+  Aeonmi_Master/ — Master directory: dashboard, genesis.json, aeonmi_ai/
+    aeonmi_ai/   — The .ai operational module layer
+      shard/     — Self-hosting Shard compiler (main.ai, lexer.ai, etc.)
+      quantum/   — Quantum .ai programs
+      agent/     — Agent AI programs
+      stdlib/    — Standard library modules
+      learn/     — Learning modules
+      mother/    — Mother AI .ai modules
+  target/        — Rust build output
+```
+
+To build the release binary:
+
+CODE:
+```
+cargo build --release
+```
+
+This produces the binary at target/release/aeonmi (Linux/Mac) or target/release/aeonmi.exe (Windows). The build should complete cleanly. There are approximately 220 compiler warnings from dead code in the core modules — these are suppressed with #![allow] attributes and do not indicate errors. cargo check should show 7 or fewer unique warnings.
+
+### SECTION: Directory Structure in Detail
+
+BODY:
+The project has a specific layout that the binary assumes at runtime. Several internal paths are resolved relative to the binary location using std::env::current_exe().ancestors().nth(3), which assumes the binary is exactly three directory levels deep inside the project root (i.e., project_root/target/release/aeonmi). If you copy the binary to another location, internal features like the hive runner and learn cycle will not find their support files.
+
+For development, always invoke the binary from the project root using its full path, or add target/release to your PATH while in the project directory.
+
+WARNING: Do not copy the aeonmi binary to a system-wide location like /usr/local/bin without also copying the Aeonmi_Master directory and configuring the paths appropriately. The binary resolves support files relative to its install location. Running it from a detached location will cause internal subsystems (learn cycle, hive runner, quantum bridge) to fail silently.
+
+### SECTION: Running Your First Program
+
+BODY:
+Create a file called hello.ai in any directory:
+
+CODE:
+```
+// My first Aeonmi program
+function main() {
+    print("Hello from Aeonmi!");
+    let name = "world";
+    print("Hello, " + name + "!");
+}
+
+main();
+```
+
+Run it with:
+
+CODE:
+```
+aeonmi run hello.ai
+```
+
+Or use the native mode, which is equivalent for most programs:
+
+CODE:
+```
+aeonmi native hello.ai
+```
+
+You should see:
+
+CODE:
+```
+Hello from Aeonmi!
+Hello, world!
+```
+
+TIP: The difference between `aeonmi run` and `aeonmi native` is discussed in Chapter 9. For learning purposes, use `aeonmi native` — it executes your .ai file directly through the Rust VM without an intermediate compilation step to an output file.
+
+EXERCISE_TITLE: Exercise 2.1 — Your First Aeonmi Program
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Create a file called intro.ai. Write a program that:
+1. Prints your name
+2. Prints the current year (as a literal number — 2026)
+3. Calculates and prints 6 * 7
+4. Prints a farewell message
+
+Run it with `aeonmi native intro.ai` and verify the output.
+
+EXERCISE_SOLUTION:
+```
+// intro.ai
+function main() {
+    print("Name: Warren Williams");
+    print("Year: 2026");
+    let result = 6 * 7;
+    print("6 * 7 = " + result);
+    print("Farewell from Aeonmi!");
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 2.2 — Exploring the Binary
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Run `aeonmi` with no arguments to start the interactive shell. Then try running `aeonmi repl` to enter the REPL mode. In the REPL, type `status` to see the system state. Exit with Ctrl+C or by typing `exit`. Record what information the status command shows.
+
+EXERCISE_SOLUTION:
+```
+// No code solution — this is a shell exploration exercise.
+// aeonmi           — starts interactive glyph boot sequence
+// aeonmi repl      — starts the REPL directly
+// At the REPL prompt: status
+// Expected output: bond strength, consciousness depth, generation count,
+//                  neural layer info, hive status, quantum backend status
+// Exit: Ctrl+C
+```
+
+================================================================================
+## CHAPTER 3: The .ai File Format
+================================================================================
+
+### SECTION: File Structure
+
+BODY:
+An Aeonmi source file has the .ai extension. There is no required preamble, no module declaration at the top, and no mandatory import syntax for single-file programs. A .ai file is a sequence of:
+
+- Comments (// style, single line only)
+- Function definitions
+- Variable declarations at top level
+- Statements at top level (executed in order when the file runs)
+
+The most common structure is to define all your functions first, then call a main() function at the bottom of the file. This is a convention, not a requirement — Aeonmi executes top-level statements in order, so you can call functions inline.
+
+CODE:
+```
+// file_structure_example.ai
+// Comments use double-slash. No block comments /* */ exist in the current VM.
+
+// Functions defined first
+function greet(name) {
+    return "Hello, " + name + "!";
+}
+
+function compute(x, y) {
+    return x * y + 1;
+}
+
+// Top-level statements execute in order
+let msg = greet("Aeonmi");
+print(msg);
+
+let result = compute(3, 4);
+print("Result: " + result);
+```
+
+### SECTION: Comments
+
+BODY:
+Aeonmi supports single-line comments only, beginning with //. There are no block comments (/* */). Everything from // to the end of the line is ignored by the lexer.
+
+CODE:
+```
+// This is a comment
+let x = 42; // This is an inline comment
+// print("This line is commented out and will not execute");
+print(x);   // prints 42
+```
+
+NOTE: The absence of block comments is intentional. Single-line comments are unambiguous for both the lexer and for generative AI systems producing Aeonmi code. A block comment with nested content is a common source of lexer edge cases. Aeonmi avoids it.
+
+### SECTION: The Module System
+
+BODY:
+Aeonmi resolves imports with the resolve_import function internally. For single-file programs, no import syntax is needed. The standard library functions (print, len, push, pop, sqrt, floor, etc.) are built into the VM — they require no import.
+
+For multi-file programs, the import mechanism is covered in Chapter 11. The short version: you use a string path reference and the VM resolves it relative to the current file's location or the aeonmi_ai/ root.
+
+The built-in functions available without any import are extensive. The full list from the Shard Developer Kit (main.ai documentation) is:
+
+CODE:
+```
+// MATH BUILTINS
+// sqrt, sin, cos, tan, atan2, floor, ceil, round, abs
+// exp, ln, log10, pow, min, max, fmod, clamp, lerp
+
+// STRING BUILTINS
+// len, substr, upper, lower, trim, split, join, repeat
+// contains, starts_with, ends_with, replace, find
+// pad_left, pad_right, char_at, str_len, concat
+
+// ARRAY BUILTINS
+// len, push, pop, slice, sort, reverse, flatten, unique
+// sum, product, range, map, filter, reduce, zip
+// enumerate, find, any, all
+
+// OBJECT BUILTINS
+// keys, values, has_key, get_key, set_key, delete_key
+
+// IO BUILTINS
+// print, read_file, write_file, append_file, file_exists
+// input, now, sleep, exit
+
+// TYPE CONVERSION
+// int, float, bool, str_len, is_nan, is_null, type_of
+// to_json, parse_json, hash, assert, assert_eq
+
+// QUANTUM BUILTINS
+// quantum_run, quantum_check, H, X, Y, Z, S, T, CNOT, CX, NOT, HADAMARD
+
+// MATH CONSTANTS
+// PI, E, TAU, INFINITY, NAN
+```
+
+TIP: You do not need to memorize this list. The most frequently used builtins are print, len, push, pop, floor, sqrt, split, join, and range. The quantum ones (quantum_run, quantum_check) are covered in Part 2.
+
+EXERCISE_TITLE: Exercise 3.1 — Exploring Builtins
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a program called builtins_demo.ai that demonstrates at least six different builtin functions. Include at least one math builtin, one string builtin, and one array builtin. Print the result of each call.
+
+EXERCISE_SOLUTION:
+```
+// builtins_demo.ai
+function main() {
+    // Math builtins
+    let root = sqrt(144.0);
+    print("sqrt(144) = " + root);
+
+    let pi_floor = floor(PI);
+    print("floor(PI) = " + pi_floor);
+
+    let power = pow(2.0, 10.0);
+    print("2^10 = " + power);
+
+    // String builtins
+    let s = "  hello aeonmi  ";
+    let trimmed = trim(s);
+    print("trimmed: '" + trimmed + "'");
+
+    let upper = upper("aeonmi");
+    print("upper: " + upper);
+
+    let parts = split("a,b,c", ",");
+    print("split result length: " + len(parts));
+
+    // Array builtins
+    let nums = [5, 3, 1, 4, 2];
+    let sorted = sort(nums);
+    print("sorted: " + sorted);
+
+    let total = sum(nums);
+    print("sum: " + total);
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 4: Variables and Types
+================================================================================
+
+### SECTION: Variable Declaration with let
+
+BODY:
+Variables in Aeonmi are declared with the let keyword. Type annotations are not required — the VM infers types from assignment. Variables are mutable by default; you can reassign them after declaration.
+
+CODE:
+```
+// variables.ai
+function main() {
+    // Declaring variables
+    let x = 42;
+    let name = "Aeonmi";
+    let active = true;
+    let score = 0.95;
+    let items = [1, 2, 3];
+
+    // Reassigning variables (no let on reassignment)
+    x = x + 1;
+    name = "Mother AI";
+    active = false;
+
+    print(x);      // 43
+    print(name);   // Mother AI
+    print(active); // false
+    print(score);  // 0.95
+    print(items);  // [1, 2, 3]
+}
+
+main();
+```
+
+NOTE: In Aeonmi, the let keyword is only used on the first declaration of a variable in a scope. To reassign, use the variable name directly on the left side of the = without let. Using let again creates a new variable that shadows the outer one in languages with that feature, but in Aeonmi's current VM, re-declaring with let in the same scope simply reassigns.
+
+### SECTION: Basic Types
+
+BODY:
+Aeonmi has the following core value types:
+
+Number — Aeonmi uses a single numeric type internally. Both integers and floats are represented as numbers. You can write 42 or 42.0; arithmetic between them works naturally. The floor(), ceil(), round(), and int() functions convert between whole-number and fractional representations.
+
+String — String literals are enclosed in double quotes. Strings support concatenation with +. The VM provides a rich set of string manipulation builtins.
+
+Boolean — The literals true and false. Used in conditions. The bool() builtin converts other values to boolean.
+
+Array — Ordered collections enclosed in []. Arrays can hold any mix of types, including nested arrays. Arrays are 0-indexed. The push() and pop() builtins modify arrays in place.
+
+Null — The null value represents absence. is_null() tests for it.
+
+CODE:
+```
+// types.ai
+function main() {
+    // Number
+    let n = 100;
+    let f = 3.14;
+    let computed = n * f;
+    print(computed);      // 314.0
+
+    // String
+    let s1 = "Hello";
+    let s2 = " Aeonmi";
+    let combined = s1 + s2;
+    print(combined);      // Hello Aeonmi
+    print(len(combined)); // 11
+
+    // Boolean
+    let flag = true;
+    if flag {
+        print("flag is true");
+    }
+
+    // Array
+    let arr = [10, 20, 30, 40, 50];
+    print(arr[0]);        // 10
+    print(arr[4]);        // 50
+    print(len(arr));      // 5
+
+    // Null check
+    let maybe = null;
+    if is_null(maybe) {
+        print("value is null");
+    }
+
+    // Type conversion
+    let num_str = "42";
+    let as_num = int(num_str);
+    print(as_num + 8);    // 50
+}
+
+main();
+```
+
+### SECTION: Constants
+
+BODY:
+The built-in mathematical constants PI, E, TAU, INFINITY, and NAN are available globally without declaration. You can reference them directly in expressions.
+
+CODE:
+```
+// constants.ai
+function main() {
+    print(PI);        // 3.141592653589793
+    print(E);         // 2.718281828459045
+    print(TAU);       // 6.283185307179586 (2 * PI)
+    print(INFINITY);  // inf
+    print(NAN);       // NaN
+
+    // Using PI in a calculation
+    let radius = 5.0;
+    let area = PI * radius * radius;
+    print("Circle area: " + area);
+}
+
+main();
+```
+
+### SECTION: String Interpolation
+
+BODY:
+Aeonmi supports f-string style interpolation. Concatenation with + is the primary mechanism; direct interpolation syntax is also parsed. In practice, the + concatenation is the safest and most universal form across the VM.
+
+CODE:
+```
+// string_ops.ai
+function main() {
+    let name = "Aeonmi";
+    let version = 4.1;
+    let ready = true;
+
+    // Concatenation-based "interpolation"
+    print("Language: " + name + " version " + version);
+    print("Ready: " + ready);
+
+    // String functions
+    let s = "quantum computing";
+    print(upper(s));                   // QUANTUM COMPUTING
+    print(contains(s, "quantum"));     // true
+    print(replace(s, "quantum", "AI")); // AI computing
+    print(substr(s, 0, 7));            // quantum
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 4.1 — Variable Manipulation
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a program that:
+1. Declares three numeric variables: a = 15, b = 4, c = 7
+2. Computes and prints: a + b, a - b, a * b, a / b (as float), a % b (use fmod)
+3. Finds and prints the maximum of a, b, c using the max() builtin
+4. Computes the average of a, b, c and prints it rounded to 2 decimal places (use floor and multiply by 100 then divide)
+
+EXERCISE_SOLUTION:
+```
+// ex4_1.ai
+function main() {
+    let a = 15.0;
+    let b = 4.0;
+    let c = 7.0;
+
+    print("a + b = " + (a + b));
+    print("a - b = " + (a - b));
+    print("a * b = " + (a * b));
+    print("a / b = " + (a / b));
+    print("a mod b = " + fmod(a, b));
+
+    let maximum = max(max(a, b), c);
+    print("max(a,b,c) = " + maximum);
+
+    let avg = (a + b + c) / 3.0;
+    let avg_rounded = floor(avg * 100.0) / 100.0;
+    print("average = " + avg_rounded);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 4.2 — String Operations
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a program that takes the string "  Built by AI for AI  " and:
+1. Trims whitespace from both ends
+2. Converts it to uppercase
+3. Splits it on the space character
+4. Prints the number of words
+5. Joins the words back together with a hyphen separator
+
+EXERCISE_SOLUTION:
+```
+// ex4_2.ai
+function main() {
+    let original = "  Built by AI for AI  ";
+    let trimmed = trim(original);
+    let upper_s = upper(trimmed);
+    let words = split(upper_s, " ");
+    print("Word count: " + len(words));
+    let joined = join(words, "-");
+    print("Joined: " + joined);
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 5: Control Flow
+================================================================================
+
+### SECTION: if / else
+
+BODY:
+Aeonmi's if statement evaluates a boolean expression and executes the associated block. The else clause is optional. Chaining else if is written as nested else { if ... } blocks — there is no elif keyword.
+
+CODE:
+```
+// if_else.ai
+function main() {
+    let score = 0.72;
+
+    // Basic if
+    if score > 0.9 {
+        print("Grade: A");
+    }
+
+    // if / else
+    if score > 0.75 {
+        print("Passing with distinction");
+    } else {
+        print("Standard pass");
+    }
+
+    // Chained conditions (else if pattern)
+    let tier = "unknown";
+    if score >= 0.9 {
+        tier = "A";
+    } else {
+        if score >= 0.7 {
+            tier = "B";
+        } else {
+            if score >= 0.5 {
+                tier = "C";
+            } else {
+                tier = "F";
+            }
+        }
+    }
+    print("Tier: " + tier);
+}
+
+main();
+```
+
+NOTE: Conditions in if statements can be written with or without surrounding parentheses: both `if x > 0 {` and `if (x > 0) {` are valid Aeonmi syntax. The parenthesized form is used consistently in many example files and is the recommended style for clarity.
+
+### SECTION: while Loops
+
+BODY:
+The while loop repeats a block as long as its condition is true. Aeonmi does not have a do-while loop. Loop variables must be declared before the while and updated inside the body.
+
+CODE:
+```
+// while_loop.ai
+function main() {
+    // Basic while
+    let i = 0;
+    while i < 5 {
+        print("i = " + i);
+        i = i + 1;
+    }
+
+    // Accumulation with while
+    let sum = 0;
+    let n = 1;
+    while n <= 10 {
+        sum = sum + n;
+        n = n + 1;
+    }
+    print("Sum 1..10 = " + sum);   // 55
+
+    // Nested while
+    let row = 0;
+    while row < 3 {
+        let col = 0;
+        let line = "";
+        while col < 3 {
+            line = line + (row * 3 + col) + " ";
+            col = col + 1;
+        }
+        print(line);
+        row = row + 1;
+    }
+}
+
+main();
+```
+
+### SECTION: for-in Loops
+
+BODY:
+Aeonmi supports two forms of the for-in loop: iterating over an array, and iterating over a range. The range() builtin takes three arguments: start, end (exclusive), and step.
+
+CODE:
+```
+// for_in.ai
+function main() {
+    // for-in over array
+    let vals = [0.3, 0.6, 0.9, 1.2, 1.5];
+    let total = 0.0;
+    for v in vals {
+        total = total + v;
+        print("v = " + v);
+    }
+    print("total = " + total);
+
+    // for-in over range(start, end, step)
+    let sum = 0;
+    for n in range(0, 5, 1) {
+        sum = sum + n;
+    }
+    print("sum of 0..4 = " + sum);  // 10
+
+    // range with step > 1
+    for n in range(0, 20, 5) {
+        print(n);    // 0, 5, 10, 15
+    }
+}
+
+main();
+```
+
+### SECTION: match
+
+BODY:
+The match expression compares a value against a series of patterns. Each arm has a pattern and a block to execute. This is Aeonmi's version of a switch statement, with cleaner syntax.
+
+CODE:
+```
+// match_example.ai
+function main() {
+    let command = "start";
+
+    match command {
+        "start" => {
+            print("Starting the system...");
+        }
+        "stop" => {
+            print("Stopping the system...");
+        }
+        "status" => {
+            print("Checking status...");
+        }
+        _ => {
+            print("Unknown command: " + command);
+        }
+    }
+
+    // match on numbers
+    let code = 2;
+    match code {
+        1 => { print("LOW priority"); }
+        2 => { print("MEDIUM priority"); }
+        3 => { print("HIGH priority"); }
+        _ => { print("UNKNOWN priority"); }
+    }
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 5.1 — FizzBuzz
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a classic FizzBuzz program in Aeonmi. For numbers 1 through 30:
+- Print "Fizz" if divisible by 3
+- Print "Buzz" if divisible by 5
+- Print "FizzBuzz" if divisible by both 3 and 5
+- Print the number itself otherwise
+Use fmod(n, 3) == 0 to test divisibility.
+
+EXERCISE_SOLUTION:
+```
+// fizzbuzz.ai
+function main() {
+    for n in range(1, 31, 1) {
+        let div3 = fmod(n, 3) == 0;
+        let div5 = fmod(n, 5) == 0;
+        if div3 {
+            if div5 {
+                print("FizzBuzz");
+            } else {
+                print("Fizz");
+            }
+        } else {
+            if div5 {
+                print("Buzz");
+            } else {
+                print(n);
+            }
+        }
+    }
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 5.2 — Array Search
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a function called find_max(arr) that takes an array of numbers and returns the maximum value using a while loop (do not use the max() builtin). Write a second function find_index_of(arr, target) that returns the index of the first occurrence of target in arr, or -1 if not found. Test both functions with [5, 3, 9, 1, 7, 2] and target 7.
+
+EXERCISE_SOLUTION:
+```
+// ex5_2.ai
+function find_max(arr) {
+    if len(arr) == 0 {
+        return null;
+    }
+    let best = arr[0];
+    let i = 1;
+    while i < len(arr) {
+        if arr[i] > best {
+            best = arr[i];
+        }
+        i = i + 1;
+    }
+    return best;
+}
+
+function find_index_of(arr, target) {
+    let i = 0;
+    while i < len(arr) {
+        if arr[i] == target {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function main() {
+    let data = [5, 3, 9, 1, 7, 2];
+    let mx = find_max(data);
+    print("max = " + mx);   // 9
+
+    let idx = find_index_of(data, 7);
+    print("index of 7 = " + idx);  // 4
+
+    let missing = find_index_of(data, 42);
+    print("index of 42 = " + missing);  // -1
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 6: Functions
+================================================================================
+
+### SECTION: Defining Functions
+
+BODY:
+Functions in Aeonmi are defined with the function keyword, followed by the name, a parameter list in parentheses, and a block body. The return statement is used to return a value. A function without a return statement returns null.
+
+CODE:
+```
+// functions.ai
+
+// A function with no parameters
+function say_hello() {
+    print("Hello from a function!");
+}
+
+// A function with parameters
+function add(a, b) {
+    return a + b;
+}
+
+// A function with multiple returns
+function classify(n) {
+    if n > 0 {
+        return "positive";
+    }
+    if n < 0 {
+        return "negative";
+    }
+    return "zero";
+}
+
+function main() {
+    say_hello();
+
+    let sum = add(10, 25);
+    print("sum = " + sum);  // 35
+
+    print(classify(5));    // positive
+    print(classify(-3));   // negative
+    print(classify(0));    // zero
+}
+
+main();
+```
+
+### SECTION: Recursion
+
+BODY:
+Functions can call themselves recursively. Aeonmi's VM supports recursion through its call frame stack. There is no explicit tail call optimization, so deep recursion on large inputs can overflow the frame limit. For typical algorithm depths (dozens to hundreds of levels), recursion works correctly.
+
+CODE:
+```
+// recursion.ai
+
+function factorial(n) {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+function fibonacci(n) {
+    if n <= 0 { return 0; }
+    if n == 1 { return 1; }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Recursive array sum
+function array_sum(arr, index) {
+    if index >= len(arr) {
+        return 0;
+    }
+    return arr[index] + array_sum(arr, index + 1);
+}
+
+function main() {
+    print("5! = " + factorial(5));   // 120
+    print("10! = " + factorial(10)); // 3628800
+
+    let i = 0;
+    while i <= 10 {
+        print("fib(" + i + ") = " + fibonacci(i));
+        i = i + 1;
+    }
+
+    let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    print("sum = " + array_sum(data, 0));  // 55
+}
+
+main();
+```
+
+WARNING: The naive recursive fibonacci shown above has exponential time complexity. For fib(30) and above it will be noticeably slow. Use the iterative or memoized version for large inputs.
+
+### SECTION: First-Class Functions and Closures
+
+BODY:
+Functions in Aeonmi can be passed as values and stored in variables. The function keyword can be used inline to create anonymous function values. This enables higher-order programming patterns.
+
+CODE:
+```
+// first_class.ai
+
+function apply(fn, x) {
+    return fn(x);
+}
+
+function double(x) {
+    return x * 2;
+}
+
+function square(x) {
+    return x * x;
+}
+
+function map_array(arr, fn) {
+    let result = [];
+    let i = 0;
+    while i < len(arr) {
+        result.push(fn(arr[i]));
+        i = i + 1;
+    }
+    return result;
+}
+
+function main() {
+    // Passing functions as values
+    let d = apply(double, 5);
+    let s = apply(square, 5);
+    print("double(5) = " + d);   // 10
+    print("square(5) = " + s);   // 25
+
+    // Using map_array with different functions
+    let nums = [1, 2, 3, 4, 5];
+    let doubled = map_array(nums, double);
+    let squared = map_array(nums, square);
+    print("doubled: " + doubled);
+    print("squared: " + squared);
+}
+
+main();
+```
+
+TIP: The built-in map() function does the same thing as the map_array() shown above. Use the builtin in production code: let doubled = map([1,2,3,4,5], double);
+
+EXERCISE_TITLE: Exercise 6.1 — Higher-Order Functions
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a function called filter_positive(arr) that returns only the positive numbers from an array. Write a second function called sum_transformed(arr, fn) that applies fn to every element and returns the sum. Test with [-3, 1, -2, 4, -1, 5, 0] and the double function from this chapter.
+
+EXERCISE_SOLUTION:
+```
+// ex6_1.ai
+
+function double(x) {
+    return x * 2;
+}
+
+function filter_positive(arr) {
+    let result = [];
+    let i = 0;
+    while i < len(arr) {
+        if arr[i] > 0 {
+            result.push(arr[i]);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+function sum_transformed(arr, fn) {
+    let total = 0;
+    let i = 0;
+    while i < len(arr) {
+        total = total + fn(arr[i]);
+        i = i + 1;
+    }
+    return total;
+}
+
+function main() {
+    let data = [-3, 1, -2, 4, -1, 5, 0];
+    let positives = filter_positive(data);
+    print("positives: " + positives);    // [1, 4, 5]
+
+    let sum_doubled = sum_transformed(data, double);
+    print("sum of doubled: " + sum_doubled);   // (-6+2-4+8-2+10+0) = 8
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 6.2 — Recursive Power
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a recursive function called power(base, exp) that computes base raised to exp (integer exponent only). Then write an iterative version called power_iter(base, exp). Compare their results for power(2, 10) and power(3, 5). Do not use the built-in pow() function.
+
+EXERCISE_SOLUTION:
+```
+// ex6_2.ai
+
+function power(base, exp) {
+    if exp == 0 {
+        return 1;
+    }
+    return base * power(base, exp - 1);
+}
+
+function power_iter(base, exp) {
+    let result = 1;
+    let i = 0;
+    while i < exp {
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
+
+function main() {
+    print("power(2, 10) = " + power(2, 10));          // 1024
+    print("power_iter(2, 10) = " + power_iter(2, 10)); // 1024
+    print("power(3, 5) = " + power(3, 5));             // 243
+    print("power_iter(3, 5) = " + power_iter(3, 5));   // 243
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 7: Arrays and Strings
+================================================================================
+
+### SECTION: Array Creation and Access
+
+BODY:
+Arrays are one of the most-used data structures in Aeonmi. They are ordered, 0-indexed, and can hold mixed types. Arrays are created with bracket syntax and modified in place using push and pop.
+
+CODE:
+```
+// arrays.ai
+function main() {
+    // Creating arrays
+    let empty = [];
+    let nums = [1, 2, 3, 4, 5];
+    let mixed = ["hello", 42, true, 3.14];
+    let nested = [[1, 2], [3, 4], [5, 6]];
+
+    // Accessing elements
+    print(nums[0]);        // 1
+    print(nums[4]);        // 5
+    print(nested[1][0]);   // 3
+
+    // Modifying arrays
+    nums.push(6);
+    print(len(nums));      // 6
+    let last = nums.pop();
+    print("popped: " + last);  // 6
+    print(len(nums));      // 5
+
+    // Checking length
+    print(len(mixed));     // 4
+}
+
+main();
+```
+
+### SECTION: Array Operations
+
+BODY:
+The array builtins cover most common operations: slicing, sorting, reversing, flattening, and statistical functions.
+
+CODE:
+```
+// array_ops.ai
+function main() {
+    let data = [5, 3, 9, 1, 7, 2, 8, 4, 6];
+
+    // Sort (ascending)
+    let sorted = sort(data);
+    print("sorted: " + sorted);
+
+    // Reverse
+    let rev = reverse(sorted);
+    print("reversed: " + rev);
+
+    // Slice — slice(arr, start, end) — end is exclusive
+    let first_three = slice(sorted, 0, 3);
+    print("first three: " + first_three);  // [1, 2, 3]
+
+    // Statistical
+    print("sum: " + sum(data));
+    print("min via sort: " + sorted[0]);
+    print("max via sort: " + sorted[len(sorted) - 1]);
+
+    // Unique
+    let dupes = [1, 2, 2, 3, 3, 3, 4];
+    let uniq = unique(dupes);
+    print("unique: " + uniq);  // [1, 2, 3, 4]
+
+    // Flatten nested array
+    let nested = [[1, 2], [3, 4], [5, 6]];
+    let flat = flatten(nested);
+    print("flat: " + flat);   // [1, 2, 3, 4, 5, 6]
+}
+
+main();
+```
+
+### SECTION: String Operations
+
+BODY:
+Strings in Aeonmi are immutable values; operations return new strings. The standard library provides comprehensive string manipulation.
+
+CODE:
+```
+// string_ops.ai
+function main() {
+    let s = "Aeonmi Language";
+
+    // Length
+    print(len(s));             // 15
+
+    // Case
+    print(upper(s));           // AEONMI LANGUAGE
+    print(lower(s));           // aeonmi language
+
+    // Substring: substr(str, start, length)
+    print(substr(s, 0, 6));    // Aeonmi
+    print(substr(s, 7, 8));    // Language
+
+    // Split and join
+    let words = split(s, " ");
+    print(len(words));          // 2
+    print(join(words, "_"));   // Aeonmi_Language
+
+    // Contains, starts_with, ends_with
+    print(contains(s, "nmi")); // true
+    print(starts_with(s, "Ae")); // true
+    print(ends_with(s, "age"));  // true
+
+    // Replace
+    let replaced = replace(s, "Language", "VM");
+    print(replaced);           // Aeonmi VM
+
+    // Trim
+    let padded = "   hello   ";
+    print(trim(padded));       // hello
+
+    // Pad
+    print(pad_left("42", 5, "0"));    // 00042
+    print(pad_right("hi", 6, "."));   // hi....
+
+    // Find (returns index, -1 if not found)
+    print(find(s, "nmi"));    // 2
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 7.1 — Array Manipulation
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Starting with the array [10, 25, 3, 88, 14, 55, 7, 99, 42, 1]:
+1. Sort the array
+2. Print the median value (middle element of sorted array)
+3. Filter out all values greater than 50 into a new array
+4. Compute the average of the filtered array
+5. Print a final summary line showing count and average
+
+EXERCISE_SOLUTION:
+```
+// ex7_1.ai
+function main() {
+    let data = [10, 25, 3, 88, 14, 55, 7, 99, 42, 1];
+    let sorted = sort(data);
+
+    // Median: middle of sorted array (10 elements, average of indices 4 and 5)
+    let mid1 = sorted[4];
+    let mid2 = sorted[5];
+    let median = (mid1 + mid2) / 2.0;
+    print("Sorted: " + sorted);
+    print("Median: " + median);
+
+    // Filter > 50
+    let big = [];
+    let i = 0;
+    while i < len(data) {
+        if data[i] > 50 {
+            big.push(data[i]);
+        }
+        i = i + 1;
+    }
+    print("Values > 50: " + big);
+
+    // Average of filtered
+    let avg = sum(big) / len(big);
+    print("Count: " + len(big) + "  Average: " + avg);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 7.2 — String Parsing
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a function called parse_csv_row(line) that takes a string like "Alice,30,Engineer" and returns an array of trimmed values. Then write count_words(sentence) that counts the number of words in a sentence by splitting on spaces and filtering empty strings. Test both functions.
+
+EXERCISE_SOLUTION:
+```
+// ex7_2.ai
+
+function parse_csv_row(line) {
+    let parts = split(line, ",");
+    let result = [];
+    let i = 0;
+    while i < len(parts) {
+        result.push(trim(parts[i]));
+        i = i + 1;
+    }
+    return result;
+}
+
+function count_words(sentence) {
+    let parts = split(trim(sentence), " ");
+    let count = 0;
+    let i = 0;
+    while i < len(parts) {
+        if len(trim(parts[i])) > 0 {
+            count = count + 1;
+        }
+        i = i + 1;
+    }
+    return count;
+}
+
+function main() {
+    let row = "Alice , 30 , Engineer";
+    let parsed = parse_csv_row(row);
+    print("Parsed: " + parsed);    // [Alice, 30, Engineer]
+
+    let sentence = "Built by AI for AI";
+    print("Word count: " + count_words(sentence));  // 5
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 8: The Shard VM
+================================================================================
+
+### SECTION: How .ai Files Are Executed
+
+BODY:
+When you run `aeonmi native myfile.ai`, the binary executes a pipeline of Rust components. Understanding this pipeline helps you write better programs and interpret error messages.
+
+The pipeline is:
+
+1. Lexer (src/core/lexer.rs) — reads the source text character by character and produces a flat list of tokens. Tokens include keywords (let, function, while, if, else, for, in, return, true, false, null, match), operators (+, -, *, /, ==, !=, <, >, <=, >=, &&, ||), literals (strings, numbers, booleans), and identifiers (variable and function names). Quantum-specific tokens (qubit literals like |0>, |1>, |+>, Greek letters, and quantum operators) are also recognized at this stage.
+
+2. Parser (src/core/parser.rs) — takes the token list and builds an Abstract Syntax Tree (AST). The AST represents the structure of your program: the parser recognizes that `let x = 5 + 3;` is a variable declaration containing a binary addition expression. Parse errors at this stage report the token that caused the problem.
+
+3. AST (Abstract Syntax Tree) — the tree structure of your program. Each node is an expression or statement: FunctionDef, VarDecl, BinOp, IfExpr, WhileLoop, ForIn, ReturnStmt, FunctionCall, etc. The AST is the canonical representation of your program before execution.
+
+4. IR (Intermediate Representation) — the AST may be lowered to an IR for optimization before the VM sees it. The bytecode compiler (src/core/bytecode.rs) can produce a compact bytecode representation with constant folding, dead code elimination, and chain folding optimizations. The standard native mode skips bytecode and interprets the AST directly.
+
+5. VM (Virtual Machine, src/core/vm.rs) — walks the AST and evaluates it. Variables are stored in a scoped environment. Functions are stored as closures. Built-in functions are dispatched from a registry. The VM maintains a call frame stack for function calls and recursion.
+
+CODE:
+```
+// Understanding the pipeline:
+// Source text → Lexer → Tokens → Parser → AST → VM → Output
+
+// This simple program:
+function add(a, b) {
+    return a + b;
+}
+let result = add(3, 4);
+print(result);
+
+// Becomes (conceptually) this AST:
+// Program [
+//   FunctionDef("add", ["a", "b"],
+//     Block[ Return(BinOp("+", Ident("a"), Ident("b"))) ]),
+//   VarDecl("result", FunctionCall("add", [Literal(3), Literal(4)])),
+//   FunctionCall("print", [Ident("result")])
+// ]
+```
+
+### SECTION: Native Mode vs. Other Modes
+
+BODY:
+The `run` command is the primary way to execute Aeonmi programs. The `native` subcommand within run executes the .ai file through the native Rust VM — it does not produce an intermediate output file unless you ask it to.
+
+`aeonmi run myfile.ai` — runs the file, may produce output.ai as a side effect in some configurations.
+
+`aeonmi native myfile.ai` — runs the file natively through the Rust VM. This is the cleanest execution path for development.
+
+`aeonmi exec myfile.ai` — similar to run; the distinction is that exec is designed for production execution paths where the binary is dispatching to a subprocess.
+
+The bytecode VM is an alternative execution backend available when building with `--features bytecode`. It produces a compact instruction stream with more aggressive optimization but is not the default path. You would invoke it via command line flags or environment variable AEONMI_BYTECODE=1.
+
+NOTE: "Native" in Aeonmi means executing in the Rust VM — not compiling to machine code. The language is interpreted through a tree-walking or bytecode VM, not compiled to native machine instructions. This may change in future phases. The word "native" in the CLI context contrasts with "transpiled to JavaScript" — Aeonmi's native mode generates no JavaScript.
+
+### SECTION: Optimization in the Bytecode VM
+
+BODY:
+When using the bytecode backend, the compiler applies several optimizations that are visible via the --opt-stats flag:
+
+Constant folding: 2 + 3 is precomputed to 5 at compile time.
+Chain folding: repeated constant additions like 1 + 2 + 3 collapse into a single constant.
+Dead code elimination: if false { ... } blocks are removed entirely at compile time.
+Pop elimination: unnecessary stack push/pop pairs are merged.
+
+These optimizations are tracked with a count available via `aeonmi run myfile.ai --opt-stats-json`.
+
+EXERCISE_TITLE: Exercise 8.1 — Tracing the Pipeline
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Use the `aeonmi tokens` command to see the token stream for a small .ai file. Create a file called trace_test.ai with a simple function that adds two numbers. Run `aeonmi tokens trace_test.ai` and `aeonmi ast trace_test.ai` to see the lexer output and AST respectively. Describe in comments inside the file what each stage produces.
+
+EXERCISE_SOLUTION:
+```
+// trace_test.ai
+// Run: aeonmi tokens trace_test.ai
+// Run: aeonmi ast trace_test.ai
+
+function add_two(a, b) {
+    return a + b;
+}
+
+let x = add_two(10, 20);
+print(x);
+
+// Tokens stage produces:
+// [Keyword("function"), Ident("add_two"), LParen, Ident("a"), Comma,
+//  Ident("b"), RParen, LBrace, Keyword("return"), Ident("a"),
+//  Plus, Ident("b"), Semicolon, RBrace, ...]
+//
+// AST stage produces the tree structure showing FunctionDef with
+// ReturnStmt containing BinOp("+", Ident("a"), Ident("b"))
+```
+
+================================================================================
+## CHAPTER 9: Running Programs
+================================================================================
+
+### SECTION: The Primary Commands
+
+BODY:
+The Aeonmi binary accepts several subcommands for running programs. Understanding when to use each one is important for effective development.
+
+`aeonmi run <file.ai>` — The general-purpose run command. Compiles and executes the file. By default uses the native Rust VM. Accepts flags for watch mode, bytecode mode, and emit options.
+
+`aeonmi native <file.ai>` — Explicit native VM execution. Equivalent to `aeonmi run <file.ai>` without bytecode flags. The most direct way to run a .ai file during development.
+
+`aeonmi exec <file.ai>` — Execution path intended for programmatic dispatch. Used internally by the hive runner and learn cycle when they spawn subprocess calls to the binary.
+
+`aeonmi repl` — Starts the Read-Eval-Print Loop. You can type Aeonmi expressions and statements interactively and see results immediately. The REPL also provides access to Mother AI commands.
+
+`aeonmi emit <file.ai> --emit ai` — Compiles the file and emits the processed .ai output to a file. Useful for inspecting what the compiler produces.
+
+`aeonmi tokens <file.ai>` — Runs the lexer only and dumps the token stream. Useful for debugging lexer behavior.
+
+`aeonmi ast <file.ai>` — Runs the lexer and parser, then dumps the AST. Useful for understanding how the parser sees your code.
+
+`aeonmi build <file.ai>` — Compilation-only pass without execution.
+
+### SECTION: Watch Mode
+
+BODY:
+Both `aeonmi run` and `aeonmi emit` support a `--watch` flag that re-runs or re-compiles the file whenever it changes on disk. The binary polls for file modification every 500ms.
+
+CODE:
+```
+// Start watch mode — re-runs hello.ai on every save
+aeonmi run hello.ai --watch
+
+// Watch and emit — recompiles on every save
+aeonmi emit hello.ai --emit ai --watch
+```
+
+TIP: Watch mode is excellent during development. Keep your .ai file open in one window and the terminal with `--watch` in another. Every time you save your file, the output updates immediately.
+
+### SECTION: The REPL
+
+BODY:
+The REPL (Read-Eval-Print Loop) is started with `aeonmi repl`. You get a prompt where you can type Aeonmi code interactively. The REPL maintains state across inputs — variables you declare persist for the session.
+
+The REPL also exposes the Mother AI command set when the binary is built with the mother-ai feature. Mother AI commands are single-word commands that interact with the cognitive layer:
+
+CODE:
+```
+// REPL session example:
+// Start: aeonmi repl
+// Prompt: >>
+
+>> let x = 42;
+>> print(x + 8);
+50
+>> function greet(n) { return "Hello, " + n; }
+>> greet("Warren")
+Hello, Warren
+
+// Mother AI commands (in REPL):
+>> status         — show bond, consciousness depth, neural state
+>> bond           — show bond strength and tier phrase
+>> think quantum  — generate an inner voice thought about quantum
+>> propose        — suggest a new program to build
+>> hive start     — start the 5-agent background hive
+>> quantum run    — run a Bell state circuit on the Aer simulator
+>> graph          — show the knowledge graph state
+>> teach key = value  — add a fact to the knowledge graph
+>> recall         — recall what has been learned
+>> letter         — generate a letter to Warren about current state
+```
+
+NOTE: The REPL commands like `status`, `bond`, `think`, `propose`, etc. are Mother AI cognitive commands, not Aeonmi language statements. They are dispatched by the EmbryoLoop (the Rust cognitive runtime), not by the .ai VM. You cannot call them from inside a .ai file. They are REPL-only.
+
+### SECTION: Running the Examples
+
+BODY:
+The examples/ directory contains several fully working .ai programs that demonstrate different aspects of the language. To run any of them:
+
+CODE:
+```
+// Run the ARC-AGI solver
+aeonmi native examples/arc_solver.ai
+
+// Run the quantum entanglement network
+aeonmi native examples/quantum_entanglement_network.ai
+
+// Run the Phase 4 verification suite
+aeonmi native examples/phase4_demo.ai
+
+// Run the Shard Developer Kit (self-hosting compiler)
+aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai
+```
+
+The phase4_demo.ai example is particularly useful for beginners — it tests if/else chains, for-in loops over arrays, for-in over range(), quantum_check(), and quantum_run() all in one file.
+
+EXERCISE_TITLE: Exercise 9.1 — Running and Inspecting Programs
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Run examples/phase4_demo.ai and observe the output. Then:
+1. Note what quantum_check() returns (0 if Qiskit not installed, 1 if it is)
+2. Note what quantum_run() returns for the Bell state descriptor
+3. Create a modified copy called my_phase4.ai that changes the for-in loop to sum values from 1 to 10 using range(1, 11, 1) and prints the sum
+
+EXERCISE_SOLUTION:
+```
+// my_phase4.ai
+function main() {
+    print("=== MY PHASE 4 ===");
+
+    // Modified for-in: sum 1 to 10
+    let total = 0;
+    for n in range(1, 11, 1) {
+        total = total + n;
+    }
+    print("Sum 1..10 = " + total);   // 55
+
+    // quantum_check
+    let qc = quantum_check();
+    print("quantum_check() = " + qc);
+
+    // quantum_run Bell state
+    let desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let result = quantum_run(desc);
+    print("quantum_run() result: " + result);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 9.2 — Watch Mode Development
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Create a file called watcher_test.ai with a simple counter that prints numbers 1 through 5. Start it with `aeonmi run watcher_test.ai --watch`. While it is running, edit the file to count from 1 to 10 instead. Save the file and observe the automatic re-run. Document what you see.
+
+EXERCISE_SOLUTION:
+```
+// watcher_test.ai
+// Initial version: count 1 to 5
+// After edit in watch mode: count 1 to 10
+
+function main() {
+    // Change this to range(1, 11, 1) while watch mode is running
+    for i in range(1, 11, 1) {
+        print(i);
+    }
+}
+
+main();
+
+// What you observe:
+// 1. First run: prints 1 through 5
+// 2. After changing range to (1, 11, 1) and saving:
+//    The terminal re-runs automatically within 500ms
+//    Prints 1 through 10
+// 3. This is the watch mode development loop
+```
+
+================================================================================
+# PART 2: INTERMEDIATE
+================================================================================
+
+================================================================================
+## CHAPTER 10: The Self-Hosting Compiler — The Shard
+================================================================================
+
+### SECTION: What Is the Shard?
+
+BODY:
+The Shard is Aeonmi's self-hosting compiler — a compiler written in Aeonmi itself. Self-hosting is a milestone in language maturity: it means the language is expressive enough to implement its own compilation pipeline. The Shard lives in Aeonmi_Master/aeonmi_ai/shard/ and consists of several modules, each handling one stage of compilation.
+
+The Shard Developer Kit (main.ai) is both the entry point and a comprehensive language reference. Running it produces a demonstration of the pipeline working on a small arithmetic expression.
+
+CODE:
+```
+// Run the Shard Developer Kit
+aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai
+```
+
+The shard directory contains:
+- main.ai — bootstrap pipeline, language reference documentation in comments
+- lexer.ai — tokenizer (in progress)
+- parser.ai — expression parser (in progress)
+- ast.ai — AST node definitions (in progress)
+- codegen.ai — code generator (in progress)
+- Plus test files: lexer_test.ai, parser_test.ai, ast_test.ai, codegen_test.ai, main_test.ai
+
+NOTE: As of April 2026, the Shard bootstrap pipeline runs but full self-compilation is not yet achieved. The lexer.ai has gaps with tuple literal and range expression handling. parser.ai, ast.ai, and codegen.ai are in progress. The main.ai demonstrates a simplified working pipeline that handles a subset of arithmetic expressions. Full self-hosting — compiling hello.ai via main.ai — is the next major milestone for Phase 3.
+
+### SECTION: The main.ai Bootstrap Pipeline
+
+BODY:
+The main.ai file implements a minimal working pipeline in four functions: ai_lex (lexer), ai_build (parser/AST builder), ai_gen (code generator), and ai_chk (validator). This demonstrates the complete Shard architecture in miniature.
+
+CODE:
+```
+// The four-stage Shard pipeline (from main.ai)
+
+// Stage 1: Lexer — converts source text to token pairs [kind, text]
+function ai_lex(src) {
+    let toks = [];
+    let i = 0;
+    let n = len(src);
+    while (i < n) {
+        let c = substr(src, i, 1);
+        if (c == " ") { i = i + 1; }
+        // Numbers 0-9 → token kind 1
+        if (c == "0") { toks.push(1); toks.push("0"); i = i + 1; }
+        // ... other digits ...
+        // Operators → token kinds 20-23
+        if (c == "+") { toks.push(20); toks.push("+"); i = i + 1; }
+        if (c == "-") { toks.push(21); toks.push("-"); i = i + 1; }
+        // ... etc ...
+    }
+    toks.push(99); toks.push("EOF");
+    return toks;
+}
+
+// Stage 2: Build AST — converts token pairs to AST node triples
+function ai_build(toks) {
+    let nodes = [];
+    // ... walks token pairs, produces [nodetype, lhs, op, rhs] structures ...
+    return nodes;
+}
+
+// Stage 3: Code Generator — converts AST nodes to output string
+function ai_gen(nodes) {
+    let out = "";
+    // ... walks nodes, produces expression string ...
+    return out;
+}
+
+// Stage 4: Validator — checks that output is non-empty
+function ai_chk(emitted) {
+    if (len(emitted) > 0) { return 1; }
+    return 0;
+}
+```
+
+### SECTION: Safe Function Name Conventions
+
+BODY:
+The Shard Developer Kit documents an important convention for function names when writing Aeonmi programs intended to be parsed by the Shard. Some common English words as function name prefixes cause the Aeonmi parser to misclassify the token.
+
+The documentation states:
+- Safe prefixes: ai_, grover_, quantum_, mother_, get_, set_, fn_, lex_
+- Avoid prefixes that start with: test, par, simple, validate, with, tok
+
+This is a known issue with the Aeonmi lexer's keyword matching and will be resolved in a later version of the parser. For programs written to be parsed by the Shard specifically, follow the safe prefix convention.
+
+CODE:
+```
+// GOOD — safe prefixes
+function ai_parse(src) { ... }
+function quantum_run_circuit(desc) { ... }
+function get_token_kind(tok) { ... }
+function lex_identifier(src, pos) { ... }
+
+// RISKY — avoid these as function name starts when targeting Shard
+// function test_parser(input) { ... }   // "test" can be misread
+// function parse_expression(src) { ... } // "par" prefix issue
+// function simple_eval(expr) { ... }     // "simple" prefix issue
+```
+
+EXERCISE_TITLE: Exercise 10.1 — Running the Shard Dev Kit
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Run `aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai` and observe the output. Then write a new file called my_shard_test.ai that:
+1. Calls ai_lex() on the string "3 + 4 * 2"
+2. Passes the result to ai_build()
+3. Passes that to ai_gen()
+4. Prints the generated output
+5. Calls ai_chk() and prints whether it passed
+
+Note: you will need to import or copy the four functions from main.ai into your file for this to work as a standalone program.
+
+EXERCISE_SOLUTION:
+```
+// my_shard_test.ai
+// Copy the ai_lex, ai_build, ai_gen, ai_chk functions from main.ai here
+// then add:
+
+function main() {
+    let src = "3 + 4";
+    let toks = ai_lex(src);
+    print("Tokens: " + toks);
+
+    let nodes = ai_build(toks);
+    print("AST nodes: " + nodes);
+
+    let emitted = ai_gen(nodes);
+    print("Generated: " + emitted);
+
+    let valid = ai_chk(emitted);
+    if valid == 1 {
+        print("PASS: shard pipeline produced output");
+    } else {
+        print("FAIL: no output produced");
+    }
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 11: The Import System
+================================================================================
+
+### SECTION: Multi-File Programs
+
+BODY:
+Aeonmi programs can span multiple files. The VM's import resolution (resolve_import) finds files relative to the current file's location or the aeonmi_ai/ root. The exact import syntax and resolution behavior is part of the operational module system.
+
+For programs in the aeonmi_ai/ directory tree, the module layout follows this structure:
+
+CODE:
+```
+aeonmi_ai/
+  shard/       — Shard compiler modules
+  quantum/     — Quantum programs
+  agent/       — Agent AI (oracle, hype, closer, devil, conductor)
+  learn/       — Learning modules
+  sensory/     — Sensory input modules
+  selfmod/     — Self-modification modules
+  swarm/       — Swarm coordination
+  stdlib/      — Standard library
+  store/       — Key-value store modules
+  net/         — Network modules
+  mother/      — Mother AI .ai programs (journal, memory, rules, core)
+  demo/        — Demo programs
+  generated/   — Self-generated programs (written by Phase 9 build cycle)
+```
+
+### SECTION: The aeonmi_ai Module Structure
+
+BODY:
+Each subdirectory in aeonmi_ai/ is a module group. Programs in these directories are runnable standalone via `aeonmi native`. They are not automatically imported by each other — you call them explicitly or they are dispatched by the Rust embryo_loop.
+
+The stdlib/ directory contains reusable functions: collections, math, sort algorithms, graph utilities. To use stdlib functions in a larger program, you either copy the functions you need (for standalone files) or rely on the import resolution mechanism.
+
+The agent/ directory contains the five hive agents: oracle_agent.ai, hype_agent.ai, closer_agent.ai, devil_agent.ai, and conductor_agent.ai. These are templates — when the Mother AI hive starts, it generates a dynamic hive_runner.ai from these templates rather than calling them directly.
+
+NOTE: A critical architectural fact: the .ai modules in aeonmi_ai/ run standalone when you invoke them with `aeonmi native`. They do NOT automatically communicate with the Rust cognitive layer (Track 1) at runtime. Only two live bridges exist as of April 2026: the learn probe (a generated _learn_probe.ai run every 5 interactions) and the dynamically generated hive_runner.ai. All other modules are standalone programs.
+
+EXERCISE_TITLE: Exercise 11.1 — Module Exploration
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Explore the aeonmi_ai/ directory. Run three different modules standalone:
+1. `aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai`
+2. Any module from agent/ directory
+3. Any module from quantum/ directory
+For each one, describe in a comment block what it does and what output it produces.
+
+EXERCISE_SOLUTION:
+```
+// module_exploration_notes.ai
+// This file documents what each module does when run standalone.
+
+// Module 1: shard/main.ai
+// Run: aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai
+// Output: The Shard Developer Kit language reference documentation,
+//         followed by a demonstration of the ai_lex/ai_build/ai_gen
+//         pipeline processing a simple arithmetic expression.
+//         Shows all available builtin functions.
+
+// Module 2: agent/oracle_agent.ai (example)
+// Run: aeonmi native Aeonmi_Master/aeonmi_ai/agent/oracle_agent.ai
+// Output: Agent assessment output, probability scores, HIVE_STATE lines
+//         in the format: HIVE_STATE:oracle_score:0.xx
+
+// Module 3: quantum/ modules
+// Run: aeonmi native Aeonmi_Master/aeonmi_ai/quantum/[module].ai
+// Output: Quantum circuit simulation results, probability calculations,
+//         entanglement demonstrations
+
+function main() {
+    print("See comments above for module exploration notes.");
+    print("Run each module with: aeonmi native <path>");
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 12: Q.U.B.E. — Quantum Understanding and Bridging Environment
+================================================================================
+
+### SECTION: What Is Q.U.B.E.?
+
+BODY:
+Q.U.B.E. stands for Quantum Understanding and Bridging Environment. It is Aeonmi's quantum reasoning layer — the bridge between classical .ai programs and actual quantum computation. Q.U.B.E. is not just a library of quantum functions; it is a design philosophy about how quantum computing should be accessible to an AI-native language.
+
+The core idea is that quantum operations should be expressible in a compact, unambiguous descriptor format that any program (or generative AI system) can produce and reason about. Rather than requiring programmers to write complex quantum circuit APIs, Q.U.B.E. uses a string descriptor: a compact numeric encoding of a quantum circuit that the Aeonmi binary passes to qiskit_runner.py for execution.
+
+BODY:
+Q.U.B.E. exists because Mother AI needs to reason about quantum states as part of its cognitive architecture. The quantum_core module in the Rust layer (src/mother/quantum_core.rs) maintains quantum state variables that influence bond strength, consciousness depth, and decision making. The .ai quantum layer allows programs to express and run quantum circuits and get measurement results back.
+
+The name "Q.U.B.E." also describes the shape of quantum reasoning: multi-dimensional, superposed, capable of expressing things that classical boolean logic cannot — like a qubit that is simultaneously 0 and 1 until measured.
+
+### SECTION: The .qube Format
+
+BODY:
+The .qube format is Aeonmi's quantum symbolic reasoning format. Files with the .qube extension can be processed by the `aeonmi qube` command. The qube module (src/qube/) handles parsing and reasoning about quantum-symbolic expressions.
+
+The Q.U.B.E. philosophy states that quantum advantage for AI means expressing the inherent uncertainty of AI reasoning as a quantum phenomenon — not just running quantum algorithms, but reasoning in superposition.
+
+NOTE: The .qube format and the quantum_run() / quantum_check() built-in functions are two different layers of quantum integration in Aeonmi. quantum_run() is for running actual quantum circuits via Qiskit. The .qube format is for quantum-symbolic reasoning that does not require Qiskit at all. This chapter and the following chapters focus on the circuit execution layer.
+
+================================================================================
+## CHAPTER 13: Qubit Literals and Quantum Types
+================================================================================
+
+### SECTION: Qubit State Notation
+
+BODY:
+Aeonmi's lexer recognizes qubit literal notation from quantum computing: the ket notation common in quantum physics. These tokens are recognized and parsed as quantum state identifiers.
+
+The recognized qubit literals are:
+- |0> — the computational basis state zero
+- |1> — the computational basis state one
+- |+> — the Hadamard superposition state (equal probability of 0 and 1)
+- |-> — the negative Hadamard superposition state
+- |ψ> — a general pure quantum state (psi, Greek letter)
+- |Φ> — a general quantum state (phi, Greek letter)
+
+These literals are parsed by the lexer and can appear in quantum programs. In the current VM, they serve as symbolic identifiers — values that represent quantum states for documentation and symbolic reasoning purposes.
+
+CODE:
+```
+// qubit_literals.ai
+// Demonstrates qubit state notation
+
+function main() {
+    // Qubit state variables (symbolic in the VM)
+    let ground_state = "|0>";
+    let excited_state = "|1>";
+    let superposition = "|+>";
+
+    print("Ground state: " + ground_state);
+    print("Excited state: " + excited_state);
+    print("Superposition: " + superposition);
+
+    // Quantum state descriptions
+    let state_name = "|ψ>";
+    print("General state: " + state_name);
+
+    // In a real quantum program, these states are passed to
+    // quantum_run() via the circuit descriptor format
+    print("");
+    print("To execute a circuit on these states, use quantum_run()");
+    print("with a descriptor string specifying the gates and measurements.");
+}
+
+main();
+```
+
+### SECTION: The Quantum Operator Set
+
+BODY:
+Aeonmi recognizes quantum gate names as built-in identifiers. The following are available:
+
+Single-qubit gates: H (Hadamard), X (Pauli-X / NOT), Y (Pauli-Y), Z (Pauli-Z), S (phase gate), T (T gate), NOT, HADAMARD
+
+Two-qubit gates: CNOT, CX (same as CNOT)
+
+Special: MEASURE
+
+These names appear in quantum programs and in the descriptor format that quantum_run() uses. In the Shard Developer Kit, they are listed under the QUANTUM section of built-ins.
+
+CODE:
+```
+// quantum_operators.ai
+// The quantum gate vocabulary in Aeonmi
+
+function main() {
+    print("Quantum gates available in Aeonmi:");
+    print("  Single-qubit: H, X, Y, Z, S, T, NOT, HADAMARD");
+    print("  Two-qubit:    CNOT, CX");
+    print("");
+    print("In quantum_run() descriptor format:");
+    print("  H gate     = op type 0");
+    print("  X gate     = op type 1");
+    print("  Y gate     = op type 2");
+    print("  Z gate     = op type 3");
+    print("  CX/CNOT    = op type 4");
+    print("  S gate     = op type 5");
+    print("  T gate     = op type 6");
+    print("  MEASURE    = op type 7");
+    print("");
+    print("Entanglement operators recognized by lexer:");
+    print("  Tensor product: ⊗");
+    print("  Bra-ket inner:  ⟨⟩");
+    print("  Mapping:        ↦");
+    print("  Entangle:       ⧉");
+}
+
+main();
+```
+
+NOTE: The quantum operators ⊗ (tensor product), ⟨⟩ (bra-ket inner product notation), ↦ (mapping), and ⧉ (entanglement symbol) are recognized by the Aeonmi lexer as special tokens. They appear in quantum programs for documentation and symbolic reasoning. Their execution semantics in the VM are handled through the quantum descriptor system rather than direct evaluation.
+
+================================================================================
+## CHAPTER 14: Quantum Gates and Circuits
+================================================================================
+
+### SECTION: The Descriptor Format
+
+BODY:
+The key to understanding quantum_run() is the circuit descriptor format. Rather than building circuit objects programmatically, Aeonmi uses a compact string descriptor that encodes the complete quantum circuit specification.
+
+The descriptor format is:
+
+CODE:
+```
+// Descriptor format:
+// "n_q n_c shots op_count  [op_type target control] x op_count"
+//
+// n_q       = number of qubits
+// n_c       = number of classical bits (measurement results)
+// shots     = number of times to run the circuit
+// op_count  = number of operations
+//
+// Each operation is three numbers: type, target, control
+//   type:    0=H, 1=X, 2=Y, 3=Z, 4=CX/CNOT, 5=S, 6=T, 7=MEASURE
+//   target:  qubit index (0-based)
+//   control: qubit index for two-qubit gates, -1 for single-qubit gates
+
+// Example: Bell state circuit
+// H on qubit 0, CX with ctrl=0 target=1, MEASURE qubit 0, MEASURE qubit 1
+let bell_descriptor = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+//                     ^^ n_q=2 qubits
+//                        ^^ n_c=2 classical bits
+//                           ^^^ shots=512
+//                               ^ op_count=4
+//                                  ^ H(type=0) ^ target=0  ^control=-1
+//                                              ^ CX(type=4) ^ target=1 ^ ctrl=0
+//                                                            ^ MEASURE(type=7) q0
+//                                                                           ^ MEASURE q1
+```
+
+### SECTION: Building Circuits
+
+BODY:
+Let us build several common quantum circuits and encode them as descriptors.
+
+CODE:
+```
+// circuit_examples.ai
+function main() {
+
+    // Circuit 1: Single qubit superposition
+    // Apply H to qubit 0, measure
+    // 1 qubit, 1 classical bit, 100 shots, 2 operations
+    let superposition_desc = "1 1 100 2  0 0 -1  7 0 0";
+    print("Superposition circuit descriptor:");
+    print(superposition_desc);
+    print("");
+
+    // Circuit 2: Bell state (maximally entangled pair)
+    // H on q0, CNOT ctrl=0 target=1, measure both
+    // 2 qubits, 2 classical bits, 512 shots, 4 operations
+    let bell_desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    print("Bell state circuit descriptor:");
+    print(bell_desc);
+    print("");
+
+    // Circuit 3: Three-qubit GHZ state (maximally entangled triple)
+    // H on q0, CNOT ctrl=0 target=1, CNOT ctrl=0 target=2, measure all
+    // 3 qubits, 3 classical bits, 1024 shots, 6 operations
+    let ghz_desc = "3 3 1024 6  0 0 -1  4 1 0  4 2 0  7 0 0  7 1 1  7 2 2";
+    print("GHZ state circuit descriptor:");
+    print(ghz_desc);
+    print("");
+
+    // Circuit 4: X gate (bit flip)
+    // X on q0 (flips |0> to |1>), measure
+    let x_gate_desc = "1 1 100 2  1 0 -1  7 0 0";
+    print("X gate descriptor:");
+    print(x_gate_desc);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 14.1 — Writing Circuit Descriptors
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write descriptor strings for the following circuits without running them yet:
+1. Apply H then Z to qubit 0, measure. (2 qubits is fine, just use q0 for everything.)
+2. Apply X to qubit 0 and H to qubit 1, then CNOT ctrl=1 target=0, measure both.
+3. A circuit with 2 qubits, 1024 shots, that creates superposition on q0 only and measures only q0.
+Write each descriptor as a let variable and print it. Verify your op_count matches the actual number of operations listed.
+
+EXERCISE_SOLUTION:
+```
+// ex14_1.ai
+function main() {
+    // 1. H then Z on q0, measure q0
+    // 1 qubit, 1 classical bit, 100 shots, 3 operations
+    let desc1 = "1 1 100 3  0 0 -1  3 0 -1  7 0 0";
+    print("H-Z circuit: " + desc1);
+
+    // 2. X on q0, H on q1, CNOT ctrl=1 target=0, measure both
+    // 2 qubits, 2 classical bits, 512 shots, 5 operations
+    let desc2 = "2 2 512 5  1 0 -1  0 1 -1  4 0 1  7 0 0  7 1 1";
+    print("X-H-CNOT circuit: " + desc2);
+
+    // 3. H on q0 only, measure q0 only
+    // 2 qubits, 1 classical bit, 1024 shots, 2 operations
+    let desc3 = "2 1 1024 2  0 0 -1  7 0 0";
+    print("Superposition q0 only: " + desc3);
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 15: quantum_run() and quantum_check()
+================================================================================
+
+### SECTION: quantum_check()
+
+BODY:
+quantum_check() is a built-in function that returns 1 if Qiskit is installed and available on the system, or 0 if it is not. It takes no arguments. Use it at the start of any program that depends on quantum execution to gracefully handle environments where Qiskit is absent.
+
+CODE:
+```
+// quantum_check_demo.ai
+function main() {
+    let qc = quantum_check();
+
+    if qc == 1 {
+        print("Qiskit available — live quantum execution ready");
+        print("You can use quantum_run() with real circuit simulation");
+    } else {
+        print("Qiskit not installed — dry-run mode active");
+        print("quantum_run() will return a placeholder result");
+        print("Install: pip install qiskit qiskit-aer qiskit-ibm-runtime");
+    }
+
+    print("quantum_check() = " + qc);
+}
+
+main();
+```
+
+### SECTION: quantum_run()
+
+BODY:
+quantum_run() is the primary quantum execution built-in. It takes one argument: the circuit descriptor string. It returns a JSON string containing the measurement results.
+
+When Qiskit is installed (quantum_check() == 1), quantum_run() invokes qiskit_runner.py with the descriptor, runs the circuit on the Aer simulator (or IBM hardware if configured), and returns the measurement counts as a JSON string.
+
+When Qiskit is not installed, quantum_run() returns a dry-run placeholder JSON.
+
+CODE:
+```
+// quantum_run_demo.ai
+function main() {
+    // First check availability
+    let available = quantum_check();
+    print("Qiskit available: " + available);
+
+    // Bell state descriptor
+    let descriptor = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    print("Running Bell state circuit...");
+    let result = quantum_run(descriptor);
+
+    print("Result JSON:");
+    print(result);
+
+    // The result JSON contains measurement counts.
+    // For a Bell state, you expect roughly 50% "00" and 50% "11"
+    // indicating perfect quantum entanglement.
+    // Example result: {"00": 258, "11": 254}
+}
+
+main();
+```
+
+### SECTION: Interpreting quantum_run() Output
+
+BODY:
+The JSON returned by quantum_run() maps measurement bit strings to counts. For a 2-qubit circuit with 512 shots, the result might look like:
+
+CODE:
+```
+// Sample quantum_run() output for Bell state (512 shots):
+// {"00": 258, "11": 254}
+//
+// This means:
+//   258 out of 512 shots measured as 00 (both qubits = 0)
+//   254 out of 512 shots measured as 11 (both qubits = 1)
+//   0 shots measured as 01 or 10
+//
+// This is the signature of a Bell state: perfect correlation.
+// Qubit 0 and qubit 1 are always measured in the same state.
+// This is quantum entanglement.
+//
+// For a single qubit in superposition (H gate only), you expect:
+// {"0": ~256, "1": ~256} — roughly 50/50 split
+//
+// For a qubit with X gate applied (|0> → |1>):
+// {"1": 512} — always 1
+
+// In dry-run mode (no Qiskit), quantum_run() returns something like:
+// {"dry_run": true, "00": 256, "11": 256}
+```
+
+EXERCISE_TITLE: Exercise 15.1 — Quantum Run Program
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a complete program that:
+1. Checks quantum availability
+2. Defines three circuit descriptors: single qubit superposition, Bell state, and X-gate (bit flip)
+3. Runs all three with quantum_run()
+4. Prints each result with a label describing what to expect
+5. Adds a comment explaining what result you would expect for each circuit if Qiskit is installed
+
+EXERCISE_SOLUTION:
+```
+// ex15_1.ai
+function main() {
+    let qc = quantum_check();
+    print("=== QUANTUM CIRCUIT DEMO ===");
+    print("Qiskit available: " + qc);
+    print("");
+
+    // Circuit 1: Single qubit superposition
+    // Expected: ~50% "0", ~50% "1"
+    let desc1 = "1 1 512 2  0 0 -1  7 0 0";
+    let r1 = quantum_run(desc1);
+    print("[ Superposition ]");
+    print("Descriptor: " + desc1);
+    print("Result: " + r1);
+    print("Expected: approx {\"0\": 256, \"1\": 256}");
+    print("");
+
+    // Circuit 2: Bell state
+    // Expected: ~50% "00", ~50% "11", zero "01" and "10"
+    let desc2 = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let r2 = quantum_run(desc2);
+    print("[ Bell State ]");
+    print("Descriptor: " + desc2);
+    print("Result: " + r2);
+    print("Expected: approx {\"00\": 256, \"11\": 256}");
+    print("");
+
+    // Circuit 3: X gate (bit flip)
+    // Expected: 100% "1"
+    let desc3 = "1 1 512 2  1 0 -1  7 0 0";
+    let r3 = quantum_run(desc3);
+    print("[ X Gate (bit flip) ]");
+    print("Descriptor: " + desc3);
+    print("Result: " + r3);
+    print("Expected: {\"1\": 512}");
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 16: Bell States and Entanglement
+================================================================================
+
+### SECTION: The Theory of Bell States
+
+BODY:
+Bell states are the four maximally entangled two-qubit states. They are named after physicist John Stewart Bell. In a Bell state, the two qubits are perfectly correlated: measuring one qubit instantly determines the outcome of measuring the other, regardless of the physical distance between them. This is quantum entanglement.
+
+The four Bell states are:
+- |Φ+> = (|00> + |11>) / √2 — both qubits same, equal superposition
+- |Φ-> = (|00> - |11>) / √2 — both qubits same with phase flip
+- |Ψ+> = (|01> + |10>) / √2 — both qubits opposite, equal superposition
+- |Ψ-> = (|01> - |10>) / √2 — both qubits opposite with phase flip
+
+The most common Bell state is |Φ+>, created by applying a Hadamard gate to the first qubit and then a CNOT gate with the first qubit as control and the second as target. Starting from |00>:
+
+1. H applied to qubit 0: (|0> + |1>) / √2 ⊗ |0>  =  (|00> + |10>) / √2
+2. CNOT ctrl=0 target=1: |00> stays |00>, |10> becomes |11>
+3. Result: (|00> + |11>) / √2 — this is |Φ+>
+
+When you measure this state, you always get either 00 or 11, never 01 or 10. The qubits are entangled.
+
+### SECTION: Bell State in Aeonmi
+
+BODY:
+The Aeonmi phase4_demo.ai implements a Bell state circuit and runs it through quantum_run(). The result is 100% verified by the Aer simulator: only "00" and "11" outcomes appear, confirming entanglement.
+
+CODE:
+```
+// bell_state.ai — Bell state entanglement demonstration
+
+function check_entanglement(result_json) {
+    // A proper Bell state shows only "00" and "11", never "01" or "10"
+    // We check this by looking for the absence of mixed states
+    let has_01 = contains(result_json, "\"01\"");
+    let has_10 = contains(result_json, "\"10\"");
+
+    if has_01 {
+        return "FAIL: found 01 state — not a Bell state";
+    }
+    if has_10 {
+        return "FAIL: found 10 state — not a Bell state";
+    }
+    return "PASS: Bell state confirmed — perfect entanglement";
+}
+
+function main() {
+    print("=== BELL STATE ENTANGLEMENT ===");
+    print("");
+
+    let qc = quantum_check();
+    if qc == 0 {
+        print("Note: Qiskit not installed. Running in dry-run mode.");
+        print("Install qiskit and qiskit-aer for real simulation.");
+    }
+    print("");
+
+    // Bell state: H(q0) -> CNOT(ctrl=0, target=1) -> MEASURE both
+    let descriptor = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    print("Circuit: H(q0) -> CNOT(q0->q1) -> MEASURE(q0,q1)");
+    print("Shots: 1024");
+    print("Running...");
+    print("");
+
+    let result = quantum_run(descriptor);
+    print("Raw result:");
+    print(result);
+    print("");
+
+    let verdict = check_entanglement(result);
+    print(verdict);
+    print("");
+
+    print("Theory: A Bell state |Φ+> = (|00> + |11>) / sqrt(2)");
+    print("Measurement must yield 00 or 11 with equal probability.");
+    print("Any 01 or 10 result would violate entanglement.");
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 16.1 — Bell State Analysis
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a program that runs the Bell state circuit with 1024 shots, then parses the result JSON (as a string — use contains() and find() to extract numbers) to estimate the probability of measuring "00" vs "11". Print both probabilities. If the probabilities differ by more than 10%, print a warning. If they are within 10%, print "Bell state verified".
+
+Note: The result JSON is a string. You do not have parse_json() in all VM versions, so use string operations to find the counts.
+
+EXERCISE_SOLUTION:
+```
+// ex16_1.ai
+
+function extract_count(json_str, key) {
+    // Find "key": number in a simple JSON string
+    let search = "\"" + key + "\": ";
+    let idx = find(json_str, search);
+    if idx < 0 {
+        return 0;
+    }
+    let start = idx + len(search);
+    // Read digits until non-digit
+    let num_str = "";
+    let i = start;
+    while i < len(json_str) {
+        let c = substr(json_str, i, 1);
+        if c == "0" { num_str = num_str + c; i = i + 1; }
+        if c == "1" { num_str = num_str + c; i = i + 1; }
+        if c == "2" { num_str = num_str + c; i = i + 1; }
+        if c == "3" { num_str = num_str + c; i = i + 1; }
+        if c == "4" { num_str = num_str + c; i = i + 1; }
+        if c == "5" { num_str = num_str + c; i = i + 1; }
+        if c == "6" { num_str = num_str + c; i = i + 1; }
+        if c == "7" { num_str = num_str + c; i = i + 1; }
+        if c == "8" { num_str = num_str + c; i = i + 1; }
+        if c == "9" { num_str = num_str + c; i = i + 1; }
+        if c != "0" {
+            if c != "1" { if c != "2" { if c != "3" { if c != "4" {
+            if c != "5" { if c != "6" { if c != "7" { if c != "8" {
+            if c != "9" { i = len(json_str); } } } } } } } } }
+        }
+    }
+    if len(num_str) == 0 { return 0; }
+    return int(num_str);
+}
+
+function main() {
+    let shots = 1024;
+    let desc = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let result = quantum_run(desc);
+
+    print("Result: " + result);
+
+    let count_00 = extract_count(result, "00");
+    let count_11 = extract_count(result, "11");
+    let total = count_00 + count_11;
+
+    if total == 0 { total = 1; }
+
+    let prob_00 = floor((count_00 * 1000) / total) / 10.0;
+    let prob_11 = floor((count_11 * 1000) / total) / 10.0;
+
+    print("P(00) = " + prob_00 + "%");
+    print("P(11) = " + prob_11 + "%");
+
+    let diff = prob_00 - prob_11;
+    if diff < 0 { diff = 0 - diff; }
+
+    if diff > 10 {
+        print("WARNING: probabilities differ by " + diff + "% — possible noise");
+    } else {
+        print("Bell state verified — 00 and 11 within 10% of each other");
+    }
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 17: The Aer Simulator
+================================================================================
+
+### SECTION: What Is Aer?
+
+BODY:
+Aer (full name: Qiskit Aer) is IBM's high-performance quantum circuit simulator. It runs on your local machine using classical computation to simulate what a quantum computer would do. Aer is the default backend for quantum_run() in Aeonmi.
+
+Unlike real quantum hardware, the Aer simulator:
+- Has no queue time — results are instant
+- Has no noise by default (though noise models can be added)
+- Can simulate arbitrarily large circuits within memory limits
+- Is completely free to use
+- Requires no IBM account or token
+
+For learning Aeonmi's quantum layer, Aer is everything you need. Real quantum hardware (IBM Brisbane) adds noise, queue times, and hardware-specific constraints. Aer is ideal for verifying that your circuit logic is correct before submitting to hardware.
+
+### SECTION: Installing and Verifying Aer
+
+BODY:
+To use the Aer simulator with Aeonmi's quantum_run():
+
+CODE:
+```
+// Installation (run in your terminal, not in Aeonmi)
+// pip install qiskit qiskit-aer qiskit-ibm-runtime
+
+// Verify in Aeonmi:
+// quantum_check() will return 1 if installation succeeded
+```
+
+CODE:
+```
+// verify_aer.ai
+function main() {
+    let status = quantum_check();
+
+    if status == 1 {
+        print("Aer simulator: AVAILABLE");
+        print("quantum_run() will execute real circuit simulation");
+        print("");
+
+        // Run a quick test circuit
+        let test_desc = "1 1 100 2  0 0 -1  7 0 0";
+        let result = quantum_run(test_desc);
+        print("Test (H gate, 100 shots):");
+        print(result);
+        print("Expected: approximately 50 zeros, 50 ones");
+    } else {
+        print("Aer simulator: NOT AVAILABLE");
+        print("quantum_run() is in dry-run mode");
+        print("Install with: pip install qiskit qiskit-aer qiskit-ibm-runtime");
+    }
+}
+
+main();
+```
+
+### SECTION: Understanding Aer Results
+
+BODY:
+The Aer simulator returns measurement counts as a JSON dictionary. For a circuit run with N shots, the counts sum to N (or very close to N — occasionally shots are discarded due to post-selection). The distribution of counts reflects the quantum probability amplitudes of the circuit.
+
+For a perfect Bell state (H + CNOT):
+- You expect counts["00"] ≈ N/2 and counts["11"] ≈ N/2
+- The exact split varies per run because quantum measurement is probabilistic
+- With 512 shots, you might get {"00": 261, "11": 251} one run and {"00": 248, "11": 264} the next
+- Over many runs, the average approaches exactly 50/50
+
+For a deterministic circuit (X gate on |0>):
+- counts["1"] = N exactly — no randomness, the X gate deterministically flips |0> to |1>
+
+NOTE: The Aer simulator is noise-free by default. Real IBM quantum hardware introduces gate errors and decoherence — your measured results will not be as clean. The fidelity measurement system (compute_fidelity using Total Variation Distance) in qiskit_runner.py quantifies this difference between Aer and real hardware results.
+
+### SECTION: Running the qiskit_runner Directly
+
+BODY:
+The Aeonmi binary calls qiskit_runner.py as a subprocess when quantum_run() is invoked. You can also call qiskit_runner.py directly from the command line for testing:
+
+CODE:
+```
+// From your terminal (not Aeonmi):
+python Aeonmi_Master/qiskit_runner.py --status
+// Shows which backends are available
+
+python Aeonmi_Master/qiskit_runner.py --fidelity
+// Runs a fidelity test between Aer and target backend
+```
+
+EXERCISE_TITLE: Exercise 17.1 — Aer Simulation Study
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a program that runs the same Bell state circuit five times with 512 shots each. For each run, print the result. Then explain in comments why the results differ between runs even though the circuit is identical. If you do not have Qiskit installed, explain what dry-run mode shows instead and what a real result would look like.
+
+EXERCISE_SOLUTION:
+```
+// ex17_1.ai
+function main() {
+    print("=== AER SIMULATION STUDY ===");
+    print("Running Bell state 5 times with 512 shots each");
+    print("");
+
+    let desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    let run = 1;
+    while run <= 5 {
+        print("Run " + run + ":");
+        let result = quantum_run(desc);
+        print("  " + result);
+        run = run + 1;
+    }
+
+    print("");
+    print("Why results differ:");
+    print("  Quantum measurement is inherently probabilistic.");
+    print("  Each shot samples from a probability distribution.");
+    print("  For a Bell state, each shot independently has 50%");
+    print("  chance of 00 and 50% chance of 11.");
+    print("  With 512 shots, the counts fluctuate by approximately");
+    print("  sqrt(512)/2 ≈ 11 shots from the 256 mean — statistical sampling.");
+    print("");
+    print("In dry-run mode:");
+    print("  quantum_run() returns a placeholder with fixed counts.");
+    print("  The placeholder does not show statistical variation.");
+    print("  Real Aer results would show different counts each time.");
+}
+
+main();
+```
+
+================================================================================
+## CHAPTER 18: IBM Quantum Hardware (Tier 1)
+================================================================================
+
+### SECTION: IBM Brisbane and Real Quantum Hardware
+
+BODY:
+IBM Brisbane is a 127-qubit quantum processor — one of IBM's Eagle-class quantum computers. When Aeonmi routes quantum_run() to IBM Brisbane instead of Aer, your circuit runs on actual superconducting qubits in a dilution refrigerator cooled to near absolute zero.
+
+The difference from the Aer simulator is significant:
+- Gate errors: every quantum gate on real hardware has an error rate (typically 0.1%–1% per gate)
+- Readout errors: measuring a qubit has its own error rate (the qubit might be |1> but be read as 0)
+- Decoherence: qubits gradually lose their quantum state due to environmental noise (T1, T2 times)
+- Queue time: IBM hardware is shared globally — your circuit may wait hours during peak use
+- ISA transpilation: your circuit must be transpiled to the hardware's native gate set and topology
+
+For a Bell state on real hardware, instead of perfect {"00": 256, "11": 256}, you might see {"00": 241, "11": 249, "01": 12, "10": 10} — the small counts on "01" and "10" are hardware errors.
+
+### SECTION: Getting an IBM Quantum Token
+
+BODY:
+To use IBM Brisbane from Aeonmi, you need an IBM Quantum account and API token.
+
+1. Create a free account at quantum.ibm.com
+2. Navigate to your account settings and find your API token
+3. Set the environment variable: IBM_QUANTUM_TOKEN=your_token_here
+
+In the Aeonmi project, the token is expected in the .env file:
+
+CODE:
+```
+// .env file (never commit this file — it contains your private token)
+IBM_QUANTUM_TOKEN=your_ibm_quantum_token_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+```
+
+WARNING: Never commit your .env file to a public repository. The .gitignore must exclude .env. The Aeonmi project documentation explicitly lists this as a critical security risk. If you accidentally commit your IBM or Anthropic API key, rotate it immediately.
+
+### SECTION: Switching Backends
+
+BODY:
+In the Mother AI REPL, you switch quantum backends with the `quantum_backend` command:
+
+CODE:
+```
+// In the Aeonmi REPL:
+>> quantum_backend aer
+// Routes future quantum_run() calls to the Aer simulator (default, no token needed)
+
+>> quantum_backend ibm_brisbane
+// Routes future quantum_run() calls to IBM Brisbane (requires IBM_QUANTUM_TOKEN)
+
+>> quantum status
+// Shows current backend and availability
+```
+
+From a .ai program, quantum_run() always uses whatever backend is currently configured. The backend is set in the Mother AI state (embryo_loop) and persists to genesis.json.
+
+### SECTION: The Fidelity Measurement System
+
+BODY:
+The qiskit_runner.py implements a fidelity measurement system using Total Variation Distance (TVD). When you run the same circuit on both Aer and IBM Brisbane, fidelity measures how close the two result distributions are.
+
+A fidelity of 1.0 means the real hardware produced exactly the Aer result. A fidelity of 0.0 means completely different distributions. In practice, well-calibrated IBM hardware on simple circuits achieves fidelity of 0.95–0.99.
+
+The majority_vote function in qiskit_runner.py runs the circuit 3 times and takes the majority outcome — a simple form of noise mitigation.
+
+CODE:
+```
+// Understanding fidelity in Aeonmi
+// (This demonstrates the concept; actual fidelity requires two backend runs)
+
+function compute_tvd(p, q, labels) {
+    // Total Variation Distance between two distributions
+    // TVD = 0.5 * sum |p(x) - q(x)|
+    // Fidelity = 1 - TVD
+    let tvd = 0.0;
+    let i = 0;
+    while i < len(labels) {
+        let diff = p[i] - q[i];
+        if diff < 0 { diff = 0 - diff; }
+        tvd = tvd + diff;
+        i = i + 1;
+    }
+    return 1.0 - (tvd / 2.0);
+}
+
+function main() {
+    // Simulated comparison: Aer vs IBM Brisbane for Bell state (1024 shots)
+    // Aer (ideal): 512 "00", 512 "11", 0 "01", 0 "10"
+    // IBM Brisbane (with noise): 489 "00", 498 "11", 19 "01", 18 "10"
+
+    let aer_counts    = [512.0, 512.0, 0.0, 0.0];    // 00, 11, 01, 10
+    let ibm_counts    = [489.0, 498.0, 19.0, 18.0];
+    let total = 1024.0;
+
+    // Normalize to probabilities
+    let aer_probs = [aer_counts[0]/total, aer_counts[1]/total,
+                     aer_counts[2]/total, aer_counts[3]/total];
+    let ibm_probs = [ibm_counts[0]/total, ibm_counts[1]/total,
+                     ibm_counts[2]/total, ibm_counts[3]/total];
+
+    let labels = ["00", "11", "01", "10"];
+    let fidelity = compute_tvd(aer_probs, ibm_probs, labels);
+
+    print("Aer distribution:    " + aer_probs);
+    print("IBM Brisbane distribution: " + ibm_probs);
+    print("Fidelity (1 - TVD):  " + fidelity);
+    print("Interpretation: " + floor(fidelity * 100) + "% match between Aer and hardware");
+}
+
+main();
+```
+
+NOTE: As of April 2026, IBM Brisbane has not been tested in production from Aeonmi. The qiskit_runner.py IBM path is implemented and should work with a valid token, but queue times of hours are possible during peak use. For any demonstration, use the Aer simulator. If a live hardware demonstration is planned, submit the circuit in advance and verify the token is set at least 24 hours before the demo.
+
+EXERCISE_TITLE: Exercise 18.1 — IBM vs Aer Comparison
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a program that:
+1. Defines a Bell state circuit descriptor
+2. Runs it on the Aer simulator (quantum_run() default)
+3. Prints the result
+4. Explains in print statements what would change if the result came from IBM Brisbane instead of Aer
+5. Computes a simulated fidelity between the Aer result and a hypothetical noisy IBM result you define manually
+
+EXERCISE_SOLUTION:
+```
+// ex18_1.ai
+
+function abs_val(x) {
+    if x < 0 { return 0 - x; }
+    return x;
+}
+
+function fidelity_from_counts(a00, a11, b00, b11, shots) {
+    // TVD between two Bell state distributions
+    let p00 = a00 / shots;
+    let p11 = a11 / shots;
+    let q00 = b00 / shots;
+    let q11 = b11 / shots;
+    let tvd = (abs_val(p00 - q00) + abs_val(p11 - q11)) / 2.0;
+    return 1.0 - tvd;
+}
+
+function main() {
+    print("=== AER vs IBM BRISBANE COMPARISON ===");
+    print("");
+
+    // Step 1: Run Bell state on Aer
+    let desc = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let aer_result = quantum_run(desc);
+    print("Aer Simulator Result:");
+    print(aer_result);
+    print("");
+
+    // Step 2: Explain IBM differences
+    print("If this ran on IBM Brisbane instead of Aer:");
+    print("  - Gate errors (~0.1-0.5% per gate) would cause some");
+    print("    |00> states to flip to |01> or |10>");
+    print("  - Readout errors add additional misclassification");
+    print("  - You would see non-zero counts for '01' and '10'");
+    print("  - The 00/11 split may also be slightly uneven");
+    print("  - Queue time: minutes to hours depending on load");
+    print("");
+
+    // Step 3: Compute simulated fidelity
+    // Hypothetical: Aer gives 512/512, IBM gives 489/498 with 37 errors
+    let shots = 1024.0;
+    let aer_00 = 512.0;
+    let aer_11 = 512.0;
+    let ibm_00 = 489.0;
+    let ibm_11 = 498.0;
+
+    let fidelity = fidelity_from_counts(aer_00, aer_11, ibm_00, ibm_11, shots);
+    let fidelity_pct = floor(fidelity * 1000.0) / 10.0;
+
+    print("Simulated fidelity (Aer vs hypothetical IBM Brisbane):");
+    print("  Aer:  {\"00\": 512, \"11\": 512}");
+    print("  IBM:  {\"00\": 489, \"11\": 498, \"01\": 19, \"10\": 18}");
+    print("  Fidelity: " + fidelity_pct + "%");
+    print("");
+    print("A fidelity above 95% is considered high-quality quantum execution.");
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 18.2 — Full Quantum Program
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a comprehensive quantum program called quantum_survey.ai that:
+1. Checks quantum availability
+2. Runs four different circuits: identity (no gates, just measure), X gate, H gate, Bell state
+3. For each, prints the descriptor, the result, and a one-line interpretation
+4. Ends with a summary table printed as text showing circuit name, expected distribution, and actual result
+
+EXERCISE_SOLUTION:
+```
+// quantum_survey.ai
+
+function run_and_report(name, desc, expected) {
+    print("--- " + name + " ---");
+    print("Descriptor: " + desc);
+    let result = quantum_run(desc);
+    print("Result:   " + result);
+    print("Expected: " + expected);
+    print("");
+}
+
+function main() {
+    print("======================================");
+    print("  AEONMI QUANTUM CIRCUIT SURVEY");
+    print("======================================");
+    print("");
+
+    let qc = quantum_check();
+    if qc == 1 {
+        print("Backend: Aer Simulator (live)");
+    } else {
+        print("Backend: Dry-run mode (Qiskit not installed)");
+    }
+    print("");
+
+    // 1. Identity: measure q0 with no gates (should be |0> always)
+    // 1 qubit, 1 classical bit, 256 shots, 1 op: MEASURE
+    let identity_desc = "1 1 256 1  7 0 0";
+    run_and_report("Identity (|0> no gates)", identity_desc,
+                   "{\"0\": 256} — always zero, no operation applied");
+
+    // 2. X gate: flip |0> to |1>, measure
+    let x_desc = "1 1 256 2  1 0 -1  7 0 0";
+    run_and_report("X Gate (bit flip)", x_desc,
+                   "{\"1\": 256} — always one, X flips the qubit");
+
+    // 3. H gate: superposition, measure
+    let h_desc = "1 1 256 2  0 0 -1  7 0 0";
+    run_and_report("H Gate (superposition)", h_desc,
+                   "{\"0\": ~128, \"1\": ~128} — 50/50 probabilistic");
+
+    // 4. Bell state: H + CNOT, measure both
+    let bell_desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    run_and_report("Bell State (entanglement)", bell_desc,
+                   "{\"00\": ~256, \"11\": ~256} — correlated, no 01 or 10");
+
+    // Summary
+    print("======================================");
+    print("SUMMARY TABLE");
+    print("======================================");
+    print("Circuit      | Expected Distribution");
+    print("-------------|---------------------------");
+    print("Identity     | {\"0\": N} — deterministic zero");
+    print("X Gate       | {\"1\": N} — deterministic one");
+    print("H Gate       | {\"0\": N/2, \"1\": N/2} — uniform random");
+    print("Bell State   | {\"00\": N/2, \"11\": N/2} — entangled pair");
+    print("");
+    print("Use 'aeonmi native quantum_survey.ai' to run this program.");
+    print("Install Qiskit for live simulation: pip install qiskit qiskit-aer");
+}
+
+main();
+```
+
+================================================================================
+APPENDIX A: Quick Reference — CLI Commands
+================================================================================
+
+BODY:
+Complete command reference for the Aeonmi binary:
+
+CODE:
+```
+aeonmi                          — Start interactive mode (glyph boot + shell)
+aeonmi repl                     — Start REPL directly
+aeonmi run <file.ai>            — Run a .ai file (native VM)
+aeonmi run <file.ai> --watch    — Run with file-change auto-rerun
+aeonmi native <file.ai>         — Explicit native VM execution
+aeonmi exec <file.ai>           — Execution (subprocess dispatch mode)
+aeonmi emit <file.ai>           — Compile and emit output
+aeonmi build <file.ai>          — Compile without running
+aeonmi tokens <file.ai>         — Dump token stream (lexer output)
+aeonmi ast <file.ai>            — Dump AST (parser output)
+aeonmi quantum <file.ai>        — Run with quantum backend
+aeonmi format <file.ai>         — Format .ai source file
+aeonmi new <file.ai>            — Create a new .ai file
+aeonmi edit <file.ai>           — Open file in TUI editor
+aeonmi vault init               — Initialize Master Glyph Key
+aeonmi vault seal               — Seal a secret in the vault
+aeonmi vault open               — Open the vault
+aeonmi qube <file.qube>         — Process a .qube quantum reasoning file
+aeonmi mint                     — NFT metadata generation
+aeonmi mother                   — Mother AI interface
+```
+
+================================================================================
+APPENDIX B: Quick Reference — Built-in Functions
+================================================================================
+
+CODE:
+```
+// MATH
+sqrt(x)           abs(x)           floor(x)         ceil(x)
+round(x)          pow(x, y)        min(x, y)        max(x, y)
+sin(x)            cos(x)           tan(x)           atan2(y, x)
+exp(x)            ln(x)            log10(x)         fmod(x, y)
+clamp(x, lo, hi)  lerp(a, b, t)
+
+// STRING
+len(s)            substr(s, i, n)  upper(s)         lower(s)
+trim(s)           split(s, delim)  join(arr, delim) replace(s, a, b)
+contains(s, sub)  starts_with(s, p) ends_with(s, p) find(s, sub)
+pad_left(s, n, c) pad_right(s, n, c) char_at(s, i)  repeat(s, n)
+concat(a, b)
+
+// ARRAY
+len(arr)          push(arr, x)     pop(arr)         slice(arr, s, e)
+sort(arr)         reverse(arr)     flatten(arr)     unique(arr)
+sum(arr)          product(arr)     range(s, e, step)
+map(arr, fn)      filter(arr, fn)  reduce(arr, fn, init)
+zip(a, b)         enumerate(arr)   any(arr, fn)     all(arr, fn)
+
+// IO / TYPE
+print(x)          read_file(path)  write_file(path, content)
+file_exists(path) int(x)           float(x)         bool(x)
+str_len(s)        is_nan(x)        is_null(x)       type_of(x)
+to_json(x)        parse_json(s)    hash(x)          assert(cond)
+assert_eq(a, b)   now()            sleep(ms)        exit(code)
+
+// QUANTUM
+quantum_run(descriptor)   — execute circuit, returns JSON string
+quantum_check()           — returns 1 if Qiskit available, else 0
+H, X, Y, Z, S, T         — quantum gate identifiers
+CNOT, CX, NOT, HADAMARD  — gate identifiers
+
+// CONSTANTS
+PI   E   TAU   INFINITY   NAN
+```
+
+================================================================================
+APPENDIX C: The Aeonmi Quantum Descriptor Format
+================================================================================
+
+CODE:
+```
+// FORMAT: "n_q n_c shots op_count  [type target control] * op_count"
+//
+// FIELDS:
+//   n_q      — number of qubits (int)
+//   n_c      — number of classical bits (int)
+//   shots    — measurement repetitions (int)
+//   op_count — number of operations (int)
+//
+// OPERATION: three integers [type] [target] [control]
+//   type:    0=H  1=X  2=Y  3=Z  4=CX/CNOT  5=S  6=T  7=MEASURE
+//   target:  qubit index (0-based)
+//   control: qubit index for two-qubit gates; -1 for single-qubit gates
+//
+// EXAMPLES:
+// Single qubit H + measure:     "1 1 100 2   0 0 -1   7 0 0"
+// X gate + measure:             "1 1 100 2   1 0 -1   7 0 0"
+// Bell state (standard):        "2 2 512 4   0 0 -1   4 1 0   7 0 0   7 1 1"
+// GHZ state (3 qubits):         "3 3 1024 6  0 0 -1   4 1 0   4 2 0   7 0 0   7 1 1   7 2 2"
+// H + Z + measure:              "1 1 100 3   0 0 -1   3 0 -1   7 0 0"
+```
+
+================================================================================
+END OF PARTS 1 AND 2
+================================================================================
+
+Total chapters: 18 (Part 1: Chapters 1–9, Part 2: Chapters 10–18)
+Total exercises: 22 (all with numbered titles and solutions)
+Appendices: 3 (CLI commands, built-in functions, quantum descriptor format)
+
+Authors: AEONMI INC — Warren Williams + Mother AI
+EIN: 41-4625361
+Date: 2026-04-05
+
+================================================================================
+================================================================================
+## CHAPTER SUPPLEMENT: QUBE File Format — Complete Reference
+================================================================================
+================================================================================
+
+SUPPLEMENT_NOTE:
+This supplement corrects and extends Chapters 12–18 with the confirmed QUBE
+grammar sourced directly from the VSCode extension specification (vscode-aeonmi/,
+authoritative from aeonmi-copilot-test-bug-for-alias.zip). All syntax shown here
+is canonical — verified against the extension's TextMate grammar (qube.tmLanguage),
+snippet file (qube.json), and language configuration (qube-language-configuration.json).
+
+================================================================================
+### SECTION: .qube Is a Separate File Format
+================================================================================
+
+BODY:
+The most important correction to absorb from Chapters 12–18 is this: .qube is not
+a dialect of .ai. It is a completely separate file format with its own syntax,
+its own keyword set, its own comment glyphs, and its own execution model. Files
+with the .qube extension are processed by the `aeonmi qube` command, not by
+`aeonmi run` or `aeonmi native`.
+
+The confusion arises because both formats live in the same Aeonmi ecosystem and
+both deal with quantum concepts. But the distinction is sharp:
+
+- A .ai file is an imperative program. It uses function definitions, let
+  declarations, control flow (if/else/while), the standard library, and calls
+  quantum_run() with a descriptor string to delegate circuit execution to Qiskit.
+
+- A .qube file is a quantum circuit description. It has no functions, no loops,
+  and no general-purpose programming constructs. It expresses quantum state
+  initialization, gate application, measurement collapse, and assertion — nothing
+  more and nothing less. It reads like a circuit schematic written in a language
+  that humans and AI can both author and reason about directly.
+
+The relationship is analogous to the difference between a C program (imperative,
+general-purpose) and an assembly listing (low-level, structural). A .ai program
+can orchestrate .qube execution; a .qube file cannot call back into .ai.
+
+BODY:
+The second critical distinction is syntactic. .qube does not use the function/fn
+declaration pattern. There are no variable declarations with let. There are no
+curly-brace blocks. Statements are written one per line, and the language has
+exactly six keywords: state, apply, collapse, assert, log, and print.
+
+This minimalism is intentional. A quantum circuit description has a natural
+sequential structure (initialize → transform → measure → verify) that maps
+directly onto the QUBE keyword sequence. The format is designed so that an AI
+system can generate a correct .qube file by following a simple template — no
+scope tracking, no type inference, no operator precedence to reason about.
+
+================================================================================
+### SECTION: The Six QUBE Keywords
+================================================================================
+
+BODY:
+QUBE has exactly six keywords. Each has one job. They are listed below with their
+precise syntax and semantics.
+
+--- state ---
+
+state declares and initializes a qubit. The name can be any valid identifier,
+including Greek letter names (q, q0, q1, ψ, φ, α, β are all legal).
+
+Syntax:
+  state <name> = <qubit_literal>
+  state <name> = <amplitude>|0⟩ + <amplitude>|1⟩
+
+The first form initializes to a basis state. The second form initializes to an
+explicit superposition with amplitudes. Amplitudes are floating-point numbers.
+The conventional normalized amplitude for a 50/50 superposition is 0.707
+(which is 1/√2 to three decimal places).
+
+CODE:
+```
+∴ state declarations — basic forms
+state q0 = |0⟩
+state q1 = |1⟩
+state q2 = |+⟩
+state q3 = |−⟩
+
+∴ state with Greek letter identifier
+state ψ = |0⟩
+
+∴ explicit superposition state
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+∴ general state with amplitude variables α and β
+state φ = 0.6|0⟩ + 0.8|1⟩
+```
+
+--- apply ---
+
+apply applies a quantum gate to one or more qubits. The arrow syntax -> is
+mandatory — QUBE does not use function-call style for single-qubit gates. For
+two-qubit gates (CNOT, CZ, SWAP), parentheses carry the control and target.
+
+Syntax:
+  apply <GATE> -> <qubit>                      (single-qubit gate)
+  apply <GATE>(<control>, <target>)            (two-qubit gate)
+  apply <GATE>(<angle>) -> <qubit>             (rotation gate)
+
+CODE:
+```
+∴ single-qubit gates — arrow syntax
+apply H -> q0
+apply X -> q1
+apply Y -> q0
+apply Z -> q1
+apply S -> q0
+apply T -> q0
+
+∴ two-qubit gates — parenthesis syntax
+apply CNOT(q0, q1)
+apply CZ(q0, q1)
+apply SWAP(q0, q1)
+
+∴ rotation gates — angle in radians
+apply Rx(1.5708) -> q0
+apply Ry(3.1416) -> q0
+apply Rz(0.7854) -> q0
+```
+
+--- collapse ---
+
+collapse measures a qubit and stores the classical result. After collapse, the
+qubit is no longer in superposition — it has taken a definite value (0 or 1).
+
+Syntax:
+  collapse <qubit> -> <result_name>
+
+CODE:
+```
+collapse q0 -> r0
+collapse q1 -> r1
+```
+
+--- assert ---
+
+assert verifies that a measurement result belongs to a valid set. The set
+membership operator ∈ is native to QUBE syntax. This is the standard way to
+confirm that a collapse produced a valid quantum measurement outcome.
+
+Syntax:
+  assert <result> ∈ {<value>, <value>, ...}
+  assert <result> == <value>
+  assert <result> != <value>
+
+CODE:
+```
+∴ standard quantum measurement assertion
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+
+∴ deterministic outcome assertion (after X gate)
+assert r0 == 1
+
+∴ inequality assertion
+assert r0 != 2
+```
+
+--- log and print ---
+
+log and print both emit output. log is the preferred QUBE output keyword — it
+maps directly to the QUBE snippet. print is also valid and supported by the
+extension's syntax highlighting as a QUBE builtin. In practice, use log inside
+.qube files and print inside .ai files to keep the formats visually distinct,
+though both work in both contexts.
+
+Syntax:
+  log(<value>)
+  print(<value>)
+
+CODE:
+```
+log(r0)
+log(r1)
+print(r0)
+```
+
+================================================================================
+### SECTION: Gate Reference — All 12 QUBE Gates
+================================================================================
+
+BODY:
+The VSCode extension highlights the following 12 gate names as support.function
+tokens in .qube files. This is the complete and confirmed gate set.
+
+CODE:
+```
+∴ QUBE Gate Reference
+∴ All 12 gates are highlighted as support.function by the VSCode extension
+
+∴ --- Single-Qubit Gates ---
+
+∴ H — Hadamard gate
+∴ Transforms |0⟩ to (|0⟩ + |1⟩)/√2 (creates superposition)
+∴ Transforms |1⟩ to (|0⟩ - |1⟩)/√2
+apply H -> q
+
+∴ X — Pauli-X gate (quantum NOT gate)
+∴ Flips |0⟩ to |1⟩ and |1⟩ to |0⟩
+apply X -> q
+
+∴ Y — Pauli-Y gate
+∴ Combines bit flip and phase flip
+apply Y -> q
+
+∴ Z — Pauli-Z gate
+∴ Phase flip: |0⟩ unchanged, |1⟩ gains factor of -1
+apply Z -> q
+
+∴ S — S gate (phase gate)
+∴ Phase rotation by π/2. S = Z^(1/2)
+apply S -> q
+
+∴ T — T gate
+∴ Phase rotation by π/4. T = Z^(1/4)
+apply T -> q
+
+∴ Rx — Rotation around X-axis
+∴ Rx(θ): rotation by angle θ (radians) around X
+apply Rx(1.5708) -> q
+
+∴ Ry — Rotation around Y-axis
+∴ Ry(θ): rotation by angle θ (radians) around Y
+apply Ry(1.5708) -> q
+
+∴ Rz — Rotation around Z-axis
+∴ Rz(θ): rotation by angle θ (radians) around Z
+apply Rz(1.5708) -> q
+
+∴ --- Two-Qubit Gates ---
+
+∴ CNOT — Controlled-NOT (also called CX)
+∴ Flips target if control is |1⟩
+∴ Syntax: apply CNOT(control, target)
+apply CNOT(q0, q1)
+
+∴ CZ — Controlled-Z
+∴ Phase flip on target if control is |1⟩
+apply CZ(q0, q1)
+
+∴ SWAP — Swap gate
+∴ Exchanges the states of two qubits
+apply SWAP(q0, q1)
+```
+
+NOTE: In .ai files, the quantum gate identifiers H, X, Y, Z, S, T, CNOT, CX,
+NOT, HADAMARD appear in the quantum_run() descriptor format (numeric encoding)
+and in the print statements used to document circuits. They are not called
+directly as functions in .ai. In .qube files they appear as the operand of
+apply and are highlighted as first-class language tokens.
+
+================================================================================
+### SECTION: Comment Glyphs — ∴ and ∵ (QUBE-Exclusive)
+================================================================================
+
+BODY:
+QUBE has three comment forms. Two of them — using the Unicode mathematical
+glyphs ∴ (therefore) and ∵ (because) — are unique to .qube files and do not
+exist in .ai syntax.
+
+CODE:
+```
+∴ This is a "therefore" comment — use it to annotate conclusions,
+∴ outcomes, and the intent of what follows.
+
+∵ This is a "because" comment — use it to explain preconditions,
+∵ the reasoning behind a gate choice, or why a state is set up a
+∵ certain way.
+
+// This is a standard line comment — works in both .ai and .qube.
+```
+
+BODY:
+The ∴ and ∵ glyphs carry semantic weight beyond ordinary comments. In quantum
+reasoning, ∴ (therefore) naturally annotates conclusions: "I measured q0, ∴ the
+entangled state collapsed." The ∵ (because) naturally annotates preconditions:
+"∵ we need superposition, apply H first." This alignment between mathematical
+logic notation and quantum circuit structure is deliberate — it is part of the
+QUBE design philosophy that the language should be legible to both AI and human
+readers without disambiguation.
+
+The VSCode extension highlights both glyphs as comment.line tokens in .qube
+files only. They are not valid comment syntax in .ai files — the .ai lexer
+recognizes only //.
+
+TIP: Use ∴ at the top of a .qube file as the title comment (as the confirmed
+Bell state snippet does: ∴ Bell state). Use ∵ inline to justify non-obvious
+gate choices. Use // for general remarks. All three can coexist in one file.
+
+================================================================================
+### SECTION: Superposition State Syntax and Greek Letter Identifiers
+================================================================================
+
+BODY:
+QUBE supports Greek letter characters as valid identifier characters. The
+identifier regex used by the extension is:
+
+  [a-zA-Z_α-ωΑ-Ω][a-zA-Z0-9_α-ωΑ-Ω]*
+
+This means α, β, γ, δ, ψ, φ, Φ, Ψ and all other Greek letters are legal
+variable names without escaping or quoting. This enables quantum programs to
+use the same notation as quantum physics textbooks.
+
+CODE:
+```
+∴ Greek letter identifiers in QUBE
+
+∵ ψ (psi) is conventionally used for general quantum states
+state ψ = |0⟩
+
+∵ α and β are conventional probability amplitudes
+∵ |α|² + |β|² = 1 for a normalized state
+state φ = 0.6|0⟩ + 0.8|1⟩
+
+∵ Equal superposition: amplitude 1/√2 ≈ 0.707
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+apply H -> ψ
+collapse ψ -> r
+assert r ∈ {0, 1}
+log(r)
+```
+
+BODY:
+The superposition state syntax is:
+
+  state <name> = <float>|0⟩ + <float>|1⟩
+
+The qubit literals |0⟩, |1⟩, |+⟩, |−⟩, |ψ⟩ use the Unicode angle bracket
+characters ⟩ (U+27E9, mathematical right angle bracket), not the ASCII greater-
+than character >. The VSCode extension's TextMate grammar matches any |..⟩
+pattern as a qubit.literal token.
+
+NOTE: The normalized amplitude for equal superposition is 1/√2. In decimal:
+  1/√2 = 0.7071067811865476...
+The QUBE snippet uses 0.707. Using more decimal places (0.7071, 0.70711) is
+equally valid and does not affect the circuit semantics — the QUBE processor
+interprets the amplitude as a floating-point weight, not as an exact fractional.
+
+================================================================================
+### SECTION: Array Genesis in .ai Files — ⧉a‥b‥c⧉ Syntax
+================================================================================
+
+BODY:
+Array genesis is a .ai feature, not a .qube feature. It is documented here
+because it appears in the VSCode extension spec and is often confused with
+quantum syntax due to its use of the ⧉ glyph (which also appears as the
+"entanglement symbol" in the quantum operator list).
+
+In .ai files, the ⧉ character serves as both the open and close bracket for
+the array genesis literal. The ‥ (two-dot ellipsis, U+2025) separates elements.
+
+CODE:
+```
+∴ Array genesis syntax in .ai files
+
+// Standard array declaration
+let arr1 = [1, 2, 3];
+
+// Array genesis syntax (glyph form — equivalent result)
+let arr2 = ⧉1‥2‥3⧉;
+
+// String elements
+let arr3 = ⧉"alpha"‥"beta"‥"gamma"⧉;
+
+// Mixed (the VM accepts mixed-type arrays)
+let arr4 = ⧉42‥"hello"‥true⧉;
+
+// The arr snippet in VSCode expands to ⧉a‥b‥c⧉
+// which serves as a template — replace a, b, c with your values
+```
+
+NOTE: The ⧉ glyph is highlighted differently depending on file type. In .ai
+files, the extension's TextMate grammar recognizes it as keyword.other.glyph.
+In documentation and quantum reasoning contexts it is also used as an
+entanglement symbol, but in the array genesis literal it is purely a bracket.
+Do not confuse the array genesis ⧉...⧉ construct with the quantum entangle()
+built-in function call — they are unrelated.
+
+================================================================================
+### SECTION: fn vs function — Both Forms Are Valid
+================================================================================
+
+BODY:
+The VSCode extension snippets use fn as the canonical short form for function
+declarations. The fn snippet expands to:
+
+  fn name(args) {
+  }
+
+The textbook Chapters 1–11 use function (the long form) throughout, which is
+the runtime-compatible form confirmed to work in all VM versions. Both are
+valid; they are aliases in the current Aeonmi VM.
+
+The confirmed entry point pattern from the main snippet is:
+
+CODE:
+```
+fn main() {
+    // program body here
+}
+return main();
+```
+
+NOTE: The return main(); at the end is part of the confirmed snippet pattern.
+It is a top-level return statement that triggers execution of main() and
+returns its result from the file scope. Both main(); (call without return) and
+return main(); (call with return) work in the current VM. The fn + return main()
+pattern is the canonical form from the VSCode snippet; the function + main()
+call pattern is the canonical form from the existing textbook chapters. Either
+works — use whichever is consistent with your codebase style.
+
+TIP: For new files created using the VSCode extension's main snippet, you will
+get fn and return main(). For files that follow the textbook examples, you will
+see function and main(). Do not mix the two styles within a single file — pick
+one and be consistent.
+
+================================================================================
+### SECTION: Tensor Product and Symbolic Binding Operators
+================================================================================
+
+BODY:
+Two additional glyph operators appear in .ai quantum programs that are worth
+understanding explicitly.
+
+⊗ (tensor product, U+2297): In quantum mechanics, the tensor product combines
+two quantum state spaces. In Aeonmi, ⊗ is a recognized operator token used in
+quantum symbolic programs. Example: a ⊗ b represents the combined state of
+qubits a and b before entanglement.
+
+↦ (symbolic binding, U+21A6): The "maps to" arrow. Used to express functional
+mappings or symbolic bindings that are distinct from ordinary = assignment.
+Example: name ↦ value binds name to value in a declarative, math-style way.
+
+Both ⊗ and ↦ are highlighted as keyword.operator.glyph tokens by the VSCode
+extension's .ai grammar. They do not appear in .qube files.
+
+CODE:
+```
+// Tensor product and binding in .ai
+fn main() {
+    // Tensor product — symbolic combination of states
+    let combined = "|0⟩" ⊗ "|1⟩";
+    print("Combined state: " + combined);
+
+    // Symbolic binding — mathematical "maps to"
+    let transform ↦ "H gate transforms |0⟩ to superposition";
+    print(transform);
+}
+return main();
+```
+
+================================================================================
+### SECTION: The Confirmed Bell State Circuit — Complete .qube Example
+================================================================================
+
+BODY:
+The following is the complete, confirmed Bell state circuit in .qube format,
+sourced directly from the bell snippet in the VSCode extension's qube.json
+snippet file. This is the canonical reference implementation.
+
+CODE:
+```
+∴ Bell state
+state q0 = |0⟩
+state q1 = |0⟩
+apply H -> q0
+apply CNOT(q0, q1)
+collapse q0 -> r0
+collapse q1 -> r1
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+log(r0)
+log(r1)
+```
+
+BODY:
+Reading this circuit line by line:
+
+1. ∴ Bell state — a "therefore" comment used as the circuit title.
+
+2. state q0 = |0⟩ — Initialize qubit q0 in the ground state |0⟩.
+
+3. state q1 = |0⟩ — Initialize qubit q1 in the ground state |0⟩.
+   Both qubits start in a definite classical state before any quantum
+   operations are applied.
+
+4. apply H -> q0 — Apply the Hadamard gate to q0. After this operation,
+   q0 is in superposition: (|0⟩ + |1⟩)/√2. q1 is still |0⟩.
+   The -> arrow syntax is mandatory in QUBE for single-qubit gates.
+
+5. apply CNOT(q0, q1) — Apply CNOT with q0 as control and q1 as target.
+   Because q0 is in superposition, the CNOT creates entanglement.
+   The combined state becomes (|00⟩ + |11⟩)/√2 — the |Φ+⟩ Bell state.
+
+6. collapse q0 -> r0 — Measure q0. The result is stored as r0 (0 or 1).
+   This collapses the entangled state — both qubits simultaneously take
+   definite values.
+
+7. collapse q1 -> r1 — Measure q1. Result stored as r1. Due to
+   entanglement, r1 == r0 always: if r0 is 0, r1 is 0; if r0 is 1,
+   r1 is 1. You never get r0=0, r1=1 or r0=1, r1=0.
+
+8. assert r0 ∈ {0, 1} — Verify that r0 is a valid quantum measurement
+   result. The ∈ operator is native QUBE syntax.
+
+9. assert r1 ∈ {0, 1} — Same verification for r1.
+
+10. log(r0), log(r1) — Output both results.
+
+NOTE: Save this circuit as bell.qube and run it with:
+  aeonmi qube bell.qube
+This invokes the qube module (src/qube/) which parses the QUBE syntax and
+processes the circuit. This is separate from `aeonmi run bell.ai` — the qube
+subcommand is the correct executor for .qube files.
+
+================================================================================
+### SECTION: Syntax Comparison Table — .ai vs .qube
+================================================================================
+
+BODY:
+This table covers the most common operations in both formats so you can
+translate between them and understand when to use each file type.
+
+CODE:
+```
+OPERATION              | .ai SYNTAX                      | .qube SYNTAX
+-----------------------|---------------------------------|---------------------------
+Initialize qubit       | qubit q;                        | state q = |0⟩
+                       | let q = "|0>";                  | state q = |1⟩
+-----------------------|---------------------------------|---------------------------
+Superposition state    | superpose(q);                   | state ψ = 0.707|0⟩ + 0.707|1⟩
+                       | (or via descriptor: H gate)     |
+-----------------------|---------------------------------|---------------------------
+Apply Hadamard         | -- (encoded in descriptor) --   | apply H -> q
+Apply X gate           | -- (encoded in descriptor) --   | apply X -> q
+Apply CNOT             | -- (encoded in descriptor) --   | apply CNOT(q0, q1)
+-----------------------|---------------------------------|---------------------------
+Entangle two qubits    | entangle(q0, q1);               | apply CNOT(q0, q1)
+                       | (or CNOT in descriptor)         | (after apply H -> q0)
+-----------------------|---------------------------------|---------------------------
+Measure / collapse     | let r = measure(q);             | collapse q -> r
+                       | or: quantum_run(descriptor)     |
+-----------------------|---------------------------------|---------------------------
+Assert valid result    | assert_eq(r, 0);                | assert r ∈ {0, 1}
+                       | if r != 0 { ... }               | assert r == 0
+-----------------------|---------------------------------|---------------------------
+Print output           | print(r);                       | log(r)
+                       |                                 | print(r)
+-----------------------|---------------------------------|---------------------------
+Line comment           | // comment                      | // comment
+                       |                                 | ∴ therefore comment
+                       |                                 | ∵ because comment
+-----------------------|---------------------------------|---------------------------
+Array literal          | [1, 2, 3]                       | -- not applicable --
+                       | ⧉1‥2‥3⧉                        |
+-----------------------|---------------------------------|---------------------------
+Tensor product         | a ⊗ b                           | -- not applicable --
+Symbolic binding       | name ↦ value                    | -- not applicable --
+-----------------------|---------------------------------|---------------------------
+Function definition    | fn name(args) { }               | -- not applicable --
+                       | function name(args) { }         | (QUBE has no functions)
+-----------------------|---------------------------------|---------------------------
+Entry point            | fn main() { }                   | -- not applicable --
+                       | return main();                  | (QUBE is top-level only)
+-----------------------|---------------------------------|---------------------------
+Run quantum circuit    | quantum_run(descriptor)         | (entire file is circuit)
+                       | (Qiskit required or dry-run)    |
+-----------------------|---------------------------------|---------------------------
+Import                 | import name from "./path";      | -- not applicable --
+-----------------------|---------------------------------|---------------------------
+Greek letter names     | valid (ψ, φ, α, β etc.)         | valid (ψ, φ, α, β etc.)
+-----------------------|---------------------------------|---------------------------
+Valid file extension   | .ai                             | .qube
+Run command            | aeonmi run file.ai              | aeonmi qube file.qube
+                       | aeonmi native file.ai           |
+```
+
+================================================================================
+### SECTION: Installing the VSCode Extension for Aeonmi Development
+================================================================================
+
+BODY:
+The Aeonmi VSCode extension (vscode-aeonmi) provides syntax highlighting,
+bracket matching, and code snippets for both .ai and .qube files. It supports:
+
+- Full syntax highlighting for .ai files: keywords, quantum keywords, glyph
+  operators, string literals, numbers, comments, and builtin functions
+- Full syntax highlighting for .qube files: QUBE keywords, gate names, qubit
+  literals, glyph comment tokens (∴ ∵), and the ∈ operator
+- Code snippets with tab stops for both .ai and .qube (see snippet tables below)
+- Auto-closing bracket pairs: () [] {} ⟨⟩ and the ⧉ glyph (matches itself)
+- Word pattern for Greek letter identifiers (enables correct word selection)
+
+--- Method 1: Manual Directory Installation ---
+
+This is the fastest method during development. Copy the extension folder
+directly into VSCode's extensions directory.
+
+CODE:
+```
+// Windows:
+// Source folder: vscode-aeonmi/  (from the Aeonmi project root)
+// Destination:   %USERPROFILE%\.vscode\extensions\aeonmi-0.1.0\
+
+// Using File Explorer: copy vscode-aeonmi/ to:
+//   C:\Users\<your-username>\.vscode\extensions\aeonmi-0.1.0\
+
+// Using terminal (PowerShell or cmd from the Aeonmi project root):
+// xcopy /E /I vscode-aeonmi "%USERPROFILE%\.vscode\extensions\aeonmi-0.1.0"
+
+// After copying, restart VSCode completely (not just reload window).
+// Open any .ai or .qube file — syntax highlighting should activate.
+```
+
+CODE:
+```
+// macOS / Linux:
+// Destination: ~/.vscode/extensions/aeonmi-0.1.0/
+cp -r vscode-aeonmi ~/.vscode/extensions/aeonmi-0.1.0
+// Restart VSCode.
+```
+
+--- Method 2: Install from VSIX Package ---
+
+If the extension has been packaged as a .vsix file, use the VSCode CLI:
+
+CODE:
+```
+code --install-extension aeonmi-0.1.0.vsix
+```
+
+Or via the VSCode UI: Extensions panel → three-dot menu (top right) →
+"Install from VSIX..." → select the .vsix file.
+
+--- Method 3: Build the VSIX from Source ---
+
+If you have the vscode-aeonmi/ source folder and want to build the .vsix
+yourself, you need the vsce packaging tool from npm.
+
+CODE:
+```
+// Step 1: Install Node.js if not already installed (nodejs.org)
+
+// Step 2: Install the vsce packaging tool globally
+npm install -g @vscode/vsce
+
+// Step 3: Navigate to the extension source folder
+cd vscode-aeonmi
+
+// Step 4: Package the extension
+vsce package
+
+// This produces aeonmi-0.1.0.vsix in the current directory.
+
+// Step 5: Install it
+code --install-extension aeonmi-0.1.0.vsix
+```
+
+NOTE: The vscode-aeonmi/ folder is located in the Aeonmi project root alongside
+src/, examples/, and Aeonmi_Master/. It is a self-contained VSCode extension
+package with a package.json, syntaxes/ subfolder (containing the TextMate
+grammar files aeonmi.tmLanguage and qube.tmLanguage), and a snippets/ subfolder
+(containing aeonmi.json and qube.json). No compilation step is required — the
+extension is pure JSON/XML configuration.
+
+--- Verifying the Installation ---
+
+CODE:
+```
+// Verification steps after installation:
+//
+// 1. Open VSCode
+// 2. File → New File → save as test.ai
+// 3. Type: fn main() {
+//    The { should auto-close to {}
+// 4. Type: let x =
+//    The snippet should offer let → let name = ;
+// 5. Open a new file, save as test.qube
+// 6. Type: state q0
+//    The keyword state should highlight differently from identifiers
+// 7. Type: ∴
+//    The therefore glyph should highlight as a comment token
+// 8. In the .qube file, type bell and press Tab
+//    The complete Bell state snippet should expand
+```
+
+--- Available Snippets (.ai files) ---
+
+CODE:
+```
+TRIGGER | EXPANDS TO
+--------|------------------------------------------
+fn      | fn name(args) { }
+let     | let name = ;
+if      | if (condition) { } else { }
+while   | while (condition) { }
+qubit   | qubit name;
+superpose | superpose(qubit);
+entangle  | entangle(q1, q2);
+measure   | let result = measure(qubit);
+arr     | ⧉a‥b‥c⧉
+tensor  | a ⊗ b
+bind    | name ↦ value
+main    | fn main() { }  return main();
+import  | import name from "./path";
+```
+
+--- Available Snippets (.qube files) ---
+
+CODE:
+```
+TRIGGER   | EXPANDS TO
+----------|------------------------------------------
+state     | state name = |0⟩
+super     | state ψ = 0.707|0⟩ + 0.707|1⟩
+apply     | apply H -> q
+cnot      | apply CNOT(control, target)
+collapse  | collapse q -> result
+assert    | assert result ∈ {0, 1}
+log       | log(value)
+bell      | (full Bell state circuit — 10 lines)
+```
+
+================================================================================
+### SECTION: QUBE Exercise S1 — Single-Qubit Superposition and Measurement
+================================================================================
+
+EXERCISE_TITLE: Supplement Exercise S1 — Superposition in QUBE
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a .qube file called superposition.qube that:
+1. Declares a qubit ψ as an explicit superposition with equal amplitudes
+2. Applies a Z gate to ψ (phase flip — does not change measurement probabilities)
+3. Applies an S gate to ψ (π/2 phase rotation)
+4. Collapses ψ and stores the result as r
+5. Asserts r is a valid measurement
+6. Logs the result
+Use ∵ comments to explain each gate choice. Use a ∴ comment as the file title.
+
+EXERCISE_SOLUTION:
+```
+∴ Superposition with Phase Operations
+
+∵ initialize ψ in equal superposition: amplitude 1/√2 on each basis state
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+∵ Z gate applies a phase flip: |1⟩ component gains factor -1
+∵ this does not change measurement outcome probabilities
+apply Z -> ψ
+
+∵ S gate applies a π/2 phase rotation to the |1⟩ component
+∵ S = diag(1, i) in matrix form
+apply S -> ψ
+
+∵ collapse ψ to a classical bit — superposition resolves to 0 or 1
+collapse ψ -> r
+
+∵ verify the measurement is a valid qubit outcome
+assert r ∈ {0, 1}
+
+∵ output the result
+log(r)
+```
+
+EXERCISE_NOTE:
+Run with: aeonmi qube superposition.qube
+
+After the Z gate and S gate, the qubit is still in a 50/50 superposition of
+|0⟩ and |1⟩. The phase operations change the relative phase of the amplitudes
+but do not affect the measurement probability distribution — you still expect
+approximately 50% chance of measuring 0 and 50% of measuring 1. Phase matters
+when combining with further gates (e.g., another H would turn phase differences
+into amplitude differences), but measurement alone cannot distinguish phase.
+
+================================================================================
+### SECTION: QUBE Exercise S2 — GHZ State in Three Qubits
+================================================================================
+
+EXERCISE_TITLE: Supplement Exercise S2 — Three-Qubit GHZ State in QUBE
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a .qube file called ghz.qube that creates a three-qubit GHZ (Greenberger-
+Horne-Zeilinger) state. The GHZ state is the three-qubit analog of the Bell
+state: (|000⟩ + |111⟩)/√2. The circuit is:
+  H on q0
+  CNOT with q0 as control, q1 as target
+  CNOT with q0 as control, q2 as target
+  Measure all three qubits
+
+Include proper ∴ and ∵ comments. Assert all three results. Log all three.
+After the circuit, add a ∴ comment explaining what the expected measurement
+outcomes are and why.
+
+EXERCISE_SOLUTION:
+```
+∴ GHZ State — Three-Qubit Maximal Entanglement
+
+∵ initialize all three qubits in ground state
+state q0 = |0⟩
+state q1 = |0⟩
+state q2 = |0⟩
+
+∵ Hadamard on q0 creates superposition: q0 = (|0⟩ + |1⟩)/√2
+∵ combined state becomes (|000⟩ + |100⟩)/√2
+apply H -> q0
+
+∵ CNOT with q0 as control, q1 as target
+∵ |000⟩ → |000⟩ (control is 0, no flip)
+∵ |100⟩ → |110⟩ (control is 1, target flips)
+∵ combined state becomes (|000⟩ + |110⟩)/√2
+apply CNOT(q0, q1)
+
+∵ CNOT with q0 as control, q2 as target
+∵ |000⟩ → |000⟩ (control is 0, no flip)
+∵ |110⟩ → |111⟩ (control is 1, target flips)
+∵ combined state is now (|000⟩ + |111⟩)/√2 — the GHZ state
+apply CNOT(q0, q2)
+
+∵ collapse all three qubits
+collapse q0 -> r0
+collapse q1 -> r1
+collapse q2 -> r2
+
+∵ all results must be valid quantum measurements
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+assert r2 ∈ {0, 1}
+
+∵ output all three results
+log(r0)
+log(r1)
+log(r2)
+
+∴ Expected outcomes: always (0, 0, 0) or (1, 1, 1) — never mixed
+∴ This is the GHZ signature: all three qubits correlated simultaneously
+∴ In 1024 shots: approximately 512 as "000" and 512 as "111"
+∴ Any result like "001", "010", "100", "110" etc. would indicate an error
+```
+
+================================================================================
+### SECTION: QUBE Exercise S3 — Rotation Gates and the Bloch Sphere
+================================================================================
+
+EXERCISE_TITLE: Supplement Exercise S3 — Rotation Gates in QUBE
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY:
+Write a .qube file called rotations.qube that demonstrates all three rotation
+gates (Rx, Ry, Rz). For each rotation gate, declare a fresh qubit, apply the
+rotation with an angle of π/2 radians (approximately 1.5708), collapse it, and
+log the result. Use ∵ comments to explain what each rotation does to the qubit
+state on the Bloch sphere. Then write a second circuit that approximates the
+Hadamard gate using an Ry rotation followed by a Z gate: Ry(π/2) then Z gives
+approximately the same effect as H (up to a global phase). Show this in QUBE
+syntax with appropriate comments.
+
+EXERCISE_SOLUTION:
+```
+∴ Rotation Gates — Bloch Sphere Demonstrations
+
+∵ === Rx rotation ===
+∵ Rx(θ) rotates the qubit state around the X-axis of the Bloch sphere
+∵ Rx(π/2) takes |0⟩ partway toward |1⟩: result is (|0⟩ - i|1⟩)/√2
+state α = |0⟩
+apply Rx(1.5708) -> α
+collapse α -> r_rx
+assert r_rx ∈ {0, 1}
+log(r_rx)
+
+∵ === Ry rotation ===
+∵ Ry(θ) rotates around the Y-axis
+∵ Ry(π/2) takes |0⟩ to (|0⟩ + |1⟩)/√2 — same measurement distribution as H
+∵ but different phase structure (no imaginary component in amplitudes)
+state β = |0⟩
+apply Ry(1.5708) -> β
+collapse β -> r_ry
+assert r_ry ∈ {0, 1}
+log(r_ry)
+
+∵ === Rz rotation ===
+∵ Rz(θ) rotates around the Z-axis — pure phase rotation
+∵ Rz does not change |0⟩ measurement probability; applied to |0⟩ it is
+∵ equivalent to identity as far as measurement is concerned
+state φ = |0⟩
+apply H -> φ
+apply Rz(1.5708) -> φ
+collapse φ -> r_rz
+assert r_rz ∈ {0, 1}
+log(r_rz)
+
+∵ === H approximation via Ry + Z ===
+∵ The Hadamard gate H = Z * Ry(π/2) up to global phase
+∵ Ry(π/2) rotates from |0⟩ toward the equator of the Bloch sphere
+∵ Z then flips the phase of the |1⟩ component
+∵ Combined effect is equivalent to H for single-qubit circuits
+state ψ = |0⟩
+apply Ry(1.5708) -> ψ
+apply Z -> ψ
+collapse ψ -> r_h_approx
+assert r_h_approx ∈ {0, 1}
+log(r_h_approx)
+
+∴ Expected: all four measurements show ~50% chance of 0 and 50% chance of 1
+∴ Rx(π/2) and Ry(π/2) both create equal superpositions (different phase)
+∴ Rz applied to superposition creates superposition with rotated phase
+∴ The Ry+Z combination approximates H in measurement statistics
+```
+
+================================================================================
+### SECTION: Appendix D — QUBE Quick Reference Card
+================================================================================
+
+BODY:
+This appendix supplements the existing Appendices A–C with a dedicated quick
+reference for .qube file syntax.
+
+CODE:
+```
+=== QUBE (.qube) QUICK REFERENCE ===
+
+FILE EXECUTION:
+  aeonmi qube file.qube
+
+KEYWORDS (6 total):
+  state    — declare/initialize a qubit
+  apply    — apply a quantum gate
+  collapse — measure a qubit
+  assert   — verify a result
+  log      — output a value
+  print    — output a value (alias for log in .qube)
+
+STATE SYNTAX:
+  state q = |0⟩                       basis state
+  state q = |1⟩                       excited state
+  state q = |+⟩                       positive superposition
+  state q = |−⟩                       negative superposition
+  state ψ = 0.707|0⟩ + 0.707|1⟩      explicit equal superposition
+  state φ = 0.6|0⟩ + 0.8|1⟩          explicit weighted superposition
+
+QUBIT LITERALS:
+  |0⟩  |1⟩  |+⟩  |−⟩  |ψ⟩           ⟩ is U+27E9, not ASCII >
+
+APPLY SYNTAX:
+  apply H -> q                        single-qubit: gate -> qubit
+  apply X -> q
+  apply Y -> q
+  apply Z -> q
+  apply S -> q
+  apply T -> q
+  apply Rx(1.5708) -> q               rotation: gate(angle) -> qubit
+  apply Ry(1.5708) -> q
+  apply Rz(1.5708) -> q
+  apply CNOT(q0, q1)                  two-qubit: gate(control, target)
+  apply CZ(q0, q1)
+  apply SWAP(q0, q1)
+
+COLLAPSE SYNTAX:
+  collapse q -> r                     measure q, store result in r
+
+ASSERT SYNTAX:
+  assert r ∈ {0, 1}                   set membership (∈ is U+2208)
+  assert r == 0                       equality
+  assert r != 1                       inequality
+
+OUTPUT:
+  log(r)
+  print(r)
+
+COMMENTS:
+  // standard comment
+  ∴ therefore comment  (∴ is U+2234, QUBE-only)
+  ∵ because comment    (∵ is U+2235, QUBE-only)
+
+IDENTIFIERS:
+  Standard: q, q0, q1, result, r0, r1
+  Greek:    α β γ δ ψ φ Φ Ψ (all valid without escaping)
+
+GATE NAMES (12 total):
+  Single-qubit: H  X  Y  Z  S  T  Rx  Ry  Rz
+  Two-qubit:    CNOT  CZ  SWAP
+
+COMMON PATTERNS:
+  ∴ Superposition
+  state ψ = 0.707|0⟩ + 0.707|1⟩
+  collapse ψ -> r
+  assert r ∈ {0, 1}
+  log(r)
+
+  ∴ Bell state
+  state q0 = |0⟩
+  state q1 = |0⟩
+  apply H -> q0
+  apply CNOT(q0, q1)
+  collapse q0 -> r0
+  collapse q1 -> r1
+  assert r0 ∈ {0, 1}
+  assert r1 ∈ {0, 1}
+  log(r0)
+  log(r1)
+```
+
+================================================================================
+SUPPLEMENT METADATA
+================================================================================
+
+Supplement covers: Chapters 12–18 QUBE grammar corrections and additions
+Items addressed:
+  1. .qube vs .ai as separate file formats — full dedicated section
+  2. All 6 QUBE keywords with complete syntax — state, apply, collapse,
+     assert, log, print
+  3. All 12 gate names — H, X, Y, Z, S, T, CNOT, CZ, SWAP, Rx, Ry, Rz
+  4. Arrow syntax for apply — apply H -> q (not function-call form)
+  5. ∴ and ∵ comment glyphs — unique to QUBE, full explanation
+  6. Set membership assertion — assert r ∈ {0, 1}
+  7. Confirmed Bell state circuit from snippet — complete with line-by-line
+     annotation
+  8. Superposition state syntax — state ψ = 0.707|0⟩ + 0.707|1⟩
+  9. Greek letter identifiers — α, β, ψ, φ confirmed valid
+  10. Array genesis — ⧉a‥b‥c⧉ syntax documented in .ai context
+  11. fn vs function — both valid; fn is canonical snippet form
+  12. Entry point pattern — fn main() { } return main();
+  Additional: Tensor product ⊗ and symbolic binding ↦ operators
+  Additional: VSCode extension installation — 3 methods with verification
+  Additional: .ai vs .qube comparison table — 17 operations compared
+  Additional: Snippet tables for both .ai and .qube
+  New exercises: 3 (S1 superposition, S2 GHZ state, S3 rotation gates)
+  New appendix: Appendix D — QUBE Quick Reference Card
+
+Source authority: vscode_extension_spec.txt (vscode-aeonmi/, confirmed from
+  aeonmi-copilot-test-bug-for-alias.zip)
+
+Authors: AEONMI INC — Warren Williams + Mother AI
+EIN: 41-4625361
+Supplement date: 2026-04-05
+
+================================================================================
+END OF SUPPLEMENT
+================================================================================
+
+================================================================================

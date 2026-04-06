@@ -1,0 +1,202 @@
+// QUBE Executor Circuit — Standard Quantum Algorithm Suite
+// Executed by the Aeonmi QUBE Engine
+
+meta {
+    version: "2.0",
+    name: "QUBE Standard Executor",
+    description: "Standard executor circuit running all major quantum algorithms",
+    author: "Aeonmi Core Team"
+}
+
+// === CIRCUIT 1: Bell State Preparation ===
+circuit BellPair {
+    // Creates maximally entangled Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2
+    qubit q0;
+    qubit q1;
+    H q0;
+    CNOT q0 q1;
+    measure q0 -> c0;
+    measure q1 -> c1;
+    // Expected: c0 and c1 always equal (correlated)
+}
+
+// === CIRCUIT 2: GHZ State (3-qubit entanglement) ===
+circuit GHZ3 {
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    H q0;
+    CNOT q0 q1;
+    CNOT q0 q2;
+    // Creates (|000⟩ + |111⟩)/√2
+    measure q0 -> c0;
+    measure q1 -> c1;
+    measure q2 -> c2;
+    // Expected: all three measurements always equal
+}
+
+// === CIRCUIT 3: Quantum Teleportation Protocol ===
+circuit Teleportation {
+    qubit msg;
+    qubit alice;
+    qubit bob;
+    // Step 1: Prepare message in superposition
+    H msg;
+    // Step 2: Create Bell pair for Alice and Bob
+    H alice;
+    CNOT alice bob;
+    // Step 3: Alice's Bell measurement
+    CNOT msg alice;
+    H msg;
+    // Step 4: Classical measurement
+    measure msg   -> c_msg;
+    measure alice -> c_alice;
+    // Step 5: Bob applies corrections based on classical bits
+    if c_alice { X bob; }
+    if c_msg   { Z bob; }
+    // Step 6: Verify
+    measure bob -> c_bob;
+    // c_bob should equal original msg state
+}
+
+// === CIRCUIT 4: Grover's Search Algorithm ===
+circuit GroverSearch {
+    // Search 16 items, find target=7
+    grover(16, 7);
+    // Quadratic speedup over classical linear search
+    // Classical: O(N) = O(16) queries
+    // Quantum: O(√N) = O(4) queries
+}
+
+// === CIRCUIT 5: Quantum Fourier Transform ===
+circuit QFT4 {
+    // 4-qubit QFT
+    qft(4);
+    // Maps computational basis to frequency domain
+    // Foundation of Shor's algorithm and phase estimation
+}
+
+// === CIRCUIT 6: Shor's Factoring ===
+circuit ShorFactor15 {
+    // Factor N=15 = 3 × 5
+    shor(15);
+    // Exponential speedup over classical best algorithms
+}
+
+// === CIRCUIT 7: Deutsch-Jozsa Algorithm ===
+circuit DeutschJozsa2 {
+    qubit q0;
+    qubit q1;
+    qubit ancilla;
+    // Initialize ancilla in |1⟩
+    X ancilla;
+    // Apply Hadamard to all
+    H q0;
+    H q1;
+    H ancilla;
+    // Oracle (balanced function)
+    CNOT q0 ancilla;
+    CNOT q1 ancilla;
+    // Inverse Hadamard
+    H q0;
+    H q1;
+    measure q0 -> c0;
+    measure q1 -> c1;
+    // c0=c1=0 means constant function
+    // Otherwise balanced
+}
+
+// === CIRCUIT 8: Bernstein-Vazirani ===
+circuit BernsteinVazirani {
+    // Find hidden bitstring s=101 with single query
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    qubit ancilla;
+    X ancilla;
+    H q0;
+    H q1;
+    H q2;
+    H ancilla;
+    // Oracle for s=101: flip ancilla if q0·1 XOR q1·0 XOR q2·1 = 1
+    CNOT q0 ancilla;
+    CNOT q2 ancilla;
+    H q0;
+    H q1;
+    H q2;
+    measure q0 -> c0;
+    measure q1 -> c1;
+    measure q2 -> c2;
+    // Expected: c0=1, c1=0, c2=1 (bitstring 101)
+}
+
+// === CIRCUIT 9: Quantum Phase Kickback ===
+circuit PhaseKickback {
+    qubit control;
+    qubit target;
+    // Initialize target as eigenstate |+⟩
+    H target;
+    // Control qubit in superposition
+    H control;
+    // Controlled-Z creates phase kickback
+    CNOT control target;
+    Z target;
+    CNOT control target;
+    H control;
+    measure control -> c0;
+    // Reveals phase information
+}
+
+// === CIRCUIT 10: Quantum Random Number Generator ===
+circuit QRNG {
+    // Generate 8 truly random bits
+    qubit q0;
+    qubit q1;
+    qubit q2;
+    qubit q3;
+    qubit q4;
+    qubit q5;
+    qubit q6;
+    qubit q7;
+    H q0;
+    H q1;
+    H q2;
+    H q3;
+    H q4;
+    H q5;
+    H q6;
+    H q7;
+    measure q0 -> b0;
+    measure q1 -> b1;
+    measure q2 -> b2;
+    measure q3 -> b3;
+    measure q4 -> b4;
+    measure q5 -> b5;
+    measure q6 -> b6;
+    measure q7 -> b7;
+    // b7b6b5b4b3b2b1b0 = 8-bit random number
+}
+
+// === EXECUTION PLAN ===
+execute {
+    run BellPair;
+    run GHZ3;
+    run Teleportation;
+    run GroverSearch;
+    run QFT4;
+    run ShorFactor15;
+    run DeutschJozsa2;
+    run BernsteinVazirani;
+    run PhaseKickback;
+    run QRNG;
+}
+
+// === EXPECTED RESULTS ===
+expected {
+    BellPair: { c0_equals_c1: true },
+    GHZ3: { all_equal: true },
+    GroverSearch: { found: 7 },
+    ShorFactor15: { factors: [3, 5] },
+    DeutschJozsa2: { verdict: "balanced" },
+    BernsteinVazirani: { c0: 1, c1: 0, c2: 1 }
+}

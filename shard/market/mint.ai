@@ -1,0 +1,175 @@
+// NFT Mint — pure Aeonmi
+// Generate Solana-compatible NFT metadata JSON for .ai files
+
+log("=== Aeonmi NFT Mint ===");
+
+const MINT_VERSION = "1.0";
+const COLLECTION_NAME = "Aeonmi Glyphs";
+const COLLECTION_SYMBOL = "AEON";
+const ROYALTY_PERCENT = 5;
+
+function mint_compute_rarity(source_code) {
+    let len = source_code.length;
+    if len > 5000 { return "Legendary"; }
+    if len > 2000 { return "Epic"; }
+    if len > 1000 { return "Rare"; }
+    if len > 500  { return "Uncommon"; }
+    return "Common";
+}
+
+function mint_count_functions(source_code) {
+    let count = 0;
+    let parts = source_code.split("function ");
+    count = len(parts) - 1;
+    return count;
+}
+
+function mint_count_quantum(source_code) {
+    let count = 0;
+    let keywords = ["qubit", "superpose", "measure", "entangle", "grovers_search", "quantum_fourier_transform", "shors_factoring"];
+    let i = 0;
+    while i < len(keywords) {
+        if string_contains(source_code, keywords[i]) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+function mint_generate_metadata(file_path, source_code, creator_address) {
+    let file_name = file_path;
+    let parts = file_path.split("/");
+    if len(parts) > 0 { file_name = parts[len(parts) - 1]; }
+
+    let hash = sha256(source_code);
+    let token_id = hash.slice(0, 16);
+    let rarity = mint_compute_rarity(source_code);
+    let fn_count = mint_count_functions(source_code);
+    let q_count  = mint_count_quantum(source_code);
+
+    let metadata = {
+        name: COLLECTION_NAME + " #" + token_id,
+        symbol: COLLECTION_SYMBOL,
+        description: "An Aeonmi .ai script minted as an on-chain glyph. Source: " + file_name,
+        seller_fee_basis_points: ROYALTY_PERCENT * 100,
+        image: "https://aeonmi.ai/glyph/" + token_id + ".png",
+        animation_url: "https://aeonmi.ai/glyph/" + token_id + ".html",
+        external_url: "https://aeonmi.ai/glyph/" + token_id,
+        attributes: [
+            { trait_type: "Rarity",          value: rarity },
+            { trait_type: "Language",         value: "Aeonmi" },
+            { trait_type: "Source Length",    value: source_code.length },
+            { trait_type: "Functions",        value: fn_count },
+            { trait_type: "Quantum Features", value: q_count },
+            { trait_type: "Hash Prefix",      value: hash.slice(0, 8) },
+            { trait_type: "Version",          value: MINT_VERSION }
+        ],
+        properties: {
+            files: [{ uri: "https://aeonmi.ai/source/" + token_id + ".ai", type: "text/plain" }],
+            category: "code",
+            creators: [{ address: creator_address, share: 100 }]
+        },
+        collection: {
+            name: COLLECTION_NAME,
+            family: "Aeonmi Glyphs"
+        },
+        token_id: token_id,
+        source_hash: hash,
+        mint_timestamp: time_ms()
+    };
+    return metadata;
+}
+
+function mint_file(file_path, creator_address) {
+    if !file_exists(file_path) {
+        log("File not found: " + file_path);
+        return null;
+    }
+    let source = read_file(file_path);
+    return mint_generate_metadata(file_path, source, creator_address);
+}
+
+function mint_save(metadata, output_path) {
+    let json = json_stringify(metadata);
+    write_file(output_path, json);
+    log("Metadata saved to: " + output_path);
+    return json;
+}
+
+function mint_display(metadata) {
+    log("=== NFT Metadata ===");
+    log("  Name:        " + metadata.name);
+    log("  Symbol:      " + metadata.symbol);
+    log("  Token ID:    " + metadata.token_id);
+    log("  Hash:        " + metadata.source_hash.slice(0, 32) + "...");
+    log("  Image:       " + metadata.image);
+    log("  Attributes:");
+    let i = 0;
+    while i < metadata.len(attributes) {
+        let a = metadata.attributes[i];
+        log("    " + a.trait_type + ": " + toString(a.value));
+        i = i + 1;
+    }
+}
+
+function mint_batch(file_paths, creator_address) {
+    let minted = [];
+    let i = 0;
+    while i < len(file_paths) {
+        let path = file_paths[i];
+        if file_exists(path) {
+            let source = read_file(path);
+            let meta = mint_generate_metadata(path, source, creator_address);
+            minted.push(meta);
+            log("Minted: " + meta.name + " [" + meta.token_id + "]");
+        } else {
+            log("Skipped (not found): " + path);
+        }
+        i = i + 1;
+    }
+    log("Batch minted: " + toString(len(minted)) + " NFTs");
+    return minted;
+}
+
+function mint_collection_manifest(minted_nfts, collection_name) {
+    let manifest = {
+        collection: collection_name,
+        symbol: COLLECTION_SYMBOL,
+        total_supply: len(minted_nfts),
+        items: [],
+        created_at: time_ms()
+    };
+    let i = 0;
+    while i < len(minted_nfts) {
+        let m = minted_nfts[i];
+        manifest.items.push({ id: m.token_id, name: m.name, hash: m.source_hash.slice(0, 16) });
+        i = i + 1;
+    }
+    return manifest;
+}
+
+// --- Demo ---
+log("");
+log(">>> Mint demo (inline source) <<<");
+let sample_source = "// Sample Aeonmi script\nfunction hello() {\n    log('Hello Aeonmi!');\n}\nqubit q;\nsuperpose(q);\nlet m = measure(q);\nlog(m);\nhello();\n";
+let creator = sha256("creator_wallet_seed").slice(0, 44);
+let meta = mint_generate_metadata("demo.ai", sample_source, creator);
+mint_display(meta);
+
+log("");
+log(">>> JSON Output <<<");
+let json_out = json_stringify(meta);
+log(json_out.slice(0, 200) + "...");
+
+log("");
+log(">>> Rarity system <<<");
+let rarities = [100, 600, 1200, 2500, 6000];
+let rarity_labels = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
+let i = 0;
+while i < len(rarities) {
+    let fake_source = string_repeat("x", rarities[i]);
+    log("  " + toString(rarities[i]) + " chars -> " + mint_compute_rarity(fake_source));
+    i = i + 1;
+}
+
+log("");
+log("=== Mint demo complete ===");

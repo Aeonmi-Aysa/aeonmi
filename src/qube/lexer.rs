@@ -1,30 +1,50 @@
 //! QUBE Lexer — tokenizes .qube source files.
 //!
-//! Shared character set with Aeonmi but focused on quantum-symbolic constructs:
-//!   →  ∈  ⟩  |  {  }  α  β  ψ  θ  +  -  *  /  ⊗
+//! Supports both the original symbolic syntax (state/apply/collapse) and the
+//! circuit-based syntax (circuit { }, qubit, H, CNOT, measure, execute { run }).
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum QubeTok {
-    // Keywords
+    // ── Original symbolic-syntax keywords ──
     KwState,    // state
     KwApply,    // apply
     KwCollapse, // collapse
     KwAssert,   // assert
-    KwPrint,    // print
+    KwPrint,    // print (symbolic syntax)
     KwLet,      // let
 
-    // Arrow / membership
-    Arrow,      // →
+    // ── Circuit-syntax keywords ──
+    KwCircuit,  // circuit
+    KwMeta,     // meta
+    KwExecute,  // execute
+    KwExpected, // expected
+    KwRun,      // run
+    KwQubit,    // qubit
+    KwBit,      // bit
+    KwMeasure,  // measure
+    KwIf,       // if
+    KwReset,    // reset
+    KwBarrier,  // barrier
+    KwQreg,     // qreg
+    KwCreg,     // creg
+
+    // ── Arrows / membership ──
+    Arrow,      // →  (Unicode U+2192)
+    DashArrow,  // ->  (ASCII dash-gt)
     Member,     // ∈
 
-    // Delimiters
+    // ── Delimiters ──
     Pipe,       // |
     RAngle,     // ⟩
     LBrace,     // {
     RBrace,     // }
     LParen,     // (
     RParen,     // )
+    LBracket,   // [
+    RBracket,   // ]
     Comma,      // ,
+    Colon,      // :
+    Semicolon,  // ;
     Equals,     // =
     Plus,       // +
     Minus,      // -
@@ -32,12 +52,12 @@ pub enum QubeTok {
     Slash,      // /
     TensorOp,   // ⊗
 
-    // Literals
+    // ── Literals ──
     Number(f64),
-    Ident(String),    // identifiers including Greek letters
+    Ident(String),      // identifiers, gate names, Greek letters
     QubitInner(String), // the content inside |…⟩
 
-    // Misc
+    // ── Misc ──
     Comment(String),
     Newline,
     Eof,
@@ -129,12 +149,27 @@ impl QubeLexer {
             }
         }
         match s.as_str() {
+            // Original symbolic-syntax keywords
             "state"    => QubeTok::KwState,
             "apply"    => QubeTok::KwApply,
             "collapse" => QubeTok::KwCollapse,
             "assert"   => QubeTok::KwAssert,
             "print"    => QubeTok::KwPrint,
             "let"      => QubeTok::KwLet,
+            // Circuit-syntax keywords
+            "circuit"  => QubeTok::KwCircuit,
+            "meta"     => QubeTok::KwMeta,
+            "execute"  => QubeTok::KwExecute,
+            "expected" => QubeTok::KwExpected,
+            "run"      => QubeTok::KwRun,
+            "qubit"    => QubeTok::KwQubit,
+            "bit"      => QubeTok::KwBit,
+            "measure"  => QubeTok::KwMeasure,
+            "if"       => QubeTok::KwIf,
+            "reset"    => QubeTok::KwReset,
+            "barrier"  => QubeTok::KwBarrier,
+            "qreg"     => QubeTok::KwQreg,
+            "creg"     => QubeTok::KwCreg,
             _ => QubeTok::Ident(s),
         }
     }
@@ -197,10 +232,22 @@ impl QubeLexer {
             '}' => { self.advance(); QubeTok::RBrace }
             '(' => { self.advance(); QubeTok::LParen }
             ')' => { self.advance(); QubeTok::RParen }
+            '[' => { self.advance(); QubeTok::LBracket }
+            ']' => { self.advance(); QubeTok::RBracket }
             ',' => { self.advance(); QubeTok::Comma }
+            ':' => { self.advance(); QubeTok::Colon }
+            ';' => { self.advance(); QubeTok::Semicolon }
             '=' => { self.advance(); QubeTok::Equals }
             '+' => { self.advance(); QubeTok::Plus }
-            '-' => { self.advance(); QubeTok::Minus }
+            '-' => {
+                self.advance();
+                if self.peek() == Some('>') {
+                    self.advance();
+                    QubeTok::DashArrow
+                } else {
+                    QubeTok::Minus
+                }
+            }
             '*' => { self.advance(); QubeTok::Star }
             '/' => { self.advance(); QubeTok::Slash }
 

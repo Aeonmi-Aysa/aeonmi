@@ -36,7 +36,7 @@ quantum command_line ShardCompiler {
         
         let args = std::env::args().collect::<Vec<String>>();
         
-        if args.len() < 2 {
+        if len(args) < 2 {
             show_usage();
             return;
         }
@@ -80,7 +80,7 @@ quantum command_line ShardCompiler {
         };
         
         log(f"✅ Source loaded: {} bytes, {} lines", 
-            source_code.len(), source_code.lines().count());
+            len(source_code), source_code.lines().count());
         
         // === PHASE 2: HYBRID TOKENIZATION ===
         log("🔤 Phase 2: Hybrid quantum-classical tokenization");
@@ -93,7 +93,7 @@ quantum command_line ShardCompiler {
             }
         };
         
-        log(f"✅ Tokenization complete: {} tokens", tokens.len());
+        log(f"✅ Tokenization complete: {} tokens", len(tokens));
         log(f"   📊 Quantum tokens: {}", count_quantum_tokens(&tokens));
         
         // === PHASE 3: QUANTUM-AWARE PARSING ===
@@ -102,7 +102,7 @@ quantum command_line ShardCompiler {
         let mut parser = HybridParser::new(token_stream);
         let mut ast = parser.parse();
         
-        log(f"✅ Parsing complete: {} AST nodes", ast.nodes.len());
+        log(f"✅ Parsing complete: {} AST nodes", ast.len(nodes));
         log(f"   📊 Quantum circuits: {}", count_quantum_circuits(&ast));
         log(f"   📊 Quantum functions: {}", count_quantum_functions(&ast));
         
@@ -126,7 +126,7 @@ quantum command_line ShardCompiler {
         let generation_result = code_generator.generate(ast.clone());
         
         if generation_result.has_errors() {
-            eprintln!("❌ Code generation failed with {} errors:", generation_result.errors.len());
+            eprintln!("❌ Code generation failed with {} errors:", generation_result.len(errors));
             for error in &generation_result.errors {
                 eprintln!("   {}", error);
             }
@@ -260,10 +260,10 @@ quantum command_line ShardCompiler {
         };
         
         let mut i = 1; // Skip program name
-        while i < args.len() {
+        while i < len(args) {
             match args[i].as_str() {
                 "--target" | "-t" => {
-                    if i + 1 < args.len() {
+                    if i + 1 < len(args) {
                         config.target = match args[i + 1].as_str() {
                             "executable" | "exe" => CompilationTarget::Executable,
                             "qasm" => CompilationTarget::QASM,
@@ -279,7 +279,7 @@ quantum command_line ShardCompiler {
                 },
                 
                 "--optimize" | "-O" => {
-                    if i + 1 < args.len() {
+                    if i + 1 < len(args) {
                         config.optimization_level = args[i + 1].parse().unwrap_or(2);
                         i += 1;
                     }
@@ -296,21 +296,21 @@ quantum command_line ShardCompiler {
                 },
                 
                 "--backend" | "-b" => {
-                    if i + 1 < args.len() {
+                    if i + 1 < len(args) {
                         config.qiskit_backend = args[i + 1].clone();
                         i += 1;
                     }
                 },
                 
                 "--shots" | "-s" => {
-                    if i + 1 < args.len() {
+                    if i + 1 < len(args) {
                         config.shots = args[i + 1].parse().unwrap_or(1024);
                         i += 1;
                     }
                 },
                 
                 "--output" | "-o" => {
-                    if i + 1 < args.len() {
+                    if i + 1 < len(args) {
                         config.output_directory = args[i + 1].clone();
                         i += 1;
                     }

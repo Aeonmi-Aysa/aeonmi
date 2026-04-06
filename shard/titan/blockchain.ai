@@ -1,0 +1,158 @@
+// Titan Blockchain — pure Aeonmi
+// Create chain, add block, verify, genesis
+
+log("=== Titan Blockchain ===");
+
+function block_hash(block) {
+    let data = toString(block.index) + block.prev_hash + toString(block.timestamp) + json_stringify(block.data) + toString(block.nonce);
+    return sha256(data);
+}
+
+function genesis_block() {
+    let b = {
+        index: 0,
+        prev_hash: "0000000000000000000000000000000000000000000000000000000000000000",
+        timestamp: time_ms(),
+        data: { message: "Genesis Block" },
+        nonce: 0,
+        hash: ""
+    };
+    b.hash = block_hash(b);
+    return b;
+}
+
+function mine_block(prev_block, data, difficulty) {
+    let b = {
+        index: prev_block.index + 1,
+        prev_hash: prev_block.hash,
+        timestamp: time_ms(),
+        data: data,
+        nonce: 0,
+        hash: ""
+    };
+    let prefix = string_repeat("0", difficulty);
+    let found = false;
+    while !found {
+        b.hash = block_hash(b);
+        if string_starts_with(b.hash, prefix) {
+            found = true;
+        } else {
+            b.nonce = b.nonce + 1;
+            if b.nonce > 10000 {
+                b.hash = block_hash(b);
+                found = true;
+            }
+        }
+    }
+    log("  Mined block #" + toString(b.index) + " nonce=" + toString(b.nonce) + " hash=" + b.hash.slice(0, 16) + "...");
+    return b;
+}
+
+function chain_new() {
+    let chain = [genesis_block()];
+    log("Chain created with genesis block");
+    log("  Genesis hash: " + chain[0].hash.slice(0, 32) + "...");
+    return chain;
+}
+
+function chain_add(chain, data, difficulty) {
+    let prev = chain[len(chain) - 1];
+    let block = mine_block(prev, data, difficulty);
+    chain.push(block);
+    return block;
+}
+
+function chain_verify(chain) {
+    log("Verifying chain (" + toString(len(chain)) + " blocks)...");
+    let valid = true;
+    let i = 1;
+    while i < len(chain) {
+        let curr = chain[i];
+        let prev = chain[i - 1];
+
+        // Recompute hash
+        let expected_hash = block_hash(curr);
+        if curr.hash != expected_hash {
+            log("  INVALID: block #" + toString(i) + " hash mismatch");
+            valid = false;
+        }
+
+        // Check linkage
+        if curr.prev_hash != prev.hash {
+            log("  INVALID: block #" + toString(i) + " broken chain link");
+            valid = false;
+        }
+
+        if valid { log("  OK: block #" + toString(i) + " " + curr.hash.slice(0, 16) + "..."); }
+        i = i + 1;
+    }
+    if valid { log("Chain is VALID"); }
+    else { log("Chain is INVALID"); }
+    return valid;
+}
+
+function chain_summary(chain) {
+    log("=== Blockchain Summary ===");
+    log("  Length:       " + toString(len(chain)) + " blocks");
+    log("  Genesis hash: " + chain[0].hash.slice(0, 16) + "...");
+    log("  Latest hash:  " + chain[len(chain)-1].hash.slice(0, 16) + "...");
+    log("  Total nonces: " + toString(chain_total_nonces(chain)));
+}
+
+function chain_total_nonces(chain) {
+    let total = 0;
+    let i = 0;
+    while i < len(chain) { total = total + chain[i].nonce; i = i + 1; }
+    return total;
+}
+
+// --- Transaction helpers ---
+function make_tx(from, to, amount) {
+    let tx = {
+        from: from,
+        to: to,
+        amount: amount,
+        timestamp: time_ms(),
+        id: ""
+    };
+    tx.id = sha256(from + to + toString(amount) + toString(tx.timestamp));
+    return tx;
+}
+
+function make_wallet() {
+    let seed = sha256(toString(rand()) + toString(time_ms()));
+    let priv = sha256(seed + "private");
+    let pub  = sha256(priv + "public");
+    let addr = pub.slice(0, 40);
+    return { private_key: priv, public_key: pub, address: addr, balance: 0 };
+}
+
+// --- Demo ---
+log("");
+log(">>> Creating blockchain <<<");
+let chain = chain_new();
+
+log("");
+log(">>> Mining blocks (difficulty=1) <<<");
+
+let w1 = make_wallet();
+let w2 = make_wallet();
+log("Wallet A: " + w1.address.slice(0, 16) + "...");
+log("Wallet B: " + w2.address.slice(0, 16) + "...");
+
+let tx1 = make_tx(w1.address, w2.address, 50);
+chain_add(chain, { transactions: [tx1], miner: w1.address }, 1);
+
+let tx2 = make_tx(w2.address, w1.address, 25);
+chain_add(chain, { transactions: [tx2], miner: w2.address }, 1);
+
+let tx3 = make_tx(w1.address, w2.address, 10);
+chain_add(chain, { transactions: [tx3], miner: w1.address }, 1);
+
+log("");
+chain_summary(chain);
+log("");
+chain_verify(chain);
+
+log("");
+log("=== Blockchain demo complete ===");

@@ -1,0 +1,192 @@
+// Titan Optimization — pure Aeonmi
+// Gradient descent, golden section search, simulated annealing
+
+log("=== Titan Optimization ===");
+
+// --- Gradient Descent ---
+function grad_descent(f_deriv, x0, lr, max_iter, tol) {
+    let x = x0;
+    let history = [x];
+    let i = 0;
+    while i < max_iter {
+        let grad = f_deriv(x);
+        let x_new = x - lr * grad;
+        history.push(x_new);
+        if math_abs(x_new - x) < tol {
+            log("  Converged at iteration " + toString(i));
+            x = x_new;
+            break;
+        }
+        x = x_new;
+        i = i + 1;
+    }
+    return { x: x, iterations: len(history) - 1, history: history };
+}
+
+// --- Stochastic Gradient Descent ---
+function sgd(params, gradients, lr) {
+    let new_params = [];
+    let i = 0;
+    while i < len(params) {
+        new_params.push(params[i] - lr * gradients[i]);
+        i = i + 1;
+    }
+    return new_params;
+}
+
+// --- Adam optimizer ---
+function adam_new(lr, beta1, beta2, epsilon) {
+    return { lr: lr, beta1: beta1, beta2: beta2, epsilon: epsilon, m: [], v: [], t: 0 };
+}
+
+function adam_step(adam, params, grads) {
+    adam.t = adam.t + 1;
+    if adam.len(m) == 0 {
+        let i = 0;
+        while i < len(params) { adam.m.push(0); adam.v.push(0); i = i + 1; }
+    }
+    let new_params = [];
+    let i = 0;
+    while i < len(params) {
+        adam.m[i] = adam.beta1 * adam.m[i] + (1 - adam.beta1) * grads[i];
+        adam.v[i] = adam.beta2 * adam.v[i] + (1 - adam.beta2) * grads[i] * grads[i];
+        let m_hat = adam.m[i] / (1 - math_pow(adam.beta1, adam.t));
+        let v_hat = adam.v[i] / (1 - math_pow(adam.beta2, adam.t));
+        new_params.push(params[i] - adam.lr * m_hat / (math_sqrt(v_hat) + adam.epsilon));
+        i = i + 1;
+    }
+    return new_params;
+}
+
+// --- Golden Section Search (minimize unimodal function on [a,b]) ---
+function golden_section(f, a, b, tol) {
+    let phi = (math_sqrt(5) - 1) / 2;
+    let c = b - phi * (b - a);
+    let d = a + phi * (b - a);
+    let iter = 0;
+    while math_abs(b - a) > tol && iter < 200 {
+        if f(c) < f(d) { b = d; }
+        else { a = c; }
+        c = b - phi * (b - a);
+        d = a + phi * (b - a);
+        iter = iter + 1;
+    }
+    let x_min = (a + b) / 2;
+    log("  Golden section: x*=" + toString(x_min) + " f(x*)=" + toString(f(x_min)) + " iters=" + toString(iter));
+    return { x: x_min, f_x: f(x_min), iterations: iter };
+}
+
+// --- Simulated Annealing ---
+function simulated_annealing(f, x0, temp_init, temp_min, cooling, max_iter) {
+    let x = x0;
+    let fx = f(x);
+    let best_x = x;
+    let best_f = fx;
+    let temp = temp_init;
+    let i = 0;
+    while i < max_iter && temp > temp_min {
+        let delta = (rand() - 0.5) * temp;
+        let x_new = x + delta;
+        let fx_new = f(x_new);
+        let accept = false;
+        if fx_new < fx {
+            accept = true;
+        } else {
+            let prob = math_pow(2.71828, (fx - fx_new) / temp);
+            if rand() < prob { accept = true; }
+        }
+        if accept { x = x_new; fx = fx_new; }
+        if fx < best_f { best_f = fx; best_x = x; }
+        temp = temp * cooling;
+        i = i + 1;
+    }
+    log("  SA: best_x=" + toString(best_x) + " best_f=" + toString(best_f) + " iters=" + toString(i));
+    return { x: best_x, f: best_f, iterations: i };
+}
+
+// --- Nelder-Mead (1D simplex) ---
+function nelder_mead_1d(f, x0, step, max_iter, tol) {
+    let a = x0 - step;
+    let b = x0 + step;
+    let fa = f(a);
+    let fb = f(b);
+    let iter = 0;
+    while math_abs(b - a) > tol && iter < max_iter {
+        if fa > fb {
+            let mid = (a + b) / 2;
+            let reflect = 2 * mid - a;
+            let fr = f(reflect);
+            if fr < fb { a = mid; fa = f(a); }
+            else { a = mid; b = mid + (b - mid) / 2; fa = f(a); fb = f(b); }
+        } else {
+            let mid = (a + b) / 2;
+            let reflect = 2 * mid - b;
+            let fr = f(reflect);
+            if fr < fa { b = mid; fb = f(b); }
+            else { b = mid; a = mid - (mid - a) / 2; fa = f(a); fb = f(b); }
+        }
+        iter = iter + 1;
+    }
+    let x_min = (a + b) / 2;
+    log("  Nelder-Mead: x*=" + toString(x_min) + " f(x*)=" + toString(f(x_min)) + " iters=" + toString(iter));
+    return { x: x_min, f_x: f(x_min), iterations: iter };
+}
+
+// --- Bisection method (root finding) ---
+function bisection(f, a, b, tol) {
+    let iter = 0;
+    while math_abs(b - a) > tol && iter < 200 {
+        let mid = (a + b) / 2;
+        if f(mid) == 0 { return mid; }
+        if f(a) * f(mid) < 0 { b = mid; }
+        else { a = mid; }
+        iter = iter + 1;
+    }
+    let root = (a + b) / 2;
+    log("  Bisection: root=" + toString(root) + " f(root)=" + toString(f(root)) + " iters=" + toString(iter));
+    return root;
+}
+
+// --- Demo functions ---
+function f_quadratic(x) { return (x - 3) * (x - 3) + 2; }
+function f_quadratic_deriv(x) { return 2 * (x - 3); }
+function f_sin(x) { return math_sin(x); }
+function f_rosenbrock(x) { return math_pow(1 - x, 2) + 100 * math_pow(0 - x * x, 2); }
+function f_cubic(x) { return x * x * x - 6 * x * x + 11 * x - 6; }
+
+// --- Demo ---
+log("");
+log(">>> Gradient Descent on f(x) = (x-3)^2 + 2 <<<");
+let gd = grad_descent(f_quadratic_deriv, 0, 0.1, 100, 0.0001);
+log("  Result: x=" + toString(gd.x) + " (true min at x=3)");
+
+log("");
+log(">>> Golden Section Search on f(x) = (x-3)^2 + 2, [0,6] <<<");
+let gs = golden_section(f_quadratic, 0, 6, 0.0001);
+
+log("");
+log(">>> Simulated Annealing on f(x) = (x-3)^2 + 2 <<<");
+let sa = simulated_annealing(f_quadratic, 0, 5.0, 0.001, 0.99, 1000);
+
+log("");
+log(">>> Nelder-Mead 1D on f(x) = (x-3)^2 + 2 <<<");
+let nm = nelder_mead_1d(f_quadratic, 0, 1.0, 200, 0.0001);
+
+log("");
+log(">>> Bisection root of x^3 - 6x^2 + 11x - 6, [2.5,3.5] <<<");
+let root = bisection(f_cubic, 2.5, 3.5, 0.0001);
+
+log("");
+log(">>> Adam Optimizer demo <<<");
+let adam = adam_new(0.01, 0.9, 0.999, 0.00000001);
+let params = [5.0, -2.0, 1.0];
+let k = 0;
+while k < 20 {
+    let grads = [2 * (params[0] - 3), 2 * (params[1] + 1), 2 * (params[2] - 0)];
+    params = adam_step(adam, params, grads);
+    k = k + 1;
+}
+log("  Adam result: [" + params.join(", ") + "] (true min: [3,-1,0])");
+
+log("");
+log("=== Optimization demo complete ===");

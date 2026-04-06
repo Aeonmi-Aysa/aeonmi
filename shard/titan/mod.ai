@@ -1,0 +1,111 @@
+// Titan Library Registry — pure Aeonmi
+// Central registry for all Titan algorithms and utilities
+
+log("╔══════════════════════════════════════════╗");
+log("║     TITAN LIBRARY REGISTRY v2.0          ║");
+log("║     Quantum + Classical Algorithms       ║");
+log("╚══════════════════════════════════════════╝");
+
+// Registry of available Titan modules
+let titan_registry = {
+    quantum_algorithms: "titan/quantum_algorithms.ai",
+    quantum_gates:      "titan/quantum_gates.ai",
+    linear_algebra:     "titan/linear_algebra.ai",
+    crypto:             "titan/crypto.ai",
+    statistics:         "titan/statistics.ai",
+    blockchain:         "titan/blockchain.ai",
+    neural:             "titan/neural.ai",
+    optimization:       "titan/optimization.ai"
+};
+
+function titan_list() {
+    log("Available Titan modules:");
+    let keys = object_keys(titan_registry);
+    let i = 0;
+    while i < len(keys) {
+        log("  [" + toString(i + 1) + "] " + keys[i] + " -> " + titan_registry[keys[i]]);
+        i = i + 1;
+    }
+}
+
+function titan_info(name) {
+    if object_has(titan_registry, name) {
+        log("Module: " + name);
+        log("Path:   " + titan_registry[name]);
+        return titan_registry[name];
+    }
+    log("Unknown Titan module: " + name);
+    return null;
+}
+
+// --- Quantum Algorithm stubs (callable without loading external file) ---
+
+function titan_grover(n, target) {
+    log("Titan.Grover: searching n=" + toString(n) + " target=" + toString(target));
+    let result = grovers_search(n, target);
+    log("Grover result: " + toString(result));
+    return result;
+}
+
+function titan_qft(n) {
+    log("Titan.QFT: n=" + toString(n) + " qubits");
+    let result = quantum_fourier_transform(n);
+    log("QFT result: " + toString(result));
+    return result;
+}
+
+function titan_shor(n) {
+    log("Titan.Shor: factoring n=" + toString(n));
+    let result = shors_factoring(n);
+    log("Shor result: " + toString(result));
+    return result;
+}
+
+function titan_bell_pair() {
+    log("Titan.Bell: creating Bell pair");
+    qubit q1;
+    qubit q2;
+    superpose(q1);
+    entangle(q1, q2);
+    let m1 = measure(q1);
+    let m2 = measure(q2);
+    log("Bell pair measured: q1=" + toString(m1) + " q2=" + toString(m2));
+    return [m1, m2];
+}
+
+// --- Math/Stats stubs ---
+
+function titan_dot(a, b) {
+    let sum = 0;
+    let i = 0;
+    let n = len(a);
+    while i < n { sum = sum + a[i] * b[i]; i = i + 1; }
+    return sum;
+}
+
+function titan_mean(arr) {
+    let sum = 0;
+    let i = 0;
+    while i < len(arr) { sum = sum + arr[i]; i = i + 1; }
+    return sum / len(arr);
+}
+
+function titan_sha256(data) {
+    return sha256(data);
+}
+
+// --- Demo ---
+function titan_demo() {
+    log("");
+    log("=== Titan Demo ===");
+    titan_list();
+    log("");
+    log("Grover search (8 items, target 5): " + toString(titan_grover(8, 5)));
+    log("Bell pair: " + json_stringify(titan_bell_pair()));
+    log("Dot([1,2,3],[4,5,6]): " + toString(titan_dot([1,2,3],[4,5,6])));
+    log("Mean([10,20,30,40]): " + toString(titan_mean([10,20,30,40])));
+    log("SHA256('aeonmi'): " + titan_sha256("aeonmi"));
+    log("=== Titan Demo Complete ===");
+}
+
+titan_demo();

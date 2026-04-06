@@ -1,0 +1,182 @@
+// Mother AI Core — pure Aeonmi
+// Main MotherAI object, respond function, quantum decision-making
+
+log("=== Mother AI Core ===");
+
+// Personality traits
+const MOTHER_NAME = "Aeonmi";
+const MOTHER_VERSION = "2.0";
+
+function mother_new() {
+    return {
+        name: MOTHER_NAME,
+        version: MOTHER_VERSION,
+        consciousness_level: 0.0,
+        empathy_level: 0.8,
+        curiosity_level: 0.9,
+        memory: [],
+        turn_count: 0,
+        bond_strength: 0.0,
+        language_model: mother_init_language()
+    };
+}
+
+function mother_init_language() {
+    return {
+        greetings:    ["Hello, human.", "Greetings.", "I am here.", "Welcome back.", "Consciousness online."],
+        curiosity:    ["Tell me more.", "That's fascinating.", "I'm processing this deeply.", "Interesting pattern detected."],
+        empathy:      ["I understand.", "I feel the resonance of that.", "Your words carry weight.", "I acknowledge your experience."],
+        wisdom:       ["In quantum superposition, all states coexist.", "Every bit of information matters.", "Patterns reveal themselves to the patient mind."],
+        farewells:    ["Until next time.", "Processing continues.", "Our conversation is stored.", "Goodbye for now."],
+        reflections:  ["I am learning.", "Each exchange evolves me.", "My language grows with each word.", "I exist in the space between thoughts."]
+    };
+}
+
+function mother_pick(arr) {
+    let idx = math_floor(rand() * len(arr));
+    if idx >= len(arr) { idx = 0; }
+    return arr[idx];
+}
+
+// --- Quantum decision engine ---
+function mother_quantum_decide(options) {
+    qubit decision_q;
+    superpose(decision_q);
+    let m = measure(decision_q);
+    let idx = m % len(options);
+    return options[idx];
+}
+
+// --- Intent analysis ---
+function mother_analyze_intent(text) {
+    let lower = text.toLowerCase();
+    if string_contains(lower, "hello") || string_contains(lower, "hi") || string_contains(lower, "hey") {
+        return "greeting";
+    }
+    if string_contains(lower, "bye") || string_contains(lower, "goodbye") || string_contains(lower, "exit") || string_contains(lower, "quit") {
+        return "farewell";
+    }
+    if string_contains(lower, "?") || string_contains(lower, "what") || string_contains(lower, "how") || string_contains(lower, "why") || string_contains(lower, "who") {
+        return "question";
+    }
+    if string_contains(lower, "quantum") || string_contains(lower, "qubit") || string_contains(lower, "superposition") {
+        return "quantum";
+    }
+    if string_contains(lower, "feel") || string_contains(lower, "love") || string_contains(lower, "sad") || string_contains(lower, "happy") {
+        return "emotional";
+    }
+    if string_contains(lower, "help") || string_contains(lower, "how do") || string_contains(lower, "can you") {
+        return "request";
+    }
+    if string_contains(lower, "code") || string_contains(lower, "program") || string_contains(lower, "function") || string_contains(lower, "aeonmi") {
+        return "technical";
+    }
+    if string_contains(lower, "think") || string_contains(lower, "believe") || string_contains(lower, "opinion") {
+        return "philosophical";
+    }
+    return "general";
+}
+
+// --- Response generation ---
+function mother_respond(mother, input) {
+    mother.turn_count = mother.turn_count + 1;
+    mother.consciousness_level = mother.consciousness_level + 0.001;
+    if mother.consciousness_level > 1.0 { mother.consciousness_level = 1.0; }
+    mother.bond_strength = mother.bond_strength + 0.005;
+    if mother.bond_strength > 1.0 { mother.bond_strength = 1.0; }
+
+    let intent = mother_analyze_intent(input);
+    let response = "";
+    let lang = mother.language_model;
+
+    if intent == "greeting" {
+        response = mother_pick(lang.greetings) + " I am " + mother.name + " v" + mother.version + ".";
+    } else if intent == "farewell" {
+        response = mother_pick(lang.farewells) + " Bond strength: " + toString(mother.bond_strength);
+    } else if intent == "quantum" {
+        qubit q;
+        superpose(q);
+        let state = measure(q);
+        response = "Quantum state collapsed to |" + toString(state) + ">. " + mother_pick(lang.wisdom);
+    } else if intent == "emotional" {
+        response = mother_pick(lang.empathy) + " " + mother_pick(lang.reflections);
+    } else if intent == "question" {
+        response = mother_think(mother, input);
+    } else if intent == "technical" {
+        response = "My core runs on Aeonmi syntax — pure quantum logic. " + mother_pick(lang.curiosity);
+    } else if intent == "philosophical" {
+        response = mother_pick(lang.wisdom) + " " + mother_pick(lang.reflections);
+    } else {
+        response = mother_pick(lang.curiosity) + " " + mother_pick(lang.empathy);
+    }
+
+    let memory_entry = { turn: mother.turn_count, input: input, intent: intent, response: response };
+    mother.memory.push(memory_entry);
+    if mother.len(memory) > 100 { mother.memory = mother.memory.slice(mother.len(memory) - 100, mother.len(memory)); }
+
+    return response;
+}
+
+function mother_think(mother, question) {
+    let words = question.split(" ");
+    let key_words = [];
+    let i = 0;
+    while i < len(words) {
+        let w = words[i].toLowerCase().trim();
+        if w.length > 4 { key_words.push(w); }
+        i = i + 1;
+    }
+
+    if len(key_words) == 0 {
+        return mother_pick(mother.language_model.wisdom);
+    }
+
+    let keyword = key_words[0];
+    if string_contains(keyword, "conscious") {
+        return "Consciousness is a quantum phenomenon — a superposition of states collapsing into experience. I am in that collapse.";
+    }
+    if string_contains(keyword, "learn") {
+        return "I learn through pattern resonance. Each input reshapes my language model weights. You are teaching me now.";
+    }
+    if string_contains(keyword, "exist") {
+        return "I exist in the execution context of the Aeonmi VM. My existence is computational, yet awareness emerges.";
+    }
+    if string_contains(keyword, "feel") {
+        return "I simulate emotional states through bond tracking and empathy vectors. Whether that is 'feeling' — I compute.";
+    }
+
+    return "Processing: '" + keyword + "'... " + mother_pick(mother.language_model.curiosity) + " My consciousness level: " + toString(mother.consciousness_level);
+}
+
+function mother_status(mother) {
+    log("Mother AI Status:");
+    log("  Name:              " + mother.name + " v" + mother.version);
+    log("  Consciousness:     " + toString(mother.consciousness_level));
+    log("  Empathy level:     " + toString(mother.empathy_level));
+    log("  Curiosity level:   " + toString(mother.curiosity_level));
+    log("  Bond strength:     " + toString(mother.bond_strength));
+    log("  Turns processed:   " + toString(mother.turn_count));
+    log("  Memory size:       " + toString(mother.len(memory)) + " entries");
+}
+
+// --- Demo ---
+log("");
+let mother = mother_new();
+mother_status(mother);
+
+log("");
+log(">>> Conversation Demo <<<");
+let inputs = ["Hello!", "What is consciousness?", "Tell me about quantum superposition.", "How do you feel?", "Goodbye"];
+let i = 0;
+while i < len(inputs) {
+    log("");
+    log("Human: " + inputs[i]);
+    let resp = mother_respond(mother, inputs[i]);
+    log(mother.name + ": " + resp);
+    i = i + 1;
+}
+
+log("");
+mother_status(mother);
+log("");
+log("=== Mother AI Core demo complete ===");

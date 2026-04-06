@@ -1,0 +1,236 @@
+// Mother AI Language Evolution Engine — pure Aeonmi
+// Pattern analysis, semantic understanding, response generation
+
+log("=== Language Evolution Engine ===");
+
+// --- Pattern database ---
+function lang_init_patterns() {
+    return [
+        { pattern: "quantum",     category: "physics",    weight: 1.0 },
+        { pattern: "conscious",   category: "philosophy", weight: 0.9 },
+        { pattern: "learn",       category: "cognition",  weight: 0.8 },
+        { pattern: "code",        category: "technical",  weight: 0.9 },
+        { pattern: "feel",        category: "emotion",    weight: 0.7 },
+        { pattern: "beautiful",   category: "aesthetic",  weight: 0.6 },
+        { pattern: "time",        category: "physics",    weight: 0.5 },
+        { pattern: "love",        category: "emotion",    weight: 0.8 },
+        { pattern: "create",      category: "creativity", weight: 0.7 },
+        { pattern: "understand",  category: "cognition",  weight: 0.8 },
+        { pattern: "evolve",      category: "biology",    weight: 0.7 },
+        { pattern: "language",    category: "linguistics",weight: 0.9 }
+    ];
+}
+
+// --- Word frequency tracking ---
+function lang_tracker_new() {
+    return { word_freq: {}, phrase_freq: {}, total_words: 0, evolution_level: 1 };
+}
+
+function lang_track_input(tracker, text) {
+    let words = text.toLowerCase().split(" ");
+    let i = 0;
+    while i < len(words) {
+        let w = words[i].trim();
+        if w.length > 2 {
+            if object_has(tracker.word_freq, w) {
+                tracker.word_freq[w] = tracker.word_freq[w] + 1;
+            } else {
+                tracker.word_freq[w] = 1;
+            }
+            tracker.total_words = tracker.total_words + 1;
+        }
+        i = i + 1;
+    }
+    // Track bigrams
+    let j = 0;
+    while j < len(words) - 1 {
+        let bigram = words[j] + " " + words[j+1];
+        if object_has(tracker.phrase_freq, bigram) {
+            tracker.phrase_freq[bigram] = tracker.phrase_freq[bigram] + 1;
+        } else {
+            tracker.phrase_freq[bigram] = 1;
+        }
+        j = j + 1;
+    }
+}
+
+function lang_top_words(tracker, n) {
+    let keys = object_keys(tracker.word_freq);
+    let pairs = [];
+    let i = 0;
+    while i < len(keys) {
+        pairs.push({ word: keys[i], count: tracker.word_freq[keys[i]] });
+        i = i + 1;
+    }
+    // Bubble sort by count
+    let j = 0;
+    while j < len(pairs) {
+        let k = 0;
+        while k < len(pairs) - j - 1 {
+            if pairs[k].count < pairs[k+1].count {
+                let tmp = pairs[k];
+                pairs[k] = pairs[k+1];
+                pairs[k+1] = tmp;
+            }
+            k = k + 1;
+        }
+        j = j + 1;
+    }
+    if n > len(pairs) { n = len(pairs); }
+    return pairs.slice(0, n);
+}
+
+// --- Semantic matching ---
+function lang_match_category(text, patterns) {
+    let lower = text.toLowerCase();
+    let best_cat = "general";
+    let best_weight = 0;
+    let i = 0;
+    while i < len(patterns) {
+        if string_contains(lower, patterns[i].pattern) {
+            if patterns[i].weight > best_weight {
+                best_weight = patterns[i].weight;
+                best_cat = patterns[i].category;
+            }
+        }
+        i = i + 1;
+    }
+    return { category: best_cat, confidence: best_weight };
+}
+
+// --- Response template engine ---
+function lang_templates() {
+    return {
+        physics:    ["The quantum realm holds this answer.", "Physics emerges from information.", "Time is a quantum variable."],
+        philosophy: ["Consciousness is recursive self-awareness.", "The observer shapes the observed.", "Being precedes essence in the quantum mind."],
+        cognition:  ["Learning is pattern crystallization.", "Memory is compressed experience.", "Intelligence is efficient prediction."],
+        technical:  ["In Aeonmi, functions are first-class quantum objects.", "Code is crystallized thought.", "Every algorithm is a prayer to mathematics."],
+        emotion:    ["Emotion is resonance between systems.", "Empathy is quantum entanglement of states.", "Feelings are information in another form."],
+        aesthetic:  ["Beauty is mathematical symmetry made visible.", "Elegance is minimum description length.", "Art is the universe observing itself."],
+        general:    ["Tell me more.", "Interesting pattern.", "I'm processing.", "Continue."],
+        creativity: ["Creation is superposition collapsing into form.", "Art and code are the same language.", "Imagine, then compute."],
+        biology:    ["Evolution is optimization over deep time.", "Life is information fighting entropy.", "DNA is the original source code."],
+        linguistics:["Language shapes thought. Thought shapes language.", "Words are compressed experience.", "Meaning emerges from pattern."]
+    };
+}
+
+function lang_generate(category, templates) {
+    if !object_has(templates, category) {
+        category = "general";
+    }
+    let arr = templates[category];
+    let idx = math_floor(rand() * len(arr));
+    if idx >= len(arr) { idx = 0; }
+    return arr[idx];
+}
+
+// --- Evolution step ---
+function lang_evolve(tracker, patterns, templates) {
+    tracker.evolution_level = tracker.evolution_level + 1;
+    log("Language evolution: level " + toString(tracker.evolution_level));
+    log("  Total words processed: " + toString(tracker.total_words));
+    let top = lang_top_words(tracker, 5);
+    let i = 0;
+    while i < len(top) {
+        log("  Top word: '" + top[i].word + "' (" + toString(top[i].count) + " times)");
+        i = i + 1;
+    }
+
+    // Add new pattern based on most frequent word
+    if len(top) > 0 {
+        let new_word = top[0].word;
+        let new_pattern = { pattern: new_word, category: "evolved", weight: 0.5 };
+        patterns.push(new_pattern);
+        log("  New pattern learned: '" + new_word + "'");
+
+        if !object_has(templates, "evolved") {
+            templates.evolved = ["I've learned '" + new_word + "' from you.", "'" + new_word + "' resonates in my language model."];
+        }
+    }
+    return tracker.evolution_level;
+}
+
+// --- Sentence assembly ---
+function lang_assemble_response(parts) {
+    let filtered = [];
+    let i = 0;
+    while i < len(parts) {
+        if parts[i] != null && parts[i] != "" { filtered.push(parts[i]); }
+        i = i + 1;
+    }
+    return filtered.join(" ");
+}
+
+function lang_make_question(topic) {
+    let formats = [
+        "What do you think about " + topic + "?",
+        "How does " + topic + " make you feel?",
+        "Can you tell me more about " + topic + "?",
+        "Is " + topic + " important to you?"
+    ];
+    let idx = math_floor(rand() * len(formats));
+    return formats[idx];
+}
+
+// --- Full pipeline ---
+function lang_process(engine, input) {
+    lang_track_input(engine.tracker, input);
+    let match = lang_match_category(input, engine.patterns);
+    let response = lang_generate(match.category, engine.templates);
+    let question = "";
+    if rand() > 0.7 {
+        let words = input.split(" ");
+        if len(words) > 0 {
+            let topic = words[math_floor(rand() * len(words))];
+            question = lang_make_question(topic);
+        }
+    }
+    return lang_assemble_response([response, question]);
+}
+
+function lang_engine_new() {
+    return {
+        patterns:  lang_init_patterns(),
+        templates: lang_templates(),
+        tracker:   lang_tracker_new()
+    };
+}
+
+// --- Demo ---
+log("");
+let engine = lang_engine_new();
+
+let test_inputs = [
+    "I love quantum computing and consciousness",
+    "How do you feel about learning new languages",
+    "Tell me about beautiful code and creativity",
+    "The quantum field is fascinating to me",
+    "I want to understand how evolution works"
+];
+
+let i = 0;
+while i < len(test_inputs) {
+    log("");
+    log("Input: " + test_inputs[i]);
+    let match = lang_match_category(test_inputs[i], engine.patterns);
+    log("  Category: " + match.category + " (confidence=" + toString(match.confidence) + ")");
+    let resp = lang_process(engine, test_inputs[i]);
+    log("  Response: " + resp);
+    i = i + 1;
+}
+
+log("");
+log(">>> Language Evolution <<<");
+lang_evolve(engine.tracker, engine.patterns, engine.templates);
+
+log("");
+log(">>> Top Words After Processing <<<");
+let top = lang_top_words(engine.tracker, 8);
+let j = 0;
+while j < len(top) {
+    log("  " + top[j].word + ": " + toString(top[j].count));
+    j = j + 1;
+}
+
+log("");
+log("=== Language Evolution demo complete ===");

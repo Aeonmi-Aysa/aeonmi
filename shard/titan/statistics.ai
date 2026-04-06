@@ -1,0 +1,241 @@
+// Titan Statistics — pure Aeonmi
+// Mean, variance, std dev, median, correlation, linear regression
+
+log("=== Titan Statistics ===");
+
+function stat_sum(arr) {
+    let s = 0;
+    let i = 0;
+    while i < len(arr) { s = s + arr[i]; i = i + 1; }
+    return s;
+}
+
+function stat_mean(arr) {
+    if len(arr) == 0 { return 0; }
+    return stat_sum(arr) / len(arr);
+}
+
+function stat_variance(arr) {
+    let m = stat_mean(arr);
+    let sum_sq = 0;
+    let i = 0;
+    while i < len(arr) {
+        let diff = arr[i] - m;
+        sum_sq = sum_sq + diff * diff;
+        i = i + 1;
+    }
+    return sum_sq / len(arr);
+}
+
+function stat_variance_sample(arr) {
+    if len(arr) < 2 { return 0; }
+    let m = stat_mean(arr);
+    let sum_sq = 0;
+    let i = 0;
+    while i < len(arr) {
+        let diff = arr[i] - m;
+        sum_sq = sum_sq + diff * diff;
+        i = i + 1;
+    }
+    return sum_sq / (len(arr) - 1);
+}
+
+function stat_std(arr) {
+    return math_sqrt(stat_variance(arr));
+}
+
+function stat_std_sample(arr) {
+    return math_sqrt(stat_variance_sample(arr));
+}
+
+function stat_median(arr) {
+    let sorted = array_sort(arr);
+    let n = len(sorted);
+    if n % 2 == 1 {
+        return sorted[math_floor(n / 2)];
+    }
+    let mid = n / 2;
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function stat_mode(arr) {
+    let counts = {};
+    let i = 0;
+    while i < len(arr) {
+        let k = toString(arr[i]);
+        if object_has(counts, k) { counts[k] = counts[k] + 1; }
+        else { counts[k] = 1; }
+        i = i + 1;
+    }
+    let max_count = 0;
+    let mode_val = null;
+    let keys = object_keys(counts);
+    let j = 0;
+    while j < len(keys) {
+        if counts[keys[j]] > max_count {
+            max_count = counts[keys[j]];
+            mode_val = toNumber(keys[j]);
+        }
+        j = j + 1;
+    }
+    return mode_val;
+}
+
+function stat_min(arr) {
+    let m = arr[0];
+    let i = 1;
+    while i < len(arr) { if arr[i] < m { m = arr[i]; } i = i + 1; }
+    return m;
+}
+
+function stat_max(arr) {
+    let m = arr[0];
+    let i = 1;
+    while i < len(arr) { if arr[i] > m { m = arr[i]; } i = i + 1; }
+    return m;
+}
+
+function stat_range(arr) {
+    return stat_max(arr) - stat_min(arr);
+}
+
+function stat_percentile(arr, p) {
+    let sorted = array_sort(arr);
+    let idx = (p / 100) * (len(sorted) - 1);
+    let lo = math_floor(idx);
+    let hi = math_ceil(idx);
+    if lo == hi { return sorted[lo]; }
+    let frac = idx - lo;
+    return sorted[lo] + frac * (sorted[hi] - sorted[lo]);
+}
+
+function stat_covariance(x, y) {
+    let mx = stat_mean(x);
+    let my = stat_mean(y);
+    let n = len(x);
+    let sum = 0;
+    let i = 0;
+    while i < n {
+        sum = sum + (x[i] - mx) * (y[i] - my);
+        i = i + 1;
+    }
+    return sum / n;
+}
+
+function stat_correlation(x, y) {
+    let cov = stat_covariance(x, y);
+    let sx = stat_std(x);
+    let sy = stat_std(y);
+    if sx == 0 || sy == 0 { return 0; }
+    return cov / (sx * sy);
+}
+
+function stat_linear_regression(x, y) {
+    let n = len(x);
+    let mx = stat_mean(x);
+    let my = stat_mean(y);
+    let cov = stat_covariance(x, y);
+    let vx = stat_variance(x);
+    let slope = 0;
+    if vx != 0 { slope = cov / vx; }
+    let intercept = my - slope * mx;
+    return { slope: slope, intercept: intercept };
+}
+
+function stat_predict(model, x) {
+    return model.slope * x + model.intercept;
+}
+
+function stat_r_squared(x, y) {
+    let model = stat_linear_regression(x, y);
+    let my = stat_mean(y);
+    let ss_tot = 0;
+    let ss_res = 0;
+    let i = 0;
+    while i < len(x) {
+        let pred = stat_predict(model, x[i]);
+        ss_tot = ss_tot + math_pow(y[i] - my, 2);
+        ss_res = ss_res + math_pow(y[i] - pred, 2);
+        i = i + 1;
+    }
+    if ss_tot == 0 { return 1; }
+    return 1 - ss_res / ss_tot;
+}
+
+function stat_zscore(arr) {
+    let m = stat_mean(arr);
+    let s = stat_std(arr);
+    let out = [];
+    let i = 0;
+    while i < len(arr) {
+        if s == 0 { out.push(0); }
+        else { out.push((arr[i] - m) / s); }
+        i = i + 1;
+    }
+    return out;
+}
+
+function stat_histogram(arr, bins) {
+    let mn = stat_min(arr);
+    let mx = stat_max(arr);
+    let width = (mx - mn) / bins;
+    let counts = [];
+    let edges = [];
+    let i = 0;
+    while i <= bins {
+        edges.push(mn + i * width);
+        if i < bins { counts.push(0); }
+        i = i + 1;
+    }
+    let j = 0;
+    while j < len(arr) {
+        let bin = math_floor((arr[j] - mn) / width);
+        if bin >= bins { bin = bins - 1; }
+        counts[bin] = counts[bin] + 1;
+        j = j + 1;
+    }
+    return { counts: counts, edges: edges, width: width };
+}
+
+function stat_describe(arr, name) {
+    log("Statistics for: " + name + " (n=" + toString(len(arr)) + ")");
+    log("  Mean:    " + toString(stat_mean(arr)));
+    log("  Median:  " + toString(stat_median(arr)));
+    log("  Std Dev: " + toString(stat_std(arr)));
+    log("  Variance:" + toString(stat_variance(arr)));
+    log("  Min:     " + toString(stat_min(arr)));
+    log("  Max:     " + toString(stat_max(arr)));
+    log("  Range:   " + toString(stat_range(arr)));
+    log("  P25:     " + toString(stat_percentile(arr, 25)));
+    log("  P75:     " + toString(stat_percentile(arr, 75)));
+}
+
+// --- Demo ---
+log("");
+let data1 = [2, 4, 4, 4, 5, 5, 7, 9];
+stat_describe(data1, "test_data");
+
+log("");
+let x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let y = [2.1, 3.9, 6.2, 7.8, 10.1, 12.0, 14.2, 16.1, 17.9, 19.8];
+log("Linear Regression (x vs y):");
+let model = stat_linear_regression(x, y);
+log("  slope:     " + toString(model.slope));
+log("  intercept: " + toString(model.intercept));
+log("  predict(11)=" + toString(stat_predict(model, 11)));
+log("  R²:        " + toString(stat_r_squared(x, y)));
+
+log("");
+log("Correlation(x, y): " + toString(stat_correlation(x, y)));
+
+log("");
+let z_scores = stat_zscore(data1);
+log("Z-scores: [" + z_scores.join(", ") + "]");
+
+log("");
+let big_data = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 7];
+let hist = stat_histogram(big_data, 4);
+log("Histogram counts: [" + hist.counts.join(", ") + "]");
+
+log("");
+log("=== Statistics demo complete ===");

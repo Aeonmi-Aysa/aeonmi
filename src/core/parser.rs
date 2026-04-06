@@ -24,7 +24,10 @@ impl std::error::Error for ParserError {}
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    depth: usize,
 }
+
+const MAX_PARSE_DEPTH: usize = 200;
 
 impl Parser {
     /// Create new parser instance; ensure trailing EOF token present
@@ -36,7 +39,7 @@ impl Parser {
         if needs_eof {
             tokens.push(Token { kind: TokenKind::EOF, lexeme: String::new(), line: 0, column: 0 });
         }
-        Parser { tokens, pos: 0 }
+        Parser { tokens, pos: 0, depth: 0 }
     }
 
     /// Main parse entrypoint: parses all tokens into program AST
@@ -50,6 +53,22 @@ impl Parser {
 
     /// Parses a single statement based on current token peek
     fn parse_statement(&mut self) -> Result<ASTNode, ParserError> {
+        self.depth += 1;
+        if self.depth > MAX_PARSE_DEPTH {
+            self.depth -= 1;
+            let t = self.peek().clone();
+            return Err(ParserError {
+                message: "Maximum parse depth exceeded (possible infinite nesting)".into(),
+                line: t.line,
+                column: t.column,
+            });
+        }
+        let result = self.parse_statement_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_statement_inner(&mut self) -> Result<ASTNode, ParserError> {
         // Skip stray semicolons
         while self.check(&TokenKind::Semicolon) && !self.is_at_end() {
             self.advance();
@@ -520,7 +539,21 @@ impl Parser {
     }
 
     /* ── Precedence ───────────────────────────────────────── */
-    pub fn parse_expression(&mut self) -> Result<ASTNode, ParserError> { self.parse_logical_or() }
+    pub fn parse_expression(&mut self) -> Result<ASTNode, ParserError> {
+        self.depth += 1;
+        if self.depth > MAX_PARSE_DEPTH {
+            self.depth -= 1;
+            let t = self.peek().clone();
+            return Err(ParserError {
+                message: "Maximum parse depth exceeded (possible infinite nesting)".into(),
+                line: t.line,
+                column: t.column,
+            });
+        }
+        let result = self.parse_logical_or();
+        self.depth -= 1;
+        result
+    }
 
     // logical_or: logical_and ( '||' logical_and )*
     fn parse_logical_or(&mut self) -> Result<ASTNode, ParserError> {

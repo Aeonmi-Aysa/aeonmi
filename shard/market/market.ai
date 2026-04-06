@@ -1,0 +1,223 @@
+// NFT Marketplace — pure Aeonmi
+// List glyphs, show info, mint to JSON, glyph gallery
+
+log("=== Aeonmi NFT Marketplace ===");
+
+const MARKET_VERSION = "1.0";
+const MARKET_NAME    = "AeonMarket";
+
+// --- Sample glyph registry ---
+function market_init_glyphs() {
+    return [
+        { id: "a1b2c3d4", name: "Genesis Qubit", rarity: "Legendary", price: 10.0, currency: "SOL", author: "aeonmi_core", category: "quantum",    description: "The first qubit ever measured in Aeonmi.", listed: true,  sales: 3 },
+        { id: "e5f6a7b8", name: "Fibonacci Spiral", rarity: "Rare", price: 0.5, currency: "SOL", author: "alice.ai",    category: "math",       description: "A beautiful Fibonacci sequence visualizer.", listed: true,  sales: 12 },
+        { id: "c9d0e1f2", name: "Neural Bloom",     rarity: "Epic", price: 2.5, currency: "SOL", author: "neuralwitch",  category: "neural",     description: "A self-evolving neural network glyph.", listed: true,  sales: 7  },
+        { id: "3a4b5c6d", name: "Blockchain Oracle",rarity: "Rare", price: 1.0, currency: "SOL", author: "codechain",    category: "blockchain", description: "Queries on-chain data in pure Aeonmi.", listed: true,  sales: 21 },
+        { id: "7e8f9a0b", name: "Quantum Bell",     rarity: "Epic", price: 3.0, currency: "SOL", author: "quantumpoet",  category: "quantum",    description: "Generates and measures Bell pairs.", listed: true,  sales: 5  },
+        { id: "1c2d3e4f", name: "Mother Seed",      rarity: "Legendary", price: 25.0, currency: "SOL", author: "aeonmi_core", category: "ai", description: "The seed prompt of Mother AI consciousness.", listed: true,  sales: 1  },
+        { id: "5a6b7c8d", name: "Vault Key",        rarity: "Uncommon", price: 0.25, currency: "SOL", author: "cryptovault", category: "crypto", description: "Generates secure vault keys.", listed: false, sales: 0  },
+        { id: "9e0f1a2b", name: "Sorting Glyph",    rarity: "Common",   price: 0.05, currency: "SOL", author: "algo_fan",    category: "utility", description: "10 sorting algorithms in one file.", listed: true,  sales: 45 }
+    ];
+}
+
+function market_new() {
+    return {
+        name: MARKET_NAME,
+        version: MARKET_VERSION,
+        glyphs: market_init_glyphs(),
+        total_volume: 0.0,
+        listed_count: 0,
+        floor_price: 0.05
+    };
+}
+
+// --- Listing functions ---
+function market_list_all(market) {
+    log(market.name + " — " + toString(market.len(glyphs)) + " glyphs");
+    log(string_repeat("─", 60));
+    let i = 0;
+    while i < market.len(glyphs) {
+        let g = market.glyphs[i];
+        let status = "LISTED";
+        if !g.listed { status = "UNLISTED"; }
+        log("  [" + g.id.slice(0, 8) + "] " + g.name);
+        log("    Rarity: " + g.rarity + " | Price: " + toString(g.price) + " " + g.currency + " | Status: " + status);
+        log("    Author: " + g.author + " | Category: " + g.category + " | Sales: " + toString(g.sales));
+        i = i + 1;
+    }
+    log(string_repeat("─", 60));
+}
+
+function market_list_by_category(market, category) {
+    log("Category: " + category);
+    let found = 0;
+    let i = 0;
+    while i < market.len(glyphs) {
+        let g = market.glyphs[i];
+        if g.category == category && g.listed {
+            log("  " + g.name + " — " + toString(g.price) + " " + g.currency + " [" + g.rarity + "]");
+            found = found + 1;
+        }
+        i = i + 1;
+    }
+    if found == 0 { log("  No glyphs found in category: " + category); }
+}
+
+function market_get_glyph(market, id) {
+    let i = 0;
+    while i < market.len(glyphs) {
+        if string_starts_with(market.glyphs[i].id, id) { return market.glyphs[i]; }
+        i = i + 1;
+    }
+    return null;
+}
+
+function market_show_info(market, id) {
+    let g = market_get_glyph(market, id);
+    if g == null { log("Glyph not found: " + id); return; }
+    log("=== Glyph Info ===");
+    log("  ID:          " + g.id);
+    log("  Name:        " + g.name);
+    log("  Rarity:      " + g.rarity);
+    log("  Price:       " + toString(g.price) + " " + g.currency);
+    log("  Author:      " + g.author);
+    log("  Category:    " + g.category);
+    log("  Description: " + g.description);
+    log("  Sales:       " + toString(g.sales));
+    log("  Status:      " + toString(g.listed));
+}
+
+// --- Buy/Sell simulation ---
+function market_buy(market, id, buyer_address) {
+    let g = market_get_glyph(market, id);
+    if g == null { log("Glyph not found: " + id); return false; }
+    if !g.listed { log("Glyph not for sale."); return false; }
+    let receipt = {
+        tx_id: sha256(id + buyer_address + toString(time_ms())).slice(0, 32),
+        glyph_id: g.id,
+        glyph_name: g.name,
+        price: g.price,
+        currency: g.currency,
+        buyer: buyer_address,
+        seller: g.author,
+        timestamp: time_ms()
+    };
+    g.sales = g.sales + 1;
+    market.total_volume = market.total_volume + g.price;
+    log("Purchase successful!");
+    log("  TX: " + receipt.tx_id.slice(0, 16) + "...");
+    log("  Glyph: " + receipt.glyph_name);
+    log("  Price: " + toString(receipt.price) + " " + receipt.currency);
+    return receipt;
+}
+
+function market_mint_new(market, file_path, author, price, category) {
+    let source = "";
+    if file_exists(file_path) { source = read_file(file_path); }
+    else { source = "// Inline glyph: " + file_path; }
+    let token_id = sha256(file_path + author + toString(time_ms())).slice(0, 8);
+    let fn_count = source.split("function ").len() - 1;
+    let rarity = "Common";
+    if source.length > 5000 { rarity = "Legendary"; }
+    else if source.length > 2000 { rarity = "Epic"; }
+    else if source.length > 1000 { rarity = "Rare"; }
+    else if source.length > 500  { rarity = "Uncommon"; }
+    let glyph = {
+        id: token_id,
+        name: "Glyph:" + token_id,
+        rarity: rarity,
+        price: price,
+        currency: "SOL",
+        author: author,
+        category: category,
+        description: "Minted from " + file_path + " (" + toString(fn_count) + " functions)",
+        listed: true,
+        sales: 0
+    };
+    market.glyphs.push(glyph);
+    log("Minted new glyph: " + glyph.name + " [" + glyph.id + "]");
+    log("  Rarity: " + rarity + " | Price: " + toString(price) + " SOL");
+    return glyph;
+}
+
+// --- Gallery ---
+function market_gallery(market) {
+    log("");
+    log("╔══════════════════════════════════════════════╗");
+    log("║          AEONMI GLYPH GALLERY                ║");
+    log("╚══════════════════════════════════════════════╝");
+    let categories = {};
+    let i = 0;
+    while i < market.len(glyphs) {
+        let cat = market.glyphs[i].category;
+        if !object_has(categories, cat) { categories[cat] = 0; }
+        categories[cat] = categories[cat] + 1;
+        i = i + 1;
+    }
+    let cats = object_keys(categories);
+    let j = 0;
+    while j < len(cats) {
+        log("  [" + cats[j].toUpperCase() + "] " + toString(categories[cats[j]]) + " glyphs");
+        j = j + 1;
+    }
+    log("");
+    log("  Floor Price: " + toString(market.floor_price) + " SOL");
+    log("  Total Vol:   " + toString(market.total_volume) + " SOL");
+    log("  Total Items: " + toString(market.len(glyphs)));
+}
+
+function market_top_sellers(market, n) {
+    let sorted = [];
+    let i = 0;
+    while i < market.len(glyphs) { sorted.push(market.glyphs[i]); i = i + 1; }
+    let j = 0;
+    while j < len(sorted) {
+        let k = 0;
+        while k < len(sorted) - j - 1 {
+            if sorted[k].sales < sorted[k+1].sales {
+                let tmp = sorted[k]; sorted[k] = sorted[k+1]; sorted[k+1] = tmp;
+            }
+            k = k + 1;
+        }
+        j = j + 1;
+    }
+    log("Top Selling Glyphs:");
+    let cnt = 0;
+    while cnt < len(sorted) && cnt < n {
+        log("  " + toString(cnt+1) + ". " + sorted[cnt].name + " — " + toString(sorted[cnt].sales) + " sales");
+        cnt = cnt + 1;
+    }
+}
+
+// --- Demo ---
+log("");
+let market = market_new();
+market_gallery(market);
+
+log("");
+log(">>> Full Listing <<<");
+market_list_all(market);
+
+log("");
+log(">>> Quantum Category <<<");
+market_list_by_category(market, "quantum");
+
+log("");
+log(">>> Glyph Info <<<");
+market_show_info(market, "a1b2");
+
+log("");
+log(">>> Buy simulation <<<");
+let buyer = sha256("buyer_wallet").slice(0, 44);
+let receipt = market_buy(market, "e5f6", buyer);
+
+log("");
+log(">>> Mint new glyph <<<");
+let new_glyph = market_mint_new(market, "shard/titan/quantum_algorithms.ai", "quantum_artist", 1.5, "quantum");
+
+log("");
+log(">>> Top Sellers <<<");
+market_top_sellers(market, 5);
+
+log("");
+log("=== Marketplace demo complete ===");
