@@ -1,0 +1,34 @@
+⍝ TRANSLATION NOTE: src/core/code_actions.rs
+⍝ Purpose: code-action suggestion scaffold over AST with rename/extract/missing-let/inline-variable heuristics.
+⍝ Feature parity: PARTIAL (action model + traversal + heuristic passes).
+
+◇ CodeAction = record_seed(["title", "kind", "line", "column"]);
+
+◯ suggest_actions⟨ast⟩ {
+  let out = [];
+  collect_actions(ast, out);
+  add_missing_let_actions(ast, out);
+  add_inline_variable_actions(ast, out);
+  return out;
+}
+
+◯ collect_actions⟨node, out⟩ {
+  match_ast_seed(node, {
+    "Program|Block": λ(items) { for it in items { collect_actions(it, out); } },
+    "Function": λ(name, line, column, body) {
+      if (len_seed(body) > 5) {
+        push_seed(out, {"title": "Extract part of '" + name + "' into function", "kind": "extractFunction", "line": line, "column": column});
+      }
+      for it in body { collect_actions(it, out); }
+    },
+    "VariableDecl": λ(name, line, column) {
+      push_seed(out, {"title": "Rename variable '" + name + "'", "kind": "rename", "line": line, "column": column});
+    },
+    "Assignment": λ(_, line, column) {
+      push_seed(out, {"title": "Introduce variable", "kind": "introduceVariable", "line": line, "column": column});
+    }
+  });
+}
+
+◯ add_missing_let_actions⟨ast, out⟩ { return missing_let_analysis_seed(ast, out); }
+◯ add_inline_variable_actions⟨ast, out⟩ { return inline_variable_analysis_seed(ast, out); }

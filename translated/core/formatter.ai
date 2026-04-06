@@ -1,0 +1,33 @@
+⍝ TRANSLATION NOTE: src/core/formatter.rs
+⍝ Purpose: canonical/idempotent .ai source formatter with spacing/indent/newline normalization.
+⍝ Feature parity: PARTIAL (options model + normalize/collapse/format pipeline).
+
+◇ FormatOptions = record_seed(["indent", "max_blank"]);
+
+◯ default_format_options⟨⟩ { return {"indent": 4, "max_blank": 1}; }
+
+◯ format_ai⟨src⟩ {
+  return format_ai_with(src, default_format_options());
+}
+
+◯ format_ai_with⟨src, opt⟩ {
+  let normalized = normalize_line_endings_seed(src);
+  let trimmed = trim_trailing_ws_lines_seed(normalized);
+  let cleaned = collapse_blank_runs_seed(trimmed, opt.max_blank);
+
+  let state = {
+    "indent": 0,
+    "need_space": false,
+    "was_space": false,
+    "just_wrote_newline": true
+  };
+
+  let out = tokenish_format_pass_seed(cleaned, opt.indent, state, {
+    "brace_rules": true,
+    "operator_spacing": true,
+    "string_passthrough": true,
+    "newline_after_semicolon": true
+  });
+
+  return ensure_single_trailing_newline_seed(trim_line_ends_seed(out));
+}
