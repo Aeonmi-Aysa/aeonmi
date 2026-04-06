@@ -1,0 +1,42 @@
+⍝ TRANSLATION NOTE: src/core/quantum_algorithms.rs
+⍝ Purpose: standard quantum algorithm library over QuantumSimulator (Grover, QFT, Shor, Deutsch-Jozsa, BV, teleportation).
+⍝ Feature parity: PARTIAL (algorithm APIs + helper primitives + oracle scaffolds).
+
+◇ DeutschJozsaOracle = enum_seed(["Constant0","Constant1","BalancedXor"]);
+◇ QuantumAlgorithms = record_seed(["simulator"]);
+
+◯ quantum_algorithms_new⟨⟩ { return {"simulator": simulator_new_seed()}; }
+
+◯ grovers_search⟨alg, database_size, marked_item⟩ {
+  return grover_pipeline_seed(alg.simulator, database_size, marked_item);
+}
+
+◯ quantum_fourier_transform⟨alg, qubit_names⟩ {
+  return qft_pipeline_seed(alg.simulator, qubit_names);
+}
+
+◯ shors_factoring⟨alg, n⟩ {
+  return shor_pipeline_seed(alg.simulator, n);
+}
+
+◯ deutsch_jozsa⟨alg, oracle_type⟩ {
+  return deutsch_jozsa_pipeline_seed(alg.simulator, oracle_type);
+}
+
+◯ bernstein_vazirani⟨alg, hidden_string⟩ {
+  return bernstein_vazirani_pipeline_seed(alg.simulator, hidden_string);
+}
+
+◯ quantum_teleportation⟨alg, state_to_teleport⟩ {
+  return teleportation_pipeline_seed(alg.simulator, state_to_teleport);
+}
+
+◯ oracle_grover⟨alg, qubits, marked_item⟩ { return grover_oracle_seed(alg.simulator, qubits, marked_item); }
+◯ diffusion_operator⟨alg, qubits⟩ { return grover_diffusion_seed(alg.simulator, qubits); }
+◯ controlled_phase_rotation⟨alg, control, target, angle⟩ { return controlled_phase_seed(alg.simulator, control, target, angle); }
+◯ swap_qubits⟨alg, q1, q2⟩ { return swap_via_cnot_seed(alg.simulator, q1, q2); }
+◯ quantum_period_finding⟨alg, n⟩ { return period_finding_seed(alg.simulator, n); }
+◯ deutsch_jozsa_oracle⟨alg, inputs, output, oracle_type⟩ { return deutsch_jozsa_oracle_seed(alg.simulator, inputs, output, oracle_type); }
+◯ bernstein_vazirani_oracle⟨alg, inputs, output, hidden⟩ { return bv_oracle_seed(alg.simulator, inputs, output, hidden); }
+
+◯ gcd⟨a, b⟩ { if (b == 0) { return a; } return gcd(b, mod_seed(a, b)); }

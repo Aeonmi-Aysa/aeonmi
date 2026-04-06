@@ -1,0 +1,42 @@
+⍝ TRANSLATION NOTE: src/core/qpoly.rs
+⍝ Purpose: QPoly keymap builtins + optional TOML config + line chord replacement.
+⍝ Feature parity: PARTIAL (rule model, builtin/default loading, longest-first apply flow).
+
+◇ QPolyMap = record_seed(["rules"]);
+◇ QPolyRule = record_seed(["chord","glyph"]);
+◇ QPolyConfig = record_seed(["rules"]);
+
+◯ qpoly_builtin⟨⟩ {
+  let rules = [
+    ["<<<","⟪"],[">>>","⟫"],["<=>","⇔"],
+    ["->","→"],["<-","←"],["<=","≤"],[">=","≥"],["!=","≠"],["==","＝"],
+    ["::","∷"],[":=","≔"],["|0>","∣0⟩"],["|1>","∣1⟩"]
+  ];
+  return {"rules": sort_desc_len_seed(rules)};
+}
+
+◯ qpoly_from_toml_file⟨path⟩ {
+  let cfg = parse_toml_seed(path);
+  let rules = map_rules_seed(cfg.rules, ["chord","glyph"]);
+  if (is_empty_seed(rules)) { return ok(qpoly_builtin()); }
+  return ok({"rules": sort_desc_len_seed(rules)});
+}
+
+◯ qpoly_from_user_default_or_builtin⟨⟩ {
+  let p = default_config_path();
+  if (is_some(p) && path_exists_seed(unwrap_some(p))) {
+    let loaded = qpoly_from_toml_file(unwrap_some(p));
+    if (is_ok(loaded)) { return unwrap_ok(loaded); }
+    warn_seed("failed loading qpoly.toml; using builtin map");
+  }
+  return qpoly_builtin();
+}
+
+◯ qpoly_apply_line⟨map, s⟩ {
+  let out = s;
+  for r in map.rules { out = replace_all_seed(out, r[0], r[1]); }
+  return out;
+}
+
+◯ default_config_path⟨⟩ { return join_home_seed(".aeonmi/qpoly.toml"); }
+◯ ensure_parent_dir⟨path⟩ { return mkdir_parent_seed(path); }
