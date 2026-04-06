@@ -1,0 +1,42 @@
+⍝ TRANSLATION NOTE: src/core/hardware_integration.rs
+⍝ Purpose: real/simulated quantum hardware manager, device registry, job lifecycle, provider submission stubs.
+⍝ Feature parity: PARTIAL (provider/device/job/results models + simulator execution + provider dispatch scaffolds).
+
+◇ QuantumProvider = enum_seed(["IBMQuantum","IonQ","Rigetti","GoogleQuantumAI","AmazonBraket","AzureQuantum","Simulator"]);
+◇ QuantumDevice = record_seed(["name","provider","qubits","connectivity","gate_set","is_available","queue_length","error_rates"]);
+◇ JobStatus = enum_seed(["Queued","Running","Completed","Failed","Cancelled"]);
+◇ QuantumCircuit = record_seed(["gates","qubits","measurements"]);
+◇ QuantumGate = record_seed(["gate_type","qubits","parameters"]);
+◇ QuantumResults = record_seed(["counts","probabilities","raw_data","execution_time"]);
+◇ QuantumJob = record_seed(["id","device","circuit","shots","status","results?"]);
+◇ HardwareManager = record_seed(["devices","jobs","current_provider","credentials"]);
+
+◯ hardware_manager_new⟨⟩ { return seeded_hardware_manager_seed(); }
+◯ list_devices⟨m⟩ { return map_values_seed(m.devices); }
+◯ get_device⟨m, name⟩ { return map_get_seed(m.devices, name); }
+◯ set_provider⟨m, provider⟩ { m.current_provider = provider; }
+◯ set_credentials⟨m, provider, token⟩ { map_put_seed(m.credentials, provider, token); }
+
+◯ submit_job⟨m, device_name, circuit, shots⟩ {
+  let device = require_device_seed(m.devices, device_name);
+  validate_device_availability_seed(device);
+  validate_circuit_compat_seed(circuit, device);
+  let job_id = uuid_job_id_seed();
+  map_put_seed(m.jobs, job_id, {"id":job_id,"device":device_name,"circuit":circuit,"shots":shots,"status":"Queued","results":none()});
+  if (device.provider == "Simulator") { execute_simulator_job(m, job_id); }
+  else { submit_to_provider(m, job_id); }
+  return ok(job_id);
+}
+
+◯ execute_simulator_job⟨m, job_id⟩ { return simulate_measurements_seed(m.jobs, job_id); }
+◯ submit_to_provider⟨m, job_id⟩ { return provider_dispatch_seed(m, job_id, ["IBMQuantum","IonQ","Rigetti","GoogleQuantumAI","AmazonBraket","AzureQuantum"]); }
+
+◯ get_job_status⟨m, job_id⟩ { return get_job_field_seed(m.jobs, job_id, "status"); }
+◯ get_job_results⟨m, job_id⟩ { return get_job_field_seed(m.jobs, job_id, "results"); }
+◯ cancel_job⟨m, job_id⟩ { return cancel_if_active_seed(m.jobs, job_id); }
+◯ get_available_devices_for_provider⟨m, provider⟩ { return filter_devices_seed(m.devices, provider, true); }
+
+◯ quantum_circuit_new⟨qubits⟩ { return {"gates":[], "qubits":qubits, "measurements":[]}; }
+◯ circuit_add_gate⟨c, gate_type, qubits, parameters⟩ { push_seed(c.gates, {"gate_type":gate_type,"qubits":qubits,"parameters":parameters}); }
+◯ circuit_add_measurement⟨c, q⟩ { unique_push_seed(c.measurements, q); }
+◯ measure_all⟨c⟩ { for i in range_seed(0, c.qubits) { circuit_add_measurement(c, i); } }

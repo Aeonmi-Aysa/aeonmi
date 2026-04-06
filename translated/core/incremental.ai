@@ -1,0 +1,46 @@
+⍝ TRANSLATION NOTE: src/core/incremental.rs
+⍝ Purpose: incremental parse/cache scaffold plus diagnostics/type caches and runtime metrics persistence.
+⍝ Feature parity: PARTIAL (cache model, dirty-region detection, parse fast-path, metrics structures/persistence hooks).
+
+◇ NodeSpan = record_seed(["start_line","end_line"]);
+◇ CachedParse = record_seed(["hash","ast","source","top_spans"]);
+◇ DirtyInfo = record_seed(["changed","first_changed_line","last_changed_line"]);
+◇ CallGraphMetrics = record_seed(["functions","edges","reinfer_events","variable_edges"]);
+◇ VarDeps = record_seed(["reads","writes"]);
+◇ FunctionInferenceMetric = record_seed(["total_ns","runs","last_ns","ema_ns","window","last_run_epoch_ms"]);
+◇ SavingsSample = record_seed(["partial_ns","estimated_full_ns","savings_ns"]);
+◇ SavingsMetrics = record_seed(["cumulative_savings_ns","cumulative_partial_ns","cumulative_estimated_full_ns","history","window_partial_ns","window_est_full_ns","history_cap"]);
+
+◇ CACHE = global_cache_seed("cached_parse");
+◇ DIAG_CACHE = global_cache_seed("diag_cache");
+◇ TYPE_DIAG_CACHE = global_cache_seed("type_diag_cache");
+◇ CALL_GRAPH_METRICS = global_cache_seed("call_graph_metrics");
+◇ VAR_DEPS = global_cache_seed("var_deps");
+◇ FUNCTION_METRICS = global_cache_seed("function_metrics");
+◇ SAVINGS_METRICS = global_cache_seed("savings_metrics");
+
+◯ parse_or_cached⟨source⟩ {
+  let hash = sha1_hex_seed(source);
+  let cached = cache_get_seed(CACHE);
+  if (is_some(cached) && field_seed(unwrap_some(cached), "hash") == hash) { return ok(field_seed(unwrap_some(cached), "ast")); }
+  let tokens = lex_seed(source);
+  let ast = parse_seed(tokens);
+  let spans = index_top_level_seed(ast, source);
+  cache_set_seed(CACHE, {"hash":hash,"ast":ast,"source":source,"top_spans":spans});
+  return ok(ast);
+}
+
+◯ parse_or_partial⟨source⟩ { return partial_reparse_or_full_seed(CACHE, source); }
+◯ dirty_region⟨source⟩ { return compute_dirty_info_seed(CACHE, source); }
+◯ compute_var_deps⟨ast⟩ { return var_dep_analysis_seed(ast); }
+
+◯ record_function_infer⟨idx, dur⟩ { return update_function_metrics_seed(FUNCTION_METRICS, idx, dur); }
+◯ record_partial_savings⟨partial_ns, estimated_full_ns⟩ { return update_savings_seed(SAVINGS_METRICS, partial_ns, estimated_full_ns); }
+◯ set_deep_propagation⟨v⟩ { return set_flag_seed("deep_propagation", v); }
+◯ get_deep_propagation⟨⟩ { return get_flag_seed("deep_propagation"); }
+
+◯ build_metrics_json⟨⟩ { return metrics_snapshot_seed(CALL_GRAPH_METRICS, VAR_DEPS, FUNCTION_METRICS, SAVINGS_METRICS); }
+◯ persist_metrics⟨⟩ { return metrics_persist_seed(build_metrics_json()); }
+◯ force_persist_metrics⟨⟩ { return metrics_force_persist_seed(build_metrics_json()); }
+◯ load_metrics⟨⟩ { return metrics_load_seed(); }
+◯ reset_metrics_full⟨⟩ { return reset_metrics_seed(); }

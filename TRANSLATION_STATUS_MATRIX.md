@@ -62,8 +62,8 @@ Total Rust files tracked: **241**
 | `src/core/diagnostics.rs` | `translated/src/core/diagnostics.ai` | PARTIAL | Seed translation created at translated/core/diagnostics.ai |
 | `src/core/error.rs` | `translated/src/core/error.ai` | PARTIAL | Seed translation created at translated/core/error.ai |
 | `src/core/formatter.rs` | `translated/core/formatter.ai` | PARTIAL | Seed translation created at translated/core/formatter.ai |
-| `src/core/hardware_integration.rs` | `translated/src/core/hardware_integration.ai` | PENDING | Not translated in this branch yet |
-| `src/core/incremental.rs` | `translated/src/core/incremental.ai` | PENDING | Not translated in this branch yet |
+| `src/core/hardware_integration.rs` | `translated/core/hardware_integration.ai` | PARTIAL | Seed translation created at translated/core/hardware_integration.ai |
+| `src/core/incremental.rs` | `translated/core/incremental.ai` | PARTIAL | Seed translation created at translated/core/incremental.ai |
 | `src/core/ir.rs` | `translated/src/core/ir.qube` | PARTIAL | Seed translation created at translated/core/ir.ai (target ext review needed) |
 | `src/core/lexer.rs` | `translated/core/lexer.ai` | PARTIAL | Seed translation created at translated/core/lexer.ai |
 | `src/core/lib.rs` | `translated/src/core/lib.ai` | PENDING | Not translated in this branch yet |
