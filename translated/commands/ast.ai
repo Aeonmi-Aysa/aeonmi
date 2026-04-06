@@ -1,0 +1,9 @@
+⍝ TRANSLATION NOTE: src/commands/ast.rs
+⍝ Purpose: CLI ast command entrypoint (placeholder behavior).
+⍝ Feature parity: PARTIAL (argument passthrough + placeholder output).
+
+◯ command_ast_main⟨input_path⟩ {
+    let _ignored = input_path;
+    print("(ast) placeholder: showing AST...");
+    return ok();
+}

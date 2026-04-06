@@ -31,13 +31,13 @@ Total Rust files tracked: **241**
 | `src/bin/quantum_validation.rs` | `translated/src/bin/quantum_validation.ai` | PENDING | Not translated in this branch yet |
 | `src/cli.rs` | `translated/src/cli.ai` | PENDING | Not translated in this branch yet |
 | `src/cli_vault.rs` | `translated/src/cli_vault.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/ast.rs` | `translated/src/commands/ast.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/compile.rs` | `translated/src/commands/compile.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/edit.rs` | `translated/src/commands/edit.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/format.rs` | `translated/src/commands/format.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/fs.rs` | `translated/src/commands/fs.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/lint.rs` | `translated/src/commands/lint.ai` | PENDING | Not translated in this branch yet |
-| `src/commands/mod.rs` | `translated/src/commands/mod.ai` | PENDING | Not translated in this branch yet |
+| `src/commands/ast.rs` | `translated/commands/ast.ai` | PARTIAL | Seed translation created at translated/commands/ast.ai |
+| `src/commands/compile.rs` | `translated/commands/compile.ai` | PARTIAL | Seed translation created at translated/commands/compile.ai |
+| `src/commands/edit.rs` | `translated/commands/edit.ai` | PARTIAL | Seed translation created at translated/commands/edit.ai |
+| `src/commands/format.rs` | `translated/commands/format.ai` | PARTIAL | Seed translation created at translated/commands/format.ai |
+| `src/commands/fs.rs` | `translated/commands/fs.ai` | PARTIAL | Seed translation created at translated/commands/fs.ai |
+| `src/commands/lint.rs` | `translated/commands/lint.ai` | PARTIAL | Seed translation created at translated/commands/lint.ai |
+| `src/commands/mod.rs` | `translated/commands/mod.ai` | PARTIAL | Seed translation created at translated/commands/mod.ai |
 | `src/commands/quantum.rs` | `translated/src/commands/quantum.ai` | PENDING | Not translated in this branch yet |
 | `src/commands/repl.rs` | `translated/src/commands/repl.ai` | PENDING | Not translated in this branch yet |
 | `src/commands/run.rs` | `translated/src/commands/run.ai` | PENDING | Not translated in this branch yet |

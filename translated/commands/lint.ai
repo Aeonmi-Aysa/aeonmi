@@ -1,0 +1,37 @@
+⍝ TRANSLATION NOTE: src/commands/lint.rs
+⍝ Purpose: simple line-based lint checks with optional fix mode.
+⍝ Feature parity: PARTIAL (trim trailing spaces, semicolon check for let lines, exit-on-problems behavior).
+
+◯ command_lint_main_with_opts⟨inputs, fix⟩ {
+    let problems = 0;
+    for p in inputs {
+        let content = read_file(p);
+        let out = "";
+        let changed = false;
+
+        for line in split_lines(content) {
+            let trimmed = rtrim(line);
+            if (len(trimmed) != len(line)) {
+                problems = problems + 1;
+                changed = true;
+            }
+            let emit_line = trimmed;
+            if (starts_with(trimmed, "let ") && !ends_with(trimmed, ";")) {
+                problems = problems + 1;
+                if (fix) { emit_line = trimmed + ";"; changed = true; }
+            }
+            out = out + emit_line + "
+";
+        }
+
+        if (fix && changed) {
+            write_file(p, out);
+            print("fixed " + p);
+        } else if (problems > 0) {
+            print(p + ": " + to_string(problems) + " problems");
+        }
+    }
+
+    if (problems > 0) { return error("lint failed"); }
+    return ok();
+}

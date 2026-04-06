@@ -1,0 +1,45 @@
+⍝ TRANSLATION NOTE: src/commands/fs.rs
+⍝ Purpose: editor-like filesystem commands (new/open/save/import/export/upload/download).
+⍝ Feature parity: PARTIAL (new-file template flow + upload/download copy semantics).
+⍝ Known deviation: placeholder commands remain placeholders by design.
+
+◯ fs_new_file⟨path_opt⟩ {
+    let target = option_or(path_opt, "untitled.ai");
+    if (file_exists(target)) {
+        print("new: '" + target + "' already exists (leaving unchanged)");
+        return ok();
+    }
+    ensure_parent_dir(target);
+    let now = now_string_seed();
+    let template = "// Aeonmi source created " + now + "
+"
+        + "let greeting = "Hello Aeonmi";
+"
+        + "function square(x) { return x * x; }
+"
+        + "let total = 0;
+"
+        + "for let i = 0; i < 5; i = i + 1 { total = total + square(i); }
+"
+        + "log(greeting, total);
+";
+    write_file(target, template);
+    print("new: created '" + target + "'");
+    return ok();
+}
+
+◯ fs_upload_seed⟨path⟩ {
+    let src = absolutize(path);
+    if (!exists(src)) { return error("upload failed: source does not exist"); }
+    let uploads = join_path(cwd(), "uploads");
+    ensure_dir(uploads);
+    return copy_into_seed(src, uploads, "uploaded");
+}
+
+◯ fs_download_seed⟨path⟩ {
+    let src = absolutize(path);
+    if (!exists(src)) { return error("download failed: source does not exist in workspace"); }
+    let downloads = join_path(cwd(), "downloads");
+    ensure_dir(downloads);
+    return copy_into_seed(src, downloads, "downloaded");
+}

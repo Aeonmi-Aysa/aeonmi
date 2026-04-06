@@ -1,0 +1,34 @@
+⍝ TRANSLATION NOTE: src/commands/format.rs
+⍝ Purpose: batch formatter for .ai files with check mode.
+⍝ Feature parity: PARTIAL (normalize/compare, check reporting, atomic write intent).
+
+◯ command_format_main⟨paths, check⟩ {
+    let changed = 0;
+    for p in paths {
+        let read = read_file_safe(p);
+        if (is_error(read)) {
+            eprint("warn: cannot read " + p);
+            continue;
+        }
+        let orig = unwrap_ok(read);
+        let formatted = format_ai_seed(orig);
+        if (normalized_seed(orig) != normalized_seed(formatted)) {
+            if (check) { print(p); }
+            if (!check) {
+                atomic_write_seed(p, formatted);
+                print("formatted " + p);
+            }
+            changed = changed + 1;
+        }
+    }
+    if (changed == 0) { return 0; }
+    return 1;
+}
+
+◯ normalized_seed⟨s⟩ {
+    let t = replace(replace(s, "
+", "
+"), "", "
+");
+    return trim_trailing_newline(t);
+}

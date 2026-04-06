@@ -1,0 +1,28 @@
+⍝ TRANSLATION NOTE: src/commands/edit.rs
+⍝ Purpose: editor command with TUI mode and legacy line editor commands.
+⍝ Feature parity: PARTIAL (mode switch, command loop shape, compile/run hooks).
+⍝ Known deviation: signal handling and stdin loop are represented as seed routines.
+
+◯ command_edit_main⟨file_opt, config_path_opt, use_tui⟩ {
+    if (use_tui) {
+        return run_editor_tui_seed(file_opt, config_path_opt, true, false);
+    }
+
+    let filepath = option_or(file_opt, "untitled.ai");
+    let state = editor_state_seed(filepath, config_path_opt);
+
+    while (state.running) {
+        let line = read_line_seed("› ");
+        if (starts_with(line, ":")) {
+            let cmd = handle_editor_command_seed(state, line);
+            if (cmd == "quit") { break; }
+            continue;
+        }
+        let transformed = qpoly_apply_line_seed(state.map, line);
+        state.buffer = state.buffer + transformed + "
+";
+        state.dirty = true;
+    }
+
+    return ok();
+}

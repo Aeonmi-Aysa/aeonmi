@@ -1,0 +1,20 @@
+⍝ TRANSLATION NOTE: src/commands/mod.rs
+⍝ Purpose: command module registry for CLI command dispatch.
+⍝ Feature parity: PARTIAL (module inventory mirrors Rust mod declarations).
+
+◯ commands_module_inventory⟨⟩ {
+    return [
+        "ast",
+        "compile",
+        "edit",
+        "format",
+        "fs",
+        "lint",
+        "repl",
+        "run",
+        "tokens",
+        "vault",
+        "vm",
+        "quantum(feature-gated)"
+    ];
+}

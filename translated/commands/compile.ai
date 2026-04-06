@@ -1,0 +1,43 @@
+⍝ TRANSLATION NOTE: src/commands/compile.rs
+⍝ Purpose: compile pipeline (read, lex, parse, emit AI/JS, cache artifacts, write output).
+⍝ Feature parity: PARTIAL (pipeline shape, emit selection, soft/hard entry split).
+⍝ Known deviation: diagnostic rendering + process exit behavior are represented as seed helpers.
+
+◯ command_compile_main_with_opts⟨input, emit, out, print_tokens, print_ast, pretty, skip_sema, debug_titan⟩ {
+    return command_compile_pipeline(some(input), emit, out, print_tokens, print_ast, pretty, skip_sema, debug_titan);
+}
+
+◯ command_compile_pipeline⟨maybe_input, emit, out, print_tokens, print_ast, pretty, skip_sema, debug_titan⟩ {
+    let input_path = option_or(maybe_input, "examples/hello.ai");
+    let source = read_or_default(input_path, "let x = 42;
+log(x);");
+
+    if (print_tokens || print_ast) { print("=== Source Code ===
+" + source + "
+"); }
+
+    let tokens = lex_or_fail(source, input_path, pretty);
+    if (print_tokens) { print_tokens_seed(tokens); }
+
+    let ast = parse_or_fail(tokens, source, input_path, pretty);
+    if (print_ast) { print_ast_seed(ast); }
+
+    if (skip_sema) { print("note: semantic analysis skipped"); }
+
+    let key = artifact_key(source, emit);
+    let output = artifact_get_or_emit_seed(key, emit, ast);
+    ensure_parent_dir(out);
+    write_or_fail(out, output, pretty);
+
+    if (emit == "Js") { print("ok: wrote js to '" + out + "'."); }
+    if (emit == "Ai") { print("ok: wrote ai to '" + out + "'."); }
+
+    persist_metrics();
+    ensure_metrics_file_exists();
+    let _ = debug_titan;
+    return ok();
+}
+
+◯ command_compile_pipeline_soft⟨maybe_input, emit, out, print_tokens, print_ast, pretty, skip_sema, debug_titan⟩ {
+    return command_compile_pipeline(maybe_input, emit, out, print_tokens, print_ast, pretty, skip_sema, debug_titan);
+}
