@@ -1,0 +1,48 @@
+⍝ TRANSLATION NOTE: src/core/ir.rs
+⍝ Purpose: intermediate representation instructions and function/module containers.
+⍝ Feature parity: PARTIAL (IR tags, instruction constructors, IR module assembly).
+⍝ Known deviation: Rust enum richness narrowed to stable tagged-array instruction format.
+⍝ Test needs: IR lowering/eval parity tests against arithmetic, branch, call, and return paths.
+
+◯ ir_op_const⟨⟩ { return 1; }
+◯ ir_op_load⟨⟩ { return 2; }
+◯ ir_op_store⟨⟩ { return 3; }
+◯ ir_op_add⟨⟩ { return 4; }
+◯ ir_op_sub⟨⟩ { return 5; }
+◯ ir_op_mul⟨⟩ { return 6; }
+◯ ir_op_div⟨⟩ { return 7; }
+◯ ir_op_jump⟨⟩ { return 8; }
+◯ ir_op_jump_if_false⟨⟩ { return 9; }
+◯ ir_op_call⟨⟩ { return 10; }
+◯ ir_op_return⟨⟩ { return 11; }
+
+◯ ir_inst⟨op, a, b, c⟩ {
+    let i = [];
+    i.push(op);
+    i.push(a);
+    i.push(b);
+    i.push(c);
+    return i;
+}
+
+◯ ir_fn_new⟨name, params, body⟩ {
+    let f = [];
+    f.push(name);
+    f.push(params);
+    f.push(body);
+    return f;
+}
+
+◯ ir_module_new⟨⟩ {
+    let m = [];
+    m.push([]); ⍝ functions
+    return m;
+}
+
+◯ ir_module_add_fn⟨m, f⟩ {
+    let fns = m.slice(0,1).pop();
+    fns.push(f);
+    let out = [];
+    out.push(fns);
+    return out;
+}

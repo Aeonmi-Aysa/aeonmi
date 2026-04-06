@@ -1,0 +1,52 @@
+⍝ TRANSLATION NOTE: src/core/bytecode.rs
+⍝ Purpose: bytecode opcodes/chunk constants and instruction assembly.
+⍝ Feature parity: PARTIAL (opcode constants and chunk append helpers).
+⍝ Known deviation: compact representation used instead of Rust struct wrappers.
+⍝ Test needs: VM execute parity for constants/load/store/math/call/return opcodes.
+
+◯ bc_op_const⟨⟩ { return 1; }
+◯ bc_op_load⟨⟩ { return 2; }
+◯ bc_op_store⟨⟩ { return 3; }
+◯ bc_op_add⟨⟩ { return 4; }
+◯ bc_op_sub⟨⟩ { return 5; }
+◯ bc_op_mul⟨⟩ { return 6; }
+◯ bc_op_div⟨⟩ { return 7; }
+◯ bc_op_jump⟨⟩ { return 8; }
+◯ bc_op_jump_if_false⟨⟩ { return 9; }
+◯ bc_op_call⟨⟩ { return 10; }
+◯ bc_op_return⟨⟩ { return 11; }
+
+◯ bc_chunk_new⟨⟩ {
+    let c = [];
+    c.push([]); ⍝ code
+    c.push([]); ⍝ consts
+    return c;
+}
+
+◯ bc_chunk_add_const⟨chunk, value⟩ {
+    let code = chunk.slice(0,1).pop();
+    let consts = chunk.slice(1,2).pop();
+    consts.push(value);
+    let idx = len(consts) - 1;
+    let out = [];
+    out.push(code);
+    out.push(consts);
+    let r = [];
+    r.push(out);
+    r.push(idx);
+    return r;
+}
+
+◯ bc_chunk_emit⟨chunk, op, a, b⟩ {
+    let code = chunk.slice(0,1).pop();
+    let consts = chunk.slice(1,2).pop();
+    let inst = [];
+    inst.push(op);
+    inst.push(a);
+    inst.push(b);
+    code.push(inst);
+    let out = [];
+    out.push(code);
+    out.push(consts);
+    return out;
+}

@@ -1,0 +1,54 @@
+⍝ TRANSLATION NOTE: src/core/lowering.rs
+⍝ Purpose: AST -> IR lowering bridge.
+⍝ Feature parity: PARTIAL (core expression/statement lowering skeleton with deterministic state threading).
+⍝ Known deviation: subset lowering rules currently emitted; advanced forms remain TODO in matrix.
+⍝ Test needs: parity tests for if/while/for/call and logical short-circuit lowering.
+
+◯ lower_ctx_new⟨⟩ {
+    let c = [];
+    c.push([]); ⍝ instructions
+    c.push(0);  ⍝ temp counter
+    return c;
+}
+
+◯ lower_ctx_insts⟨c⟩ { return c.slice(0,1).pop(); }
+◯ lower_ctx_temp⟨c⟩ { return c.slice(1,2).pop(); }
+
+◯ lower_emit⟨c, inst⟩ {
+    let insts = lower_ctx_insts(c);
+    let t = lower_ctx_temp(c);
+    insts.push(inst);
+    let out = [];
+    out.push(insts);
+    out.push(t);
+    return out;
+}
+
+◯ lower_next_temp⟨c⟩ {
+    let insts = lower_ctx_insts(c);
+    let t = lower_ctx_temp(c) + 1;
+    let out = [];
+    out.push(insts);
+    out.push(t);
+    return out;
+}
+
+◯ lower_literal⟨c, value⟩ {
+    let temp = lower_ctx_temp(c);
+    c = lower_emit(c, ir_inst(ir_op_const(), temp, value, 0));
+    c = lower_next_temp(c);
+    let r = [];
+    r.push(c);
+    r.push(temp);
+    return r;
+}
+
+◯ lower_binary_add⟨c, left_temp, right_temp⟩ {
+    let out_temp = lower_ctx_temp(c);
+    c = lower_emit(c, ir_inst(ir_op_add(), out_temp, left_temp, right_temp));
+    c = lower_next_temp(c);
+    let r = [];
+    r.push(c);
+    r.push(out_temp);
+    return r;
+}

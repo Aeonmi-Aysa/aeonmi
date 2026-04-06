@@ -1,0 +1,40 @@
+⍝ TRANSLATION NOTE: src/core/code_generator.rs
+⍝ Purpose: IR -> bytecode code generation pass.
+⍝ Feature parity: PARTIAL (selected opcode emission paths).
+⍝ Known deviation: branch target backpatching currently minimal and explicit.
+⍝ Test needs: compare generated opcode streams for representative fixtures.
+
+◯ codegen_new⟨⟩ {
+    let g = [];
+    g.push(bc_chunk_new());
+    return g;
+}
+
+◯ codegen_chunk⟨g⟩ { return g.slice(0,1).pop(); }
+
+◯ codegen_emit_const⟨g, value⟩ {
+    let chunk = codegen_chunk(g);
+    let c = bc_chunk_add_const(chunk, value);
+    let chunk2 = c.slice(0,1).pop();
+    let idx = c.slice(1,2).pop();
+    chunk2 = bc_chunk_emit(chunk2, bc_op_const(), idx, 0);
+    let out = [];
+    out.push(chunk2);
+    return out;
+}
+
+◯ codegen_emit_add⟨g⟩ {
+    let chunk = codegen_chunk(g);
+    chunk = bc_chunk_emit(chunk, bc_op_add(), 0, 0);
+    let out = [];
+    out.push(chunk);
+    return out;
+}
+
+◯ codegen_finish⟨g⟩ {
+    let chunk = codegen_chunk(g);
+    chunk = bc_chunk_emit(chunk, bc_op_return(), 0, 0);
+    let out = [];
+    out.push(chunk);
+    return out;
+}

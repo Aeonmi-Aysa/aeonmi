@@ -51,23 +51,23 @@ Total Rust files tracked: **241**
 | `src/core/artifact_cache.rs` | `translated/src/core/artifact_cache.ai` | PENDING | Not translated in this branch yet |
 | `src/core/ast.rs` | `translated/src/core/ast.qube` | PARTIAL | Seed translation created at translated/core/ast.ai (path normalization pending) |
 | `src/core/blockchain.rs` | `translated/src/core/blockchain.ai` | PENDING | Not translated in this branch yet |
-| `src/core/bytecode.rs` | `translated/src/core/bytecode.ai` | PENDING | Not translated in this branch yet |
+| `src/core/bytecode.rs` | `translated/src/core/bytecode.ai` | PARTIAL | Seed translation created at translated/core/bytecode.ai |
 | `src/core/circuit_builder.rs` | `translated/src/core/circuit_builder.ai` | PENDING | Not translated in this branch yet |
 | `src/core/circuit_compiler.rs` | `translated/src/core/circuit_compiler.ai` | PENDING | Not translated in this branch yet |
 | `src/core/circuit_visualization.rs` | `translated/src/core/circuit_visualization.ai` | PENDING | Not translated in this branch yet |
 | `src/core/code_actions.rs` | `translated/src/core/code_actions.ai` | PENDING | Not translated in this branch yet |
-| `src/core/code_generator.rs` | `translated/src/core/code_generator.ai` | PENDING | Not translated in this branch yet |
-| `src/core/compiler.rs` | `translated/src/core/compiler.ai` | PENDING | Not translated in this branch yet |
+| `src/core/code_generator.rs` | `translated/src/core/code_generator.ai` | PARTIAL | Seed translation created at translated/core/code_generator.ai |
+| `src/core/compiler.rs` | `translated/src/core/compiler.ai` | PARTIAL | Seed translation created at translated/core/compiler.ai |
 | `src/core/debug.rs` | `translated/src/core/debug.ai` | PARTIAL | Seed translation created at translated/core/debug.ai |
 | `src/core/diagnostics.rs` | `translated/src/core/diagnostics.ai` | PARTIAL | Seed translation created at translated/core/diagnostics.ai |
 | `src/core/error.rs` | `translated/src/core/error.ai` | PARTIAL | Seed translation created at translated/core/error.ai |
 | `src/core/formatter.rs` | `translated/src/core/formatter.ai` | PENDING | Not translated in this branch yet |
 | `src/core/hardware_integration.rs` | `translated/src/core/hardware_integration.ai` | PENDING | Not translated in this branch yet |
 | `src/core/incremental.rs` | `translated/src/core/incremental.ai` | PENDING | Not translated in this branch yet |
-| `src/core/ir.rs` | `translated/src/core/ir.qube` | PENDING | Not translated in this branch yet |
+| `src/core/ir.rs` | `translated/src/core/ir.qube` | PARTIAL | Seed translation created at translated/core/ir.ai (target ext review needed) |
 | `src/core/lexer.rs` | `translated/src/core/lexer.qube` | PENDING | Not translated in this branch yet |
 | `src/core/lib.rs` | `translated/src/core/lib.ai` | PENDING | Not translated in this branch yet |
-| `src/core/lowering.rs` | `translated/src/core/lowering.ai` | PENDING | Not translated in this branch yet |
+| `src/core/lowering.rs` | `translated/src/core/lowering.ai` | PARTIAL | Seed translation created at translated/core/lowering.ai |
 | `src/core/mint.rs` | `translated/src/core/mint.ai` | PENDING | Not translated in this branch yet |
 | `src/core/mod.rs` | `translated/src/core/mod.ai` | PENDING | Not translated in this branch yet |
 | `src/core/mother_core.rs` | `translated/src/core/mother_core.ai` | PENDING | Not translated in this branch yet |
