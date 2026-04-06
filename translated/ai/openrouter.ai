@@ -1,0 +1,24 @@
+⍝ TRANSLATION NOTE: src/ai/openrouter.rs
+⍝ Purpose: OpenRouter provider with API key + model selection from env.
+⍝ Feature parity: PARTIAL (from_env behavior, message/request shaping).
+⍝ Known deviation: HTTP call/JSON extraction represented as seed routine.
+
+◯ openrouter_name⟨⟩ { return "OpenRouter"; }
+
+◯ openrouter_from_env_seed⟨⟩ {
+    let key = env_get("OPENROUTER_API_KEY");
+    if (key == "") { return none(); }
+    let model = env_get("AEONMI_OPENROUTER_MODEL");
+    if (model == "") { model = "nvidia/nemotron-super-49b-v1:free"; }
+    let p = [];
+    p.push(key);
+    p.push(model);
+    return some(p);
+}
+
+◯ openrouter_chat_history_seed⟨provider, messages⟩ {
+    let key = provider[0];
+    let model = provider[1];
+    let req = openrouter_request(model, messages);
+    return http_seed_response("https://openrouter.ai/api/v1/chat/completions", key, req);
+}

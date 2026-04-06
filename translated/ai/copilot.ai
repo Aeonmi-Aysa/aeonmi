@@ -1,0 +1,17 @@
+⍝ TRANSLATION NOTE: src/ai/copilot.rs
+⍝ Purpose: GitHub Copilot chat-completions style provider.
+⍝ Feature parity: PARTIAL (prompt validation, endpoint/key selection, request shape).
+⍝ Known deviation: actual endpoint/auth variability deferred; seed uses configurable endpoint.
+
+◯ copilot_name⟨⟩ { return "copilot"; }
+
+◯ copilot_chat_seed⟨prompt⟩ {
+    let t = trim(prompt);
+    if (t == "") { return error("empty prompt"); }
+    let key = env_get("GITHUB_COPILOT_TOKEN");
+    if (key == "") { return error("GITHUB_COPILOT_TOKEN not set"); }
+    let ep = env_get("AEONMI_COPILOT_ENDPOINT");
+    if (ep == "") { ep = "https://api.githubcopilot.com/v1/chat/completions"; }
+    let req = chat_messages_request([chat_message("user", t)]);
+    return http_seed_response(ep, key, req);
+}

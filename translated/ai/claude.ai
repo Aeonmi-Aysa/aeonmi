@@ -1,0 +1,21 @@
+⍝ TRANSLATION NOTE: src/ai/claude.rs
+⍝ Purpose: Anthropic Claude provider using messages API.
+⍝ Feature parity: PARTIAL (env/bootstrap, request structure, error envelope).
+⍝ Known deviation: content block extraction is represented by seed parser helper.
+
+◯ claude_name⟨⟩ { return "Claude"; }
+
+◯ claude_from_env_seed⟨⟩ {
+    let key = env_get("ANTHROPIC_API_KEY");
+    if (key == "") { return none(); }
+    let model = env_get("AEONMI_CLAUDE_MODEL");
+    if (model == "") { model = "claude-sonnet-4-20250514"; }
+    let p = []; p.push(key); p.push(model); return some(p);
+}
+
+◯ claude_chat_history_seed⟨provider, messages⟩ {
+    let key = provider[0];
+    let model = provider[1];
+    let req = claude_request(model, 4096, messages);
+    return http_seed_response("https://api.anthropic.com/v1/messages", key, req);
+}

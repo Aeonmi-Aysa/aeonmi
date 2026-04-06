@@ -1,0 +1,32 @@
+⍝ TRANSLATION NOTE: src/ai/mod.rs
+⍝ Purpose: provider trait + runtime registry/env selection.
+⍝ Feature parity: PARTIAL (trait contract, default fallbacks, registry shape).
+⍝ Known deviation: feature-gated compilation wiring represented as seed stubs.
+
+◯ ai_provider_name⟨provider⟩ { return provider.name; }
+◯ ai_provider_chat⟨provider, prompt⟩ { return provider.chat(prompt); }
+
+◯ ai_registry_new⟨⟩ {
+    let r = [];
+    r.push([]);
+    return r;
+}
+
+◯ ai_registry_add⟨registry, provider⟩ {
+    let ps = registry.slice(0,1).pop();
+    ps.push(provider);
+    let out = []; out.push(ps); return out;
+}
+
+◯ ai_registry_preferred⟨registry⟩ {
+    let ps = registry.slice(0,1).pop();
+    if (len(ps) == 0) { return none(); }
+    return some(ps[0]);
+}
+
+◯ ai_registry_banner⟨registry⟩ {
+    let p = ai_registry_preferred(registry);
+    if (is_none(p)) { return "AI: No provider active — set OPENROUTER_API_KEY or ANTHROPIC_API_KEY"; }
+    let v = unwrap_some(p);
+    return "AI: " + ai_provider_name(v) + " ACTIVE ✓";
+}

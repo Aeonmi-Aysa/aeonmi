@@ -17,14 +17,14 @@ Total Rust files tracked: **241**
 | `gui/tauri_tauri/src-tauri/src/main.rs` | `translated/gui/tauri_tauri/src-tauri/src/main.ai` | PENDING | Not translated in this branch yet |
 | `gui/tauri_tauri/src-tauri/src/quantum_ide.rs` | `translated/gui/tauri_tauri/src-tauri/src/quantum_ide.ai` | PENDING | Not translated in this branch yet |
 | `mother_ai/main.rs` | `translated/mother_ai/main.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/claude.rs` | `translated/src/ai/claude.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/copilot.rs` | `translated/src/ai/copilot.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/deepseek.rs` | `translated/src/ai/deepseek.ai` | PENDING | Not translated in this branch yet |
+| `src/ai/claude.rs` | `translated/ai/claude.ai` | PARTIAL | Seed translation created at translated/ai/claude.ai |
+| `src/ai/copilot.rs` | `translated/ai/copilot.ai` | PARTIAL | Seed translation created at translated/ai/copilot.ai |
+| `src/ai/deepseek.rs` | `translated/ai/deepseek.ai` | PARTIAL | Seed translation created at translated/ai/deepseek.ai |
 | `src/ai/grok.rs` | `translated/src/ai/grok.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/mod.rs` | `translated/src/ai/mod.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/openai.rs` | `translated/src/ai/openai.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/openrouter.rs` | `translated/src/ai/openrouter.ai` | PENDING | Not translated in this branch yet |
-| `src/ai/perplexity.rs` | `translated/src/ai/perplexity.ai` | PENDING | Not translated in this branch yet |
+| `src/ai/mod.rs` | `translated/ai/mod.ai` | PARTIAL | Seed translation created at translated/ai/mod.ai |
+| `src/ai/openai.rs` | `translated/ai/openai.ai` | PARTIAL | Seed translation created at translated/ai/openai.ai |
+| `src/ai/openrouter.rs` | `translated/ai/openrouter.ai` | PARTIAL | Seed translation created at translated/ai/openrouter.ai |
+| `src/ai/perplexity.rs` | `translated/ai/perplexity.ai` | PARTIAL | Seed translation created at translated/ai/perplexity.ai |
 | `src/bin/aeonmi.rs` | `translated/src/bin/aeonmi.ai` | PENDING | Not translated in this branch yet |
 | `src/bin/aeonmi_hybrid_demo.rs` | `translated/src/bin/aeonmi_hybrid_demo.ai` | PENDING | Not translated in this branch yet |
 | `src/bin/aeonmi_project.rs` | `translated/src/bin/aeonmi_project.ai` | PENDING | Not translated in this branch yet |

@@ -1,0 +1,17 @@
+⍝ TRANSLATION NOTE: src/ai/deepseek.rs
+⍝ Purpose: DeepSeek chat provider over completion endpoint.
+⍝ Feature parity: PARTIAL (key/model resolution, prompt checks, request seed).
+⍝ Known deviation: concrete deserialization paths deferred to later parity pass.
+
+◯ deepseek_name⟨⟩ { return "deepseek"; }
+
+◯ deepseek_chat_seed⟨prompt⟩ {
+    let t = trim(prompt);
+    if (t == "") { return error("empty prompt"); }
+    let key = env_get("DEEPSEEK_API_KEY");
+    if (key == "") { return error("DEEPSEEK_API_KEY not set"); }
+    let model = env_get("AEONMI_DEEPSEEK_MODEL");
+    if (model == "") { model = "deepseek-chat"; }
+    let req = provider_chat_messages_request(model, [chat_message("user", t)]);
+    return http_seed_response("https://api.deepseek.com/chat/completions", key, req);
+}

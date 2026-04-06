@@ -1,0 +1,17 @@
+⍝ TRANSLATION NOTE: src/ai/perplexity.rs
+⍝ Purpose: Perplexity chat provider over OpenAI-compatible completion API.
+⍝ Feature parity: PARTIAL (env model fallback, request contract, validation).
+⍝ Known deviation: exact response parsing is seed-level placeholder.
+
+◯ perplexity_name⟨⟩ { return "perplexity"; }
+
+◯ perplexity_chat_seed⟨prompt⟩ {
+    let t = trim(prompt);
+    if (t == "") { return error("empty prompt"); }
+    let key = env_get("PERPLEXITY_API_KEY");
+    if (key == "") { return error("PERPLEXITY_API_KEY not set"); }
+    let model = env_get("AEONMI_PERPLEXITY_MODEL");
+    if (model == "") { model = "llama-3.1-sonar-small-chat"; }
+    let req = provider_chat_request(model, t, 0.7);
+    return http_seed_response("https://api.perplexity.ai/chat/completions", key, req);
+}

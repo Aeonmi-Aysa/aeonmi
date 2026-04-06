@@ -1,0 +1,30 @@
+⍝ TRANSLATION NOTE: src/ai/openai.rs
+⍝ Purpose: OpenAI chat provider with env-configured model and optional streaming.
+⍝ Feature parity: PARTIAL (prompt validation, env resolution, request envelope).
+⍝ Known deviation: HTTP and SSE parsing are seed placeholders in this stage.
+
+◯ openai_name⟨⟩ { return "openai"; }
+
+◯ openai_model⟨⟩ {
+    let m = env_get("AEONMI_OPENAI_MODEL");
+    if (m == "") { return "gpt-4o-mini"; }
+    return m;
+}
+
+◯ openai_chat_seed⟨prompt⟩ {
+    let t = trim(prompt);
+    if (t == "") { return error("empty prompt"); }
+    let key = env_get("OPENAI_API_KEY");
+    if (key == "") { return error("OPENAI_API_KEY not set in environment"); }
+    let req = openai_chat_request(openai_model(), t, 0.7, 0);
+    return http_seed_response("https://api.openai.com/v1/chat/completions", key, req);
+}
+
+◯ openai_chat_stream_seed⟨prompt, cb⟩ {
+    let t = trim(prompt);
+    if (t == "") { return error("empty prompt"); }
+    let key = env_get("OPENAI_API_KEY");
+    if (key == "") { return error("OPENAI_API_KEY not set in environment"); }
+    let req = openai_chat_request(openai_model(), t, 0.7, 1);
+    return sse_seed_stream("https://api.openai.com/v1/chat/completions", key, req, cb);
+}
