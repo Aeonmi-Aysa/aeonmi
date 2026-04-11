@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — Aeonmi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg: #07070f;
+      --bg2: #0d0d1a;
+      --bg3: #12121f;
+      --purple: #7c3aed;
+      --cyan: #06b6d4;
+      --white: #f1f5f9;
+      --muted: #64748b;
+      --border: #1e1e30;
+      --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font-sans);
+      line-height: 1.65;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 2.5rem;
+      background: rgba(7,7,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      letter-spacing: 0.18em;
+      color: var(--white);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .nav-logo span { color: var(--purple); }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 8rem 2rem 4rem;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 3rem;
+      font-size: 1.1rem;
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .contact-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .contact-card h3 {
+      color: var(--cyan);
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .contact-card p {
+      color: var(--muted);
+      margin-bottom: 1rem;
+      line-height: 1.7;
+    }
+
+    .contact-card a {
+      color: var(--cyan);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .contact-card a:hover {
+      text-decoration: underline;
+    }
+
+    .icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    footer {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 4rem;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-logo">AE<span>⊗</span>NMI</a>
+  </nav>
+
+  <div class="container">
+    <h1>Get in Touch</h1>
+    <p class="subtitle">Questions? Feedback? Partnership inquiries? We'd love to hear from you.</p>
+
+    <div class="contact-grid">
+      
+      <div class="contact-card">
+        <span class="icon">💬</span>
+        <h3>Discord</h3>
+        <p>Join our community for real-time support, discussions, and updates.</p>
+        <a href="https://discord.gg/aeonmi">discord.gg/aeonmi</a>
+      </div>
+
+      <div class="contact-card">
+        <span class="icon">📧</span>
+        <h3>Email</h3>
+        <p>General inquiries and support questions.</p>
+        <a href="mailto:support@aeonmi.ai">support@aeonmi.ai</a>
+      </div>
+
+      <div class="contact-card">
+        <span class="icon">🐛</span>
+        <h3>Bug Reports</h3>
+        <p>Found a bug? Report it on GitHub.</p>
+        <a href="https://github.com/aeonmi/aeonmi/issues">GitHub Issues</a>
+      </div>
+
+      <div class="contact-card">
+        <span class="icon">🎓</span>
+        <h3>Academic</h3>
+        <p>Student/researcher discounts and collaborations.</p>
+        <a href="mailto:academic@aeonmi.ai">academic@aeonmi.ai</a>
+      </div>
+
+      <div class="contact-card">
+        <span class="icon">🏢</span>
+        <h3>Enterprise</h3>
+        <p>Custom development and enterprise licensing.</p>
+        <a href="mailto:enterprise@aeonmi.ai">enterprise@aeonmi.ai</a>
+      </div>
+
+      <div class="contact-card">
+        <span class="icon">🚀</span>
+        <h3>Beta Access</h3>
+        <p>Request early access to new features.</p>
+        <a href="mailto:beta@aeonmi.ai">beta@aeonmi.ai</a>
+      </div>
+
+    </div>
+
+    <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; margin-top: 3rem;">
+      <h3 style="color: var(--cyan); margin-bottom: 1rem;">Response Times</h3>
+      <ul style="list-style: none; color: var(--muted); line-height: 2;">
+        <li><strong>Discord:</strong> Usually within 1 hour (community support)</li>
+        <li><strong>Email:</strong> Within 24 hours (business days)</li>
+        <li><strong>GitHub Issues:</strong> Within 48 hours</li>
+        <li><strong>Enterprise:</strong> Within 4 hours (SLA customers)</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>Built with Aeonmi v1.0.0-quantum</p>
+    <p>© 2025 Aeonmi Inc (EIN 41-4625361) | <a href="index.html" style="color:var(--cyan)">Home</a></p>
+  </footer>
+
+</body>
+</html>
