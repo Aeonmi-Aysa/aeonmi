@@ -1,570 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Aeonmi — The first AI-native quantum programming language. Build quantum circuits with intuitive syntax." />
-  <title>Aeonmi — AI-Native Quantum Programming Language</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    :root {
-      --bg: #07070f;
-      --bg2: #0d0d1a;
-      --bg3: #12121f;
-      --purple: #7c3aed;
-      --purple2: #5b21b6;
-      --cyan: #06b6d4;
-      --white: #f1f5f9;
-      --muted: #64748b;
-      --border: #1e1e30;
-      --glow-p: rgba(124,58,237,0.35);
-      --font-mono: 'Courier New', Courier, monospace;
-      --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--white);
-      font-family: var(--font-sans);
-      line-height: 1.65;
-      overflow-x: hidden;
-    }
-
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.1rem 2.5rem;
-      background: rgba(7,7,15,0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .nav-logo {
-      font-family: var(--font-mono);
-      font-size: 1.1rem;
-      letter-spacing: 0.18em;
-      color: var(--white);
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .nav-logo span { color: var(--purple); }
-
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-      align-items: center;
-    }
-
-    .nav-links a {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 0.95rem;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover { color: var(--white); }
-
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 8rem 2rem 4rem;
-      position: relative;
-    }
-
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 20%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, var(--glow-p) 0%, transparent 70%);
-      pointer-events: none;
-      opacity: 0.4;
-    }
-
-    .hero h1 {
-      font-size: clamp(2.5rem, 6vw, 5rem);
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 1.2rem;
-      position: relative;
-    }
-
-    .hero .accent { color: var(--cyan); }
-
-    .hero p {
-      font-size: clamp(1.1rem, 2.2vw, 1.35rem);
-      color: var(--muted);
-      max-width: 700px;
-      margin-bottom: 2.5rem;
-      position: relative;
-    }
-
-    .cta-buttons {
-      display: flex;
-      gap: 1.2rem;
-      flex-wrap: wrap;
-      justify-content: center;
-      position: relative;
-    }
-
-    .btn {
-      padding: 0.95rem 2.2rem;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.2s;
-      display: inline-block;
-    }
-
-    .btn-primary {
-      background: var(--purple);
-      color: #fff;
-    }
-
-    .btn-primary:hover {
-      background: var(--purple2);
-      box-shadow: 0 0 25px var(--glow-p);
-      transform: translateY(-2px);
-    }
-
-    .btn-secondary {
-      background: transparent;
-      color: var(--white);
-      border: 1.5px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      border-color: var(--purple);
-      color: var(--purple);
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 0.4rem 1rem;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      font-size: 0.85rem;
-      color: var(--cyan);
-      margin-bottom: 1.5rem;
-      position: relative;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 5rem 2rem;
-    }
-
-    section {
-      margin-bottom: 6rem;
-    }
-
-    h2 {
-      font-size: clamp(2rem, 4vw, 3rem);
-      margin-bottom: 1rem;
-      text-align: center;
-      color: var(--white);
-    }
-
-    h3 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      color: var(--cyan);
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-top: 3rem;
-    }
-
-    .feature-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 2rem;
-      transition: all 0.3s;
-    }
-
-    .feature-card:hover {
-      border-color: var(--purple);
-      transform: translateY(-4px);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-    }
-
-    .feature-icon {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      display: block;
-    }
-
-    .feature-card h4 {
-      font-size: 1.3rem;
-      margin-bottom: 0.8rem;
-      color: var(--white);
-    }
-
-    .feature-card p {
-      color: var(--muted);
-      line-height: 1.7;
-    }
-
-    .code-example {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem;
-      overflow-x: auto;
-      margin: 2rem 0;
-    }
-
-    .code-example pre {
-      font-family: var(--font-mono);
-      font-size: 0.9rem;
-      line-height: 1.6;
-      color: var(--white);
-    }
-
-    .code-example .comment { color: var(--muted); }
-    .code-example .keyword { color: var(--purple); }
-    .code-example .function { color: var(--cyan); }
-    .code-example .string { color: #22c55e; }
-
-    .download-section {
-      background: var(--bg2);
-      border: 2px solid var(--purple);
-      border-radius: 16px;
-      padding: 3rem;
-      text-align: center;
-      margin: 4rem 0;
-    }
-
-    .download-section h3 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      color: var(--white);
-    }
-
-    .download-section p {
-      color: var(--muted);
-      margin-bottom: 2rem;
-      font-size: 1.1rem;
-    }
-
-    .stats {
-      display: flex;
-      justify-content: center;
-      gap: 3rem;
-      flex-wrap: wrap;
-      margin: 3rem 0;
-    }
-
-    .stat {
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: var(--cyan);
-      display: block;
-    }
-
-    .stat-label {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
-
-    .blog-preview {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 2rem;
-      margin: 3rem 0;
-    }
-
-    .blog-preview h3 {
-      color: var(--white);
-      margin-bottom: 0.5rem;
-    }
-
-    .blog-preview .date {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
-    }
-
-    .blog-preview p {
-      color: var(--muted);
-      line-height: 1.7;
-      margin-bottom: 1rem;
-    }
-
-    .blog-preview a {
-      color: var(--cyan);
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .blog-preview a:hover {
-      text-decoration: underline;
-    }
-
-    footer {
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      padding: 3rem 2rem;
-      text-align: center;
-    }
-
-    footer p {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
-    }
-
-    footer a {
-      color: var(--cyan);
-      text-decoration: none;
-    }
-
-    footer a:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 768px) {
-      .nav-links { display: none; }
-      .feature-grid { grid-template-columns: 1fr; }
-      .stats { flex-direction: column; gap: 2rem; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aeonmi — Quantum-Native Programming Language</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        nav a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        nav a:hover {
+            color: #667eea;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 6rem 0;
+            color: white;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #00ff88;
+            color: #000;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        section {
+            background: white;
+            padding: 4rem 0;
+        }
+        
+        section:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #667eea;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature {
+            padding: 2rem;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        
+        .feature h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        
+        .code-example {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+        
+        .code-example pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .roadmap {
+            display: grid;
+            gap: 2rem;
+        }
+        
+        .roadmap-item {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+        }
+        
+        .roadmap-date {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 120px;
+        }
+        
+        .roadmap-content {
+            flex: 1;
+        }
+        
+        footer {
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            nav ul {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
+    <header>
+        <nav class="container">
+            <div class="logo">⚛️ Aeonmi</div>
+            <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
+                <li><a href="starter-kit.html">Starter Kit</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
 
-  <nav>
-    <a href="#" class="nav-logo">AE<span>⊗</span>NMI</a>
-    <div class="nav-links">
-      <a href="#features">Features</a>
-      <a href="#download">Download</a>
-      <a href="starter-kit.html">Starter Kit</a>
-      <a href="blog/index.html">Blog</a>
-      <a href="contact.html">Contact</a>
-      <a href="https://github.com/aeonmi/aeonmi">GitHub</a>
-    </div>
-  </nav>
-
-  <section class="hero">
-    <div class="status-badge">✨ NEW: Starter Kit Available — 4 Quantum Examples Ready to Run</div>
-    <h1>
-      The First<br/>
-      <span class="accent">AI-Native Quantum</span><br/>
-      Programming Language
-    </h1>
-    <p>
-      Aeonmi combines classical computation with quantum primitives in a single,
-      elegant syntax. Built in Rust. Designed for the age of AI and quantum computing.
-    </p>
-    <div class="cta-buttons">
-      <a href="#download" class="btn btn-primary">Download Starter Kit</a>
-      <a href="starter-kit.html" class="btn btn-secondary">View Examples</a>
-    </div>
-  </section>
-
-  <div class="container">
-
-    <section id="latest">
-      <h2>Latest Update</h2>
-      <div class="blog-preview">
-        <h3>Starter Kit Released — Build Your First Quantum Circuit</h3>
-        <div class="date">January 2025</div>
-        <p>
-          The Aeonmi Starter Kit is now available! Includes 4 working quantum examples:
-          Bell state entanglement, Grover's search, Quantum Fourier Transform, and 3-qubit GHZ states.
-          Everything you need to start building quantum programs in 10 minutes.
-        </p>
-        <a href="starter-kit.html">Download now →</a>
-      </div>
+    <section class="hero">
+        <div class="container">
+            <div class="badge">🎉 NEW: Starter Kit Available — Download Free</div>
+            <h1>Quantum-Native Programming</h1>
+            <p>The first language where quantum circuits are native syntax</p>
+            <div class="cta-buttons">
+                <a href="starter-kit.html" class="btn btn-primary">Download Starter Kit</a>
+                <a href="https://discord.com/channels/@me" class="btn btn-secondary">Join Discord</a>
+            </div>
+        </div>
     </section>
 
     <section id="features">
-      <h2>Why Aeonmi?</h2>
-      <div class="feature-grid">
-        
-        <div class="feature-card">
-          <span class="feature-icon">⊗</span>
-          <h4>Quantum-Native</h4>
-          <p>
-            Write quantum circuits with the same simplicity as classical code.
-            Hadamard gates, CNOT, entanglement — all first-class language features.
-          </p>
+        <div class="container">
+            <h2>Why Aeonmi?</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>🔮 Quantum-Native Syntax</h3>
+                    <p>Write quantum algorithms in pure Aeonmi. No external libraries. Superposition, entanglement, and measurement are first-class language features.</p>
+                </div>
+                <div class="feature">
+                    <h3>⚡ Rust-Powered Performance</h3>
+                    <p>Built in Rust for maximum speed and safety. Compile-time optimization. Zero-cost abstractions.</p>
+                </div>
+                <div class="feature">
+                    <h3>🧠 AI-Assisted Development</h3>
+                    <p>Mother AI helps you write, debug, and optimize quantum code. Interactive learning. Real-time suggestions.</p>
+                </div>
+                <div class="feature">
+                    <h3>🌐 Classical + Quantum</h3>
+                    <p>Seamlessly mix classical and quantum computation. No context switching. One unified language.</p>
+                </div>
+                <div class="feature">
+                    <h3>📚 Rich Standard Library</h3>
+                    <p>Pre-built quantum algorithms: Grover search, Shor factoring, QFT, VQE, QAOA, and more.</p>
+                </div>
+                <div class="feature">
+                    <h3>🔓 Open Source</h3>
+                    <p>MIT licensed. Community-driven. Transparent development. Contribute on GitHub.</p>
+                </div>
+            </div>
         </div>
-
-        <div class="feature-card">
-          <span class="feature-icon">🤖</span>
-          <h4>AI-First Design</h4>
-          <p>
-            Built for AI agents to read, write, and reason about. Mother AI —
-            the autonomous architect — writes Aeonmi code natively.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <span class="feature-icon">⚡</span>
-          <h4>Rust Performance</h4>
-          <p>
-            Compiled to native machine code via Rust. Zero-cost abstractions.
-            Memory-safe quantum simulation without garbage collection overhead.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <span class="feature-icon">🔗</span>
-          <h4>Qiskit Integration</h4>
-          <p>
-            Run circuits on IBM quantum hardware or local simulators.
-            Seamless Python interop for the entire quantum ecosystem.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <span class="feature-icon">📐</span>
-          <h4>QUBE Syntax Layer</h4>
-          <p>
-            Advanced quantum-specific syntax with Unicode glyphs (∴, ∵, ⊗).
-            Superposition, measurement, and entanglement as language primitives.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <span class="feature-icon">🧠</span>
-          <h4>Multi-Agent Hive</h4>
-          <p>
-            Mother AI orchestrates specialized sub-agents. Each agent has memory,
-            goals, and can spawn new agents dynamically.
-          </p>
-        </div>
-
-      </div>
     </section>
 
-    <section id="example">
-      <h2>Your First Quantum Circuit</h2>
-      <p style="text-align:center; color:var(--muted); margin-bottom:2rem;">
-        Create a Bell state (maximum quantum entanglement) in 15 lines
-      </p>
-      <div class="code-example">
-        <pre><span class="comment">⍝ Hello Quantum — Bell State Creation</span>
-
-<span class="keyword">function</span> <span class="function">create_bell_state</span>() {
-    <span class="function">print</span>(<span class="string">"Creating Bell state: (|00⟩ + |11⟩)/√2"</span>);
+    <section id="examples">
+        <div class="container">
+            <h2>Code Examples</h2>
+            <p style="text-align: center; margin-bottom: 2rem;">Real Aeonmi code from the starter kit</p>
+            
+            <div class="code-example">
+                <pre>⍝ Create a Bell state (quantum entanglement)
+function create_bell_state() {
+    print("Creating Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2");
     
-    <span class="comment">⍝ Initialize quantum state</span>
-    <span class="keyword">let</span> a00 = <span class="string">1.0</span>;
-    <span class="keyword">let</span> a11 = <span class="string">0.0</span>;
+    ⍝ Initialize |00⟩
+    let a00 = 1.0;
+    let a01 = 0.0;
+    let a10 = 0.0;
+    let a11 = 0.0;
     
-    <span class="comment">⍝ Apply Hadamard gate (superposition)</span>
-    a00 = <span class="string">0.707</span>;
+    ⍝ Apply Hadamard to qubit 0
+    let sqrt2 = 1.41421356;
+    a00 = 1.0 / sqrt2;
+    a10 = 1.0 / sqrt2;
     
-    <span class="comment">⍝ Apply CNOT gate (entanglement)</span>
-    a11 = a00;
+    ⍝ Apply CNOT (entangle qubits)
+    a11 = a10;
+    a10 = 0.0;
     
-    <span class="function">print</span>(<span class="string">"✓ Qubits entangled!"</span>);
-    <span class="keyword">return</span> <span class="string">0</span>;
+    print("✓ Entanglement verified!");
+    return 0;
 }
 
-<span class="function">create_bell_state</span>();</pre>
-      </div>
-      <p style="text-align:center; color:var(--muted);">
-        <strong>Result:</strong> Only |00⟩ and |11⟩ outcomes appear — proof of quantum entanglement
-      </p>
-    </section>
-
-    <section id="download" class="download-section">
-      <h3>🚀 Get Started in 10 Minutes</h3>
-      <p>
-        The Aeonmi Starter Kit includes 4 working quantum examples,
-        full documentation, and the aeonmi.exe compiler.
-      </p>
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-number">4</span>
-          <span class="stat-label">Quantum Examples</span>
+main();</pre>
+            </div>
+            
+            <p style="text-align: center; margin-top: 2rem;">
+                <a href="starter-kit.html" class="btn btn-primary">See More Examples</a>
+            </p>
         </div>
-        <div class="stat">
-          <span class="stat-number">12.7 MB</span>
-          <span class="stat-label">Download Size</span>
-        </div>
-        <div class="stat">
-          <span class="stat-number">100%</span>
-          <span class="stat-label">Free & Open Source</span>
-        </div>
-      </div>
-      <a href="starter-kit.html" class="btn btn-primary" style="margin-top:1rem;">Download Starter Kit</a>
-      <p style="margin-top:1.5rem; font-size:0.9rem;">
-        Requires: Python 3.8+ and Qiskit<br/>
-        Windows | macOS | Linux
-      </p>
     </section>
 
     <section id="roadmap">
-      <h2>What's Next</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h4>🔮 Q2 2025</h4>
-          <p>
-            <strong>MGKS Memory System</strong><br/>
-            Quantum-native memory architecture with superposition states,
-            entangled knowledge graphs, and temporal decay.
-          </p>
+        <div class="container">
+            <h2>Roadmap</h2>
+            <div class="roadmap">
+                <div class="roadmap-item">
+                    <div class="roadmap-date">✅ Q4 2024</div>
+                    <div class="roadmap-content">
+                        <h3>Foundation</h3>
+                        <p>Core language implementation, quantum simulator, basic examples</p>
+                    </div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-date">🚀 Q1 2025</div>
+                    <div class="roadmap-content">
+                        <h3>Starter Kit Launch</h3>
+                        <p>Public beta, documentation, community building, Discord server</p>
+                    </div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-date">🔮 Q2 2025</div>
+                    <div class="roadmap-content">
+                        <h3>Pro Tier</h3>
+                        <p>Cloud API, advanced examples, priority support, $99/month</p>
+                    </div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-date">⚡ Q3 2025</div>
+                    <div class="roadmap-content">
+                        <h3>Real Quantum Hardware</h3>
+                        <p>IBM Quantum integration, IonQ access, enterprise tier</p>
+                    </div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-date">🧠 Q4 2025</div>
+                    <div class="roadmap-content">
+                        <h3>Multi-Agent Hive</h3>
+                        <p>Autonomous AI agents, MGKS memory system, quantum-native intelligence</p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="feature-card">
-          <h4>🌐 Q3 2025</h4>
-          <p>
-            <strong>Cloud API</strong><br/>
-            Run quantum circuits on real IBM hardware via REST API.
-            10,000 shots/month on Pro tier.
-          </p>
-        </div>
-        <div class="feature-card">
-          <h4>🧬 Q4 2025</h4>
-          <p>
-            <strong>Hive Intelligence</strong><br/>
-            Multi-agent system with Mother AI orchestrating specialized
-            quantum algorithm agents.
-          </p>
-        </div>
-      </div>
     </section>
 
-  </div>
+    <section style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="container" style="text-align: center;">
+            <h2 style="color: white;">Ready to Start?</h2>
+            <p style="font-size: 1.2rem; margin-bottom: 2rem;">Download the free starter kit and run your first quantum circuit in 5 minutes</p>
+            <div class="cta-buttons">
+                <a href="starter-kit.html" class="btn btn-primary">Download Now</a>
+                <a href="https://discord.com/channels/@me" class="btn btn-secondary">Join Community</a>
+            </div>
+        </div>
+    </section>
 
-  <footer>
-    <p>Built with Aeonmi v1.0.0-quantum</p>
-    <p>
-      © 2025 Aeonmi Inc (EIN 41-4625361) |
-      <a href="https://github.com/aeonmi/aeonmi">GitHub</a> |
-      <a href="starter-kit.html">Starter Kit</a> |
-      <a href="blog/index.html">Blog</a> |
-      <a href="contact.html">Contact</a>
-    </p>
-  </footer>
-
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Aeonmi Inc (EIN 41-4625361). All rights reserved.</p>
+            <p>
+                <a href="https://github.com/aeonmi/aeonmi">GitHub</a> | 
+                <a href="https://discord.com/channels/@me">Discord</a> | 
+                <a href="contact.html">Contact</a>
+            </p>
+        </div>
+    </footer>
 </body>
 </html>

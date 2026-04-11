@@ -1,488 +1,371 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Build your first quantum circuit in 10 minutes with Aeonmi Starter Kit — working examples included" />
-  <title>Aeonmi Starter Kit — Build Quantum Circuits in 10 Minutes</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    :root {
-      --bg: #07070f;
-      --bg2: #0d0d1a;
-      --bg3: #12121f;
-      --purple: #7c3aed;
-      --purple2: #5b21b6;
-      --cyan: #06b6d4;
-      --white: #f1f5f9;
-      --muted: #64748b;
-      --border: #1e1e30;
-      --glow-p: rgba(124,58,237,0.35);
-      --font-mono: 'Courier New', Courier, monospace;
-      --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--white);
-      font-family: var(--font-sans);
-      line-height: 1.65;
-    }
-
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.1rem 2.5rem;
-      background: rgba(7,7,15,0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .nav-logo {
-      font-family: var(--font-mono);
-      font-size: 1.1rem;
-      letter-spacing: 0.18em;
-      color: var(--white);
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .nav-logo span { color: var(--purple); }
-
-    .hero {
-      min-height: 70vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 8rem 2rem 4rem;
-    }
-
-    .hero h1 {
-      font-size: clamp(2.2rem, 5vw, 4rem);
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 1.2rem;
-    }
-
-    .hero .accent { color: var(--cyan); }
-
-    .hero p {
-      font-size: clamp(1rem, 2vw, 1.2rem);
-      color: var(--muted);
-      max-width: 600px;
-      margin-bottom: 2.5rem;
-    }
-
-    .download-btn {
-      display: inline-block;
-      background: var(--purple);
-      color: #fff;
-      padding: 1rem 2.5rem;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.2s;
-    }
-
-    .download-btn:hover {
-      background: var(--purple2);
-      box-shadow: 0 0 25px var(--glow-p);
-      transform: translateY(-2px);
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 4rem 2rem;
-    }
-
-    section {
-      margin-bottom: 4rem;
-    }
-
-    h2 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      color: var(--white);
-    }
-
-    h3 {
-      font-size: 1.3rem;
-      margin: 2rem 0 1rem;
-      color: var(--cyan);
-    }
-
-    p, li {
-      color: var(--muted);
-      line-height: 1.8;
-      margin-bottom: 1rem;
-    }
-
-    code {
-      background: var(--bg3);
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      font-family: var(--font-mono);
-      color: var(--cyan);
-      font-size: 0.9em;
-    }
-
-    pre {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-      overflow-x: auto;
-      margin: 1.5rem 0;
-    }
-
-    pre code {
-      background: none;
-      padding: 0;
-      color: var(--white);
-      font-size: 0.85rem;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-      margin: 2rem 0;
-    }
-
-    .feature-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-    }
-
-    .feature-card h4 {
-      color: var(--purple);
-      margin-bottom: 0.5rem;
-      font-size: 1.1rem;
-    }
-
-    .success-box {
-      background: rgba(6, 182, 212, 0.1);
-      border: 2px solid var(--cyan);
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin: 2rem 0;
-    }
-
-    .success-box h4 {
-      color: var(--cyan);
-      margin-bottom: 0.5rem;
-    }
-
-    .pricing-table {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
-      margin: 2rem 0;
-    }
-
-    .pricing-card {
-      background: var(--bg2);
-      border: 2px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem;
-      text-align: center;
-    }
-
-    .pricing-card.featured {
-      border-color: var(--purple);
-      position: relative;
-    }
-
-    .pricing-card h3 {
-      margin-top: 0;
-      color: var(--white);
-    }
-
-    .price {
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: var(--cyan);
-      margin: 1rem 0;
-    }
-
-    .price span {
-      font-size: 1rem;
-      color: var(--muted);
-    }
-
-    ul {
-      list-style: none;
-      margin: 1.5rem 0;
-      text-align: left;
-    }
-
-    ul li::before {
-      content: "✓ ";
-      color: var(--cyan);
-      font-weight: bold;
-      margin-right: 0.5rem;
-    }
-
-    footer {
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      padding: 2rem;
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    @media (max-width: 768px) {
-      .feature-grid, .pricing-table {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aeonmi Starter Kit — Free Download</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: #667eea;
+            color: white;
+            padding: 1rem 0;
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        nav a {
+            text-decoration: none;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 4rem 0;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+        }
+        
+        section {
+            padding: 4rem 0;
+        }
+        
+        section:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-align: center;
+        }
+        
+        .download-box {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .download-box h3 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+        
+        .download-box .size {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 1.2rem 3rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .example {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .example h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        
+        .example code {
+            background: #f4f4f4;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .pricing {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .tier {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .tier:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .tier.featured {
+            border-color: #667eea;
+            border-width: 3px;
+        }
+        
+        .tier h3 {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tier .price {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .tier ul {
+            list-style: none;
+            text-align: left;
+            margin: 2rem 0;
+        }
+        
+        .tier li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .tier li:before {
+            content: "✓ ";
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        footer {
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
 </head>
 <body>
+    <header>
+        <nav class="container">
+            <div class="logo">⚛️ Aeonmi</div>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="#download">Download</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
 
-  <nav>
-    <a href="index.html" class="nav-logo">AE<span>⊗</span>NMI</a>
-  </nav>
-
-  <section class="hero">
-    <h1>Build Your First<br/><span class="accent">Quantum Circuit</span><br/>in 10 Minutes</h1>
-    <p>
-      The Aeonmi Starter Kit includes everything you need to write quantum programs
-      in the world's first AI-native quantum language.
-    </p>
-    <a href="#download" class="download-btn">Download Starter Kit (Free)</a>
-  </section>
-
-  <div class="container">
-    
-    <div class="success-box">
-      <h4>✅ VERIFIED WORKING — January 2025</h4>
-      <p>All 4 quantum examples tested and confirmed functional on Windows 11. Bell state entanglement, Grover's search, QFT pattern detection, and GHZ 3-qubit entanglement all execute successfully.</p>
-    </div>
-
-    <section id="what-you-get">
-      <h2>What's Included</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h4>⊗ Hello Quantum</h4>
-          <p>Create a Bell state (maximum entanglement) in 40 lines of code. See quantum correlation in action. Only |00⟩ and |11⟩ outcomes appear — proof of entanglement.</p>
+    <section class="hero">
+        <div class="container">
+            <h1>Aeonmi Starter Kit</h1>
+            <p>Everything you need to start building quantum algorithms</p>
         </div>
-        <div class="feature-card">
-          <h4>↦ Grover's Search</h4>
-          <p>Quantum database search with √N speedup. Find marked items exponentially faster. For 1 billion items: classical needs 1B checks, quantum needs only 31,623!</p>
-        </div>
-        <div class="feature-card">
-          <h4>⟨⟩ Quantum Fourier Transform</h4>
-          <p>Detect periodic patterns in quantum states. Foundation of Shor's factoring algorithm. 50,000x faster than classical FFT for large datasets.</p>
-        </div>
-        <div class="feature-card">
-          <h4>⧉ 3-Qubit GHZ Entanglement</h4>
-          <p>GHZ state demonstration. Quantum correlations stronger than any classical system. Proves quantum mechanics violates Bell's inequality.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="quick-start">
-      <h2>Quick Start</h2>
-      
-      <h3>Step 1: Download</h3>
-      <p>Download <code>aeonmi_starter_kit.zip</code> (12.7 MB) from the link below.</p>
-
-      <h3>Step 2: Extract</h3>
-      <pre><code>Right-click → Extract All → Choose destination</code></pre>
-
-      <h3>Step 3: Run</h3>
-      <p>Double-click <code>run.bat</code> or open terminal:</p>
-      <pre><code>cd aeonmi_starter_kit
-run.bat</code></pre>
-
-      <h3>Expected Output</h3>
-      <pre><code>=== HELLO QUANTUM ===
-Your first quantum circuit in Aeonmi
-
-Creating Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2
-
-Step 1: Apply Hadamard to qubit 0
-  |00⟩ → (|00⟩ + |10⟩)/√2
-  (Creates equal superposition)
-
-Step 2: Apply CNOT (control=0, target=1)
-  (|00⟩ + |10⟩)/√2 → (|00⟩ + |11⟩)/√2
-  (Entangles the qubits)
-
-Final state amplitudes:
-  |00⟩: 0.707
-  |01⟩: 0.000
-  |10⟩: 0.000
-  |11⟩: 0.707
-
-Measurement probabilities:
-  |00⟩: 50%
-  |01⟩: 0%
-  |10⟩: 0%
-  |11⟩: 50%
-
-✓ ENTANGLEMENT VERIFIED!
-  Only |00⟩ and |11⟩ appear — never |01⟩ or |10⟩
-  Measuring one qubit instantly determines the other</code></pre>
-    </section>
-
-    <section id="example-code">
-      <h2>Example: Hello Quantum</h2>
-      <pre><code>⍝ Hello Quantum — Your First Quantum Circuit
-⍝ Run: aeonmi.exe run hello_quantum.ai
-
-function main() {
-    print("=== HELLO QUANTUM ===");
-    print("Creating Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2");
-    print("");
-    
-    ⍝ Step 1: Hadamard creates superposition
-    print("Step 1: Apply Hadamard to qubit 0");
-    print("  |00⟩ → (|00⟩ + |10⟩)/√2");
-    
-    ⍝ Step 2: CNOT entangles qubits
-    print("Step 2: Apply CNOT (control=0, target=1)");
-    print("  (|00⟩ + |10⟩)/√2 → (|00⟩ + |11⟩)/√2");
-    
-    ⍝ Step 3: Show final state
-    print("");
-    print("Final state amplitudes:");
-    print("  |00⟩: 0.707");
-    print("  |11⟩: 0.707");
-    print("");
-    print("✓ Entanglement verified!");
-    
-    return 0;
-}
-
-main();</code></pre>
-    </section>
-
-    <section id="pricing">
-      <h2>Pricing</h2>
-      <div class="pricing-table">
-        
-        <div class="pricing-card">
-          <h3>Free</h3>
-          <div class="price">$0</div>
-          <ul>
-            <li>Starter kit + 4 examples</li>
-            <li>Local quantum simulator</li>
-            <li>Full documentation</li>
-            <li>Community support</li>
-            <li>MIT license (commercial use OK)</li>
-          </ul>
-        </div>
-
-        <div class="pricing-card featured">
-          <h3>Pro</h3>
-          <div class="price">$99<span>/month</span></div>
-          <ul>
-            <li>Everything in Free</li>
-            <li>Cloud API access</li>
-            <li>10,000 quantum shots/month</li>
-            <li>Priority support (24hr)</li>
-            <li>50+ advanced examples</li>
-          </ul>
-        </div>
-
-        <div class="pricing-card">
-          <h3>Enterprise</h3>
-          <div class="price">$999<span>/month</span></div>
-          <ul>
-            <li>Everything in Pro</li>
-            <li>Unlimited quantum shots</li>
-            <li>Real quantum hardware (IBM/IonQ)</li>
-            <li>Custom development</li>
-            <li>Dedicated support engineer</li>
-            <li>SLA + phone support</li>
-          </ul>
-        </div>
-
-      </div>
-      <p style="text-align:center; margin-top:2rem;">
-        <strong>Academic discount:</strong> 50% off Pro tier for students & researchers.<br/>
-        Contact <a href="mailto:support@aeonmi.ai" style="color:var(--cyan)">support@aeonmi.ai</a> with your .edu email.
-      </p>
     </section>
 
     <section id="download">
-      <h2>Download</h2>
-      <p>
-        <strong>Current version:</strong> 1.0.0 (January 2025)<br/>
-        <strong>Size:</strong> 12.7 MB<br/>
-        <strong>Platform:</strong> Windows 11 (64-bit)<br/>
-        <strong>License:</strong> MIT (open source)
-      </p>
-      <p style="margin-top:1.5rem;">
-        The starter kit is currently in private beta. To request access:
-      </p>
-      <ol style="margin-left:2rem; color:var(--muted);">
-        <li>Join our Discord: <a href="https://discord.gg/aeonmi" style="color:var(--cyan)">discord.gg/aeonmi</a></li>
-        <li>Introduce yourself in #introductions</li>
-        <li>Request starter kit access in #beta-access</li>
-      </ol>
-      <p style="margin-top:1.5rem;">
-        Or email <a href="mailto:beta@aeonmi.ai" style="color:var(--cyan)">beta@aeonmi.ai</a> with:
-      </p>
-      <ul style="margin-left:2rem;">
-        <li>Your name and background</li>
-        <li>What you want to build with Aeonmi</li>
-        <li>GitHub profile (optional)</li>
-      </ul>
-      <p style="margin-top:1.5rem; color:var(--muted); font-style:italic;">
-        Public release: May 2025
-      </p>
+        <div class="container">
+            <div class="download-box">
+                <h3>🚀 Free Download</h3>
+                <p class="size">Windows 64-bit | 12.7 MB</p>
+                <p style="margin-bottom: 2rem;">Includes compiler, 4 quantum examples, and documentation</p>
+                <a href="https://github.com/aeonmi/aeonmi/releases/latest" class="btn">Download Starter Kit</a>
+                <p style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                    MIT License | No registration required | Works offline
+                </p>
+            </div>
+        </div>
     </section>
 
-    <section id="faq">
-      <h2>FAQ</h2>
-      
-      <h3>Do I need to install Python or Qiskit?</h3>
-      <p>No! The starter kit includes everything you need. The <code>aeonmi.exe</code> binary runs standalone.</p>
-      
-      <h3>Does this run real quantum circuits?</h3>
-      <p>The free tier uses a classical simulator. Pro/Enterprise tiers have access to real IBM Quantum and IonQ hardware.</p>
-      
-      <h3>Can I use this commercially?</h3>
-      <p>Yes! MIT license allows commercial use. Upgrade to Pro for cloud API access.</p>
-      
-      <h3>What if I get stuck?</h3>
-      <p>Join our Discord or email <a href="mailto:support@aeonmi.ai" style="color:var(--cyan)">support@aeonmi.ai</a>. We respond within 24 hours.</p>
-      
-      <h3>Is this production-ready?</h3>
-      <p>The language core is stable. Cloud API and hardware access are coming in Q2 2025.</p>
+    <section id="examples">
+        <div class="container">
+            <h2>What's Included</h2>
+            <div class="examples">
+                <div class="example">
+                    <h3>1. Hello Quantum</h3>
+                    <p>Create your first Bell state and observe quantum entanglement.</p>
+                    <p><code>hello_quantum.ai</code></p>
+                    <p style="margin-top: 1rem; color: #666;">Learn: Superposition, Entanglement, Measurement</p>
+                </div>
+                <div class="example">
+                    <h3>2. Grover's Search</h3>
+                    <p>Find a marked item in a database with quadratic speedup.</p>
+                    <p><code>grover_search.ai</code></p>
+                    <p style="margin-top: 1rem; color: #666;">Learn: Oracle, Diffusion, Amplitude Amplification</p>
+                </div>
+                <div class="example">
+                    <h3>3. Quantum Fourier Transform</h3>
+                    <p>Detect periodic patterns exponentially faster than classical FFT.</p>
+                    <p><code>qft_pattern.ai</code></p>
+                    <p style="margin-top: 1rem; color: #666;">Learn: Phase Estimation, Frequency Analysis</p>
+                </div>
+                <div class="example">
+                    <h3>4. GHZ Entanglement</h3>
+                    <p>Create 3-qubit entanglement stronger than any classical correlation.</p>
+                    <p><code>entanglement_demo.ai</code></p>
+                    <p style="margin-top: 1rem; color: #666;">Learn: Multi-Qubit Gates, Bell's Inequality</p>
+                </div>
+            </div>
+        </div>
     </section>
 
-    <section id="support">
-      <h2>Support</h2>
-      <ul style="margin-left:0;">
-        <li><strong>Discord:</strong> <a href="https://discord.gg/aeonmi" style="color:var(--cyan)">discord.gg/aeonmi</a></li>
-        <li><strong>Email:</strong> <a href="mailto:support@aeonmi.ai" style="color:var(--cyan)">support@aeonmi.ai</a></li>
-        <li><strong>Issues:</strong> <a href="https://github.com/aeonmi/aeonmi/issues" style="color:var(--cyan)">github.com/aeonmi/aeonmi/issues</a></li>
-        <li><strong>Docs:</strong> <a href="https://docs.aeonmi.ai" style="color:var(--cyan)">docs.aeonmi.ai</a></li>
-      </ul>
+    <section id="pricing" style="background: #f8f9fa;">
+        <div class="container">
+            <h2>Pricing Tiers</h2>
+            <div class="pricing">
+                <div class="tier">
+                    <h3>Free</h3>
+                    <div class="price">$0<span style="font-size: 1rem;">/mo</span></div>
+                    <ul>
+                        <li>Starter kit download</li>
+                        <li>Local quantum simulator</li>
+                        <li>4 example programs</li>
+                        <li>Full documentation</li>
+                        <li>Community support</li>
+                    </ul>
+                    <a href="#download" class="btn">Download Now</a>
+                </div>
+                <div class="tier featured">
+                    <h3>Pro</h3>
+                    <div class="price">$99<span style="font-size: 1rem;">/mo</span></div>
+                    <ul>
+                        <li>Everything in Free</li>
+                        <li>Cloud API (10K shots/mo)</li>
+                        <li>50+ advanced examples</li>
+                        <li>Priority support (24h)</li>
+                        <li>Private Discord channel</li>
+                    </ul>
+                    <a href="contact.html" class="btn">Coming Q2 2025</a>
+                </div>
+                <div class="tier">
+                    <h3>Enterprise</h3>
+                    <div class="price">$999<span style="font-size: 1rem;">/mo</span></div>
+                    <ul>
+                        <li>Everything in Pro</li>
+                        <li>Unlimited quantum shots</li>
+                        <li>Real hardware access</li>
+                        <li>Custom development</li>
+                        <li>Dedicated support</li>
+                    </ul>
+                    <a href="contact.html" class="btn">Contact Sales</a>
+                </div>
+            </div>
+        </div>
     </section>
 
-  </div>
+    <section>
+        <div class="container" style="text-align: center;">
+            <h2>Quick Start</h2>
+            <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+                <h3 style="color: #667eea;">1. Download & Extract</h3>
+                <p style="margin-bottom: 2rem;">Unzip the starter kit to any folder</p>
+                
+                <h3 style="color: #667eea;">2. Run Your First Program</h3>
+                <p style="margin-bottom: 2rem;">Double-click <code>run.bat</code> or run: <code>aeonmi.exe run hello_quantum.ai</code></p>
+                
+                <h3 style="color: #667eea;">3. Explore & Learn</h3>
+                <p style="margin-bottom: 2rem;">Try the other examples, read the docs, join Discord</p>
+                
+                <h3 style="color: #667eea;">4. Build Something</h3>
+                <p>Write your own quantum algorithms in Aeonmi</p>
+            </div>
+        </div>
+    </section>
 
-  <footer>
-    <p>Built with Aeonmi v1.0.0-quantum | Verified working January 2025</p>
-    <p>© 2025 Aeonmi Inc (EIN 41-4625361) | <a href="index.html" style="color:var(--cyan)">Home</a> | <a href="starter-kit.html" style="color:var(--cyan)">Starter Kit</a></p>
-  </footer>
+    <section style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="container" style="text-align: center;">
+            <h2 style="color: white;">Need Help?</h2>
+            <p style="font-size: 1.2rem; margin-bottom: 2rem;">Join our community for support, examples, and discussions</p>
+            <a href="https://discord.com/channels/@me" class="btn" style="background: white; color: #667eea;">Join Discord</a>
+        </div>
+    </section>
 
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Aeonmi Inc (EIN 41-4625361). All rights reserved.</p>
+            <p>
+                <a href="https://github.com/aeonmi/aeonmi">GitHub</a> | 
+                <a href="https://discord.com/channels/@me">Discord</a> | 
+                <a href="contact.html">Contact</a>
+            </p>
+        </div>
+    </footer>
 </body>
 </html>
