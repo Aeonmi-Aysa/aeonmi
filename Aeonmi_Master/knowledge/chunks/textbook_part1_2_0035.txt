@@ -1,0 +1,37 @@
+=== How .ai Files Are Executed ===
+
+BODY:
+When you run `aeonmi native myfile.ai`, the binary executes a pipeline of Rust components. Understanding this pipeline helps you write better programs and interpret error messages.
+
+The pipeline is:
+
+1. Lexer (src/core/lexer.rs) — reads the source text character by character and produces a flat list of tokens. Tokens include keywords (let, function, while, if, else, for, in, return, true, false, null, match), operators (+, -, *, /, ==, !=, <, >, <=, >=, &&, ||), literals (strings, numbers, booleans), and identifiers (variable and function names). Quantum-specific tokens (qubit literals like |0>, |1>, |+>, Greek letters, and quantum operators) are also recognized at this stage.
+
+2. Parser (src/core/parser.rs) — takes the token list and builds an Abstract Syntax Tree (AST). The AST represents the structure of your program: the parser recognizes that `let x = 5 + 3;` is a variable declaration containing a binary addition expression. Parse errors at this stage report the token that caused the problem.
+
+3. AST (Abstract Syntax Tree) — the tree structure of your program. Each node is an expression or statement: FunctionDef, VarDecl, BinOp, IfExpr, WhileLoop, ForIn, ReturnStmt, FunctionCall, etc. The AST is the canonical representation of your program before execution.
+
+4. IR (Intermediate Representation) — the AST may be lowered to an IR for optimization before the VM sees it. The bytecode compiler (src/core/bytecode.rs) can produce a compact bytecode representation with constant folding, dead code elimination, and chain folding optimizations. The standard native mode skips bytecode and interprets the AST directly.
+
+5. VM (Virtual Machine, src/core/vm.rs) — walks the AST and evaluates it. Variables are stored in a scoped environment. Functions are stored as closures. Built-in functions are dispatched from a registry. The VM maintains a call frame stack for function calls and recursion.
+
+CODE:
+```
+// Understanding the pipeline:
+// Source text → Lexer → Tokens → Parser → AST → VM → Output
+
+// This simple program:
+function add(a, b) {
+    return a + b;
+}
+let result = add(3, 4);
+print(result);
+
+// Becomes (conceptually) this AST:
+// Program [
+//   FunctionDef("add", ["a", "b"],
+//     Block[ Return(BinOp("+", Ident("a"), Ident("b"))) ]),
+//   VarDecl("result", FunctionCall("add", [Literal(3), Literal(4)])),
+//   FunctionCall("print", [Ident("result")])
+// ]
+```

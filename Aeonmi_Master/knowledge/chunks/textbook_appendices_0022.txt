@@ -1,0 +1,11 @@
+=== Knowledge Graph Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: graph | Show knowledge graph summary: node count, top tags, connectivity | Node count, tag distribution, edge count
+TABLE_ROW: kg | Alias for graph | Same as graph
+TABLE_ROW: knowledge | Alias for graph | Same as graph
+TABLE_ROW: graph QUERY | Search the knowledge graph for nodes matching QUERY | Matching nodes with their values and tags
+TABLE_ROW: kg QUERY | Alias for graph QUERY | Same as graph QUERY
+TABLE_ROW: link KEY1 KEY2 | Create a manual link between two knowledge nodes | Link confirmation
+TABLE_ROW: neighbors KEY | Show all nodes linked to KEY | List of neighbor nodes with their values
+TABLE_ROW: query TAG | Show all nodes with the given tag | Matching nodes filtered by tag

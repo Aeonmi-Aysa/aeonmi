@@ -1,0 +1,70 @@
+=== Alert Thresholds and the hive_state.json File ===
+
+BODY: The `hive alert <0-3>` command sets a threshold recommendation level.
+When the conductor recommendation crosses this threshold, a console alert fires.
+This is useful when you want Mother watching in the background and alerting you
+only when conditions become significant — for example, setting `hive alert 3`
+means you are only notified when the hive reaches ACCELERATE.
+
+The `hive_state.json` file in Aeonmi_Master/ stores the current hive snapshot
+between REPL sessions. The dashboard reads from this file to display hive
+state in the right panel. It is a separate file from genesis.json to avoid
+write conflicts between the Rust background thread and the Python dashboard.
+
+CODE:
+```
+// Example hive_state.json structure:
+{
+  "oracle_score": 0.74,
+  "hype_score": 0.71,
+  "closer_score": 0.68,
+  "devil_score": 0.22,
+  "conductor_rec": "PROCEED",
+  "cycle_count": 7,
+  "last_cycle_ts": "2026-04-05T14:32:10Z",
+  "ema_smoothed": true
+}
+```
+
+EXERCISE_TITLE: Exercise 25.1 — Running a Full Hive Session
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Start the hive with a 15-second interval. While it runs in the
+background, conduct three teach interactions with substantive facts. After five
+hive cycles, run `hive` and record all five agent EMA scores and the conductor
+recommendation. Then set `hive alert 3` and deliberately run interactions that
+should produce a high-signal session (positive, specific, technical). Observe
+whether the hive recommendation escalates. Analyze what inputs moved which
+agent scores.
+EXERCISE_SOLUTION:
+```
+aeonmi mother
+> hive start 15
+> teach bell_entangle = 1024-shot Bell circuit, 51.2% |00>, 48.8% |11>
+> teach ea_fitness = EA run reached fitness 1.0 at gen 42
+> teach qft_verified = QFT circuit on N=16 period finding verified
+
+// After 5 cycles (75 seconds):
+> hive
+// Record all scores. With substantive positive input:
+// Oracle should be elevated (factual basis is strong)
+// Hype reflects engagement level
+// Closer reflects readiness of current context
+// Devil reflects current risk level (should be LOW given positive input)
+// Conductor: likely PROCEED or ACCELERATE
+
+> hive alert 3
+// Now only ACCELERATE triggers an alert
+
+// Run more specific, high-signal input:
+> think quantum entanglement
+> teach fidelity_peak = best measured fidelity = 0.912 on GHZ 3-qubit
+> evolve
+
+// Observe whether alert fires after next hive cycle
+// Analysis: Oracle rises when knowledge graph has strong factual content.
+// Hype rises when interaction intensity and semantic depth are high.
+// Conductor moves to ACCELERATE when all three positive agents cross 70
+// and devil stays below 30.
+```
+
+================================================================================

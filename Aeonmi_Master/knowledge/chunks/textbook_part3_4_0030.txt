@@ -1,0 +1,44 @@
+=== The quantum_ai_fusion.ai Example ===
+
+BODY: The quantum_ai_fusion.ai example demonstrates the full integration
+pipeline in a single program. It runs three systems together: live Qiskit
+circuits, evolved agent weights from a self-modifying training run, and
+quantum-enhanced final scoring.
+
+The program first calls `quantum_check()` to verify whether Qiskit is available.
+If it is (returns 1), all subsequent `quantum_run()` calls dispatch to the Aer
+simulator and return real measurement counts. The program then runs a GHZ
+3-qubit entanglement circuit and a single-qubit QRNG circuit, both returning
+live JSON results.
+
+It then applies evolved weights (w0=0.892, w1=0.612, w2=0.971, w3=-0.183,
+fitness=1.0) from a prior self-modifying training run to evaluate agent signals.
+Finally, it combines the classical agent hive score with a GHZ boost (0.03 if
+Qiskit is live) to produce a quantum-enhanced final recommendation.
+
+CODE:
+```
+// quantum_ai_fusion.ai — core pattern:
+function main() {
+    let qiskit_live = quantum_check();
+
+    // GHZ 3-qubit circuit: H(q0), CX(q0,q1), CX(q0,q2), measure all
+    let ghz_desc = "3 3 1024 6  0 0 -1  4 1 0  4 2 0  7 0 0  7 1 1  7 2 2";
+    let ghz_result = quantum_run(ghz_desc);
+
+    // Apply evolved weights to agent signal evaluation
+    let w0 = 0.892; let w1 = 0.612; let w2 = 0.971; let w3 = -0.183;
+    let sig = 0.9; let coh = 0.8; let trend = 0.7; let noise = 0.1;
+    let logit = w0*sig + w1*coh + w2*trend + w3*noise;
+    let decision = 0;
+    if (logit > 0.5) { decision = 1; }
+
+    // Quantum-enhanced final score
+    let classical_score = 0.786;
+    let ghz_boost = 0;
+    if (qiskit_live == 1) { ghz_boost = 0.03; }
+    let final_score = classical_score + ghz_boost;
+    // Final recommendation: ACCELERATE if final_score >= 0.75
+}
+main();
+```

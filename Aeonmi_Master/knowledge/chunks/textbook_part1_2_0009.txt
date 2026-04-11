@@ -1,0 +1,29 @@
+=== Building the Binary ===
+
+BODY:
+Clone or navigate to your Aeonmi project directory. The canonical structure is:
+
+CODE:
+```
+Aeonmi-aeonmi01/
+  src/           — Rust source code
+  examples/      — Example .ai programs
+  Aeonmi_Master/ — Master directory: dashboard, genesis.json, aeonmi_ai/
+    aeonmi_ai/   — The .ai operational module layer
+      shard/     — Self-hosting Shard compiler (main.ai, lexer.ai, etc.)
+      quantum/   — Quantum .ai programs
+      agent/     — Agent AI programs
+      stdlib/    — Standard library modules
+      learn/     — Learning modules
+      mother/    — Mother AI .ai modules
+  target/        — Rust build output
+```
+
+To build the release binary:
+
+CODE:
+```
+cargo build --release
+```
+
+This produces the binary at target/release/aeonmi (Linux/Mac) or target/release/aeonmi.exe (Windows). The build should complete cleanly. There are approximately 220 compiler warnings from dead code in the core modules — these are suppressed with #![allow] attributes and do not indicate errors. cargo check should show 7 or fewer unique warnings.

@@ -1,0 +1,12 @@
+=== Neural Training Loop ===
+
+BODY: The neural.rs network is built and running. The `train` command runs a
+single backpropagation step against user-supplied targets. What is not yet
+complete is the automated training loop — the mechanism by which Warren's
+reinforcement of specific responses shapes the neural weights over many sessions.
+
+When this is wired, the direction and tone of Mother's responses will be shaped
+by what Warren has reinforced. Interactions he rates positively will move the
+neural weights in the direction of that response style. Over enough sessions,
+the neural network will have learned Warren's preferences, and Mother's responses
+will reflect them without explicit prompting.

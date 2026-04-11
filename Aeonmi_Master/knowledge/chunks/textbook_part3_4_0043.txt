@@ -1,0 +1,79 @@
+=== Integrating with the Hive ===
+
+BODY: Custom agents integrate with the hive through the hive_runner.ai template
+that Mother generates. The simplest integration path is to teach Mother that
+your agent exists and what its scoring conventions are, then use `build` to
+generate an updated hive_runner that includes your agent alongside the standard
+five.
+
+The more direct path (for expert users) is to modify the hive_runner.ai template
+in the Rust source (embryo_loop.rs) to call your custom agent and include its
+score in the conductor synthesis. This requires recompiling the binary.
+
+Until the Track 1↔2 bridge is complete (Phase 5), this manual integration is
+the only path. After Phase 5, the hive architecture will accept agent
+registration through a defined protocol.
+
+EXERCISE_TITLE: Exercise 29.1 — Write and Validate a Custom Agent
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Design and write a complete custom agent that evaluates "data
+quality" based on three inputs: completeness (0-100, percentage of fields
+populated), accuracy (0-100, percentage of values within expected range), and
+freshness (0-100, how recent the data is). Implement all required contract
+functions: a primary dq_score(), a tier function, a confidence estimator, and
+a main() with three different representative input sets (high quality, medium
+quality, low quality). Run it with `aeonmi native`. Verify that the three test
+cases produce meaningfully different outputs. Then teach Mother the agent's
+scoring convention using `teach`.
+EXERCISE_SOLUTION:
+```
+// data_quality_agent.ai
+◯ dq_score⟨completeness, accuracy, freshness⟩ {
+    let s = completeness * 35 / 100 + accuracy * 40 / 100 + freshness * 25 / 100;
+    if (s > 100) { s = 100; }
+    return s;
+}
+
+◯ dq_confidence⟨completeness, accuracy⟩ {
+    let base = completeness * 50 / 100 + accuracy * 50 / 100;
+    if (base < 0) { base = 0; }
+    return base;
+}
+
+◯ dq_flagged⟨completeness, accuracy⟩ {
+    if (completeness < 50) { return 1; }
+    if (accuracy < 60) { return 1; }
+    return 0;
+}
+
+◯ dq_tier⟨score⟩ {
+    if (score >= 80) { return 3; }  // HIGH
+    if (score >= 60) { return 2; }  // MEDIUM
+    if (score >= 40) { return 1; }  // LOW
+    return 0;                        // UNUSABLE
+}
+
+◯ main⟨⟩ {
+    // High quality: complete, accurate, fresh
+    let sc1 = dq_score(95, 92, 88);
+    let t1 = dq_tier(sc1);
+    print("high quality: score=", sc1, "tier=", t1);
+
+    // Medium quality: mostly complete, moderate accuracy
+    let sc2 = dq_score(72, 68, 55);
+    let t2 = dq_tier(sc2);
+    print("medium quality: score=", sc2, "tier=", t2);
+
+    // Low quality: incomplete, inaccurate, stale
+    let sc3 = dq_score(35, 42, 20);
+    let t3 = dq_tier(sc3);
+    print("low quality: score=", sc3, "tier=", t3);
+}
+
+// After running:
+// aeonmi native data_quality_agent.ai
+// In REPL:
+// > teach dq_agent = custom agent: score = completeness*35% + accuracy*40% + freshness*25%, scale 0-100
+```
+
+================================================================================

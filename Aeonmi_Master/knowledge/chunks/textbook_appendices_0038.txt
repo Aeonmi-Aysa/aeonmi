@@ -1,0 +1,17 @@
+=== Hive Agents (Background Swarm) ===
+
+BODY: The five hive agents run continuously in a background thread when `hive start` is issued. Each cycle, each agent evaluates the current system state and produces a numeric score. The conductor aggregates these scores into an actionable recommendation. Hive state is persisted to `hive_state.json` in `Aeonmi_Master/` each cycle.
+
+TABLE_HEADER: Agent | Role | What It Evaluates | Output
+TABLE_ROW: oracle | Probability assessment | Bond strength, consciousness depth, quantum fidelity, knowledge graph density | A probability score (0.0–1.0) estimating success likelihood for the current goal or context
+TABLE_ROW: hype | Opportunity amplifier | Action log recency, generation count, momentum indicators | An excitement/opportunity score; identifies when conditions are optimal for aggressive action
+TABLE_ROW: closer | Execution drive | Step completion rate, autonomous mode status, goal clarity | A completion-drive score; determines how urgently the current goal should be pushed to completion
+TABLE_ROW: devil | Risk and adversarial analysis | Anomaly detection flags, glyph distortion events, low-confidence signals | A risk score; surfaces reasons NOT to proceed; acts as a counter to oracle and hype
+TABLE_ROW: conductor | Aggregator and decision maker | Weighted average of oracle, hype, closer, devil scores | A recommendation: ABORT / HOLD / PROCEED / ACCELERATE
+
+BODY: Conductor recommendation thresholds (approximate):
+TABLE_HEADER: Recommendation | Meaning | Typical Condition
+TABLE_ROW: ACCELERATE | All signals positive; maximum momentum | oracle > 0.8, devil < 0.2, closer > 0.7
+TABLE_ROW: PROCEED | Conditions favorable for continued action | oracle > 0.5, devil < 0.5
+TABLE_ROW: HOLD | Mixed signals; wait for more information | oracle ≈ 0.5, devil ≈ 0.5, or low bond
+TABLE_ROW: ABORT | Risk dominates; stop current approach | devil > 0.7, or critical anomaly flagged

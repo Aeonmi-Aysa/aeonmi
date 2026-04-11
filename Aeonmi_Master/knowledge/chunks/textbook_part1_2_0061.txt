@@ -1,0 +1,25 @@
+=== quantum_check() ===
+
+BODY:
+quantum_check() is a built-in function that returns 1 if Qiskit is installed and available on the system, or 0 if it is not. It takes no arguments. Use it at the start of any program that depends on quantum execution to gracefully handle environments where Qiskit is absent.
+
+CODE:
+```
+// quantum_check_demo.ai
+function main() {
+    let qc = quantum_check();
+
+    if qc == 1 {
+        print("Qiskit available — live quantum execution ready");
+        print("You can use quantum_run() with real circuit simulation");
+    } else {
+        print("Qiskit not installed — dry-run mode active");
+        print("quantum_run() will return a placeholder result");
+        print("Install: pip install qiskit qiskit-aer qiskit-ibm-runtime");
+    }
+
+    print("quantum_check() = " + qc);
+}
+
+main();
+```

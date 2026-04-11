@@ -1,0 +1,34 @@
+=== quantum_run() ===
+
+BODY:
+quantum_run() is the primary quantum execution built-in. It takes one argument: the circuit descriptor string. It returns a JSON string containing the measurement results.
+
+When Qiskit is installed (quantum_check() == 1), quantum_run() invokes qiskit_runner.py with the descriptor, runs the circuit on the Aer simulator (or IBM hardware if configured), and returns the measurement counts as a JSON string.
+
+When Qiskit is not installed, quantum_run() returns a dry-run placeholder JSON.
+
+CODE:
+```
+// quantum_run_demo.ai
+function main() {
+    // First check availability
+    let available = quantum_check();
+    print("Qiskit available: " + available);
+
+    // Bell state descriptor
+    let descriptor = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    print("Running Bell state circuit...");
+    let result = quantum_run(descriptor);
+
+    print("Result JSON:");
+    print(result);
+
+    // The result JSON contains measurement counts.
+    // For a Bell state, you expect roughly 50% "00" and 50% "11"
+    // indicating perfect quantum entanglement.
+    // Example result: {"00": 258, "11": 254}
+}
+
+main();
+```

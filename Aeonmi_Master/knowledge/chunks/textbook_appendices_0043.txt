@@ -1,0 +1,10 @@
+=== Top-Level Fields ===
+
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: _schema_version | string | Rust | Schema version identifier | "5.0"
+TABLE_ROW: _last_writer | string | last writer | Which process last wrote the file | "python" or "rust"
+TABLE_ROW: _last_updated | string (ISO8601) | last writer | Timestamp of last write | "2026-04-05T23:36:50.840032Z"
+TABLE_ROW: interaction_count | integer | Python | Total interaction count across all sessions (dashboard) | 8
+TABLE_ROW: key_facts | array | Python | Important facts recorded by the operational layer | []
+TABLE_ROW: action_summary | array of strings | Python | Recent agent actions from the last session | ["agent:oracle", "agent:hype"]
+TABLE_ROW: last_updated | string | Python | Human-readable last update time (HH:MM:SS) | "16:45:24"

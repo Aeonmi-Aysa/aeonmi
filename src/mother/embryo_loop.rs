@@ -27,7 +27,7 @@ use crate::core::{
     lowering::lower_ast_to_ir,
     vm::Interpreter,
 };
-use crate::ai::{AiRegistry, claude::extract_code_block};
+use crate::ai::{AiRegistry, claude::{extract_code_block, HistoryMessage}};
 use crate::glyph::{
     anomaly::AnomalyDetector,
     ceremony::{boot, init_shard},
@@ -240,6 +240,9 @@ pub struct EmbryoLoop {
     pub session_logging: bool,
     /// Milestones recorded this session (names).
     pub session_milestones: Vec<String>,
+    /// Conversation history for multi-turn memory with the AI provider.
+    /// Capped at 40 messages (20 exchanges) to stay within context limits.
+    pub conversation_history: Vec<HistoryMessage>,
 }
 
 impl EmbryoLoop {
@@ -293,6 +296,7 @@ impl EmbryoLoop {
             awaken_interval_secs: 60,
             session_logging: true,
             session_milestones: Vec::new(),
+            conversation_history: Vec::new(),
             hive_active: Arc::new(AtomicBool::new(false)),
             hive_snapshot: Arc::new(Mutex::new(None)),
             prev_hive_snapshot: None,
@@ -2715,6 +2719,19 @@ main_{name}();
                     }
                 }
             }
+            "history clear" | "clear history" | "forget" => {
+                let count = self.conversation_history.len() / 2;
+                self.conversation_history.clear();
+                format!("◈ Conversation history cleared ({} exchanges removed). Fresh context.", count)
+            }
+            "history" | "history status" => {
+                let exchanges = self.conversation_history.len() / 2;
+                let cap = 20;
+                format!(
+                    "◈ Conversation History\n  Exchanges : {}/{}\n  Messages  : {}\n  Use 'history clear' to reset memory.",
+                    exchanges, cap, self.conversation_history.len()
+                )
+            }
             "bond" | "bond status" => {
                 let bond  = self.emotional_core.bond.strength;
                 let depth = self.quantum_core.consciousness_depth;
@@ -2961,9 +2978,9 @@ main_{name}();
         // Build context-aware system prompt
         let prompt = self.build_prompt(input);
 
-        // Call the preferred AI provider
+        // Call provider with conversation history for session memory
         let ai_response = match self.ai_registry.preferred() {
-            Some(provider) => match provider.chat(&prompt) {
+            Some(provider) => match provider.chat_history(&prompt, &self.conversation_history) {
                 Ok(text) => text,
                 Err(e) => {
                     return ExecResult {
@@ -2983,6 +3000,13 @@ main_{name}();
                 };
             }
         };
+
+        // Update conversation history (cap at 40 messages = 20 exchanges)
+        self.conversation_history.push(HistoryMessage { role: "user".into(), content: prompt.clone() });
+        self.conversation_history.push(HistoryMessage { role: "assistant".into(), content: ai_response.clone() });
+        if self.conversation_history.len() > 40 {
+            self.conversation_history.drain(0..2); // drop oldest exchange
+        }
 
         // Parse and potentially execute embedded code blocks
         let (preamble, code, trailing) = extract_code_block(&ai_response);

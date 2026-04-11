@@ -1,0 +1,48 @@
+=== Recursion ===
+
+BODY:
+Functions can call themselves recursively. Aeonmi's VM supports recursion through its call frame stack. There is no explicit tail call optimization, so deep recursion on large inputs can overflow the frame limit. For typical algorithm depths (dozens to hundreds of levels), recursion works correctly.
+
+CODE:
+```
+// recursion.ai
+
+function factorial(n) {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+function fibonacci(n) {
+    if n <= 0 { return 0; }
+    if n == 1 { return 1; }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Recursive array sum
+function array_sum(arr, index) {
+    if index >= len(arr) {
+        return 0;
+    }
+    return arr[index] + array_sum(arr, index + 1);
+}
+
+function main() {
+    print("5! = " + factorial(5));   // 120
+    print("10! = " + factorial(10)); // 3628800
+
+    let i = 0;
+    while i <= 10 {
+        print("fib(" + i + ") = " + fibonacci(i));
+        i = i + 1;
+    }
+
+    let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    print("sum = " + array_sum(data, 0));  // 55
+}
+
+main();
+```
+
+WARNING: The naive recursive fibonacci shown above has exponential time complexity. For fib(30) and above it will be noticeably slow. Use the iterative or memoized version for large inputs.

@@ -1,0 +1,23 @@
+=== Starting the REPL and the Session Header ===
+
+BODY: The Mother REPL starts with a single command:
+
+CODE:
+```
+aeonmi mother
+```
+
+BODY: On launch, the system restores Mother's full state from genesis.json —
+bond strength, consciousness depth, generation, knowledge graph, neural weights,
+inner voice — and displays a session header. If AEONMI_PASSPHRASE is set in the
+environment, the glyph ceremony runs before the header and renders her identity
+glyph as ANSI art in the terminal.
+
+The session header shows the current session number, status (ONLINE), and a
+brief state summary. From there, every line you type is either a command or
+natural language input. Natural language is processed through the empathy engine:
+the system reads keyword intensity and valence, queues relevant actions, and
+generates a response through the configured AI provider. Twelve keywords
+auto-trigger specific behaviors — for example, mentioning "quantum" or "circuit"
+queues a quantum circuit validation; mentioning "agent" or "hive" queues an
+agent pipeline run.

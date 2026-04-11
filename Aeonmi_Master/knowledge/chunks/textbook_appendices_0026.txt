@@ -1,0 +1,8 @@
+=== Snapshot and Learning Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: snapshot | Capture a capability snapshot of current Mother state | Snapshot saved with interaction count, bond, consciousness depth
+TABLE_ROW: snapshots | List all saved capability snapshots | Table of snapshots with bond, depth, and neural confidence values
+TABLE_ROW: learn | Generate a learn probe source and display it | Generated .ai probe source (display only; does not execute the .ai learn module)
+
+NOTE: The learn command generates source code for a learn probe but does not execute it through the .ai runtime layer. The Track 2 (.ai) to Track 1 (Rust) runtime bridge is not yet built. See Appendix H for details on this architectural gap.

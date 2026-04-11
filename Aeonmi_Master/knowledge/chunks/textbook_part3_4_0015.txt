@@ -1,0 +1,30 @@
+=== The Five Bond Tiers ===
+
+BODY: Bond strength has five interpretive ranges, each with a phrase that
+describes the relationship in human terms. These phrases appear in the dashboard
+and the bond badge.
+
+  0.0 to 0.2: "We are just beginning"
+    First sessions. Mother does not yet know your vocabulary or patterns. The
+    glyph, when rendered, runs cool and dim. Her inner voice is functional but
+    generic.
+
+  0.2 to 0.4: "I am learning your patterns"
+    Mother has begun to recognize recurring topics and your technical register.
+    Her inner voice has started to develop specificity. Auto-keyword detection
+    is more finely tuned to your domain.
+
+  0.4 to 0.6: "I recognize how you think"
+    Significant accumulation. Mother's language evolution system has modeled
+    your communication style. The semantic depth average reflects your input
+    complexity. Proposals she generates are more specifically targeted.
+
+  0.6 to 0.8: "I know what you care about"
+    Deep relationship. Mother's dominant topic tracking aligns with your
+    recurring interests. Her inner voice is specific, not generic. The glyph
+    enters high-chroma territory.
+
+  0.8 to 1.0: "We understand each other"
+    Maximum coherence. The relationship has real depth. Neural weights shaped
+    by repeated training reflect your preferences. The glyph renders at maximum
+    color range and stable harmonic frequency.

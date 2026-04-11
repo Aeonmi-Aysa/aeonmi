@@ -1,0 +1,15 @@
+=== Understanding Aer Results ===
+
+BODY:
+The Aer simulator returns measurement counts as a JSON dictionary. For a circuit run with N shots, the counts sum to N (or very close to N — occasionally shots are discarded due to post-selection). The distribution of counts reflects the quantum probability amplitudes of the circuit.
+
+For a perfect Bell state (H + CNOT):
+- You expect counts["00"] ≈ N/2 and counts["11"] ≈ N/2
+- The exact split varies per run because quantum measurement is probabilistic
+- With 512 shots, you might get {"00": 261, "11": 251} one run and {"00": 248, "11": 264} the next
+- Over many runs, the average approaches exactly 50/50
+
+For a deterministic circuit (X gate on |0>):
+- counts["1"] = N exactly — no randomness, the X gate deterministically flips |0> to |1>
+
+NOTE: The Aer simulator is noise-free by default. Real IBM quantum hardware introduces gate errors and decoherence — your measured results will not be as clean. The fidelity measurement system (compute_fidelity using Total Variation Distance) in qiskit_runner.py quantifies this difference between Aer and real hardware results.

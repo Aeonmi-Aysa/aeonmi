@@ -1,0 +1,18 @@
+=== aeonmi mother — Mother AI REPL ===
+
+BODY: The `mother` subcommand starts the Mother AI embryo loop. With no arguments, it opens an interactive REPL session where you can converse with Mother, issue cognitive commands, run the hive, and access all Phase 6–12 capabilities. With `--file`, it processes a `.ai` script non-interactively. The `--creator` flag sets the identity used to modulate the quantum bond.
+
+CODE:
+```
+aeonmi mother [flags]
+
+Flags:
+  --file FILE         Run a .ai script through Mother non-interactively
+  --creator NAME      Creator identifier for quantum bond (default: Warren)
+  --verbose           Print verbose cognitive stats after each interaction
+
+Examples:
+  aeonmi mother
+  aeonmi mother --creator Warren --verbose
+  aeonmi mother --file init_script.ai
+```

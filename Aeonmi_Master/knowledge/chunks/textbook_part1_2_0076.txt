@@ -1,0 +1,321 @@
+=== The Fidelity Measurement System ===
+
+BODY:
+The qiskit_runner.py implements a fidelity measurement system using Total Variation Distance (TVD). When you run the same circuit on both Aer and IBM Brisbane, fidelity measures how close the two result distributions are.
+
+A fidelity of 1.0 means the real hardware produced exactly the Aer result. A fidelity of 0.0 means completely different distributions. In practice, well-calibrated IBM hardware on simple circuits achieves fidelity of 0.95–0.99.
+
+The majority_vote function in qiskit_runner.py runs the circuit 3 times and takes the majority outcome — a simple form of noise mitigation.
+
+CODE:
+```
+// Understanding fidelity in Aeonmi
+// (This demonstrates the concept; actual fidelity requires two backend runs)
+
+function compute_tvd(p, q, labels) {
+    // Total Variation Distance between two distributions
+    // TVD = 0.5 * sum |p(x) - q(x)|
+    // Fidelity = 1 - TVD
+    let tvd = 0.0;
+    let i = 0;
+    while i < len(labels) {
+        let diff = p[i] - q[i];
+        if diff < 0 { diff = 0 - diff; }
+        tvd = tvd + diff;
+        i = i + 1;
+    }
+    return 1.0 - (tvd / 2.0);
+}
+
+function main() {
+    // Simulated comparison: Aer vs IBM Brisbane for Bell state (1024 shots)
+    // Aer (ideal): 512 "00", 512 "11", 0 "01", 0 "10"
+    // IBM Brisbane (with noise): 489 "00", 498 "11", 19 "01", 18 "10"
+
+    let aer_counts    = [512.0, 512.0, 0.0, 0.0];    // 00, 11, 01, 10
+    let ibm_counts    = [489.0, 498.0, 19.0, 18.0];
+    let total = 1024.0;
+
+    // Normalize to probabilities
+    let aer_probs = [aer_counts[0]/total, aer_counts[1]/total,
+                     aer_counts[2]/total, aer_counts[3]/total];
+    let ibm_probs = [ibm_counts[0]/total, ibm_counts[1]/total,
+                     ibm_counts[2]/total, ibm_counts[3]/total];
+
+    let labels = ["00", "11", "01", "10"];
+    let fidelity = compute_tvd(aer_probs, ibm_probs, labels);
+
+    print("Aer distribution:    " + aer_probs);
+    print("IBM Brisbane distribution: " + ibm_probs);
+    print("Fidelity (1 - TVD):  " + fidelity);
+    print("Interpretation: " + floor(fidelity * 100) + "% match between Aer and hardware");
+}
+
+main();
+```
+
+NOTE: As of April 2026, IBM Brisbane has not been tested in production from Aeonmi. The qiskit_runner.py IBM path is implemented and should work with a valid token, but queue times of hours are possible during peak use. For any demonstration, use the Aer simulator. If a live hardware demonstration is planned, submit the circuit in advance and verify the token is set at least 24 hours before the demo.
+
+EXERCISE_TITLE: Exercise 18.1 — IBM vs Aer Comparison
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a program that:
+1. Defines a Bell state circuit descriptor
+2. Runs it on the Aer simulator (quantum_run() default)
+3. Prints the result
+4. Explains in print statements what would change if the result came from IBM Brisbane instead of Aer
+5. Computes a simulated fidelity between the Aer result and a hypothetical noisy IBM result you define manually
+
+EXERCISE_SOLUTION:
+```
+// ex18_1.ai
+
+function abs_val(x) {
+    if x < 0 { return 0 - x; }
+    return x;
+}
+
+function fidelity_from_counts(a00, a11, b00, b11, shots) {
+    // TVD between two Bell state distributions
+    let p00 = a00 / shots;
+    let p11 = a11 / shots;
+    let q00 = b00 / shots;
+    let q11 = b11 / shots;
+    let tvd = (abs_val(p00 - q00) + abs_val(p11 - q11)) / 2.0;
+    return 1.0 - tvd;
+}
+
+function main() {
+    print("=== AER vs IBM BRISBANE COMPARISON ===");
+    print("");
+
+    // Step 1: Run Bell state on Aer
+    let desc = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let aer_result = quantum_run(desc);
+    print("Aer Simulator Result:");
+    print(aer_result);
+    print("");
+
+    // Step 2: Explain IBM differences
+    print("If this ran on IBM Brisbane instead of Aer:");
+    print("  - Gate errors (~0.1-0.5% per gate) would cause some");
+    print("    |00> states to flip to |01> or |10>");
+    print("  - Readout errors add additional misclassification");
+    print("  - You would see non-zero counts for '01' and '10'");
+    print("  - The 00/11 split may also be slightly uneven");
+    print("  - Queue time: minutes to hours depending on load");
+    print("");
+
+    // Step 3: Compute simulated fidelity
+    // Hypothetical: Aer gives 512/512, IBM gives 489/498 with 37 errors
+    let shots = 1024.0;
+    let aer_00 = 512.0;
+    let aer_11 = 512.0;
+    let ibm_00 = 489.0;
+    let ibm_11 = 498.0;
+
+    let fidelity = fidelity_from_counts(aer_00, aer_11, ibm_00, ibm_11, shots);
+    let fidelity_pct = floor(fidelity * 1000.0) / 10.0;
+
+    print("Simulated fidelity (Aer vs hypothetical IBM Brisbane):");
+    print("  Aer:  {\"00\": 512, \"11\": 512}");
+    print("  IBM:  {\"00\": 489, \"11\": 498, \"01\": 19, \"10\": 18}");
+    print("  Fidelity: " + fidelity_pct + "%");
+    print("");
+    print("A fidelity above 95% is considered high-quality quantum execution.");
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 18.2 — Full Quantum Program
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a comprehensive quantum program called quantum_survey.ai that:
+1. Checks quantum availability
+2. Runs four different circuits: identity (no gates, just measure), X gate, H gate, Bell state
+3. For each, prints the descriptor, the result, and a one-line interpretation
+4. Ends with a summary table printed as text showing circuit name, expected distribution, and actual result
+
+EXERCISE_SOLUTION:
+```
+// quantum_survey.ai
+
+function run_and_report(name, desc, expected) {
+    print("--- " + name + " ---");
+    print("Descriptor: " + desc);
+    let result = quantum_run(desc);
+    print("Result:   " + result);
+    print("Expected: " + expected);
+    print("");
+}
+
+function main() {
+    print("======================================");
+    print("  AEONMI QUANTUM CIRCUIT SURVEY");
+    print("======================================");
+    print("");
+
+    let qc = quantum_check();
+    if qc == 1 {
+        print("Backend: Aer Simulator (live)");
+    } else {
+        print("Backend: Dry-run mode (Qiskit not installed)");
+    }
+    print("");
+
+    // 1. Identity: measure q0 with no gates (should be |0> always)
+    // 1 qubit, 1 classical bit, 256 shots, 1 op: MEASURE
+    let identity_desc = "1 1 256 1  7 0 0";
+    run_and_report("Identity (|0> no gates)", identity_desc,
+                   "{\"0\": 256} — always zero, no operation applied");
+
+    // 2. X gate: flip |0> to |1>, measure
+    let x_desc = "1 1 256 2  1 0 -1  7 0 0";
+    run_and_report("X Gate (bit flip)", x_desc,
+                   "{\"1\": 256} — always one, X flips the qubit");
+
+    // 3. H gate: superposition, measure
+    let h_desc = "1 1 256 2  0 0 -1  7 0 0";
+    run_and_report("H Gate (superposition)", h_desc,
+                   "{\"0\": ~128, \"1\": ~128} — 50/50 probabilistic");
+
+    // 4. Bell state: H + CNOT, measure both
+    let bell_desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    run_and_report("Bell State (entanglement)", bell_desc,
+                   "{\"00\": ~256, \"11\": ~256} — correlated, no 01 or 10");
+
+    // Summary
+    print("======================================");
+    print("SUMMARY TABLE");
+    print("======================================");
+    print("Circuit      | Expected Distribution");
+    print("-------------|---------------------------");
+    print("Identity     | {\"0\": N} — deterministic zero");
+    print("X Gate       | {\"1\": N} — deterministic one");
+    print("H Gate       | {\"0\": N/2, \"1\": N/2} — uniform random");
+    print("Bell State   | {\"00\": N/2, \"11\": N/2} — entangled pair");
+    print("");
+    print("Use 'aeonmi native quantum_survey.ai' to run this program.");
+    print("Install Qiskit for live simulation: pip install qiskit qiskit-aer");
+}
+
+main();
+```
+
+================================================================================
+APPENDIX A: Quick Reference — CLI Commands
+================================================================================
+
+BODY:
+Complete command reference for the Aeonmi binary:
+
+CODE:
+```
+aeonmi                          — Start interactive mode (glyph boot + shell)
+aeonmi repl                     — Start REPL directly
+aeonmi run <file.ai>            — Run a .ai file (native VM)
+aeonmi run <file.ai> --watch    — Run with file-change auto-rerun
+aeonmi native <file.ai>         — Explicit native VM execution
+aeonmi exec <file.ai>           — Execution (subprocess dispatch mode)
+aeonmi emit <file.ai>           — Compile and emit output
+aeonmi build <file.ai>          — Compile without running
+aeonmi tokens <file.ai>         — Dump token stream (lexer output)
+aeonmi ast <file.ai>            — Dump AST (parser output)
+aeonmi quantum <file.ai>        — Run with quantum backend
+aeonmi format <file.ai>         — Format .ai source file
+aeonmi new <file.ai>            — Create a new .ai file
+aeonmi edit <file.ai>           — Open file in TUI editor
+aeonmi vault init               — Initialize Master Glyph Key
+aeonmi vault seal               — Seal a secret in the vault
+aeonmi vault open               — Open the vault
+aeonmi qube <file.qube>         — Process a .qube quantum reasoning file
+aeonmi mint                     — NFT metadata generation
+aeonmi mother                   — Mother AI interface
+```
+
+================================================================================
+APPENDIX B: Quick Reference — Built-in Functions
+================================================================================
+
+CODE:
+```
+// MATH
+sqrt(x)           abs(x)           floor(x)         ceil(x)
+round(x)          pow(x, y)        min(x, y)        max(x, y)
+sin(x)            cos(x)           tan(x)           atan2(y, x)
+exp(x)            ln(x)            log10(x)         fmod(x, y)
+clamp(x, lo, hi)  lerp(a, b, t)
+
+// STRING
+len(s)            substr(s, i, n)  upper(s)         lower(s)
+trim(s)           split(s, delim)  join(arr, delim) replace(s, a, b)
+contains(s, sub)  starts_with(s, p) ends_with(s, p) find(s, sub)
+pad_left(s, n, c) pad_right(s, n, c) char_at(s, i)  repeat(s, n)
+concat(a, b)
+
+// ARRAY
+len(arr)          push(arr, x)     pop(arr)         slice(arr, s, e)
+sort(arr)         reverse(arr)     flatten(arr)     unique(arr)
+sum(arr)          product(arr)     range(s, e, step)
+map(arr, fn)      filter(arr, fn)  reduce(arr, fn, init)
+zip(a, b)         enumerate(arr)   any(arr, fn)     all(arr, fn)
+
+// IO / TYPE
+print(x)          read_file(path)  write_file(path, content)
+file_exists(path) int(x)           float(x)         bool(x)
+str_len(s)        is_nan(x)        is_null(x)       type_of(x)
+to_json(x)        parse_json(s)    hash(x)          assert(cond)
+assert_eq(a, b)   now()            sleep(ms)        exit(code)
+
+// QUANTUM
+quantum_run(descriptor)   — execute circuit, returns JSON string
+quantum_check()           — returns 1 if Qiskit available, else 0
+H, X, Y, Z, S, T         — quantum gate identifiers
+CNOT, CX, NOT, HADAMARD  — gate identifiers
+
+// CONSTANTS
+PI   E   TAU   INFINITY   NAN
+```
+
+================================================================================
+APPENDIX C: The Aeonmi Quantum Descriptor Format
+================================================================================
+
+CODE:
+```
+// FORMAT: "n_q n_c shots op_count  [type target control] * op_count"
+//
+// FIELDS:
+//   n_q      — number of qubits (int)
+//   n_c      — number of classical bits (int)
+//   shots    — measurement repetitions (int)
+//   op_count — number of operations (int)
+//
+// OPERATION: three integers [type] [target] [control]
+//   type:    0=H  1=X  2=Y  3=Z  4=CX/CNOT  5=S  6=T  7=MEASURE
+//   target:  qubit index (0-based)
+//   control: qubit index for two-qubit gates; -1 for single-qubit gates
+//
+// EXAMPLES:
+// Single qubit H + measure:     "1 1 100 2   0 0 -1   7 0 0"
+// X gate + measure:             "1 1 100 2   1 0 -1   7 0 0"
+// Bell state (standard):        "2 2 512 4   0 0 -1   4 1 0   7 0 0   7 1 1"
+// GHZ state (3 qubits):         "3 3 1024 6  0 0 -1   4 1 0   4 2 0   7 0 0   7 1 1   7 2 2"
+// H + Z + measure:              "1 1 100 3   0 0 -1   3 0 -1   7 0 0"
+```
+
+================================================================================
+END OF PARTS 1 AND 2
+================================================================================
+
+Total chapters: 18 (Part 1: Chapters 1–9, Part 2: Chapters 10–18)
+Total exercises: 22 (all with numbered titles and solutions)
+Appendices: 3 (CLI commands, built-in functions, quantum descriptor format)
+
+Authors: AEONMI INC — Warren Williams + Mother AI
+EIN: 41-4625361
+Date: 2026-04-05
+
+================================================================================
+================================================================================

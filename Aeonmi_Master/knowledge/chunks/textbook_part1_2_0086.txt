@@ -1,0 +1,65 @@
+=== The Confirmed Bell State Circuit — Complete .qube Example ===
+
+================================================================================
+
+BODY:
+The following is the complete, confirmed Bell state circuit in .qube format,
+sourced directly from the bell snippet in the VSCode extension's qube.json
+snippet file. This is the canonical reference implementation.
+
+CODE:
+```
+∴ Bell state
+state q0 = |0⟩
+state q1 = |0⟩
+apply H -> q0
+apply CNOT(q0, q1)
+collapse q0 -> r0
+collapse q1 -> r1
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+log(r0)
+log(r1)
+```
+
+BODY:
+Reading this circuit line by line:
+
+1. ∴ Bell state — a "therefore" comment used as the circuit title.
+
+2. state q0 = |0⟩ — Initialize qubit q0 in the ground state |0⟩.
+
+3. state q1 = |0⟩ — Initialize qubit q1 in the ground state |0⟩.
+   Both qubits start in a definite classical state before any quantum
+   operations are applied.
+
+4. apply H -> q0 — Apply the Hadamard gate to q0. After this operation,
+   q0 is in superposition: (|0⟩ + |1⟩)/√2. q1 is still |0⟩.
+   The -> arrow syntax is mandatory in QUBE for single-qubit gates.
+
+5. apply CNOT(q0, q1) — Apply CNOT with q0 as control and q1 as target.
+   Because q0 is in superposition, the CNOT creates entanglement.
+   The combined state becomes (|00⟩ + |11⟩)/√2 — the |Φ+⟩ Bell state.
+
+6. collapse q0 -> r0 — Measure q0. The result is stored as r0 (0 or 1).
+   This collapses the entangled state — both qubits simultaneously take
+   definite values.
+
+7. collapse q1 -> r1 — Measure q1. Result stored as r1. Due to
+   entanglement, r1 == r0 always: if r0 is 0, r1 is 0; if r0 is 1,
+   r1 is 1. You never get r0=0, r1=1 or r0=1, r1=0.
+
+8. assert r0 ∈ {0, 1} — Verify that r0 is a valid quantum measurement
+   result. The ∈ operator is native QUBE syntax.
+
+9. assert r1 ∈ {0, 1} — Same verification for r1.
+
+10. log(r0), log(r1) — Output both results.
+
+NOTE: Save this circuit as bell.qube and run it with:
+  aeonmi qube bell.qube
+This invokes the qube module (src/qube/) which parses the QUBE syntax and
+processes the circuit. This is separate from `aeonmi run bell.ai` — the qube
+subcommand is the correct executor for .qube files.
+
+================================================================================

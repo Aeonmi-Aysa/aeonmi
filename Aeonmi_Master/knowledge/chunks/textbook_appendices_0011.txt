@@ -1,0 +1,19 @@
+=== aeonmi mint — NFT Minting ===
+
+BODY: The `mint` subcommand converts a compiled `.ai` artifact into NFT metadata compatible with the Solana blockchain. It embeds personality attributes, a glyph seed, and optional Anchor Rust stub code. Metadata is written to stdout by default or to a file with `--out`.
+
+CODE:
+```
+aeonmi mint <FILE> [flags]
+
+Flags:
+  --personality TAG   Personality tag embedded in NFT attributes (default: quantum-titan)
+  --anchor            Also emit the Anchor Rust program stub alongside the metadata
+  --glyph-seed HEX    Custom glyph seed (hex string) to embed in metadata
+  --out FILE          Write metadata JSON to FILE instead of stdout
+
+Examples:
+  aeonmi mint output.ai
+  aeonmi mint output.ai --personality quantum-titan --anchor
+  aeonmi mint output.ai --glyph-seed deadbeef01234567 --out nft_metadata.json
+```

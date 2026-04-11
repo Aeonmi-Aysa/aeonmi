@@ -1,0 +1,9 @@
+=== QUBE Format Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: QUBE parse error: unknown gate 'X' | Gate name in .qube file not recognized | Check Appendix C for valid gate names (H, X, Y, Z, CNOT, CZ, SWAP, CCX, etc.)
+TABLE_ROW: QUBE qubit index out of range | Gate applied to qubit index >= declared qubit count | Increase the qubit count in the circuit declaration or reduce the index
+TABLE_ROW: QUBE: missing 'circuit' block | .qube file has no circuit declaration | Every .qube file must start with `circuit NAME { ... }`
+
+
+# APPENDIX H: Roadmap Reference

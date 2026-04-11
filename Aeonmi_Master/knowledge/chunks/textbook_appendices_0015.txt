@@ -1,0 +1,32 @@
+=== aeonmi metrics-* — Performance Metrics ===
+
+BODY: The `metrics-*` subcommands expose the incremental analysis and performance tracking system. Metrics are persisted across sessions and updated in real-time. They track function call graphs, variable dependency edges, EMA timing, and incremental analysis savings.
+
+CODE:
+```
+aeonmi metrics-dump
+    Print all persisted metrics as pretty JSON (call graph, var deps, function timings, savings).
+
+aeonmi metrics-flush
+    Force immediate metrics persistence (bypass debounce) then exit.
+
+aeonmi metrics-path
+    Print the absolute path to the metrics JSON file.
+
+aeonmi metrics-top [--limit N] [--json]
+    Show the top N slowest functions by average inference time (default: 10).
+
+aeonmi metrics-config [options]
+    Configure runtime metrics parameters:
+    --set-ema PCT       Set EMA alpha percent (1-100)
+    --set-window N      Set rolling window capacity (4-256)
+    --set-history-cap N Set savings history capacity (8-256)
+    --reset             Reset to defaults (ema=20, window=16)
+    --json              Show current config as JSON
+
+aeonmi metrics-deep [--enable] [--disable] [--json]
+    Control deep propagation behavior for incremental analysis.
+
+aeonmi metrics-export <FILE>
+    Export function metrics to a CSV file.
+```

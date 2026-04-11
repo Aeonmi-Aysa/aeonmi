@@ -1,0 +1,16 @@
+=== Deferred Items ===
+
+TABLE_HEADER: Item | Status | Reason
+TABLE_ROW: Voice input (whisper.cpp) | NOT STARTED | Requires local whisper.cpp binary; no implementation exists
+TABLE_ROW: IonQ backend | STUB ONLY | Needs IONQ_API_KEY + qiskit-ionq; neither available
+TABLE_ROW: Screen recording (video) | PARTIAL | mss + cv2 not installed; PIL fallback for snapshots only if Pillow present
+TABLE_ROW: Track 2 → Track 1 runtime bridge | NOT DONE | .ai modules run standalone only; no subprocess bridge in embryo_loop
+TABLE_ROW: Dashboard Phase 12 panels | NOT DONE | /api/sessions and /api/milestones endpoints missing from dashboard.py
+TABLE_ROW: Titan math library wiring | NOT DONE | Compiled but not connected to Mother reasoning path
+TABLE_ROW: Browser extension | STALE | Not maintained alongside current architecture
+TABLE_ROW: GUI (Tauri) | SUPERSEDED | Replaced by dashboard.py (Flask)
+TABLE_ROW: Stage 1 website | NOT STARTED | Design specified in MOTHER_BRIEF; no HTML/CSS written
+TABLE_ROW: Stage 2–6 commercial phases | NOT STARTED | Require Stage 1 first
+TABLE_ROW: Shard full self-hosting | IN PROGRESS | lexer.ai pending; parser/ast/codegen not attempted
+TABLE_ROW: Phase 4b crypto gaps | DEFERRED | pqcrypto-dilithium, SHA3-512, Shamir SSS: low priority
+TABLE_ROW: Multi-turn AI conversation history | PARTIAL | history Vec populated; not yet passed as alternating messages to AI provider

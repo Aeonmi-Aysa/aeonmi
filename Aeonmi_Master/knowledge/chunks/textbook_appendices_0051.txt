@@ -1,0 +1,7 @@
+=== Core Glyph Operators ===
+
+TABLE_HEADER: Operator | Unicode | Name | Quantum Context Meaning | Language Context Meaning
+TABLE_ROW: ⊗ | U+2297 | Tensor Product | Tensor product of quantum states: |ψ⟩⊗|φ⟩ creates composite state; also used for gate composition on parallel qubits | Composition operator: combines two values, circuits, or structures into a joint form
+TABLE_ROW: ⟨ ⟩ | U+27E8 U+27E9 | Angle Brackets (Bra-Ket) | Dirac notation: ⟨ψ| is a bra (row vector), |φ⟩ is a ket (column vector); ⟨ψ|φ⟩ is the inner product (probability amplitude) | Grouping for quantum expressions; also used as a type annotation for quantum-typed values
+TABLE_ROW: ↦ | U+21A6 | Maps-To Arrow | Quantum channel: maps an input state to an output state through a unitary or measurement operation | Function mapping: in type signatures and lambda expressions, maps a parameter to a return value
+TABLE_ROW: ⧉ | U+29C9 | Squared Square | Entanglement marker: annotates a multi-qubit binding as quantum-entangled (changes in one affect the other) | Shared-state binding: marks a variable or struct field as entangled with another (changes propagate)

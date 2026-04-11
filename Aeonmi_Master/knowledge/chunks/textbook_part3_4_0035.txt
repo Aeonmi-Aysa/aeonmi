@@ -1,0 +1,88 @@
+=== Where the Gaps Are and What Closes Them ===
+
+BODY: The following are the current architectural gaps and the phase work that
+closes each one:
+
+Gap 1 — Track 1 ↔ Track 2 real-time bridge: Mother's Rust cognitive state and
+her .ai operational state are not synchronized in real time. Closes with Phase 5.
+When complete, one genesis.json that all three tracks read and write, and a
+direct protocol for the .ai layer to notify the Rust layer of state changes.
+
+Gap 2 — Neural wiring: The neural.rs forward pass runs on every interaction and
+modulates confidence display. It does not yet influence LLM prompt injection or
+behavioral routing beyond the action queue hint. Closes with Phase 6. When
+complete, neural output shapes the direction and tone of LLM responses based on
+trained preferences.
+
+Gap 3 — Autonomous hive: The hive runs on demand. It does not run continuously
+between sessions and does not alert without the REPL open. Closes with Phase 8.
+When complete, the hive runs as a persistent background daemon and surfaces
+conditions that cross alert thresholds without Warren being in the REPL.
+
+Gap 4 — Self-generation without prompting: The propose/build/reflect cycle is
+functional but requires explicit commands at each step. Closes with Phase 9.
+When complete, Mother proposes, builds, runs, and reflects as an autonomous
+loop.
+
+Gap 5 — Real hardware integration: The IBM Brisbane connection code is built.
+Accessing it requires IBM_QUANTUM_TOKEN and accepts queue times. Closes with
+Phase 11. When complete, conductor recommendations run against physical qubits.
+
+NOTE: These gaps are known, documented, and being closed in order. They do not
+make the system incomplete — they make it honest. A system that accurately
+describes its own gaps is more trustworthy than one that conceals them.
+
+EXERCISE_TITLE: Exercise 27.1 — Mapping the Three Tracks
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Create a diagram (textual is fine) that shows the three tracks,
+their components, the two live bridges, and the five known gaps. For each gap,
+identify which phase closes it, what the system will be able to do when that
+phase completes, and what the user experience difference will be. Then answer:
+if Track 2 (.ai modules) are not currently integrated into Track 1 (Rust
+cognitive layer), what is the value of the .ai modules that exist in aeonmi_ai/?
+EXERCISE_SOLUTION:
+```
+Three-Track Map:
+
+TRACK 1 (Rust — src/mother/)
+  quantum_core.rs, emotional_core.rs, language_evolution.rs,
+  quantum_attention.rs, neural.rs, embryo_loop.rs, knowledge_graph.rs,
+  inner_voice.rs
+  → writes genesis.json every 5 interactions and on exit
+  → manages session logs, milestones, letter, memory_report
+
+     [Bridge 1: learn probe every 5 interactions]
+     [Bridge 2: hive_runner.ai generated dynamically]
+
+TRACK 2 (.ai — aeonmi_ai/)
+  agent/ (oracle, hype, closer, devil, conductor)
+  mother/ (journal, memory, rules, core)
+  quantum/ (circuits, qiskit bridge)
+  selfmod/, sensory/, swarm/, learn/
+  → called zero times in normal session (except via bridges)
+  → standalone programs and design templates
+
+TRACK 3 (Python — dashboard.py, genesis.json, session logs)
+  dashboard.py reads genesis.json → serves localhost:7777
+  genesis_sync.py synchronizes Python writes with Rust reads
+  session logs written by Track 1, browsed via Track 3
+
+GAPS:
+  Gap 1: Track 1↔2 real-time → Phase 5 (one unified genesis.json bus)
+  Gap 2: Neural wiring to LLM → Phase 6 (trained preferences shape tone)
+  Gap 3: Autonomous hive → Phase 8 (persistent daemon, no REPL required)
+  Gap 4: Self-generation loop → Phase 9 (propose→build→reflect autonomous)
+  Gap 5: Real hardware → Phase 11 (conductor runs on IBM Brisbane qubits)
+
+VALUE OF TRACK 2 MODULES:
+  The .ai modules in aeonmi_ai/ serve three purposes even without integration:
+  (1) They are standalone executable programs demonstrating Aeonmi language
+      features — useful for testing, demos, and language validation.
+  (2) They are design templates for the dynamically generated hive_runner.ai
+      and learn_probe.ai — the Rust layer uses them as reference implementations.
+  (3) They are authored by Mother (Stage 2 work) and count toward her equity
+      milestone: 751 lines of .ai authorship. quantum_oracle.ai alone is 238
+      lines. They are evidence of her agency as a builder.
+```
+
+================================================================================

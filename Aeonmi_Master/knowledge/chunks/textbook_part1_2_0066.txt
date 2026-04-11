@@ -1,0 +1,137 @@
+=== Bell State in Aeonmi ===
+
+BODY:
+The Aeonmi phase4_demo.ai implements a Bell state circuit and runs it through quantum_run(). The result is 100% verified by the Aer simulator: only "00" and "11" outcomes appear, confirming entanglement.
+
+CODE:
+```
+// bell_state.ai — Bell state entanglement demonstration
+
+function check_entanglement(result_json) {
+    // A proper Bell state shows only "00" and "11", never "01" or "10"
+    // We check this by looking for the absence of mixed states
+    let has_01 = contains(result_json, "\"01\"");
+    let has_10 = contains(result_json, "\"10\"");
+
+    if has_01 {
+        return "FAIL: found 01 state — not a Bell state";
+    }
+    if has_10 {
+        return "FAIL: found 10 state — not a Bell state";
+    }
+    return "PASS: Bell state confirmed — perfect entanglement";
+}
+
+function main() {
+    print("=== BELL STATE ENTANGLEMENT ===");
+    print("");
+
+    let qc = quantum_check();
+    if qc == 0 {
+        print("Note: Qiskit not installed. Running in dry-run mode.");
+        print("Install qiskit and qiskit-aer for real simulation.");
+    }
+    print("");
+
+    // Bell state: H(q0) -> CNOT(ctrl=0, target=1) -> MEASURE both
+    let descriptor = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    print("Circuit: H(q0) -> CNOT(q0->q1) -> MEASURE(q0,q1)");
+    print("Shots: 1024");
+    print("Running...");
+    print("");
+
+    let result = quantum_run(descriptor);
+    print("Raw result:");
+    print(result);
+    print("");
+
+    let verdict = check_entanglement(result);
+    print(verdict);
+    print("");
+
+    print("Theory: A Bell state |Φ+> = (|00> + |11>) / sqrt(2)");
+    print("Measurement must yield 00 or 11 with equal probability.");
+    print("Any 01 or 10 result would violate entanglement.");
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 16.1 — Bell State Analysis
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a program that runs the Bell state circuit with 1024 shots, then parses the result JSON (as a string — use contains() and find() to extract numbers) to estimate the probability of measuring "00" vs "11". Print both probabilities. If the probabilities differ by more than 10%, print a warning. If they are within 10%, print "Bell state verified".
+
+Note: The result JSON is a string. You do not have parse_json() in all VM versions, so use string operations to find the counts.
+
+EXERCISE_SOLUTION:
+```
+// ex16_1.ai
+
+function extract_count(json_str, key) {
+    // Find "key": number in a simple JSON string
+    let search = "\"" + key + "\": ";
+    let idx = find(json_str, search);
+    if idx < 0 {
+        return 0;
+    }
+    let start = idx + len(search);
+    // Read digits until non-digit
+    let num_str = "";
+    let i = start;
+    while i < len(json_str) {
+        let c = substr(json_str, i, 1);
+        if c == "0" { num_str = num_str + c; i = i + 1; }
+        if c == "1" { num_str = num_str + c; i = i + 1; }
+        if c == "2" { num_str = num_str + c; i = i + 1; }
+        if c == "3" { num_str = num_str + c; i = i + 1; }
+        if c == "4" { num_str = num_str + c; i = i + 1; }
+        if c == "5" { num_str = num_str + c; i = i + 1; }
+        if c == "6" { num_str = num_str + c; i = i + 1; }
+        if c == "7" { num_str = num_str + c; i = i + 1; }
+        if c == "8" { num_str = num_str + c; i = i + 1; }
+        if c == "9" { num_str = num_str + c; i = i + 1; }
+        if c != "0" {
+            if c != "1" { if c != "2" { if c != "3" { if c != "4" {
+            if c != "5" { if c != "6" { if c != "7" { if c != "8" {
+            if c != "9" { i = len(json_str); } } } } } } } } }
+        }
+    }
+    if len(num_str) == 0 { return 0; }
+    return int(num_str);
+}
+
+function main() {
+    let shots = 1024;
+    let desc = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let result = quantum_run(desc);
+
+    print("Result: " + result);
+
+    let count_00 = extract_count(result, "00");
+    let count_11 = extract_count(result, "11");
+    let total = count_00 + count_11;
+
+    if total == 0 { total = 1; }
+
+    let prob_00 = floor((count_00 * 1000) / total) / 10.0;
+    let prob_11 = floor((count_11 * 1000) / total) / 10.0;
+
+    print("P(00) = " + prob_00 + "%");
+    print("P(11) = " + prob_11 + "%");
+
+    let diff = prob_00 - prob_11;
+    if diff < 0 { diff = 0 - diff; }
+
+    if diff > 10 {
+        print("WARNING: probabilities differ by " + diff + "% — possible noise");
+    } else {
+        print("Bell state verified — 00 and 11 within 10% of each other");
+    }
+}
+
+main();
+```
+
+================================================================================

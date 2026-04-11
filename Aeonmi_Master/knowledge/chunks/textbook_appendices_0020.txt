@@ -1,0 +1,13 @@
+=== Hive (Swarm) Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: hive | Show current hive status and last conductor recommendation | Agent scores, conductor recommendation (ABORT/HOLD/PROCEED/ACCELERATE)
+TABLE_ROW: hive status | Alias for hive | Same as hive
+TABLE_ROW: hive run | Run one hive cycle immediately (foreground) | All 5 agent scores and conductor recommendation
+TABLE_ROW: hive once | Alias for hive run | Same as hive run
+TABLE_ROW: hive start [SECONDS] | Start hive background thread (default: 60s interval) | Confirmation that hive thread is running
+TABLE_ROW: hive stop | Stop the hive background thread | Confirmation that hive thread has stopped
+TABLE_ROW: hive alert N | Set hive alert threshold for conductor score N | Alert threshold updated confirmation
+TABLE_ROW: hive interval SECONDS | Update the hive polling interval | Interval updated confirmation
+
+NOTE: The five hive agents are oracle, hype, closer, devil, and conductor. The conductor aggregates the other four into a recommendation. hive_state.json is written to Aeonmi_Master/ each cycle and is readable by the dashboard.

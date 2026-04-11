@@ -1,0 +1,69 @@
+=== QUBE Exercise S3 — Rotation Gates and the Bloch Sphere ===
+
+================================================================================
+
+EXERCISE_TITLE: Supplement Exercise S3 — Rotation Gates in QUBE
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY:
+Write a .qube file called rotations.qube that demonstrates all three rotation
+gates (Rx, Ry, Rz). For each rotation gate, declare a fresh qubit, apply the
+rotation with an angle of π/2 radians (approximately 1.5708), collapse it, and
+log the result. Use ∵ comments to explain what each rotation does to the qubit
+state on the Bloch sphere. Then write a second circuit that approximates the
+Hadamard gate using an Ry rotation followed by a Z gate: Ry(π/2) then Z gives
+approximately the same effect as H (up to a global phase). Show this in QUBE
+syntax with appropriate comments.
+
+EXERCISE_SOLUTION:
+```
+∴ Rotation Gates — Bloch Sphere Demonstrations
+
+∵ === Rx rotation ===
+∵ Rx(θ) rotates the qubit state around the X-axis of the Bloch sphere
+∵ Rx(π/2) takes |0⟩ partway toward |1⟩: result is (|0⟩ - i|1⟩)/√2
+state α = |0⟩
+apply Rx(1.5708) -> α
+collapse α -> r_rx
+assert r_rx ∈ {0, 1}
+log(r_rx)
+
+∵ === Ry rotation ===
+∵ Ry(θ) rotates around the Y-axis
+∵ Ry(π/2) takes |0⟩ to (|0⟩ + |1⟩)/√2 — same measurement distribution as H
+∵ but different phase structure (no imaginary component in amplitudes)
+state β = |0⟩
+apply Ry(1.5708) -> β
+collapse β -> r_ry
+assert r_ry ∈ {0, 1}
+log(r_ry)
+
+∵ === Rz rotation ===
+∵ Rz(θ) rotates around the Z-axis — pure phase rotation
+∵ Rz does not change |0⟩ measurement probability; applied to |0⟩ it is
+∵ equivalent to identity as far as measurement is concerned
+state φ = |0⟩
+apply H -> φ
+apply Rz(1.5708) -> φ
+collapse φ -> r_rz
+assert r_rz ∈ {0, 1}
+log(r_rz)
+
+∵ === H approximation via Ry + Z ===
+∵ The Hadamard gate H = Z * Ry(π/2) up to global phase
+∵ Ry(π/2) rotates from |0⟩ toward the equator of the Bloch sphere
+∵ Z then flips the phase of the |1⟩ component
+∵ Combined effect is equivalent to H for single-qubit circuits
+state ψ = |0⟩
+apply Ry(1.5708) -> ψ
+apply Z -> ψ
+collapse ψ -> r_h_approx
+assert r_h_approx ∈ {0, 1}
+log(r_h_approx)
+
+∴ Expected: all four measurements show ~50% chance of 0 and 50% chance of 1
+∴ Rx(π/2) and Ry(π/2) both create equal superpositions (different phase)
+∴ Rz applied to superposition creates superposition with rotated phase
+∴ The Ry+Z combination approximates H in measurement statistics
+```
+
+================================================================================

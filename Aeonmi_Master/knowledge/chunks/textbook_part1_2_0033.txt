@@ -1,0 +1,140 @@
+=== String Operations ===
+
+BODY:
+Strings in Aeonmi are immutable values; operations return new strings. The standard library provides comprehensive string manipulation.
+
+CODE:
+```
+// string_ops.ai
+function main() {
+    let s = "Aeonmi Language";
+
+    // Length
+    print(len(s));             // 15
+
+    // Case
+    print(upper(s));           // AEONMI LANGUAGE
+    print(lower(s));           // aeonmi language
+
+    // Substring: substr(str, start, length)
+    print(substr(s, 0, 6));    // Aeonmi
+    print(substr(s, 7, 8));    // Language
+
+    // Split and join
+    let words = split(s, " ");
+    print(len(words));          // 2
+    print(join(words, "_"));   // Aeonmi_Language
+
+    // Contains, starts_with, ends_with
+    print(contains(s, "nmi")); // true
+    print(starts_with(s, "Ae")); // true
+    print(ends_with(s, "age"));  // true
+
+    // Replace
+    let replaced = replace(s, "Language", "VM");
+    print(replaced);           // Aeonmi VM
+
+    // Trim
+    let padded = "   hello   ";
+    print(trim(padded));       // hello
+
+    // Pad
+    print(pad_left("42", 5, "0"));    // 00042
+    print(pad_right("hi", 6, "."));   // hi....
+
+    // Find (returns index, -1 if not found)
+    print(find(s, "nmi"));    // 2
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 7.1 — Array Manipulation
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Starting with the array [10, 25, 3, 88, 14, 55, 7, 99, 42, 1]:
+1. Sort the array
+2. Print the median value (middle element of sorted array)
+3. Filter out all values greater than 50 into a new array
+4. Compute the average of the filtered array
+5. Print a final summary line showing count and average
+
+EXERCISE_SOLUTION:
+```
+// ex7_1.ai
+function main() {
+    let data = [10, 25, 3, 88, 14, 55, 7, 99, 42, 1];
+    let sorted = sort(data);
+
+    // Median: middle of sorted array (10 elements, average of indices 4 and 5)
+    let mid1 = sorted[4];
+    let mid2 = sorted[5];
+    let median = (mid1 + mid2) / 2.0;
+    print("Sorted: " + sorted);
+    print("Median: " + median);
+
+    // Filter > 50
+    let big = [];
+    let i = 0;
+    while i < len(data) {
+        if data[i] > 50 {
+            big.push(data[i]);
+        }
+        i = i + 1;
+    }
+    print("Values > 50: " + big);
+
+    // Average of filtered
+    let avg = sum(big) / len(big);
+    print("Count: " + len(big) + "  Average: " + avg);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 7.2 — String Parsing
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a function called parse_csv_row(line) that takes a string like "Alice,30,Engineer" and returns an array of trimmed values. Then write count_words(sentence) that counts the number of words in a sentence by splitting on spaces and filtering empty strings. Test both functions.
+
+EXERCISE_SOLUTION:
+```
+// ex7_2.ai
+
+function parse_csv_row(line) {
+    let parts = split(line, ",");
+    let result = [];
+    let i = 0;
+    while i < len(parts) {
+        result.push(trim(parts[i]));
+        i = i + 1;
+    }
+    return result;
+}
+
+function count_words(sentence) {
+    let parts = split(trim(sentence), " ");
+    let count = 0;
+    let i = 0;
+    while i < len(parts) {
+        if len(trim(parts[i])) > 0 {
+            count = count + 1;
+        }
+        i = i + 1;
+    }
+    return count;
+}
+
+function main() {
+    let row = "Alice , 30 , Engineer";
+    let parsed = parse_csv_row(row);
+    print("Parsed: " + parsed);    // [Alice, 30, Engineer]
+
+    let sentence = "Built by AI for AI";
+    print("Word count: " + count_words(sentence));  // 5
+}
+
+main();
+```
+
+================================================================================

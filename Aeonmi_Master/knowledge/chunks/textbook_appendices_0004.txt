@@ -1,0 +1,17 @@
+=== aeonmi native — Explicit Native VM ===
+
+BODY: The `native` subcommand is an explicit alias for native-only VM execution. It exists to make the intent unambiguous in scripts and Makefiles. It does not fall back to any other execution path under any circumstances.
+
+CODE:
+```
+aeonmi native <INPUT> [flags]
+
+Flags:
+  --emit-ai FILE      Emit canonical .ai source to FILE before running
+  --watch             Re-run on file modification
+
+Examples:
+  aeonmi native program.ai
+  aeonmi native program.ai --watch
+  aeonmi native program.ai --emit-ai out.ai
+```

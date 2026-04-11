@@ -1,0 +1,24 @@
+=== aeonmi run — Run an .ai File ===
+
+BODY: The `run` subcommand executes an `.ai` source file through the native Aeonmi VM. By default it uses the native interpreter; no JavaScript or Node.js is involved. The `--watch` flag enables file-watching mode, re-running the program whenever the source file changes on disk.
+
+CODE:
+```
+aeonmi run <INPUT> [flags]
+
+Flags:
+  --out FILE          Write VM output to FILE instead of stdout
+  --watch             Re-run when the file is modified
+  --native            Force the native VM interpreter (default; AEONMI_NATIVE=1 also works)
+  --bytecode          Use the bytecode VM (AEONMI_BYTECODE=1 also works)
+  --emit-ai FILE      Also emit canonical .ai form to FILE before execution
+  --opt-stats         Print optimization statistics (bytecode mode only)
+  --opt-stats-json    Emit optimization stats as JSON (implies --bytecode)
+  --disasm            Disassemble compiled bytecode before execution (implies --bytecode)
+
+Examples:
+  aeonmi run hello.ai
+  aeonmi run src/main.ai --watch
+  aeonmi run src/main.ai --bytecode --disasm
+  aeonmi run program.ai --emit-ai canonical.ai
+```

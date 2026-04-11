@@ -1,0 +1,8 @@
+=== Snapshot Sub-Schema (cognitive.snapshots entries) ===
+
+TABLE_HEADER: Field | Type | Description
+TABLE_ROW: interaction_count | integer | Interaction count at time of snapshot
+TABLE_ROW: bond | float | Bond strength at time of snapshot
+TABLE_ROW: consciousness_depth | float | Consciousness depth at time of snapshot
+TABLE_ROW: neural_confidence | float | Neural network confidence_mod output at time of snapshot
+TABLE_ROW: timestamp | string | ISO8601 timestamp of snapshot

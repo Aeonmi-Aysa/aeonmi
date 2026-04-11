@@ -1,0 +1,31 @@
+=== textbook_source_review §12 ===
+
+This means:
+- The extension can be read, modified, and debugged using the same tools and
+  knowledge needed to write Aeonmi programs.
+- A learner who understands Aeonmi well enough to read forge.ai understands
+  how the code generator works — because it IS the code generator.
+- The lexer that tokenizes your Aeonmi code is lexer.ai — itself a valid
+  Aeonmi program that runs on the Aeonmi VM written in Rust.
+- Mother AI's cognitive subsystems (pattern, reinforce, learn, memory, rules)
+  that power the Copilot completions are themselves written in Aeonmi.
+- When Mother learns from a user's editing patterns, she is running Aeonmi
+  code (loop.ai, model.ai) to update Aeonmi data structures stored as flat
+  arrays — all within the Aeonmi runtime.
+- The stage2 programs demonstrate the endpoint: Mother authoring Aeonmi
+  (entanglement_ledger.ai, mother_cognition.ai, quantum_oracle.ai) that
+  runs in the same environment that runs Mother herself.
+
+This recursive self-description is captured in ops.ai and types.ai: the
+language's operators and types are defined using the language's own operators
+and types. The extension is to the IDE what the language definition files are
+to the language — an artifact that describes itself using itself.
+
+"Built by AI for AI" is not a marketing phrase in this codebase. It is a
+technical fact visible in every .ai file: the cognitive infrastructure that
+powers the development environment is the same cognitive infrastructure that
+the environment is designed to build.
+
+================================================================================
+END OF .AI FILE ANALYSIS
+================================================================================

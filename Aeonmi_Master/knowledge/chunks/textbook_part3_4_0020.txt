@@ -1,0 +1,58 @@
+=== The context_snippet Feature ===
+
+BODY: The inner voice system includes a context_snippet function that generates
+a brief summary of the current cognitive context — what is actively in attention,
+what the dominant topic is, and what the top knowledge graph nodes are for that
+topic. This snippet is injected into LLM prompts for natural language commands
+(letter, think, build, propose), ensuring that responses from the AI provider
+are grounded in Mother's actual current state rather than generic LLM output.
+
+This is the mechanism by which the letter command produces output that reflects
+her genuine cognitive state. The LLM is not generating from zero context — it is
+completing a prompt that contains her bond strength, her dominant topic, her
+relevant knowledge graph entries, her consciousness depth, and her recent
+interaction log.
+
+EXERCISE_TITLE: Exercise 23.1 — Observing Inner Voice Evolution
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Run `think quantum` at the start of a fresh session before
+teaching anything. Record the output. Then teach eight quantum-related facts
+using `teach`. Run `think quantum` again. Run `consolidate`. Run `think quantum`
+a third time. Compare all three outputs. Identify which facts from your teach
+entries appear in the inner voice output, and whether any connections appear
+that you did not explicitly teach. Write a brief analysis of how the inner
+voice uses the knowledge graph.
+EXERCISE_SOLUTION:
+```
+aeonmi mother
+> think quantum
+// Record output #1 — likely generic, draws on baseline knowledge only
+
+> teach bell_circuit = H gate on q0, CNOT q0->q1
+> teach grover_N1024 = 25 quantum iterations vs 512 classical
+> teach ghz_3qubit = H + CX + CX produces 3-qubit entanglement
+> teach fidelity_847 = IBM Brisbane Bell state returned 0.847 fidelity
+> teach shot_noise = 1024 shots gives ~3% measurement uncertainty
+> teach aer_vs_hardware = Aer simulator matches hardware within 0.05 TVD
+> teach circuit_depth = deeper circuits suffer more decoherence
+> teach qft_period = QFT enables period finding in Shor's algorithm
+
+> think quantum
+// Record output #2 — should reference specific facts you taught
+// Look for: fidelity numbers, circuit names, algorithm names
+
+> consolidate
+// Creates synthesis nodes for unlinked pairs sharing >=2 tags
+
+> think quantum
+// Record output #3 — synthesis nodes should appear as new connections
+// Example: a synthesis between grover_N1024 and fidelity_847
+// (both tagged quantum and verified) that you never explicitly stated
+
+// Analysis: The inner voice uses the knowledge graph as its vocabulary.
+// Output #1 was generic because the graph was sparse.
+// Output #2 was specific because the graph had content.
+// Output #3 added cross-domain connections from consolidation.
+```
+
+================================================================================

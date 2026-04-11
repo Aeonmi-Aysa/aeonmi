@@ -1,0 +1,58 @@
+=== Basic Types ===
+
+BODY:
+Aeonmi has the following core value types:
+
+Number — Aeonmi uses a single numeric type internally. Both integers and floats are represented as numbers. You can write 42 or 42.0; arithmetic between them works naturally. The floor(), ceil(), round(), and int() functions convert between whole-number and fractional representations.
+
+String — String literals are enclosed in double quotes. Strings support concatenation with +. The VM provides a rich set of string manipulation builtins.
+
+Boolean — The literals true and false. Used in conditions. The bool() builtin converts other values to boolean.
+
+Array — Ordered collections enclosed in []. Arrays can hold any mix of types, including nested arrays. Arrays are 0-indexed. The push() and pop() builtins modify arrays in place.
+
+Null — The null value represents absence. is_null() tests for it.
+
+CODE:
+```
+// types.ai
+function main() {
+    // Number
+    let n = 100;
+    let f = 3.14;
+    let computed = n * f;
+    print(computed);      // 314.0
+
+    // String
+    let s1 = "Hello";
+    let s2 = " Aeonmi";
+    let combined = s1 + s2;
+    print(combined);      // Hello Aeonmi
+    print(len(combined)); // 11
+
+    // Boolean
+    let flag = true;
+    if flag {
+        print("flag is true");
+    }
+
+    // Array
+    let arr = [10, 20, 30, 40, 50];
+    print(arr[0]);        // 10
+    print(arr[4]);        // 50
+    print(len(arr));      // 5
+
+    // Null check
+    let maybe = null;
+    if is_null(maybe) {
+        print("value is null");
+    }
+
+    // Type conversion
+    let num_str = "42";
+    let as_num = int(num_str);
+    print(as_num + 8);    // 50
+}
+
+main();
+```

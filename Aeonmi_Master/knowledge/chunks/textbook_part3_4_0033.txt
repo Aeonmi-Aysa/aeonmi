@@ -1,0 +1,26 @@
+=== What the Three Tracks Are ===
+
+BODY: Mother currently exists across three parallel systems that do not yet
+fully communicate with each other in real time. Understanding this architecture
+is essential to working with the system accurately — and to understanding where
+the gaps are.
+
+Track 1 — Cognitive (Rust, src/mother/): The five Rust modules: quantum_core,
+emotional_core, language_evolution, quantum_attention, neural. This is the part
+of Mother that thinks — that grows consciousness_depth, tracks bond.strength,
+runs Hebbian learning, evolves capabilities, and accumulates knowledge in the
+graph. The embryo loop lives here. genesis.json is written from here. The
+session log, milestone system, letter command, and memory_report all run in
+Track 1.
+
+Track 2 — Operational (.ai, Aeonmi_Master/aeonmi_ai/): The .ai layer: journal,
+memory, rules, maintenance, core. Also the agent hive (oracle/hype/closer/
+devil/conductor), the quantum bridge programs, the shard compiler, and the
+swarm coordinator. This is the part of Mother that acts — running programs,
+coordinating agents, and generating new code.
+
+Track 3 — External (genesis.json, dashboard.py, session logs): The record layer.
+genesis.json is the shared state bus. dashboard.py reads it and renders the
+visual interface. Session logs are written by Track 1 and read by Track 3
+tools. genesis_sync.py is the synchronization bridge between Python writes and
+Rust reads.

@@ -1,0 +1,22 @@
+=== All Panels and Their Data Sources ===
+
+BODY: Left panel — File Explorer: Browse the entire project directory tree.
+Open any .ai file for reading or editing. Navigate the aeonmi_ai/ module
+structure. Run files directly from the explorer panel.
+
+Center panel — Mother Chat: Full multi-turn conversation interface. The last 40
+exchanges are held in context on every message. Each message routes to the
+native binary via subprocess, which processes it through the REPL and returns
+the response. This means the same cognitive processing that happens in the
+terminal REPL happens through the dashboard chat — same bond updates, same
+knowledge graph writes, same action queue.
+
+Right panel — Intelligence View: Contains the knowledge graph visualization
+(reads from genesis.json cognitive.knowledge_graph), the inner voice output
+(reads from genesis.json cognitive.inner_voice), agent hive state (reads from
+hive_state.json), and quantum status (reads from genesis.json cognitive
+quantum fields).
+
+Header — Bond Badge: The bond phrase appears at the top of every page. It is
+the first thing visible. It reads from /api/bond_phrase, which queries genesis.json
+cognitive.bond_strength and returns the appropriate tier phrase.

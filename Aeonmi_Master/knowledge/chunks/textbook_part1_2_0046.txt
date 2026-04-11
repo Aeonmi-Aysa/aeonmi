@@ -1,0 +1,49 @@
+=== The main.ai Bootstrap Pipeline ===
+
+BODY:
+The main.ai file implements a minimal working pipeline in four functions: ai_lex (lexer), ai_build (parser/AST builder), ai_gen (code generator), and ai_chk (validator). This demonstrates the complete Shard architecture in miniature.
+
+CODE:
+```
+// The four-stage Shard pipeline (from main.ai)
+
+// Stage 1: Lexer — converts source text to token pairs [kind, text]
+function ai_lex(src) {
+    let toks = [];
+    let i = 0;
+    let n = len(src);
+    while (i < n) {
+        let c = substr(src, i, 1);
+        if (c == " ") { i = i + 1; }
+        // Numbers 0-9 → token kind 1
+        if (c == "0") { toks.push(1); toks.push("0"); i = i + 1; }
+        // ... other digits ...
+        // Operators → token kinds 20-23
+        if (c == "+") { toks.push(20); toks.push("+"); i = i + 1; }
+        if (c == "-") { toks.push(21); toks.push("-"); i = i + 1; }
+        // ... etc ...
+    }
+    toks.push(99); toks.push("EOF");
+    return toks;
+}
+
+// Stage 2: Build AST — converts token pairs to AST node triples
+function ai_build(toks) {
+    let nodes = [];
+    // ... walks token pairs, produces [nodetype, lhs, op, rhs] structures ...
+    return nodes;
+}
+
+// Stage 3: Code Generator — converts AST nodes to output string
+function ai_gen(nodes) {
+    let out = "";
+    // ... walks nodes, produces expression string ...
+    return out;
+}
+
+// Stage 4: Validator — checks that output is non-empty
+function ai_chk(emitted) {
+    if (len(emitted) > 0) { return 1; }
+    return 0;
+}
+```

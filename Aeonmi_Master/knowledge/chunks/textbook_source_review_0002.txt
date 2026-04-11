@@ -1,0 +1,151 @@
+=== textbook_source_review §3 ===
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/journal.ai ===
+PURPOSE: Flat-array event log. Layout: [tag, payload, ts] * N (3 fields/entry).
+         Full journal API: new, append, count, get by index, query by tag,
+         recent(n). Pure functions — no mutation, returns new arrays.
+SYNTAX DEMONSTRATED:
+  - 3-field flat-array with timestamps (ts=0 placeholder)
+  - len(j) / 3 entry count
+  - Index arithmetic: let base = idx * 3;
+  - Named field access via arithmetic: idx*3+1 for payload, idx*3+2 for ts
+  - Query returning a result array (filter by tag)
+  - Windowed-read pattern (recent N entries)
+  - Zero-guard:  if (n == 0) { return "none"; }
+KEY CODE EXAMPLES:
+◯ journal_append⟨j, tag, payload⟩ {
+    j.push(tag);
+    j.push(payload);
+    j.push(0);
+    return j;
+}
+◯ journal_query_payloads⟨j, target_tag⟩ {
+    let result = [];
+    let total = journal_count(j);
+    let i = 0;
+    while (i < total) {
+        let t = journal_get_tag(j, i);
+        if (t == target_tag) {
+            let p = journal_get_payload(j, i);
+            result.push(p);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+◯ journal_recent⟨j, n⟩ {
+    let total = journal_count(j);
+    let start = total - n;
+    if (start < 0) { start = 0; }
+    // ... collect last n entries
+}
+TEXTBOOK RELEVANCE: Chapter 6 — Flat-Array Structures; Chapter 10 —
+  Persistent Event Logging in AI Systems
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/memory.ai ===
+PURPOSE: Associative flat-array memory store. Layout: [key, val, strength] * N.
+         Strength is a float 0.0-1.0. Full API: store (upsert), recall, reinforce
+         (boost strength), decay_all, active_count (above threshold), delete.
+         Helpers prefixed a_ to ensure alphabetical declaration order.
+SYNTAX DEMONSTRATED:
+  - Helper prefix convention (a_ sorts before mem_):  ◯ a_mem_find_idx⟨m, key⟩
+  - Find-then-rebuild pattern (no in-place mutation)
+  - Float strength: let ns = cur_str + boost; if (ns > 1) { ns = 1; }
+  - Threshold filtering:  if (s >= threshold) { count = count + 1; }
+  - Delete by key (rebuild excluding matching key)
+  - Returning sentinel -1 for not-found
+  - Helper calling helper (mem_reinforce calls a_mem_find_idx + a_mem_rebuild)
+KEY CODE EXAMPLES:
+◯ mem_store⟨m, key, val⟩ {
+    let idx = a_mem_find_idx(m, key);
+    if (idx == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    return a_mem_rebuild(m, idx, val, 1);
+}
+◯ mem_decay_all⟨m, rate⟩ {
+    // multiply every strength by rate, clamp to 0
+    let ns = s - rate;
+    if (ns < 0) { ns = 0; }
+}
+◯ m_delete⟨m, key⟩ {
+    // rebuild excluding the matching key
+    if (k != key) { result.push(k); result.push(v); result.push(s); }
+}
+TEXTBOOK RELEVANCE: Chapter 6 — Flat-Array Structures; Chapter 7 —
+  Associative Memory; Chapter 10 — Strength-Weighted Recall
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/rules.ai ===
+PURPOSE: Flat-array rule engine. Layout: [name, cond_name, action_name, pri, enabled] * N
+         (5 fields per rule). Rules store condition and action as STRING names —
+         the caller holds actual function references. Supports register, enable,
+         disable, fire (match condition name, return action name).
+SYNTAX DEMONSTRATED:
+  - 5-field flat-array records
+  - len(rules) / 5 record count
+  - Boolean field storage:  rules.push(true); / if (en == true)
+  - rule_register adds entry with enabled=true by default
+  - r_fire returns action name string or "none"
+  - a_rule_set_enabled: generic setter used by both enable and disable
+  - Nested field extraction at fixed offsets: base+1, base+2, base+3, base+4
+KEY CODE EXAMPLES:
+◯ rule_register⟨rules, name, cond_name, action_name, pri⟩ {
+    rules.push(name);
+    rules.push(cond_name);
+    rules.push(action_name);
+    rules.push(pri);
+    rules.push(true);
+    return rules;
+}
+◯ r_fire⟨rules, cond_name⟩ {
+    let total = len(rules) / 5;
+    let i = 0;
+    while (i < total) {
+        let c  = rules.slice(base + 1, base + 2).pop();
+        let ac = rules.slice(base + 2, base + 3).pop();
+        let en = rules.slice(base + 4, base + 5).pop();
+        if (c == cond_name) {
+            if (en == true) { return ac; }
+        }
+        i = i + 1;
+    }
+    return "none";
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Rule Engines in Aeonmi; Chapter 7 —
+  AI-Native Patterns (production rule systems)
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/maintenance.ai ===
+PURPOSE: Scheduled upkeep module. Runs decay passes on memory and logs them to
+         journal. Computes a health score (active_memory / total_memory ratio).
+         Deliberately minimized to 3 functions only to avoid function-count
+         explosion when composed with other modules.
+SYNTAX DEMONSTRATED:
+  - Import from _min variants:  import { m_active, m_count, m_decay } from "./memory_min";
+  - Multi-return via array: return [m2, j2];
+  - Health score calculation: active / total (float division)
+  - Report array: push 4 values, return as data tuple
+  - Comment explaining design constraint: ⍝ avoids O(2^n) clone hang
+KEY CODE EXAMPLES:
+◯ maint_decay_pass⟨mem, journal, decay_rate⟩ {
+    let m2 = m_decay(mem, decay_rate);
+    let j2 = j_append(journal, "maint", "decay_pass");
+    let result = [];
+    result.push(m2);
+    result.push(j2);
+    return result;
+}
+◯ maint_health_score⟨mem, threshold⟩ {
+    let total = m_count(mem);
+    if (total == 0) { return 0; }
+    let active = m_active(mem, threshold);
+    return active / total;
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Maintenance and Decay Cycles; Chapter 4 —
+  Performance Constraints (function budget, clone cost)
+
+================================================================================
+SECTION 4: DEMO / SHOWCASE FILES
+================================================================================

@@ -1,0 +1,43 @@
+=== Qubit State Notation ===
+
+BODY:
+Aeonmi's lexer recognizes qubit literal notation from quantum computing: the ket notation common in quantum physics. These tokens are recognized and parsed as quantum state identifiers.
+
+The recognized qubit literals are:
+- |0> — the computational basis state zero
+- |1> — the computational basis state one
+- |+> — the Hadamard superposition state (equal probability of 0 and 1)
+- |-> — the negative Hadamard superposition state
+- |ψ> — a general pure quantum state (psi, Greek letter)
+- |Φ> — a general quantum state (phi, Greek letter)
+
+These literals are parsed by the lexer and can appear in quantum programs. In the current VM, they serve as symbolic identifiers — values that represent quantum states for documentation and symbolic reasoning purposes.
+
+CODE:
+```
+// qubit_literals.ai
+// Demonstrates qubit state notation
+
+function main() {
+    // Qubit state variables (symbolic in the VM)
+    let ground_state = "|0>";
+    let excited_state = "|1>";
+    let superposition = "|+>";
+
+    print("Ground state: " + ground_state);
+    print("Excited state: " + excited_state);
+    print("Superposition: " + superposition);
+
+    // Quantum state descriptions
+    let state_name = "|ψ>";
+    print("General state: " + state_name);
+
+    // In a real quantum program, these states are passed to
+    // quantum_run() via the circuit descriptor format
+    print("");
+    print("To execute a circuit on these states, use quantum_run()");
+    print("with a descriptor string specifying the gates and measurements.");
+}
+
+main();
+```

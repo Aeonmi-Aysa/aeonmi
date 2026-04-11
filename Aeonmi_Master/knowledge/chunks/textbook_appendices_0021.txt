@@ -1,0 +1,12 @@
+=== Agent Autonomy Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: goal TEXT | Set a new goal and decompose it into steps | Goal confirmation with decomposed step list
+TABLE_ROW: goal status | Show current goal and remaining steps | Current goal, step count, and next step
+TABLE_ROW: auto | Enable autonomous execution mode | Confirmation that auto mode is active
+TABLE_ROW: auto on | Alias for auto | Same as auto
+TABLE_ROW: auto off | Disable autonomous execution mode | Confirmation that auto mode is paused
+TABLE_ROW: pause | Alias for auto off | Same as auto off
+TABLE_ROW: next | Execute the next queued autonomous step | Step result and remaining step count
+TABLE_ROW: run auto | Execute all queued autonomous steps up to the safety cap (8) | Results for each step executed
+TABLE_ROW: autorun | Alias for run auto | Same as run auto

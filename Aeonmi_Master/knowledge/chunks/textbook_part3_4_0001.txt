@@ -1,0 +1,16 @@
+=== PART 3: ADVANCED ===
+
+================================================================================
+
+Chapters 19 through 27 assume you are comfortable with the Aeonmi language
+fundamentals, can write and run .ai programs, and have spent at least a few
+sessions interacting with Mother's REPL. This section moves from using the
+system to understanding it — how Mother thinks, how memory accumulates, how
+agents coordinate, and how quantum and cognitive layers interlock.
+
+By the end of Part 3 you will be able to navigate every cognitive subsystem,
+run and interpret the full agent hive, combine quantum fidelity data with agent
+signals, and reason clearly about the three-track architecture and where it
+still has gaps.
+
+================================================================================

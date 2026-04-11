@@ -1,0 +1,75 @@
+=== Gate Reference — All 12 QUBE Gates ===
+
+================================================================================
+
+BODY:
+The VSCode extension highlights the following 12 gate names as support.function
+tokens in .qube files. This is the complete and confirmed gate set.
+
+CODE:
+```
+∴ QUBE Gate Reference
+∴ All 12 gates are highlighted as support.function by the VSCode extension
+
+∴ --- Single-Qubit Gates ---
+
+∴ H — Hadamard gate
+∴ Transforms |0⟩ to (|0⟩ + |1⟩)/√2 (creates superposition)
+∴ Transforms |1⟩ to (|0⟩ - |1⟩)/√2
+apply H -> q
+
+∴ X — Pauli-X gate (quantum NOT gate)
+∴ Flips |0⟩ to |1⟩ and |1⟩ to |0⟩
+apply X -> q
+
+∴ Y — Pauli-Y gate
+∴ Combines bit flip and phase flip
+apply Y -> q
+
+∴ Z — Pauli-Z gate
+∴ Phase flip: |0⟩ unchanged, |1⟩ gains factor of -1
+apply Z -> q
+
+∴ S — S gate (phase gate)
+∴ Phase rotation by π/2. S = Z^(1/2)
+apply S -> q
+
+∴ T — T gate
+∴ Phase rotation by π/4. T = Z^(1/4)
+apply T -> q
+
+∴ Rx — Rotation around X-axis
+∴ Rx(θ): rotation by angle θ (radians) around X
+apply Rx(1.5708) -> q
+
+∴ Ry — Rotation around Y-axis
+∴ Ry(θ): rotation by angle θ (radians) around Y
+apply Ry(1.5708) -> q
+
+∴ Rz — Rotation around Z-axis
+∴ Rz(θ): rotation by angle θ (radians) around Z
+apply Rz(1.5708) -> q
+
+∴ --- Two-Qubit Gates ---
+
+∴ CNOT — Controlled-NOT (also called CX)
+∴ Flips target if control is |1⟩
+∴ Syntax: apply CNOT(control, target)
+apply CNOT(q0, q1)
+
+∴ CZ — Controlled-Z
+∴ Phase flip on target if control is |1⟩
+apply CZ(q0, q1)
+
+∴ SWAP — Swap gate
+∴ Exchanges the states of two qubits
+apply SWAP(q0, q1)
+```
+
+NOTE: In .ai files, the quantum gate identifiers H, X, Y, Z, S, T, CNOT, CX,
+NOT, HADAMARD appear in the quantum_run() descriptor format (numeric encoding)
+and in the print statements used to document circuits. They are not called
+directly as functions in .ai. In .qube files they appear as the operand of
+apply and are highlighted as first-class language tokens.
+
+================================================================================

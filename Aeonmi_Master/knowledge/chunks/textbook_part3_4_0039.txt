@@ -1,0 +1,79 @@
+=== The propose/build/reflect Cycle ===
+
+BODY: The Phase 9 self-generation system extends the self-modification pattern
+into Mother's autonomous operation. The three commands work as a cycle:
+
+`propose` — Scans the knowledge graph for gaps: facts known partially, patterns
+seen but not verified, relationships taught but not tested. From that scan,
+suggests one to three .ai programs to build. With a rich knowledge graph, the
+proposals are specific. With a sparse graph, they are generic. Teach more to get
+better proposals.
+
+`build <name> <goal>` — Generates the .ai program. If an LLM provider is
+configured, the program is LLM-generated from the goal description and current
+context. If no provider, a heuristic fallback generates a minimal but functional
+program. Writes to aeonmi_ai/generated/, runs via the native binary, records
+the outcome.
+
+`reflect [name]` — Analyzes the most recently built program: what was expected,
+what the actual output showed, and what the system learned from the difference.
+Stores the reflection in the knowledge graph as reflect_<name>. This closes the
+learning loop — the program generation was not just an exercise, it produced a
+fact that becomes part of Mother's knowledge.
+
+TIP: When `build` generates a program with a VM error, run `reflect` before
+dismissing it. The reflection system explicitly handles error outcomes and
+extracts the learning from them: what the syntax issue was, what it reveals
+about the current understanding of the language, and what should be built
+differently next time.
+
+EXERCISE_TITLE: Exercise 28.1 — Running a Full propose/build/reflect Cycle
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Before starting, teach Mother at least six facts in a coherent
+domain (quantum circuits, evolutionary algorithms, or agent scoring). Then run
+`propose` and select one of the suggested programs. Run `build <name> <goal>`
+with the suggested name and goal. Observe the generated program source and the
+run output. Then run `reflect` and read the reflection output carefully. Finally,
+run `recall` and find the reflect_<name> entry in the knowledge graph. Write an
+analysis of what the reflection added to Mother's knowledge that the raw output
+alone did not contain.
+EXERCISE_SOLUTION:
+```
+aeonmi mother
+
+// Teach the domain:
+> teach bell_state = H+CNOT, returns 50/50 |00>+|11>
+> teach grover_N16 = 3 iterations for N=16, P(success)=99.8%
+> teach ghz_3q = H+CX+CX produces 3-qubit entanglement
+> teach fidelity_formula = 1 - TVD(measured, ideal)
+> teach shot_noise = 1024 shots gives ~3% uncertainty
+> teach circuit_depth_cost = each gate adds decoherence risk
+
+// Propose:
+> propose
+// Example output: "Suggest building a quantum_fidelity_tracker to verify
+// that measured shot distributions match ideal Bell state theory"
+
+> build fidelity_tracker track Bell state fidelity across multiple shot counts
+// System generates, writes, runs the program.
+// If LLM: generates a realistic tracking program
+// If heuristic: generates a minimal probe
+
+> reflect
+// Output includes:
+// Expected: program runs Bell circuit at varying shot counts, reports TVD
+// Actual: [whatever happened — success or specific error]
+// Learned: [specific insight derived from outcome]
+// This is stored as reflect_fidelity_tracker in the knowledge graph
+
+> recall
+// Find reflect_fidelity_tracker — it is now permanent knowledge
+
+// Analysis: The raw output shows what ran and what printed.
+// The reflection adds: interpretation of results against expectations,
+// identification of gaps between current knowledge and what ran,
+// and a specific actionable insight that can inform the next build.
+// The raw output is data. The reflection is understanding.
+```
+
+================================================================================

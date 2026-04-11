@@ -1,0 +1,19 @@
+=== Switching Backends ===
+
+BODY:
+In the Mother AI REPL, you switch quantum backends with the `quantum_backend` command:
+
+CODE:
+```
+// In the Aeonmi REPL:
+>> quantum_backend aer
+// Routes future quantum_run() calls to the Aer simulator (default, no token needed)
+
+>> quantum_backend ibm_brisbane
+// Routes future quantum_run() calls to IBM Brisbane (requires IBM_QUANTUM_TOKEN)
+
+>> quantum status
+// Shows current backend and availability
+```
+
+From a .ai program, quantum_run() always uses whatever backend is currently configured. The backend is set in the Mother AI state (embryo_loop) and persists to genesis.json.

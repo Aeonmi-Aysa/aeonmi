@@ -1,0 +1,15 @@
+=== EMA Filtering ===
+
+BODY: Raw hive scores from a single cycle can swing significantly based on
+the specific context of that cycle's inputs. To prevent single-cycle anomalies
+from dominating the recommendation, all five scores are smoothed with an
+exponential moving average.
+
+The EMA formula is: EMA_new = alpha * raw_score + (1 - alpha) * EMA_old, where
+alpha is the smoothing factor. A higher alpha makes the EMA respond faster to
+new data; a lower alpha gives more weight to history. The EMA values are what
+the dashboard and hive command display by default.
+
+This means that a single ABORT cycle does not necessarily flip the displayed
+recommendation to ABORT if the EMA-smoothed history is strongly PROCEED. The
+EMA tracks the underlying trend, not individual cycles.

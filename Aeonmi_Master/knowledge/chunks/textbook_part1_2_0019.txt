@@ -1,0 +1,23 @@
+=== Constants ===
+
+BODY:
+The built-in mathematical constants PI, E, TAU, INFINITY, and NAN are available globally without declaration. You can reference them directly in expressions.
+
+CODE:
+```
+// constants.ai
+function main() {
+    print(PI);        // 3.141592653589793
+    print(E);         // 2.718281828459045
+    print(TAU);       // 6.283185307179586 (2 * PI)
+    print(INFINITY);  // inf
+    print(NAN);       // NaN
+
+    // Using PI in a calculation
+    let radius = 5.0;
+    let area = PI * radius * radius;
+    print("Circle area: " + area);
+}
+
+main();
+```

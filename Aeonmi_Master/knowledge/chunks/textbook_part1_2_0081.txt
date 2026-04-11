@@ -1,0 +1,39 @@
+=== Comment Glyphs — ∴ and ∵ (QUBE-Exclusive) ===
+
+================================================================================
+
+BODY:
+QUBE has three comment forms. Two of them — using the Unicode mathematical
+glyphs ∴ (therefore) and ∵ (because) — are unique to .qube files and do not
+exist in .ai syntax.
+
+CODE:
+```
+∴ This is a "therefore" comment — use it to annotate conclusions,
+∴ outcomes, and the intent of what follows.
+
+∵ This is a "because" comment — use it to explain preconditions,
+∵ the reasoning behind a gate choice, or why a state is set up a
+∵ certain way.
+
+// This is a standard line comment — works in both .ai and .qube.
+```
+
+BODY:
+The ∴ and ∵ glyphs carry semantic weight beyond ordinary comments. In quantum
+reasoning, ∴ (therefore) naturally annotates conclusions: "I measured q0, ∴ the
+entangled state collapsed." The ∵ (because) naturally annotates preconditions:
+"∵ we need superposition, apply H first." This alignment between mathematical
+logic notation and quantum circuit structure is deliberate — it is part of the
+QUBE design philosophy that the language should be legible to both AI and human
+readers without disambiguation.
+
+The VSCode extension highlights both glyphs as comment.line tokens in .qube
+files only. They are not valid comment syntax in .ai files — the .ai lexer
+recognizes only //.
+
+TIP: Use ∴ at the top of a .qube file as the title comment (as the confirmed
+Bell state snippet does: ∴ Bell state). Use ∵ inline to justify non-obvious
+gate choices. Use // for general remarks. All three can coexist in one file.
+
+================================================================================

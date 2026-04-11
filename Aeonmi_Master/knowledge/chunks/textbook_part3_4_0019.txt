@@ -1,0 +1,17 @@
+=== The consolidate Command and Synthesis ===
+
+BODY: The `consolidate` command serves two roles. In the knowledge graph
+(Chapter 21), it creates synthesis nodes for unlinked pairs. In the inner voice
+system, it creates a consolidated thought — a higher-level observation that
+synthesizes across multiple recent observations rather than listing them
+individually.
+
+Running `consolidate` after a session where the inner voice has been active
+produces observations that no individual fact in the graph could have generated.
+These consolidated thoughts are stored in the graph as synthesis_N nodes and
+are available to future sessions.
+
+The `dream` command extends this further — it runs extended associative
+reasoning across the full knowledge graph, making connections across domains
+that were not explicitly taught. This is computationally heavier and produces
+longer output, but surfaces connections that the standard inner voice may miss.

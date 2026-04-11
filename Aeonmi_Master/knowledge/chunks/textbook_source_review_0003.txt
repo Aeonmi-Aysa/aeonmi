@@ -1,0 +1,116 @@
+=== textbook_source_review §4 ===
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/forge.ai ===
+PURPOSE: Meta code generator — Aeonmi writing Aeonmi. Takes module specs
+         (function count, type count) and generates function blueprints with
+         Halstead-inspired complexity analysis. Demonstrates meta-programming:
+         the AI language modeling its own structure. No imports, 12 functions.
+SYNTAX DEMONSTRATED:
+  - a_/b_/c_/d_ prefix ordering for alphabetical environment capture
+  - Integer division trick as modulo substitute:  v = func_id - (func_id / 3) * 3;
+  - Complexity formula inlined:  n_funcs * n_types + n_deps * 2
+  - Function count limit (VM limit = 14): if (n_funcs > 14) { return 0; }
+  - Print with concatenation of string + number + string:  print("fn m", module_id, "_f", func_id, ...)
+  - Array literal with multiple values:  let result = [module_id, n_funcs, n_types];
+  - Pipeline pattern: validate → emit → analyze → render → report
+  - Comment explaining the VM constraint inline
+KEY CODE EXAMPLES:
+◯ a_forge_param_ct⟨func_id⟩ {
+    ⍝ Param count cycles 1-2-3-1-2-3 (no % operator: use integer division trick)
+    let v = func_id - (func_id / 3) * 3;
+    return v + 1;
+}
+◯ b_forge_complexity⟨n_funcs, n_types, n_deps⟩ {
+    ⍝ Halstead-inspired complexity: funcs * types + deps * 2
+    return n_funcs * n_types + n_deps * 2;
+}
+◯ d_forge_run⟨module_id, n_funcs, n_types⟩ {
+    let valid = c_forge_validate(n_funcs, n_types);
+    if (valid == 0) {
+        print("[FORGE ERROR] Invalid spec: module=", module_id, ...);
+        return 0;
+    }
+    let emitted = d_forge_emit(module_id, n_funcs, n_types);
+    let deps    = b_forge_deps(n_funcs);
+    let score   = b_forge_complexity(n_funcs, n_types, deps);
+    // ...
+    return emitted;
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Self-Hosting and Meta-Programming; Chapter 5 —
+  VM Constraints and Function Budgets; Chapter 11 — Aeonmi Generating Aeonmi
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/quantum_cognition.ai ===
+PURPOSE: Quantum Cognition Engine — a 3-qubit AI decision model. Each qubit
+         represents a cognitive dimension: Explore (always superposed via
+         Hadamard), Confidence, Novelty. Decisions emerge from qubit collapse,
+         not classical logic. Maps 3-bit outcomes to 8 cognitive actions.
+SYNTAX DEMONSTRATED:
+  - Qubit state as 4-element array: [re0, im0, re1, im1]
+  - |0⟩ literal:  return [1, 0, 0, 0];
+  - Hadamard gate math:  (re0 + re1) * k  where k = 0.70710678
+  - Pauli-X gate (bit flip): swap re0,im0 with re1,im1
+  - Measurement: if P(|1⟩) > 0.5 return 1 else 0
+  - 3-bit integer from 3 bits:  b0 + b1 * 2 + b2 * 4
+  - Normalization check: p0 + p1 should be ~1.0
+  - a_/b_/c_/d_ prefix system for quantum module
+  - Float literal 0.70710678 (1/sqrt(2))
+KEY CODE EXAMPLES:
+◯ a_q_zero⟨⟩ {
+    ⍝ |0⟩ = [re0=1, im0=0, re1=0, im1=0]
+    return [1, 0, 0, 0];
+}
+◯ b_gate_h⟨q⟩ {
+    ⍝ Hadamard: |0⟩ -> |+⟩, |1⟩ -> |−⟩
+    let k = 0.70710678;
+    return [(re0 + re1) * k, (im0 + im1) * k, (re0 - re1) * k, (im0 - im1) * k];
+}
+◯ c_decide_3q⟨q0, q1, q2⟩ {
+    ⍝ Collapse 3 qubits -> 3-bit decision integer
+    let b0 = b_measure(q0);
+    let b1 = b_measure(q1);
+    let b2 = b_measure(q2);
+    return b0 + b1 * 2 + b2 * 4;
+}
+◯ c_simulate_step⟨step, input⟩ {
+    ⍝ q0 = EXPLORE: always put in superposition via H (quantum uncertainty dimension)
+    q0 = b_gate_h(q0);
+    return c_decide_3q(q0, q1, q2);
+}
+TEXTBOOK RELEVANCE: Chapter 12 — Quantum Cognition; Chapter 13 — Quantum Gates
+  in Aeonmi; Chapter 7 — AI Decision Systems
+
+=== FILE: Aeonmi_Master/aeonmi_ai/demo/swarm_os.ai ===
+PURPOSE: Autonomous Agent Colony simulation. 5 specialized agents (Sensor,
+         Planner, Executor, Critic, Memory) self-organize through a pipeline.
+         Each agent is a 5-element array record. Tasks flow through all stages
+         with inter-agent messages logged. Demonstrates emergent pipeline behavior.
+SYNTAX DEMONSTRATED:
+  - Agent record as array literal:  return [id, role, 0, 0, 0];
+  - Named field access by fixed offset
+  - Task record:  return [id, priority, stage, status];
+  - c_run_pipeline: 6-parameter function returning compound result array
+  - Result slicing to extract pipeline outputs
+  - Accumulator variables across iterations
+  - Integer role codes: 0=sensor 1=planner 2=executor 3=critic 4=memory
+  - Verification function: expected vs actual message count
+KEY CODE EXAMPLES:
+◯ a_agent_init⟨id, role⟩ {
+    ⍝ Agent record: [id, role, load, tasks_done, score]
+    return [id, role, 0, 0, 0];
+}
+◯ b_agent_complete⟨agent⟩ {
+    let load  = agent.slice(2, 3).pop() - 1;
+    if (load < 0) { load = 0; }
+    let done  = agent.slice(3, 4).pop() + 1;
+    let score = agent.slice(4, 5).pop() + 10;
+    return [id, role, load, done, score];
+}
+◯ c_run_pipeline⟨task, sensor, planner, executor, critic, memory⟩ {
+    sensor   = b_agent_task(sensor);
+    passed   = passed + c_msg_pass(0, 1, task_id);
+    sensor   = b_agent_complete(sensor);
+    // ... through all 5 stages
+    return [passed, sensor.slice(3,4).pop(), ...];
+}
+TEXTBOOK RELEVANCE: Chapter 11 — Multi-Agent Systems; Chapter 6 — Compound
+  Records; Chapter 7 — Pipeline Architectures in Aeonmi

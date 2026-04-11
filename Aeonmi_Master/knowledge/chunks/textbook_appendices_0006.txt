@@ -1,0 +1,14 @@
+=== aeonmi repl — Interactive REPL ===
+
+BODY: The `repl` subcommand starts an interactive read-evaluate-print loop for the Aeonmi language. This is the raw language REPL; for Mother AI's REPL (with cognitive capabilities), use `aeonmi mother` instead.
+
+CODE:
+```
+aeonmi repl
+
+Example:
+  aeonmi repl
+  > let x = 42
+  > print(x)
+  42
+```

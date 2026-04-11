@@ -1,0 +1,22 @@
+=== What Is the Shard? ===
+
+BODY:
+The Shard is Aeonmi's self-hosting compiler — a compiler written in Aeonmi itself. Self-hosting is a milestone in language maturity: it means the language is expressive enough to implement its own compilation pipeline. The Shard lives in Aeonmi_Master/aeonmi_ai/shard/ and consists of several modules, each handling one stage of compilation.
+
+The Shard Developer Kit (main.ai) is both the entry point and a comprehensive language reference. Running it produces a demonstration of the pipeline working on a small arithmetic expression.
+
+CODE:
+```
+// Run the Shard Developer Kit
+aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai
+```
+
+The shard directory contains:
+- main.ai — bootstrap pipeline, language reference documentation in comments
+- lexer.ai — tokenizer (in progress)
+- parser.ai — expression parser (in progress)
+- ast.ai — AST node definitions (in progress)
+- codegen.ai — code generator (in progress)
+- Plus test files: lexer_test.ai, parser_test.ai, ast_test.ai, codegen_test.ai, main_test.ai
+
+NOTE: As of April 2026, the Shard bootstrap pipeline runs but full self-compilation is not yet achieved. The lexer.ai has gaps with tuple literal and range expression handling. parser.ai, ast.ai, and codegen.ai are in progress. The main.ai demonstrates a simplified working pipeline that handles a subset of arithmetic expressions. Full self-hosting — compiling hello.ai via main.ai — is the next major milestone for Phase 3.

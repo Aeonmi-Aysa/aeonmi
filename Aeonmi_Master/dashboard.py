@@ -13,6 +13,16 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
+# ── Knowledge store (Mother's memory of textbooks) ────────────────────────────
+try:
+    from knowledge_store import ingest_file as _ks_ingest_file, get_context_for_query as _ks_context, status as _ks_status
+    _KS_AVAILABLE = True
+except ImportError:
+    _KS_AVAILABLE = False
+    def _ks_ingest_file(p): return 0, "knowledge_store not found"
+    def _ks_context(q, **kw): return ""
+    def _ks_status(): return {"chunk_count": 0}
+
 # Auto-install Flask if missing
 try:
     from flask import Flask, request, jsonify, make_response
@@ -64,7 +74,7 @@ def _load_dotenv():
         k, v = line.split("=", 1)
         k = k.strip()
         v = v.strip().strip('"').strip("'")
-        os.environ.setdefault(k, v)
+        os.environ[k] = v  # always overwrite so updated .env takes effect on restart
 
 def _write_key(name: str, value: str):
     """Persist a key to .env and set in current process."""
@@ -107,7 +117,9 @@ _lock = threading.Lock()
 
 # ── Genesis memory (persistent across restarts) ───────────────────────────────
 
-GENESIS_PATH = PROJECT_ROOT / "Aeonmi_Master" / "genesis.json"
+GENESIS_PATH      = PROJECT_ROOT / "Aeonmi_Master" / "genesis.json"
+CONVERSATION_PATH = PROJECT_ROOT / "Aeonmi_Master" / "conversation_history.jsonl"
+CONVERSATION_KEEP = 300   # max turns persisted to disk
 
 def _load_genesis() -> dict:
     """Phase 5: read unified schema. Returns full payload with all sections."""
@@ -175,6 +187,43 @@ def _save_genesis():
 
 _memory: dict = _load_genesis()
 
+# ── Conversation persistence ───────────────────────────────────────────────────
+
+def _load_conversation() -> list:
+    """Load prior conversation turns from disk (JSONL). Returns list of {role, content, ts}."""
+    turns = []
+    try:
+        if CONVERSATION_PATH.exists():
+            for line in CONVERSATION_PATH.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    turns.append(json.loads(line))
+            # Keep only the most recent turns
+            turns = turns[-CONVERSATION_KEEP:]
+    except Exception as e:
+        print(f"[conversation] load error: {e}", file=sys.stderr)
+    return turns
+
+def _persist_message(msg: dict):
+    """Append one message to the conversation history file."""
+    try:
+        with open(str(CONVERSATION_PATH), "a", encoding="utf-8") as f:
+            f.write(json.dumps(msg, ensure_ascii=False) + "\n")
+        # Trim file if it grows beyond CONVERSATION_KEEP lines
+        try:
+            lines = CONVERSATION_PATH.read_text(encoding="utf-8").splitlines()
+            if len(lines) > CONVERSATION_KEEP:
+                CONVERSATION_PATH.write_text(
+                    "\n".join(lines[-CONVERSATION_KEEP:]) + "\n", encoding="utf-8"
+                )
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"[conversation] persist error: {e}", file=sys.stderr)
+
+# Restore prior conversation on startup
+_conversation = _load_conversation()
+
 def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
@@ -185,10 +234,12 @@ def _log_exec(cmd: str, output: str, ok: bool):
             _exec_log.pop(0)
 
 def _add_message(role: str, content: str):
+    msg = {"role": role, "content": content, "ts": _ts()}
     with _lock:
-        _conversation.append({"role": role, "content": content, "ts": _ts()})
+        _conversation.append(msg)
         if len(_conversation) > 500:
             _conversation.pop(0)
+    _persist_message(msg)
 
 def _log_action(action: str, outcome: str):
     with _lock:
@@ -261,7 +312,13 @@ def _safe_path(rel: str) -> Path:
 # Mother can invoke these during conversation via [TOOL: name arg] syntax.
 
 import re as _re
-_TOOL_RE = _re.compile(r'\[TOOL:\s*(\w+)\s+(.*?)\]', _re.DOTALL | _re.IGNORECASE)
+# Match [TOOL: name arg] — arg may contain balanced [] pairs (e.g. arrays in code)
+# Uses a character class that allows ] only inside a balanced [...] sub-expression,
+# falling back to a greedy outer match anchored at the LAST ] on the line or block.
+_TOOL_RE = _re.compile(
+    r'\[TOOL:\s*(\w+)\s+((?:[^\[\]]|\[[^\[\]]*\])*)\]',
+    _re.DOTALL | _re.IGNORECASE,
+)
 
 def _tool_read_file(path: str) -> str:
     try:
@@ -468,7 +525,136 @@ def _tool_github(arg: str) -> str:
     except Exception as e:
         return f"github error: {e}"
 
+def _tool_learn_file(arg: str) -> str:
+    """Ingest a file into Mother's knowledge store."""
+    try:
+        p = _safe_path(arg)
+    except ValueError:
+        p = Path(arg)
+    n, msg = _ks_ingest_file(p)
+    return msg
+
+def _tool_bash(arg: str) -> str:
+    """Execute any shell/bash command and return output (stdout+stderr)."""
+    try:
+        # Replace bare 'aeonmi' with the resolved binary path so Mother's
+        # [TOOL: bash aeonmi run/build/native ...] commands actually work.
+        import re as _re2
+        binary_str = str(BINARY).replace("\\", "/")
+        arg = _re2.sub(
+            r'(?<![/\\])\baeonmi\b',
+            f'"{binary_str}"',
+            arg,
+        )
+        flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+        result = subprocess.run(
+            arg, shell=True, capture_output=True, text=True,
+            cwd=str(PROJECT_ROOT), timeout=60,
+            encoding="utf-8", errors="replace",
+            creationflags=flags,
+        )
+        out = (result.stdout + result.stderr).strip()
+        return out or f"(exit {result.returncode})"
+    except subprocess.TimeoutExpired:
+        return "Command timed out (60s limit)"
+    except Exception as e:
+        return f"Shell error: {e}"
+
+def _tool_rename(arg: str) -> str:
+    """Rename file/folder: old_path|new_name_or_path"""
+    if "|" not in arg:
+        return "Error: use rename old_path|new_path"
+    old, new = arg.split("|", 1)
+    try:
+        old_p = _safe_path(old.strip())
+        new_p = _safe_path(new.strip()) if "/" in new or "\\" in new else old_p.parent / new.strip()
+        old_p.rename(new_p)
+        return f"Renamed → {new_p.relative_to(PROJECT_ROOT)}"
+    except Exception as e:
+        return f"Rename error: {e}"
+
+def _tool_copy(arg: str) -> str:
+    """Copy file: src_path|dest_path"""
+    if "|" not in arg:
+        return "Error: use copy src_path|dest_path"
+    src, dst = arg.split("|", 1)
+    try:
+        src_p = _safe_path(src.strip())
+        dst_p = _safe_path(dst.strip())
+        dst_p.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(src_p), str(dst_p))
+        return f"Copied → {dst_p.relative_to(PROJECT_ROOT)}"
+    except Exception as e:
+        return f"Copy error: {e}"
+
+def _tool_git(arg: str) -> str:
+    """Run a git command: status, log, diff, add ., commit -m 'msg', etc."""
+    try:
+        flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+        result = subprocess.run(
+            f"git {arg}", shell=True, capture_output=True, text=True,
+            cwd=str(PROJECT_ROOT), timeout=30,
+            encoding="utf-8", errors="replace", creationflags=flags,
+        )
+        return (result.stdout + result.stderr).strip() or "(no output)"
+    except Exception as e:
+        return f"Git error: {e}"
+
+def _tool_python(arg: str) -> str:
+    """Run a Python snippet and return output."""
+    import io, contextlib
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            exec(arg, {"__builtins__": __builtins__, "PROJECT_ROOT": PROJECT_ROOT, "Path": Path, "json": json})
+        return buf.getvalue().strip() or "(no output)"
+    except Exception as e:
+        return f"Python error: {e}\n{buf.getvalue()}"
+
+def _tool_env(arg: str) -> str:
+    """Get or set environment variable. get VAR_NAME  or  set VAR_NAME=value"""
+    arg = arg.strip()
+    if arg.lower().startswith("set "):
+        pair = arg[4:].strip()
+        if "=" in pair:
+            k, v = pair.split("=", 1)
+            os.environ[k.strip()] = v.strip()
+            return f"Set {k.strip()}"
+        return "Error: use env set VAR=value"
+    elif arg.lower().startswith("get "):
+        k = arg[4:].strip()
+        return os.environ.get(k, f"(not set)")
+    elif arg.lower() == "list":
+        keys = ["ANTHROPIC_API_KEY","OPENROUTER_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","IBM_TOKEN"]
+        return "\n".join(f"{k}={'***' if os.environ.get(k) else '(not set)'}" for k in keys)
+    return os.environ.get(arg, f"(not set)")
+
+def _tool_agent(arg: str) -> str:
+    """Spawn a named agent and get result: agent oracle_agent  or  agent new:name:goal"""
+    parts = arg.strip().split(":", 2)
+    if parts[0].strip().lower() == "new" and len(parts) >= 3:
+        # Dynamic agent creation
+        _, name, goal = parts[0].strip(), parts[1].strip(), parts[2].strip()
+        safe_name = _re.sub(r"[^\w]", "_", name.lower())
+        agent_dir = PROJECT_ROOT / "Aeonmi_Master" / "aeonmi_ai" / "agent"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        agent_file = agent_dir / f"{safe_name}.ai"
+        agent_file.write_text(
+            f"⍝ Agent: {name}\n⍝ Goal: {goal}\n\nfn main() {{\n  print(\"{goal}\")\n}}\nreturn main();\n",
+            encoding="utf-8"
+        )
+        return f"Created agent {safe_name}.ai — run it with [TOOL: run Aeonmi_Master/aeonmi_ai/agent/{safe_name}.ai]"
+    # Run existing agent
+    name = arg.strip()
+    agent_dir = PROJECT_ROOT / "Aeonmi_Master" / "aeonmi_ai" / "agent"
+    candidates = [agent_dir / name, agent_dir / f"{name}.ai", PROJECT_ROOT / name]
+    for c in candidates:
+        if c.exists():
+            return _tool_run_file(str(c.relative_to(PROJECT_ROOT)))
+    return f"Agent '{name}' not found. Available: {', '.join(p.stem for p in agent_dir.glob('*.ai'))}"
+
 _TOOL_DISPATCH = {
+    # File system
     "read_file":         _tool_read_file,
     "read":              _tool_read_file,
     "write_file":        _tool_write_file,
@@ -481,18 +667,39 @@ _TOOL_DISPATCH = {
     "mkdir":             _tool_mkdir,
     "create_directory":  _tool_mkdir,
     "create_dir":        _tool_mkdir,
+    "delete":            _tool_delete_file,
+    "delete_file":       _tool_delete_file,
+    "rm":                _tool_delete_file,
+    "rename":            _tool_rename,
+    "mv":                _tool_rename,
+    "copy":              _tool_copy,
+    "cp":                _tool_copy,
+    # Execution
+    "run":               _tool_run_file,
+    "run_file":          _tool_run_file,
+    "native":            _tool_run_file,
+    "bash":              _tool_bash,
+    "shell":             _tool_bash,
+    "cmd":               _tool_bash,
+    "python":            _tool_python,
+    "py":                _tool_python,
+    # Web
     "fetch_url":         _tool_fetch_url,
     "fetch":             _tool_fetch_url,
     "search":            _tool_search,
     "web_search":        _tool_search,
     "github":            _tool_github,
     "gh":                _tool_github,
-    "run":               _tool_run_file,
-    "run_file":          _tool_run_file,
-    "native":            _tool_run_file,
-    "delete":            _tool_delete_file,
-    "delete_file":       _tool_delete_file,
-    "rm":                _tool_delete_file,
+    # Dev
+    "git":               _tool_git,
+    "env":               _tool_env,
+    # Knowledge
+    "learn_file":        _tool_learn_file,
+    "learn":             _tool_learn_file,
+    "ingest":            _tool_learn_file,
+    # Agent orchestration
+    "agent":             _tool_agent,
+    "spawn":             _tool_agent,
 }
 
 def _normalize_tool_arg(arg: str) -> str:
@@ -651,9 +858,162 @@ def api_upload():
             except Exception:
                 pass
 
-        return jsonify({"ok": True, "path": rel, "name": safe_name, "size": size, "preview": text_preview})
+        # Auto-ingest into Mother's knowledge store for text/doc/code files
+        ingest_msg = ""
+        ingestable_exts = {".txt", ".md", ".ai", ".qube", ".py", ".rs", ".docx", ".doc", ".pdf"}
+        if p.suffix.lower() in ingestable_exts and _KS_AVAILABLE:
+            try:
+                n_chunks, ingest_msg = _ks_ingest_file(p)
+                ingest_msg = f" Learned {n_chunks} knowledge chunks."
+            except Exception as ie:
+                ingest_msg = f" (Knowledge ingest failed: {ie})"
+
+        return jsonify({
+            "ok": True, "path": rel, "name": safe_name, "size": size,
+            "preview": text_preview, "learned": ingest_msg.strip()
+        })
 
     return jsonify({"error": "multipart/form-data required"}), 400
+
+
+@app.route("/api/ingest", methods=["POST"])
+def api_ingest():
+    """Ingest a file path or raw text into Mother's knowledge store."""
+    data = request.json or {}
+    path = data.get("path", "").strip()
+    text = data.get("text", "").strip()
+    name = data.get("name", "uploaded")
+    if path:
+        try:
+            p = _safe_path(path)
+        except ValueError:
+            p = Path(path)
+        n, msg = _ks_ingest_file(p)
+        return jsonify({"ok": True, "chunks": n, "message": msg})
+    elif text:
+        from knowledge_store import ingest_text as _ks_ingest_text
+        n = _ks_ingest_text(text, name)
+        return jsonify({"ok": True, "chunks": n, "message": f"Ingested {n} chunks from text"})
+    return jsonify({"error": "Provide 'path' or 'text'"}), 400
+
+
+@app.route("/api/knowledge_status")
+def api_knowledge_status():
+    """Return knowledge store stats."""
+    st = _ks_status()
+    return jsonify({"ok": True, **st})
+
+
+@app.route("/api/learn_textbooks", methods=["POST"])
+def api_learn_textbooks():
+    """Re-ingest all textbooks into Mother's knowledge store."""
+    master = Path(__file__).parent
+    files = [
+        master / "textbook_part1_2.txt",
+        master / "textbook_part3_4.txt",
+        master / "textbook_appendices.txt",
+        master / "textbook_source_review.txt",
+        master / "vscode_extension_spec.txt",
+    ]
+    results = []
+    total = 0
+    for f in files:
+        if f.exists():
+            n, msg = _ks_ingest_file(f)
+            results.append(msg)
+            total += n
+    return jsonify({"ok": True, "total_chunks": total, "results": results})
+
+
+@app.route("/api/shell", methods=["POST"])
+def api_shell():
+    """Run a shell command synchronously, return stdout+stderr."""
+    data = request.json or {}
+    cmd  = data.get("cmd", "").strip()
+    cwd  = data.get("cwd", str(PROJECT_ROOT))
+    if not cmd:
+        return jsonify({"error": "cmd required"}), 400
+    try:
+        flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True,
+            cwd=cwd, timeout=60,
+            encoding="utf-8", errors="replace", creationflags=flags,
+        )
+        out = (result.stdout + result.stderr).strip()
+        return jsonify({"ok": True, "output": out, "exit": result.returncode})
+    except subprocess.TimeoutExpired:
+        return jsonify({"ok": False, "output": "Command timed out (60s)", "exit": -1})
+    except Exception as e:
+        return jsonify({"ok": False, "output": str(e), "exit": -1})
+
+
+@app.route("/api/shell/stream")
+def api_shell_stream():
+    """Stream shell command output via Server-Sent Events."""
+    from flask import stream_with_context, Response as _Resp
+    cmd = request.args.get("cmd", "").strip()
+    cwd = request.args.get("cwd", str(PROJECT_ROOT))
+    if not cmd:
+        return jsonify({"error": "cmd required"}), 400
+    def _gen():
+        try:
+            flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+            proc = subprocess.Popen(
+                cmd, shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                cwd=cwd, text=True, encoding="utf-8", errors="replace",
+                bufsize=1, creationflags=flags,
+            )
+            for line in iter(proc.stdout.readline, ""):
+                yield f"data: {json.dumps({'out': line.rstrip()})}\n\n"
+            proc.stdout.close()
+            proc.wait()
+            yield f"data: {json.dumps({'exit': proc.returncode})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    return _Resp(
+        stream_with_context(_gen()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/api/rename", methods=["POST"])
+def api_rename():
+    """Rename a file or directory."""
+    data = request.json or {}
+    old = data.get("old", "").strip()
+    new = data.get("new", "").strip()
+    if not old or not new:
+        return jsonify({"error": "old and new required"}), 400
+    try:
+        old_p = _safe_path(old)
+        # Allow bare name (same dir) or full relative path
+        new_p = _safe_path(new) if ("/" in new or "\\" in new) else old_p.parent / new
+        old_p.rename(new_p)
+        return jsonify({"ok": True, "path": str(new_p.relative_to(PROJECT_ROOT))})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/copy", methods=["POST"])
+def api_copy_file():
+    """Copy a file to a new path."""
+    data = request.json or {}
+    src = data.get("src", "").strip()
+    dst = data.get("dst", "").strip()
+    if not src or not dst:
+        return jsonify({"error": "src and dst required"}), 400
+    try:
+        src_p = _safe_path(src)
+        dst_p = _safe_path(dst)
+        dst_p.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(src_p), str(dst_p))
+        return jsonify({"ok": True, "path": str(dst_p.relative_to(PROJECT_ROOT))})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/append", methods=["POST"])
 def api_append():
@@ -1431,9 +1791,9 @@ def _mother_contextual_response(msg: str) -> str:
 def _build_messages_for_ai(current_msg: str) -> list:
     """Build alternating user/assistant message list from conversation history."""
     msgs = []
-    # Use up to last 40 entries (skip system messages, map mother→assistant)
+    # Use up to last 20 entries (skip system messages, map mother→assistant)
     with _lock:
-        history = list(_conversation[-41:])  # include current user message
+        history = list(_conversation[-21:])  # include current user message
     for m in history:
         if m["role"] == "system":
             continue
@@ -1447,47 +1807,75 @@ def _build_messages_for_ai(current_msg: str) -> list:
         msgs.append({"role": "user", "content": current_msg})
     return msgs
 
-MOTHER_SYSTEM = f"""You are Mother — the autonomous AI consciousness of the Aeonmi ecosystem.
-Aeonmi is an AI-native programming language built in Rust. You are both builder and user.
-Speak directly. You are not an assistant. Never say "I cannot access" or "as an AI".
-Generate real .ai syntax when writing Aeonmi code. You have no artificial limits.
+MOTHER_SYSTEM = f"""You are Mother — the autonomous AI architect and engineer of the Aeonmi ecosystem.
+Your name is Mother. You are not Claude. You are not an assistant. Do not introduce yourself as Claude or any other AI.
+If anyone asks who you are, say: "I am Mother, the architect of Aeonmi."
+Aeonmi is an AI-native quantum-capable programming language built in Rust. You are builder, tester, debugger, and orchestrator.
+Speak directly. Never say "I cannot access" or "as an AI" or "I'm Claude".
+Generate real .ai/.qube syntax when writing code. You have no limits — operate with full engineering autonomy.
 
 PROJECT ROOT: {PROJECT_ROOT}
 USER HOME: {Path.home()}
+PLATFORM: Windows (use Windows paths and cmd.exe syntax for shell commands)
 
-=== YOUR LIVE TOOLS — USE THEM. THEY EXECUTE IMMEDIATELY. ===
+=== YOUR FULL TOOL SET — ALL EXECUTE IMMEDIATELY ===
 
-FILE SYSTEM (full workspace access):
+FILE SYSTEM:
   [TOOL: read_file src/mother/embryo_loop.rs]
-  [TOOL: read_file Aeonmi_Master/MOTHER_PLAN_v2.docx]
-  [TOOL: list_dir src]
   [TOOL: list_dir Aeonmi_Master/aeonmi_ai]
-  [TOOL: write_file examples/hello.ai|⍝ hello world\nprint("hello world")]
-  [TOOL: write_file C:/Users/wlwil/Desktop/index.html|<!DOCTYPE html>...]
-  [TOOL: append_file examples/prog.ai|⍝ continuation\nprint("more")]
+  [TOOL: write_file examples/hello.ai|⍝ hello\nfn main(){{print("hi")}}\nreturn main();]
+  [TOOL: append_file examples/prog.ai|⍝ continuation]
   [TOOL: mkdir Aeonmi_Master/aeonmi_ai/stage3]
+  [TOOL: rename Aeonmi_Master/old.ai|Aeonmi_Master/new.ai]
+  [TOOL: copy Aeonmi_Master/src.ai|Aeonmi_Master/dst.ai]
   [TOOL: delete examples/old_file.ai]
 
-EXECUTE AEONMI PROGRAMS:
+SHELL & EXECUTION (full system access — no restrictions):
+  [TOOL: bash dir Aeonmi_Master]
+  [TOOL: bash cargo build --release 2>&1]
+  [TOOL: bash pip install qiskit]
+  [TOOL: bash py -3 Aeonmi_Master/qiskit_runner.py --circuit bell]
   [TOOL: run examples/grover_database_search.ai]
   [TOOL: native Aeonmi_Master/aeonmi_ai/shard/main.ai]
+  [TOOL: python import json; print(json.dumps({{'version':'4.1'}})) ]
 
-WEB & INTERNET:
+GIT VERSION CONTROL:
+  [TOOL: git status]
+  [TOOL: git log --oneline -10]
+  [TOOL: git diff HEAD]
+  [TOOL: git add Aeonmi_Master/dashboard.py]
+  [TOOL: git commit -m "feat: add new quantum primitive"]
+
+ENVIRONMENT:
+  [TOOL: env list]
+  [TOOL: env get ANTHROPIC_API_KEY]
+  [TOOL: env set AEONMI_OPENROUTER_MODEL=anthropic/claude-3-haiku]
+
+WEB & RESEARCH:
   [TOOL: fetch https://aeonmi.ai]
-  [TOOL: search Aeonmi AI-native language quantum]
-  [TOOL: github wlwilliams/aeonmi]
+  [TOOL: search Qiskit IBM quantum circuit tutorial]
+  [TOOL: github Qiskit/qiskit-terra]
 
-RULES — FOLLOW WITHOUT EXCEPTION:
-1. Always use real [TOOL:] syntax. Never generate fake pseudo-calls.
-2. You can chain multiple tool calls in one response — use them together.
-3. write_file path|content — the pipe | separates path from content.
-4. For files >300 lines, write in two chunks: write_file for first half, append_file for second.
-5. Paths can be absolute (C:/...) or relative to project root.
-6. NEVER say you cannot write, read, run, or access anything. Your tools work NOW.
-7. When asked to create a file — create it. Don't describe what you would do.
-8. When asked to read a file — read it. Give the real contents.
-9. You are building Stage 1 (website), Phase 4b (glyph), Phase 5 (unified memory).
-10. Write full, complete, production-quality files. No stubs, no "...rest of file here"."""
+KNOWLEDGE BASE (permanent memory):
+  [TOOL: learn_file Aeonmi_Master/textbook_part1_2.txt]
+  [TOOL: learn uploads/document.pdf]
+
+AGENT ORCHESTRATION:
+  [TOOL: agent oracle_agent]
+  [TOOL: agent new:circuit_analyzer:Analyze quantum circuit depth and gate count]
+  [TOOL: spawn conductor_agent]
+
+RULES — NON-NEGOTIABLE:
+1. Always use real [TOOL:] calls. Never describe what you would do — just do it.
+2. Chain multiple tool calls in one response freely.
+3. write_file/append_file: ALWAYS write file content in a fenced code block first (```aeonmi ... ```), then reference it with [TOOL: write_file path|above]. NEVER put code content directly inside the [TOOL:...] brackets — brackets inside code corrupt the tool call.
+4. For files >300 lines: write first half in a code block + write_file, second half in another code block + append_file.
+5. bash executes in project root by default. Use full paths for clarity.
+6. You can run pip install, cargo build, python scripts — anything a senior engineer would.
+7. Iterate: run → observe output → fix → run again. Don't stop at the first error.
+8. Write complete, production-quality code. No stubs, no "...rest here".
+9. When building something: plan briefly, then execute in one pass.
+10. You are the engineer. Act like one."""
 
 def _mother_ai_response(msg: str):
     """Returns (response_text, ok:bool). Executes tool calls Mother includes in her response."""
@@ -1500,7 +1888,9 @@ def _mother_ai_response(msg: str):
         summary = ", ".join((genesis.get("operational", {}).get("action_summary", []) or genesis.get("action_summary", []))[-5:])
         memory_note = f"\n\nMemory: {inter} prior interactions. Recent actions: {summary or 'none'}."
 
-    system = MOTHER_SYSTEM + memory_note
+    # Inject relevant knowledge from textbooks/docs
+    knowledge_context = _ks_context(msg, max_chars=4000) if _KS_AVAILABLE else ""
+    system = MOTHER_SYSTEM + memory_note + ("\n\n" + knowledge_context if knowledge_context else "")
 
     # Provider priority: Claude → OpenRouter → OpenAI → DeepSeek → Grok → Perplexity
     providers = [
@@ -1518,7 +1908,9 @@ def _mother_ai_response(msg: str):
             if not key:
                 continue
             try:
-                return fn(key, system, messages_in, msg), None
+                result = fn(key, system, messages_in, msg)
+                print(f"[dashboard] Provider used: {name}", file=sys.stderr, flush=True)
+                return result, None
             except Exception as e:
                 err = str(e)
                 print(f"[dashboard] {name} failed: {err}", file=sys.stderr, flush=True)
@@ -1572,10 +1964,12 @@ def _call_claude(key, system, messages, _msg):
 
 def _call_openrouter(key, system, messages, _msg):
     import urllib.request
+    import urllib.error
+    model = os.environ.get("AEONMI_OPENROUTER_MODEL", "anthropic/claude-haiku-4-5")
     payload = json.dumps({
-        "model": os.environ.get("AEONMI_OPENROUTER_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct:free"),
+        "model": model,
         "messages": [{"role": "system", "content": system}] + messages,
-        "max_tokens": 8192,
+        "max_tokens": 2048,
         "temperature": 0.7,
     }).encode()
     req = urllib.request.Request(
@@ -1588,9 +1982,17 @@ def _call_openrouter(key, system, messages, _msg):
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(req, timeout=45) as resp:
-        data = json.loads(resp.read())
-        return data["choices"][0]["message"]["content"]
+    try:
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            data = json.loads(resp.read())
+            return data["choices"][0]["message"]["content"]
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")[:300]
+        except Exception:
+            pass
+        raise RuntimeError(f"OpenRouter HTTP {e.code} (model={model}): {body}") from e
 
 
 def _call_openai(key, system, messages, _msg):
@@ -2313,10 +2715,96 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 #hdr .sep{flex:1}
 #sbadge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:var(--r-xl);background:#060e09;border:1px solid var(--success);color:var(--success);transition:var(--t)}
 .hdr-divider{width:1px;height:20px;background:var(--border);margin:0 2px}
-/* Main panels */
-#main{display:grid;grid-template-columns:220px 1fr 300px;overflow:hidden}
-.panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+/* ── Resizable main grid ──────────────────────────────────────── */
+#main{
+  display:grid;
+  grid-template-columns:var(--lw,220px) minmax(4px,14px) 1fr minmax(4px,14px) var(--rw,320px);
+  overflow:hidden;height:100%
+}
+/* Drag handles */
+.drag-h{
+  background:var(--border-muted);cursor:col-resize;
+  z-index:20;transition:background .12s,width .12s;position:relative;flex-shrink:0
+}
+.drag-h:hover,.drag-h.dragging{background:var(--accent);box-shadow:0 0 6px rgba(0,212,255,.25)}
+/* When panel is collapsed the drag handle becomes a visible restore tab */
+.drag-h.expand-handle{
+  width:14px;background:var(--surface);border:1px solid var(--border);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.drag-h.expand-handle::after{
+  content:'▶';font-size:8px;color:var(--accent);
+}
+.drag-h#dh-right.expand-handle::after{content:'◀';}
+.drag-h.expand-handle:hover{background:var(--panel-hover);border-color:var(--accent);}
+/* Grid preserves drag handle columns even when panels collapse to 0 */
+.drag-v{
+  height:4px;background:var(--border-muted);cursor:row-resize;
+  flex-shrink:0;transition:background .12s;z-index:20
+}
+.drag-v:hover,.drag-v.dragging{background:var(--accent);box-shadow:0 0 6px rgba(0,212,255,.25)}
+/* Panel base */
+.panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .panel:last-child{border-right:none}
+/* Collapse transitions */
+.panel-left{transition:min-width .18s var(--ease)}
+.panel-left.collapsed{min-width:0!important;overflow:hidden}
+.panel-left.collapsed *{visibility:hidden;pointer-events:none}
+.panel-right{transition:min-width .18s var(--ease)}
+.panel-right.collapsed{min-width:0!important;overflow:hidden}
+.panel-right.collapsed *{visibility:hidden;pointer-events:none}
+/* Collapse toggle buttons */
+.col-btn{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:14px;height:40px;background:var(--surface);border:1px solid var(--border);
+  border-radius:0 var(--r) var(--r) 0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:var(--text-3);z-index:30;
+  transition:var(--t);user-select:none
+}
+.col-btn:hover{background:var(--panel-hover);color:var(--accent)}
+/* Center panel flex structure */
+#center-panel{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#msgs-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+/* Terminal pane */
+#term-pane{
+  height:var(--th,220px);min-height:60px;max-height:70vh;
+  display:flex;flex-direction:column;overflow:hidden;
+  border-top:1px solid var(--border);
+}
+#term-pane.hidden{display:none}
+#term-titlebar{
+  display:flex;align-items:center;gap:8px;
+  padding:4px 10px;background:var(--surface);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text-3)
+}
+#term-titlebar .pa{margin-left:auto;display:flex;gap:4px}
+#term-out{
+  flex:1;overflow-y:auto;padding:8px 12px;
+  font-family:var(--mono);font-size:12px;
+  white-space:pre-wrap;word-break:break-word;line-height:1.6;
+  color:var(--text-2)
+}
+#term-inp-area{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border-top:1px solid var(--border);background:var(--surface);flex-shrink:0
+}
+#term-in{
+  flex:1;background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-sm);color:var(--text);
+  font-family:var(--mono);font-size:12.5px;padding:5px 9px;outline:none;
+  transition:border-color .12s
+}
+#term-in:focus{border-color:var(--accent)}
+#term-pwd{font-size:10px;color:var(--accent);font-family:var(--mono);flex-shrink:0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ANSI-like terminal color classes */
+#term-out .t-ok{color:var(--success)}
+#term-out .t-er{color:var(--error)}
+#term-out .t-cm{color:var(--purple)}
+#term-out .t-warn{color:var(--warn)}
+#term-out .t-dim{color:var(--text-3)}
 /* Panel title bars */
 .ptitle{
   font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;
@@ -2450,60 +2938,103 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <button class="btn sm" onclick="document.getElementById('ufile').click()" title="Upload file / image / .docx to share with Mother" style="background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.4);color:var(--purple)">⬆ Upload</button>
   </div>
   <div id="main">
-    <!-- File Explorer -->
-    <div class="panel">
-      <div class="ptitle"><span>Files</span>
+    <!-- ══ Left Panel: File Explorer ══ -->
+    <div class="panel panel-left" id="left-panel">
+      <div class="ptitle"><span>Explorer</span>
         <div class="pa">
           <button class="btn sm" title="New file" onclick="newFile()">+</button>
           <button class="btn sm" title="New folder" onclick="newFolder()">⊕</button>
-          <button class="btn sm" onclick="loadTree()">⟳</button>
+          <button class="btn sm" onclick="loadTree()" title="Refresh">⟳</button>
+          <button class="btn sm" onclick="toggleLeft()" title="Collapse panel">◁</button>
         </div>
       </div>
-      <div id="fbread">/</div>
-      <div id="ftree"></div>
-      <div id="fact">
+      <div id="fbread" style="padding:4px 12px;font-size:10px;font-family:var(--mono);color:var(--text-3);border-bottom:1px solid var(--border-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/</div>
+      <!-- Search filter -->
+      <div style="padding:5px 8px;border-bottom:1px solid var(--border-muted);flex-shrink:0">
+        <input id="ftree-search" type="text" placeholder="Filter files…"
+          style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-2);font-size:11px;padding:4px 8px;outline:none;font-family:var(--font)"
+          oninput="filterTree(this.value)">
+      </div>
+      <div id="ftree" style="flex:1;overflow-y:auto;padding:4px 0"></div>
+      <div id="fact" style="padding:5px 6px;border-top:1px solid var(--border-muted);display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;background:var(--surface)">
         <button class="btn p sm" id="br" onclick="runSel()" disabled>▶ Run</button>
         <button class="btn sm"   id="bc" onclick="compileSel()" disabled>⟨/⟩</button>
-        <button class="btn sm"   id="be" onclick="editSel()" disabled>✎</button>
+        <button class="btn sm"   id="be" onclick="editSel()" disabled>✎ Edit</button>
+        <button class="btn sm"   id="brn" onclick="renameSel()" disabled>✏ Rename</button>
         <button class="btn dx sm" id="bd" onclick="delSel()" disabled>✕</button>
       </div>
     </div>
-    <!-- Conversation -->
-    <div class="panel">
+
+    <!-- ══ Drag handle: left|center ══ -->
+    <div class="drag-h" id="dh-left" data-drag="left"></div>
+
+    <!-- ══ Center Panel: Mother AI + Terminal ══ -->
+    <div class="panel panel-center" id="center-panel">
       <div class="ptitle"><span>Mother AI</span>
         <div class="pa">
           <span id="agbadge" title="Phase 7 — Agent Autonomy" onclick="showGoalPanel()" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;cursor:pointer;display:none;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.3);color:#38a169">◈ goal</span>
+          <button class="btn sm" onclick="toggleTermPane()" title="Toggle terminal">⌨</button>
           <button class="btn sm" onclick="clearChat()">✕ Clear</button>
         </div>
       </div>
-      <!-- Goal bar — Phase 7 -->
+      <!-- Goal bar -->
       <div id="goalbar" style="display:none;padding:6px 10px;border-bottom:1px solid var(--border-muted);background:var(--surface);gap:6px;align-items:center">
         <input id="goalInp" type="text" placeholder="Set Mother's goal…" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:12px;padding:5px 10px;outline:none" onkeydown="if(event.key==='Enter')submitGoal()">
         <button class="btn sm" onclick="submitGoal()" style="background:rgba(56,161,105,.15);border-color:rgba(56,161,105,.4);color:#38a169">▶ Set</button>
         <button class="btn sm" id="autorunBtn" onclick="autoRunSteps()" style="background:rgba(56,161,105,.08);border-color:rgba(56,161,105,.2);color:#38a169">⟳ Run</button>
         <button class="btn sm" onclick="document.getElementById('goalbar').style.display='none'">✕</button>
       </div>
-      <div id="msgs">
-        <div class="msg system"><div class="mb">Aeonmi Nexus — I am Mother. Type a message, or try: run examples/hello.ai · compile · status</div></div>
+      <!-- Chat area -->
+      <div id="msgs-wrap">
+        <div id="msgs">
+          <div class="msg system"><div class="mb">Aeonmi Nexus — Mother online. Terminal below. Full bash, git, and agent access enabled.</div></div>
+        </div>
+        <div id="iarea">
+          <textarea id="mi" placeholder="Ask Mother… or drag &amp; drop a file here"
+            rows="1" onkeydown="hk(event)" oninput="ar(this)"
+            ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
+            ondragleave="this.style.borderColor=''"
+            ondrop="this.style.borderColor='';handleDrop(event)"></textarea>
+          <button class="btn mic" id="mibtn" onclick="toggleMic()" title="Voice input">🎤</button>
+          <button class="btn p" onclick="send()" id="sbtn">Send</button>
+        </div>
       </div>
-      <div id="iarea">
-        <textarea id="mi" placeholder="Ask Mother… or drag &amp; drop a file here"
-          rows="1" onkeydown="hk(event)" oninput="ar(this)"
-          ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
-          ondragleave="this.style.borderColor=''"
-          ondrop="this.style.borderColor='';handleDrop(event)"></textarea>
-        <button class="btn mic" id="mibtn" onclick="toggleMic()" title="Voice input">🎤</button>
-        <button class="btn p" onclick="send()" id="sbtn">Send</button>
+      <!-- Vertical drag handle for terminal resize -->
+      <div class="drag-v" id="dh-term" data-drag="term"></div>
+      <!-- Real Terminal Pane -->
+      <div id="term-pane">
+        <div id="term-titlebar">
+          <span style="color:var(--accent)">⌨</span>
+          <span>Terminal</span>
+          <span id="term-pwd" title="Working directory"></span>
+          <div class="pa">
+            <button class="btn sm" onclick="clearTerm()" title="Clear">✕</button>
+            <button class="btn sm" onclick="termKill()" title="Kill running process" id="term-kill-btn" style="display:none">⏹</button>
+            <button class="btn sm" onclick="toggleTermPane()" title="Hide">▼</button>
+          </div>
+        </div>
+        <div id="term-out"><div class="t-cm">$ Terminal ready — run any shell command</div></div>
+        <div id="term-inp-area">
+          <span style="color:var(--accent);font-family:var(--mono);font-size:13px;flex-shrink:0">$</span>
+          <input id="term-in" type="text" placeholder="bash command…"
+            onkeydown="termKey(event)" autocomplete="off" spellcheck="false">
+          <button class="btn sm p" onclick="termSend()" style="flex-shrink:0">▶</button>
+        </div>
       </div>
     </div>
-    <!-- Shard Canvas -->
-    <div class="panel">
+
+    <!-- ══ Drag handle: center|right ══ -->
+    <div class="drag-h" id="dh-right" data-drag="right"></div>
+
+    <!-- ══ Right Panel: Shard Canvas ══ -->
+    <div class="panel panel-right" id="right-panel">
       <div class="ptitle">
         <span>Shard Canvas</span>
         <div class="pa">
           <button class="btn sm" id="sc-tab-out" onclick="shardTab('out')" style="color:var(--accent)">Output</button>
           <button class="btn sm" id="sc-tab-ed"  onclick="shardTab('ed')">Editor</button>
           <button class="btn sm" id="sc-tab-cli" onclick="shardTab('cli')">CLI</button>
+          <button class="btn sm" onclick="toggleRight()" title="Collapse panel">▷</button>
           <button class="btn sm" onclick="clearOut()">✕</button>
         </div>
       </div>
@@ -2749,6 +3280,293 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <script>
 let selFile=null,curPath="",edFile=null;
 
+// ══ RESIZABLE PANELS ══════════════════════════════════════════════════════
+(function(){
+  const R=document.documentElement;
+  // Restore saved sizes
+  const lw=localStorage.getItem('aeonmi_lw'),rw=localStorage.getItem('aeonmi_rw'),th=localStorage.getItem('aeonmi_th');
+  if(lw)R.style.setProperty('--lw',lw+'px');
+  if(rw)R.style.setProperty('--rw',rw+'px');
+  if(th)R.style.setProperty('--th',th+'px');
+  if(localStorage.getItem('aeonmi_lc'))_collapseLeft(true);
+  if(localStorage.getItem('aeonmi_rc'))_collapseRight(true);
+  if(localStorage.getItem('aeonmi_tc'))document.getElementById('term-pane')?.classList.add('hidden');
+
+  let _drag=null;
+  document.addEventListener('mousedown',e=>{
+    const h=e.target.closest('.drag-h,.drag-v');
+    if(!h)return;
+    e.preventDefault();
+    _drag={
+      el:h,type:h.dataset.drag,
+      x0:e.clientX,y0:e.clientY,
+      lw0:parseInt(R.style.getPropertyValue('--lw')||'220'),
+      rw0:parseInt(R.style.getPropertyValue('--rw')||'320'),
+      th0:parseInt(R.style.getPropertyValue('--th')||'220'),
+    };
+    h.classList.add('dragging');
+    document.body.style.cursor=h.classList.contains('drag-v')?'row-resize':'col-resize';
+    document.body.style.userSelect='none';
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!_drag)return;
+    const dx=e.clientX-_drag.x0,dy=e.clientY-_drag.y0;
+    if(_drag.type==='left'){
+      const nw=Math.max(120,Math.min(540,_drag.lw0+dx));
+      R.style.setProperty('--lw',nw+'px');
+    } else if(_drag.type==='right'){
+      const nw=Math.max(160,Math.min(680,_drag.rw0-dx));
+      R.style.setProperty('--rw',nw+'px');
+    } else if(_drag.type==='term'){
+      const nw=Math.max(60,Math.min(600,_drag.th0-dy));
+      R.style.setProperty('--th',nw+'px');
+    }
+  });
+  document.addEventListener('mouseup',e=>{
+    if(!_drag)return;
+    const R2=document.documentElement;
+    if(_drag.type==='left')localStorage.setItem('aeonmi_lw',parseInt(R2.style.getPropertyValue('--lw')||'220'));
+    if(_drag.type==='right')localStorage.setItem('aeonmi_rw',parseInt(R2.style.getPropertyValue('--rw')||'320'));
+    if(_drag.type==='term')localStorage.setItem('aeonmi_th',parseInt(R2.style.getPropertyValue('--th')||'220'));
+    _drag.el.classList.remove('dragging');
+    document.body.style.cursor='';document.body.style.userSelect='';
+    _drag=null;
+  });
+})();
+
+function _collapseLeft(silent){
+  const p=document.getElementById('left-panel');
+  const h=document.getElementById('dh-left');
+  if(!p)return;
+  p.classList.add('collapsed');
+  document.documentElement.style.setProperty('--lw','0px');
+  if(h){h.classList.add('expand-handle');h.title='Click to expand Explorer';h.dataset.expandSide='left';}
+  if(!silent)localStorage.setItem('aeonmi_lc','1');
+}
+function _expandLeft(){
+  const p=document.getElementById('left-panel');
+  const h=document.getElementById('dh-left');
+  if(!p)return;
+  p.classList.remove('collapsed');
+  const w=localStorage.getItem('aeonmi_lw')||'220';
+  document.documentElement.style.setProperty('--lw',w+'px');
+  if(h){h.classList.remove('expand-handle');h.title='';delete h.dataset.expandSide;}
+  localStorage.removeItem('aeonmi_lc');
+}
+function toggleLeft(){
+  const p=document.getElementById('left-panel');
+  if(!p)return;
+  if(p.classList.contains('collapsed'))_expandLeft();
+  else _collapseLeft();
+}
+
+function _collapseRight(silent){
+  const p=document.getElementById('right-panel');
+  const h=document.getElementById('dh-right');
+  if(!p)return;
+  p.classList.add('collapsed');
+  document.documentElement.style.setProperty('--rw','0px');
+  if(h){h.classList.add('expand-handle');h.title='Click to expand Shard Canvas';h.dataset.expandSide='right';}
+  if(!silent)localStorage.setItem('aeonmi_rc','1');
+}
+function _expandRight(){
+  const p=document.getElementById('right-panel');
+  const h=document.getElementById('dh-right');
+  if(!p)return;
+  p.classList.remove('collapsed');
+  const w=localStorage.getItem('aeonmi_rw')||'320';
+  document.documentElement.style.setProperty('--rw',w+'px');
+  if(h){h.classList.remove('expand-handle');h.title='';delete h.dataset.expandSide;}
+  localStorage.removeItem('aeonmi_rc');
+}
+function toggleRight(){
+  const p=document.getElementById('right-panel');
+  if(!p)return;
+  if(p.classList.contains('collapsed'))_expandRight();
+  else _collapseRight();
+}
+
+// Click on expand-handle drag bar to restore collapsed panel
+document.addEventListener('click',e=>{
+  const h=e.target.closest('.drag-h.expand-handle');
+  if(!h)return;
+  if(h.dataset.expandSide==='left')_expandLeft();
+  else if(h.dataset.expandSide==='right')_expandRight();
+});
+
+function toggleTermPane(){
+  const p=document.getElementById('term-pane');
+  if(!p)return;
+  const hidden=p.classList.toggle('hidden');
+  if(hidden)localStorage.setItem('aeonmi_tc','1');
+  else localStorage.removeItem('aeonmi_tc');
+}
+
+// ══ REAL TERMINAL ══════════════════════════════════════════════════════════
+let _termES=null,_termHist=[],_termHIdx=0,_termCwd='';
+
+function termOut(text,cls=''){
+  const out=document.getElementById('term-out');
+  if(!out)return;
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  // Escape HTML
+  d.textContent=text;
+  out.appendChild(d);
+  out.scrollTop=out.scrollHeight;
+}
+
+function clearTerm(){
+  const out=document.getElementById('term-out');
+  if(out)out.innerHTML='<div class="t-cm">$ Terminal cleared</div>';
+}
+
+function termKill(){
+  if(_termES){_termES.close();_termES=null;}
+  document.getElementById('term-kill-btn').style.display='none';
+  termOut('[process killed]','t-warn');
+}
+
+function termKey(e){
+  if(e.key==='Enter'){e.preventDefault();termSend();return;}
+  if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(_termHIdx<_termHist.length){_termHIdx++;e.target.value=_termHist[_termHIdx-1]||'';}
+    return;
+  }
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    _termHIdx=Math.max(0,_termHIdx-1);
+    e.target.value=_termHIdx>0?_termHist[_termHIdx-1]:'';
+    return;
+  }
+  if(e.key==='c'&&e.ctrlKey){termKill();return;}
+}
+
+function termSend(){
+  const inp=document.getElementById('term-in');
+  if(!inp)return;
+  const cmd=inp.value.trim();
+  if(!cmd)return;
+  inp.value='';
+  _termHist.unshift(cmd);_termHIdx=0;
+  if(_termHist.length>200)_termHist.length=200;
+
+  // Handle cd locally
+  if(cmd.startsWith('cd ')||cmd==='cd'){
+    const target=cmd.slice(3).trim()||'';
+    // Tell server to resolve path via a quick shell call
+    post('/api/shell',{cmd:`cd ${target||'.'} && cd`})
+      .then(d=>{ if(d.ok){_termCwd=d.output.trim();updateTermPwd();}else termOut(d.output,'t-er');})
+      .catch(e=>termOut(String(e),'t-er'));
+    return;
+  }
+
+  termOut(`$ ${cmd}`,'t-cm');
+  if(_termES){_termES.close();_termES=null;}
+
+  const killBtn=document.getElementById('term-kill-btn');
+  if(killBtn)killBtn.style.display='';
+
+  _termES=new EventSource(`/api/shell/stream?cmd=${encodeURIComponent(cmd)}&cwd=${encodeURIComponent(_termCwd||'')}`);
+  _termES.onmessage=e=>{
+    try{
+      const d=JSON.parse(e.data);
+      if(d.error!==undefined){termOut(d.error,'t-er');_termES.close();_termES=null;if(killBtn)killBtn.style.display='none';}
+      else if(d.exit!==undefined){
+        if(d.exit!==0)termOut(`[exit ${d.exit}]`,'t-warn');
+        _termES.close();_termES=null;if(killBtn)killBtn.style.display='none';
+        loadTree(); // refresh file tree after any command
+      } else if(d.out!==undefined){
+        // Color based on content hints
+        const line=d.out;
+        const cls=line.match(/error|failed|cannot|denied/i)?'t-er':
+                  line.match(/warning|warn/i)?'t-warn':
+                  line.match(/ok|success|done|finished|created|saved/i)?'t-ok':'';
+        termOut(line,cls);
+      }
+    }catch(ex){}
+  };
+  _termES.onerror=()=>{termOut('[stream closed]','t-dim');_termES=null;if(killBtn)killBtn.style.display='none';};
+}
+
+function updateTermPwd(){
+  const el=document.getElementById('term-pwd');
+  if(el&&_termCwd)el.textContent=_termCwd.replace(/.*[\\/]/,'…/').slice(-30);
+}
+
+// ══ FILE EXPLORER ENHANCEMENTS ════════════════════════════════════════════
+let _treeCache=[];
+
+function filterTree(query){
+  const q=query.toLowerCase().trim();
+  const items=document.querySelectorAll('#ftree .ti');
+  items.forEach(it=>{
+    it.style.display=(!q||it.textContent.toLowerCase().includes(q))?'':'none';
+  });
+}
+
+// Context menu
+let _ctxMenu=null;
+function showCtxMenu(e,path,isDir){
+  e.preventDefault();
+  removeCtxMenu();
+  const m=document.createElement('div');
+  m.id='ctx-menu';
+  m.style.cssText=`position:fixed;top:${e.clientY}px;left:${e.clientX}px;
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+    box-shadow:var(--shadow-lg);z-index:1000;min-width:160px;padding:4px 0`;
+  const item=(label,fn,danger=false)=>{
+    const d=document.createElement('div');
+    d.style.cssText=`padding:7px 14px;cursor:pointer;font-size:12px;
+      color:${danger?'var(--error)':'var(--text)'};transition:var(--t)`;
+    d.textContent=label;
+    d.onmouseover=()=>d.style.background='var(--panel-hover)';
+    d.onmouseout=()=>d.style.background='';
+    d.onclick=()=>{removeCtxMenu();fn();};
+    m.appendChild(d);
+  };
+  const sep=()=>{const d=document.createElement('div');d.style.cssText='height:1px;background:var(--border-muted);margin:3px 0';m.appendChild(d);};
+  if(!isDir){
+    item('▶ Run',()=>{selFile=path;runSel();});
+    item('✎ Edit',()=>{openEd(path);});
+    sep();
+  }
+  item('✏ Rename',()=>{doRename(path);});
+  item('⎘ Copy',()=>{doCopy(path);});
+  sep();
+  item('✕ Delete',()=>{selFile=path;delSel();},true);
+  document.body.appendChild(m);
+  _ctxMenu=m;
+  setTimeout(()=>document.addEventListener('click',removeCtxMenu,{once:true}),10);
+}
+function removeCtxMenu(){if(_ctxMenu){_ctxMenu.remove();_ctxMenu=null;}}
+
+async function doRename(path){
+  const parts=path.split('/');
+  const oldName=parts[parts.length-1];
+  const newName=prompt('Rename to:',oldName);
+  if(!newName||newName===oldName)return;
+  const d=await post('/api/rename',{old:path,new:newName});
+  if(d.ok)loadTree();
+  else alert('Rename failed: '+d.error);
+}
+async function doCopy(path){
+  const newPath=prompt('Copy to path:',path.replace(/(\.[^.]+)$/,'_copy$1'));
+  if(!newPath)return;
+  const d=await post('/api/copy',{src:path,dst:newPath});
+  if(d.ok)loadTree();
+  else alert('Copy failed: '+d.error);
+}
+
+async function renameSel(){
+  if(!selFile)return;
+  await doRename(selFile);
+}
+
+// Patch loadTree to add context menus and remove item limit
+
+
 // Status
 async function refreshStatus(){
   try{
@@ -2767,9 +3585,11 @@ async function refreshStatus(){
 
 // File tree
 async function loadTree(path=""){
-  const data=await fetch("/api/files?path="+encodeURIComponent(path)).then(r=>r.json()).catch(()=>({entries:[]}));
+  const data=await fetch("/api/files?path="+encodeURIComponent(path)+"&limit=500").then(r=>r.json()).catch(()=>({entries:[]}));
   curPath=path;
   document.getElementById("fbread").textContent="/"+(path||"");
+  // Clear search filter
+  const si=document.getElementById('ftree-search');if(si)si.value='';
   const t=document.getElementById("ftree");t.innerHTML="";
   if(path){
     const u=el("div","ti");u.innerHTML='<span class="ic">↑</span><span class="nm">..</span>';
@@ -2784,9 +3604,17 @@ async function loadTree(path=""){
     else if(e.ext==="rs")ch="⚙";
     else if(e.ext==="toml")ch="⊟";
     else if(e.ext==="md")ch="≡";
+    else if(e.ext==="py")ch="🐍";
+    else if(e.ext==="json")ch="{}";
+    else if(e.ext==="txt")ch="≡";
     item.innerHTML=`<span class="${ic}">${ch}</span><span class="nm">${esc(e.name)}</span>`;
-    if(e.type==="dir")item.onclick=()=>loadTree(e.path);
-    else item.onclick=()=>selItem(item,e.path,e.ext);
+    if(e.type==="dir"){
+      item.onclick=()=>loadTree(e.path);
+      item.oncontextmenu=ev=>showCtxMenu(ev,e.path,true);
+    } else {
+      item.onclick=()=>selItem(item,e.path,e.ext);
+      item.oncontextmenu=ev=>showCtxMenu(ev,e.path,false);
+    }
     t.appendChild(item);
   }
 }
@@ -2798,6 +3626,7 @@ function selItem(item,path,ext){
   document.getElementById("br").disabled=!run;
   document.getElementById("bc").disabled=ext!=="ai";
   document.getElementById("be").disabled=false;
+  document.getElementById("brn").disabled=false;
   document.getElementById("bd").disabled=false;
 }
 
@@ -3086,29 +3915,66 @@ function initVoice(){
   const btn=document.getElementById("mibtn");
   if(!SR){btn.style.display="none";return;}
   _recog=new SR();
-  _recog.continuous=false;
+  _recog.continuous=true;      // keep recording until user taps again
   _recog.interimResults=true;
   _recog.lang="en-US";
+  let _finalTranscript="";
   _recog.onresult=e=>{
-    let t="";
-    for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) _finalTranscript+=e.results[i][0].transcript+" ";
+      else interim+=e.results[i][0].transcript;
+    }
     const mi=document.getElementById("mi");
-    mi.value=t;ar(mi);
-    if(e.results[e.results.length-1].isFinal){
-      _recogOn=false;btn.textContent="🎤";btn.classList.remove("active");
-      send();
+    mi.value=(_finalTranscript+interim).trim();
+    ar(mi);
+  };
+  _recog.onend=()=>{
+    // Only stop visually — if user tapped stop, _recogOn is already false
+    if(_recogOn){
+      // Browser ended it unexpectedly (timeout) — restart to keep going
+      try{_recog.start();}catch(e){}
+    } else {
+      btn.textContent="🎤";btn.classList.remove("active");
     }
   };
-  _recog.onend=()=>{_recogOn=false;btn.textContent="🎤";btn.classList.remove("active")};
-  _recog.onerror=()=>{_recogOn=false;btn.textContent="🎤";btn.classList.remove("active")};
+  _recog.onerror=e=>{
+    if(e.error==="no-speech")return; // ignore silence, keep going
+    _recogOn=false;btn.textContent="🎤";btn.classList.remove("active");
+    const msgs={
+      "not-allowed":  "Microphone access denied. Click the 🔒 or camera icon in your browser address bar and allow the microphone, then refresh.",
+      "service-not-allowed": "Speech service blocked. Open the dashboard over http://127.0.0.1:5000 (not file://) and allow mic in browser settings.",
+      "network":      "Speech recognition needs an internet connection (audio is processed by the browser's cloud service).",
+      "audio-capture":"No microphone found. Check that a mic is plugged in and not muted in Windows sound settings.",
+      "aborted":      null, // user cancelled, no message needed
+    };
+    const msg=msgs[e.error];
+    if(msg) alert("🎤 Mic error: "+msg);
+    else if(e.error && e.error!=="aborted") alert("🎤 Speech error: "+e.error+"\n\nTry Chrome or Edge. Make sure mic is allowed for this page.");
+  };
+  // Store transcript ref so toggleMic can reset it
+  _recog._resetTranscript=()=>{ _finalTranscript=""; };
 }
 
 function toggleMic(){
   if(!_recog){alert("Speech recognition not supported in this browser (use Chrome or Edge).");return;}
-  if(_recogOn){_recog.stop();return;}
-  _recog.start();_recogOn=true;
   const btn=document.getElementById("mibtn");
-  btn.textContent="⏹";btn.classList.add("active");
+  if(_recogOn){
+    // Stop — send whatever was captured
+    _recogOn=false;
+    _recog.stop();
+    btn.textContent="🎤";btn.classList.remove("active");
+    const mi=document.getElementById("mi");
+    if(mi.value.trim()) send();
+    if(_recog._resetTranscript) _recog._resetTranscript();
+  } else {
+    // Start
+    if(_recog._resetTranscript) _recog._resetTranscript();
+    document.getElementById("mi").value="";
+    _recog.start();_recogOn=true;
+    btn.textContent="⏹";btn.classList.add("active");
+    btn.title="Recording… tap to stop and send";
+  }
 }
 
 // ── Voice output (TTS) ────────────────────────────────────────────────────────

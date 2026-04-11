@@ -1,0 +1,8 @@
+=== Glyph State Sub-Schema ===
+
+TABLE_HEADER: Field | Type | Description | Example Value
+TABLE_ROW: glyph_state.genesis_window | integer | UGST window number at first initialization (UGST #0) | 12345
+TABLE_ROW: glyph_state.genesis_ugst_hex | string | Hex-encoded UGST at genesis (permanent identity anchor) | "a1b2c3d4..."
+TABLE_ROW: glyph_state.boot_window | integer | UGST window number at most recent boot | 12389
+TABLE_ROW: glyph_state.boot_ugst_hex | string | Hex-encoded UGST from most recent boot | "f4e3d2c1..."
+TABLE_ROW: glyph_state.glyph_status | string | Human-readable glyph status line | "Glyph: active | bond: 0.42"

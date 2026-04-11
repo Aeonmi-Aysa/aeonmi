@@ -1,0 +1,44 @@
+⍝ Hello Quantum — Your First Quantum Circuit
+⍝ Creates a Bell state (maximum entanglement)
+⍝ Run: aeonmi.exe run hello_quantum.ai
+
+function main() {
+    print("=== HELLO QUANTUM ===");
+    print("Creating Bell state: (|00⟩ + |11⟩)/√2");
+    print("");
+    
+    ⍝ Initial state: |00⟩ (both qubits in |0⟩)
+    print("Step 1: Initialize |00⟩");
+    let a00 = 1.0;
+    let a01 = 0.0;
+    let a10 = 0.0;
+    let a11 = 0.0;
+    
+    ⍝ Apply Hadamard gate to qubit 0
+    print("Step 2: Apply Hadamard to qubit 0");
+    print("  Creates superposition: (|00⟩ + |10⟩)/√2");
+    let sqrt2 = 1.41421356;
+    a00 = 1.0 / sqrt2;
+    a10 = 1.0 / sqrt2;
+    
+    ⍝ Apply CNOT gate (control=0, target=1)
+    print("Step 3: Apply CNOT (entangle qubits)");
+    print("  Result: (|00⟩ + |11⟩)/√2");
+    a11 = a10;
+    a10 = 0.0;
+    
+    print("");
+    print("Final quantum state:");
+    print("  |00⟩: 0.707 (50% probability)");
+    print("  |01⟩: 0.000 (0% probability)");
+    print("  |10⟩: 0.000 (0% probability)");
+    print("  |11⟩: 0.707 (50% probability)");
+    print("");
+    print("✓ This is quantum entanglement!");
+    print("  Measuring one qubit instantly determines the other.");
+    print("  Only |00⟩ and |11⟩ appear — never |01⟩ or |10⟩.");
+    
+    return 0;
+}
+
+return main();

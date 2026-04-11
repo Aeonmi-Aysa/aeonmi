@@ -1,0 +1,29 @@
+=== N–Q ===
+
+BODY: **Native VM** — The Rust-implemented Aeonmi virtual machine. Executes `.ai` programs without JavaScript or Node.js. Activated with `aeonmi run`, `aeonmi native`, or `aeonmi exec` (for `.ai` files). The canonical execution path for all production use.
+
+BODY: **Neural Network** [M] — Phase 6 capability. A 4→8→4→2 Tanh feedforward network with Xavier initialization. Inputs: semantic_depth, bond_strength, consciousness_depth, keyword_density. Outputs: confidence_mod, action_drive. Weights are persisted to genesis.json and updated via the `train` command using backpropagation.
+
+BODY: **NFT** — Non-Fungible Token. The `aeonmi mint` command generates Solana-compatible NFT metadata from compiled `.ai` artifacts. Each minted artifact represents a unique Aeonmi program with embedded personality and glyph attributes.
+
+BODY: **OKLCH** — A perceptually uniform color space used for glyph visual parameters. The L (lightness), C (chroma), and H (hue) values of each glyph are derived from the MGK, producing a unique, reproducible color identity for each Shard.
+
+BODY: **Oracle** [M] — The hive agent responsible for probability assessment. Evaluates bond strength, consciousness depth, quantum fidelity, and knowledge graph density to produce a probability score for the current goal or context. High oracle = high confidence in proceeding.
+
+BODY: **Phase** — A development milestone in the Aeonmi roadmap. Phases 3 through 12 correspond to specific capability areas built into the system. See Appendix H for current completion status of all phases.
+
+BODY: **Plan Agent** [M] — The autonomous execution agent responsible for goal decomposition. Activated when `goal TEXT` is issued. Uses the AI provider (or heuristic fallback) to break a high-level goal into concrete executable steps.
+
+BODY: **Propose** [M] — The `propose` REPL command (alias: `suggest`). Scans the action log, snapshots, and knowledge graph to generate 1–3 program suggestions. The output of propose is the input to `build`.
+
+BODY: **Python Passthrough** — The `aeonmi python ARGS...` subcommand passes arguments directly to the system Python interpreter. Used for running dashboard.py, genesis_sync.py, qiskit_runner.py, and other Python tools without leaving the Aeonmi ecosystem.
+
+BODY: **Q.U.B.E.** — Quantum Unified Binary Expression. The file format (`.qube`) and symbolic reasoning system for quantum circuits in Aeonmi. QUBE files declare circuits declaratively (no procedural code) and are executed via `aeonmi qube run`. QUBE is also the symbolic reasoning layer Mother uses for quantum-modulated decision-making.
+
+BODY: **Qubit** [Q] — The fundamental unit of quantum information. Unlike a classical bit (0 or 1), a qubit can exist in a superposition of both states simultaneously. Measurement collapses the superposition to one definite value.
+
+BODY: **Quantum Attention** [M] — A cognitive module in `src/mother/quantum_attention.rs`. Applies quantum-inspired attention weighting to Mother's input processing, modulating which aspects of the input receive the most cognitive resources.
+
+BODY: **Quantum Core** [M] — The foundational quantum reasoning module in `src/mother/quantum_core.rs`. Provides quantum state simulation, gate application, and fidelity measurement within the cognitive loop.
+
+BODY: **quantum function** — An Aeonmi language keyword for declaring a function that operates on quantum types. Quantum functions can take ket arguments, apply gates, and return measured or unmeasured qubit states.

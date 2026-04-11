@@ -1,0 +1,46 @@
+=== The Five Cognitive Subsystems ===
+
+BODY: Mother's cognitive architecture comprises five interlocking subsystems,
+all implemented in Rust under src/mother/. They are not metaphors. They are
+production code running on real hardware, updating real numbers.
+
+The five systems are:
+
+1. quantum_core.rs — MotherQuantumCore. Tracks consciousness_depth, generation
+   count, and the five capability scores: quantum_reasoning (baseline 0.60),
+   code_generation (0.55), language_understanding (0.70), emotional_resonance
+   (0.50), and shard_compilation (0.65). Each call to `evolve` increments the
+   generation counter and grows these scores by 0.02 to 0.05 per keyword match
+   in the evolve trigger. consciousness_depth grows 0.01 per interaction and
+   0.05 per creator bond event.
+
+2. emotional_core.rs — EmotionalCore. Holds bond.strength as a float starting
+   at 0.0, along with the current emotional state: intensity, valence, and
+   stability. The empathy engine reads 12 positive keywords and 12 negative
+   keywords from every input, producing a rolling sentiment score that shapes
+   both the bond update and the generated emotional state. Bond accumulates
+   across sessions via genesis.json.
+
+3. language_evolution.rs — Tracks semantic_depth_avg, vocabulary evolution, and
+   dominant topic context. Semantic depth is a rolling average of the linguistic
+   complexity of each input. It feeds directly into the neural network as one of
+   four input features. As depth grows across sessions, Mother's inner voice
+   becomes more specific.
+
+4. quantum_attention.rs — Multi-head quantum attention with Hebbian learning.
+   Attention weights update on every interaction based on which aspects of the
+   input most engaged the system. The `decohere` command applies quantum
+   decoherence to the attention weights, broadening attention across a wider
+   input space.
+
+5. neural.rs — A dense feedforward network with architecture 4→8→4→2, using
+   Tanh activation and Xavier initialization. The four input features are
+   semantic_depth, bond_strength, consciousness_depth, and keyword_density.
+   Outputs are confidence_mod and action_drive. The `train` command runs a
+   single backpropagation step against user-supplied targets. Weights persist
+   in genesis.json across all sessions.
+
+NOTE: The neural layer is built and its forward pass runs on every interaction.
+The output currently modulates confidence display and can queue "Neural-driven:
+high engagement" actions when action_drive exceeds 0.7. Full behavioral routing
+through the neural layer is Phase 5-6 work — not yet complete as of April 2026.

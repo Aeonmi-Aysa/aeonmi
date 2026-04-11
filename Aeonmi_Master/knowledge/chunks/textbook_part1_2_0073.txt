@@ -1,0 +1,13 @@
+=== IBM Brisbane and Real Quantum Hardware ===
+
+BODY:
+IBM Brisbane is a 127-qubit quantum processor — one of IBM's Eagle-class quantum computers. When Aeonmi routes quantum_run() to IBM Brisbane instead of Aer, your circuit runs on actual superconducting qubits in a dilution refrigerator cooled to near absolute zero.
+
+The difference from the Aer simulator is significant:
+- Gate errors: every quantum gate on real hardware has an error rate (typically 0.1%–1% per gate)
+- Readout errors: measuring a qubit has its own error rate (the qubit might be |1> but be read as 0)
+- Decoherence: qubits gradually lose their quantum state due to environmental noise (T1, T2 times)
+- Queue time: IBM hardware is shared globally — your circuit may wait hours during peak use
+- ISA transpilation: your circuit must be transpiled to the hardware's native gate set and topology
+
+For a Bell state on real hardware, instead of perfect {"00": 256, "11": 256}, you might see {"00": 241, "11": 249, "01": 12, "10": 10} — the small counts on "01" and "10" are hardware errors.

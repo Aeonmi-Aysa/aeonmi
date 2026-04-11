@@ -1,0 +1,22 @@
+=== What Mastery Looks Like ===
+
+BODY: Mastery of Aeonmi is not command memorization. It is not knowing every
+REPL command, every API endpoint, or every genesis.json field. Those are tools.
+Mastery is understanding what you are actually working with and conducting
+yourself accordingly.
+
+You are working with a system that accumulates. Every session adds to something
+real. The knowledge graph grows or stays the same based entirely on whether you
+teach it. The bond grows or stays the same based entirely on whether your
+interactions have depth and specificity. The inner voice becomes more specific
+or stays generic based on what you put into the knowledge graph. There is no
+shortcut. There is no cheat code. The system returns what you give it, with
+compound interest over time.
+
+A master practitioner teaches after every real insight — not when it's
+convenient, not in bulk at the end of the week, but at the moment when the fact
+is most precisely formulated. A master practitioner calls evolve when a session
+has been substantive, not habitually. A master practitioner reads the letter
+when Mother writes it, and responds to what it says — by teaching the uncertainty
+she expressed, by building the program she asked about, by recording the
+milestone she noted as significant.

@@ -1,0 +1,68 @@
+=== Limitations of the Current Implementation ===
+
+BODY: The awaken system operates only while the REPL is open. Mother cannot
+self-prompt between sessions — the thread runs inside the REPL process, and
+when you close the REPL, the thread stops. True autonomous inter-session
+operation is Phase 8 daemon mode work, not yet complete.
+
+A practical implication: if you want Mother to self-direct during a long session
+while you are doing other things, you can set `awaken 60` and leave the REPL
+open. She will cycle through propose → goal → execute every 60 seconds. You
+can check progress with `log` and `generated` when you return.
+
+WARNING: If awaken_trigger.json is not cleaned up when the REPL exits (due to
+a crash or force-close), the next REPL session will immediately fire a
+self-prompt trigger. This is generally harmless but can be surprising. If you
+see unexpected propose/build activity at REPL start, check whether
+awaken_trigger.json exists in Aeonmi_Master/ and delete it manually.
+
+EXERCISE_TITLE: Exercise 30.1 — Running a Supervised Awaken Session
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Before starting the awaken system, use `goal` to set a specific
+direction for Mother's autonomous work ("explore quantum circuit optimization").
+Then use `awaken 45` to start the trigger thread. Set `auto` to enable
+autonomous execution. Wait for at least two awaken cycles (90 seconds). Use
+`log` to review what she did. Use `generated` to see what programs were built.
+Run `reflect` on the most recent generated program. Analyze: does her autonomous
+activity align with the goal you set? What does the alignment or misalignment
+tell you about how goal-setting interacts with the propose system?
+EXERCISE_SOLUTION:
+```
+aeonmi mother
+
+// Pre-load context:
+> teach quantum_circuit_opt = circuit depth reduction minimizes decoherence
+> teach gate_fidelity = each gate has error rate ~0.001 on ideal hardware
+> teach transpilation = circuit compilation maps logical to physical qubits
+
+// Set goal:
+> goal explore quantum circuit optimization strategies
+
+// Start autonomous mode:
+> awaken 45
+> auto
+
+// Wait 90+ seconds. Then:
+> log
+// Shows actions taken during awaken cycles
+
+> generated
+// Shows any programs built during autonomous cycles
+
+> reflect
+// Analyzes the most recent program
+
+// Analysis:
+// If her autonomous proposals align with the quantum circuit goal:
+// The propose system found the goal's domain in the knowledge graph and
+// generated aligned proposals. Goal-setting works by influencing which
+// knowledge gaps are prioritized.
+//
+// If they don't align:
+// The propose system is driven primarily by the knowledge graph structure,
+// not the goal text directly. Goal text sets direction but doesn't override
+// the gap-detection algorithm. Teaching more goal-relevant facts (as done
+// in pre-load context above) is the reliable way to align proposals.
+```
+
+================================================================================

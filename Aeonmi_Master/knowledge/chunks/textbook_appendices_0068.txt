@@ -1,0 +1,25 @@
+=== D–G ===
+
+BODY: **Dashboard** — The Flask-based web UI (`dashboard.py`) that provides a browser-accessible view of Mother's state, hive status, quantum results, and operational metrics. Runs as a separate Python process. Writes to the `operational` section of genesis.json. Does not yet expose session logs or milestones (Phase 12 gap).
+
+BODY: **Devil** [M] — The adversarial hive agent. Surfaces risks, anomalies, and reasons not to proceed. A high devil score is a veto signal. When conductor says ABORT, it is usually because devil's score dominates. The devil agent ensures the hive is not blindly optimistic.
+
+BODY: **EMA (Exponential Moving Average)** — Signal smoothing applied to hive agent scores with an alpha parameter of 0.3. Prevents single-cycle spikes from triggering false ABORT or ACCELERATE recommendations. Configurable via `aeonmi metrics-config --set-ema`.
+
+BODY: **EmbryoLoop** [M] — The core cognitive loop of Mother AI, implemented in `src/mother/embryo_loop.rs`. It processes every user input, routes to the AI provider, updates cognitive state, runs hive scoring, fires inner voice, saves to genesis.json, and logs the session. The embryo_loop is the central nervous system of Mother.
+
+BODY: **Emit** — The `aeonmi emit` command. Compiles an `.ai` or `.qube` file and writes the output to disk. The default format is canonical `.ai` source. Also available as a flag on `run` (`--emit-ai FILE`) to dump the canonical form before execution.
+
+BODY: **Entanglement** [Q] — A quantum mechanical correlation between two or more qubits such that measuring one instantly determines the state of the other, regardless of distance. In Aeonmi syntax, entanglement is created with the CNOT gate and annotated with the `⧉` glyph operator.
+
+BODY: **exec** — The `aeonmi exec` subcommand. Auto-detects file extension and routes to the correct runtime: `.ai` → native VM, `.qube` → QUBE executor, `.py` → Python, `.rs` → rustc + run.
+
+BODY: **genesis.json** — Mother AI's unified memory file. Schema version 5.0. Written by three tracks: Rust (cognitive section), Python/dashboard (operational section), genesis_sync.py (ai_memory section). See Appendix E for the complete schema reference.
+
+BODY: **genesis_sync.py** — The Python script that reconciles all three tracks in genesis.json. Run manually via the `sync` REPL command. Probes the .ai memory layer, seeds cognitive data into .ai memory, and updates the ai_memory section of genesis.json.
+
+BODY: **Glyph** — A visual identity object derived from the Master Glyph Key. Parameters include OKLCH color space values, rotation angle, and frequency (432–528 Hz range). The glyph is displayed at boot, stored in genesis.json, and visually shifts as bond strength increases. The `glyph.distort()` function is triggered by anomaly detection.
+
+BODY: **GlyphParams** — The Rust struct holding the visual parameters of the current glyph: color (OKLCH), frequency (Hz), rotation (degrees), and rendering methods: `render_terminal()` and `distort()`.
+
+BODY: **Goal** [M] — A high-level objective set with the `goal TEXT` REPL command. The plan agent decomposes it into concrete steps. Steps are executed one at a time with `next` or all at once with `run auto`. The goal system supports autonomous execution mode.

@@ -1,0 +1,11 @@
+=== Extended Glyph Operators ===
+
+TABLE_HEADER: Operator | Unicode | Quantum Meaning | Language Meaning
+TABLE_ROW: † | U+2020 | Hermitian conjugate (dagger): gate† is the inverse of gate; used for U†U = I | Method on quantum structs: .dagger() or postfix † produces the inverse operation
+TABLE_ROW: |⟩ | U+007C + U+27E9 | Ket: |0⟩, |1⟩, |+⟩, |-⟩ are basis states | Quantum literal: qubit state literal syntax in .ai source
+TABLE_ROW: ⟨| | U+27E8 + U+007C | Bra: the conjugate transpose of a ket | Measurement projection expression
+TABLE_ROW: ∑ | U+2211 | Superposition sum: ∑ αᵢ|i⟩ over basis states | Summation over quantum or classical collections
+TABLE_ROW: √ | U+221A | Square root gate: √X = SX (half-X gate) | Square root function applied to quantum or numeric type
+TABLE_ROW: π | U+03C0 | Phase angle constant (pi radians) | Mathematical constant; valid in rotation gate angle expressions
+TABLE_ROW: α β γ θ φ λ | U+03B1 etc. | Quantum amplitude and angle parameters in state vectors and rotation gates | Named parameter symbols in quantum function signatures; valid identifiers
+TABLE_ROW: ∅ | U+2205 | Null/vacuum state; zero-photon state | Empty set or null quantum register literal

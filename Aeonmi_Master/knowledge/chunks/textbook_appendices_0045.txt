@@ -1,0 +1,7 @@
+=== operational Section ===
+
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: operational.dashboard_interaction_count | integer | Python | Interaction count tracked by dashboard.py | 8
+TABLE_ROW: operational.key_facts | array | Python | Key facts recorded via dashboard | []
+TABLE_ROW: operational.action_summary | array | Python | Summary of agent actions from dashboard sessions | []
+TABLE_ROW: operational.last_session_ts | string | Python | Timestamp of the last dashboard session | "23:36:50"

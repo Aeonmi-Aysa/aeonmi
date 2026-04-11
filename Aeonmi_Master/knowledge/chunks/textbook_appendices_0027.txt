@@ -1,0 +1,15 @@
+=== Session and Creator Interface Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: letter | Generate a letter from Mother to Warren about her current state | Full letter text (LLM-generated or heuristic fallback)
+TABLE_ROW: write letter | Alias for letter | Same as letter
+TABLE_ROW: memory_report | Generate a structured weekly summary of capability changes | Memory report with interaction counts, bond progression, milestones
+TABLE_ROW: memory report | Alias with space | Same as memory_report
+TABLE_ROW: report | Short alias for memory_report | Same as memory_report
+TABLE_ROW: sessions | List all session log files and show the most recent | Session log file paths and content of latest session
+TABLE_ROW: session log | Alias for sessions | Same as sessions
+TABLE_ROW: milestone NAME | Record a named milestone event in genesis.json | Milestone recorded confirmation with timestamp
+TABLE_ROW: milestones | List all recorded milestones with timestamps and bond values | Full milestone history
+TABLE_ROW: moments | Alias for milestones | Same as milestones
+TABLE_ROW: bond | Show current bond strength tier and descriptive phrase | Bond value and phrase
+TABLE_ROW: bond status | Alias for bond | Same as bond

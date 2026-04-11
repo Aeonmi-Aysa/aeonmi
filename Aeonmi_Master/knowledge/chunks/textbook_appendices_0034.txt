@@ -1,0 +1,21 @@
+=== Using Gates in Aeonmi Syntax ===
+
+BODY: In `.ai` files, quantum circuits are declared with the `quantum circuit` keyword. Qubits are indexed from 0. Gates are applied in sequence. Measurement collapses qubits to classical bits.
+
+CODE:
+```
+quantum circuit bell_state {
+    qubits: 2
+    classical: 2
+
+    H(q[0])           // Hadamard creates superposition on qubit 0
+    CNOT(q[0], q[1])  // CNOT entangles qubit 0 (control) with qubit 1 (target)
+    measure q[0] -> c[0]
+    measure q[1] -> c[1]
+}
+
+// Run the circuit
+let result = run_circuit(bell_state, shots: 1024)
+print(result.counts)
+// Expected: {"00": ~512, "11": ~512}
+```

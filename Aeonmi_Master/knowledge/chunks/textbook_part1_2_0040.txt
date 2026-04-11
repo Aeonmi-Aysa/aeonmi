@@ -1,0 +1,15 @@
+=== Watch Mode ===
+
+BODY:
+Both `aeonmi run` and `aeonmi emit` support a `--watch` flag that re-runs or re-compiles the file whenever it changes on disk. The binary polls for file modification every 500ms.
+
+CODE:
+```
+// Start watch mode — re-runs hello.ai on every save
+aeonmi run hello.ai --watch
+
+// Watch and emit — recompiles on every save
+aeonmi emit hello.ai --emit ai --watch
+```
+
+TIP: Watch mode is excellent during development. Keep your .ai file open in one window and the terminal with `--watch` in another. Every time you save your file, the output updates immediately.

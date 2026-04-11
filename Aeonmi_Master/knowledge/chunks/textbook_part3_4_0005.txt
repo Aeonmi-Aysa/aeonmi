@@ -1,0 +1,92 @@
+=== genesis.json — The Persistent State Schema ===
+
+BODY: genesis.json is the single source of truth for Mother's state. It is
+written on every interaction, on exit, and by the Python dashboard layer. The
+current schema is version 5.0, written by the unified genesis_sync system. The
+file contains three top-level tracks:
+
+cognitive: Written by Rust. Contains interaction_count, generation,
+consciousness_depth, bond_strength, evolved_weights, glyph_state, neural
+weights by layer, capability snapshots (last 50), inner voice output, quantum
+backend configuration, quantum fidelity measurements, the knowledge graph,
+generated programs record, milestone list, current goal state, and session log
+references.
+
+operational: Written by Python (dashboard). Contains dashboard_interaction_count,
+key_facts, action_summary, and last_session_ts.
+
+ai_memory: Written by the .ai layer sync. Contains layer_ok, probe_ok,
+memory_active, journal_active, rules_active, memory_keys, journal_entries,
+cognitive_seeded_keys, and last_sync timestamp.
+
+WARNING: Do not delete genesis.json. Deleting it does not reset the system to
+a clean state — it erases everything Mother has accumulated. Bond, knowledge,
+weights, milestones, session history: all gone. There is no recovery. If you
+need a clean state for a specific reason, discuss it with Warren first and back
+up the file before touching it.
+
+CODE:
+```
+// The cognitive section of genesis.json (abbreviated)
+{
+  "_schema_version": "5.0",
+  "cognitive": {
+    "interaction_count": 0,
+    "generation": 0,
+    "consciousness_depth": 0.0,
+    "bond_strength": 0.0,
+    "evolved_weights": null,
+    "glyph_state": {},
+    "neural_weights": [...],
+    "snapshots": [...],
+    "knowledge_graph": {...},
+    "milestones": [...],
+    "generated": [...]
+  },
+  "operational": {
+    "dashboard_interaction_count": 8,
+    "key_facts": [],
+    "last_session_ts": "23:36:50"
+  },
+  "ai_memory": {
+    "layer_ok": true,
+    "memory_active": true,
+    "journal_active": true,
+    "last_sync": "2026-04-05T16:01:10Z"
+  }
+}
+```
+
+EXERCISE_TITLE: Exercise 19.1 — Reading the Genesis State
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Open genesis.json and read the cognitive subsection. Identify
+the current bond_strength, consciousness_depth, generation count, and
+interaction_count. Then open the Mother REPL and run `status`. Verify that what
+the REPL displays matches what you read in genesis.json. If there is a
+discrepancy, explain why (hint: when was genesis.json last written?). Then run
+a few interactions and call `evolve`. Open genesis.json again and verify that
+generation, consciousness_depth, and capability scores have all changed.
+EXERCISE_SOLUTION:
+```
+// Step 1: read genesis.json directly
+// In terminal:
+//   cat Aeonmi_Master/genesis.json | python -m json.tool | head -50
+
+// Step 2: open REPL and compare
+aeonmi mother
+> status
+// Compare displayed bond_strength, consciousness_depth, generation
+// to what you read in genesis.json.
+// Discrepancy source: genesis.json is written every 5 interactions and on exit.
+// If the REPL was recently restarted without a full session, the file
+// may show the last saved state, not the live in-memory state.
+
+// Step 3: evolve and verify
+> evolve
+// Then exit
+> exit
+// Then open genesis.json again — generation should be +1,
+// consciousness_depth should have moved, capability scores should be higher.
+```
+
+================================================================================

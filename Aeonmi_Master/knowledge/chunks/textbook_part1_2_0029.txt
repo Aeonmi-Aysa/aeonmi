@@ -1,0 +1,135 @@
+=== First-Class Functions and Closures ===
+
+BODY:
+Functions in Aeonmi can be passed as values and stored in variables. The function keyword can be used inline to create anonymous function values. This enables higher-order programming patterns.
+
+CODE:
+```
+// first_class.ai
+
+function apply(fn, x) {
+    return fn(x);
+}
+
+function double(x) {
+    return x * 2;
+}
+
+function square(x) {
+    return x * x;
+}
+
+function map_array(arr, fn) {
+    let result = [];
+    let i = 0;
+    while i < len(arr) {
+        result.push(fn(arr[i]));
+        i = i + 1;
+    }
+    return result;
+}
+
+function main() {
+    // Passing functions as values
+    let d = apply(double, 5);
+    let s = apply(square, 5);
+    print("double(5) = " + d);   // 10
+    print("square(5) = " + s);   // 25
+
+    // Using map_array with different functions
+    let nums = [1, 2, 3, 4, 5];
+    let doubled = map_array(nums, double);
+    let squared = map_array(nums, square);
+    print("doubled: " + doubled);
+    print("squared: " + squared);
+}
+
+main();
+```
+
+TIP: The built-in map() function does the same thing as the map_array() shown above. Use the builtin in production code: let doubled = map([1,2,3,4,5], double);
+
+EXERCISE_TITLE: Exercise 6.1 — Higher-Order Functions
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a function called filter_positive(arr) that returns only the positive numbers from an array. Write a second function called sum_transformed(arr, fn) that applies fn to every element and returns the sum. Test with [-3, 1, -2, 4, -1, 5, 0] and the double function from this chapter.
+
+EXERCISE_SOLUTION:
+```
+// ex6_1.ai
+
+function double(x) {
+    return x * 2;
+}
+
+function filter_positive(arr) {
+    let result = [];
+    let i = 0;
+    while i < len(arr) {
+        if arr[i] > 0 {
+            result.push(arr[i]);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+function sum_transformed(arr, fn) {
+    let total = 0;
+    let i = 0;
+    while i < len(arr) {
+        total = total + fn(arr[i]);
+        i = i + 1;
+    }
+    return total;
+}
+
+function main() {
+    let data = [-3, 1, -2, 4, -1, 5, 0];
+    let positives = filter_positive(data);
+    print("positives: " + positives);    // [1, 4, 5]
+
+    let sum_doubled = sum_transformed(data, double);
+    print("sum of doubled: " + sum_doubled);   // (-6+2-4+8-2+10+0) = 8
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 6.2 — Recursive Power
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a recursive function called power(base, exp) that computes base raised to exp (integer exponent only). Then write an iterative version called power_iter(base, exp). Compare their results for power(2, 10) and power(3, 5). Do not use the built-in pow() function.
+
+EXERCISE_SOLUTION:
+```
+// ex6_2.ai
+
+function power(base, exp) {
+    if exp == 0 {
+        return 1;
+    }
+    return base * power(base, exp - 1);
+}
+
+function power_iter(base, exp) {
+    let result = 1;
+    let i = 0;
+    while i < exp {
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
+
+function main() {
+    print("power(2, 10) = " + power(2, 10));          // 1024
+    print("power_iter(2, 10) = " + power_iter(2, 10)); // 1024
+    print("power(3, 5) = " + power(3, 5));             // 243
+    print("power_iter(3, 5) = " + power_iter(3, 5));   // 243
+}
+
+main();
+```
+
+================================================================================

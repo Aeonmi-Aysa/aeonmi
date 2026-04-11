@@ -1,0 +1,3 @@
+=== Overview ===
+
+BODY: The `aeonmi` binary is the unified entry point for the entire Aeonmi ecosystem. Every capability — from running a single .ai file to interacting with Mother AI to minting NFT metadata — flows through this one command. The CLI is built with Clap and follows a subcommand pattern: `aeonmi <subcommand> [flags] [args]`. Global flags apply to every subcommand and must be placed before the subcommand name.

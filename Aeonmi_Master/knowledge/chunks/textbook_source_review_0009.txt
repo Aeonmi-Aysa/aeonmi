@@ -1,0 +1,108 @@
+=== textbook_source_review §10 ===
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/ast.ai ===
+PURPOSE: Aeonmi self-hosted AST. Flat array of [type, f0, f1, f2] 4-tuples.
+         Each node type uses f0/f1/f2 for different fields (value, child indices).
+         Constructors return modified array. Index arithmetic via len(nodes)/4.
+         12 functions.
+SYNTAX DEMONSTRATED:
+  - AST node layout: 4 fields per node in flat array
+  - Constructor pattern: ast_number(nodes, val) calls a_push4(nodes, 1, val, 0, 0)
+  - Node types: 1=Number 2=String 3=Ident 4=BinOp 6=Let 7=Assign 8=If 9=While 10=Return
+  - Child references as integer indices (not pointers)
+  - ast_type / ast_f0 / ast_f1 / ast_f2 accessors using idx*4 arithmetic
+  - BinOp stores op_id in f0, left child idx in f1, right child idx in f2
+  - Let stores name string in f0, initializer idx in f1
+KEY CODE EXAMPLES:
+◯ ast_binop⟨nodes, op, lhs, rhs⟩ {
+    return a_push4(nodes, 4, op, lhs, rhs);
+}
+◯ ast_let⟨nodes, name, init⟩ {
+    return a_push4(nodes, 6, name, init, 0);
+}
+◯ ast_type⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4, idx * 4 + 1).pop();
+}
+◯ ast_f1⟨nodes, idx⟩ {
+    return nodes.slice(idx * 4 + 2, idx * 4 + 3).pop();
+}
+TEXTBOOK RELEVANCE: Chapter 9 — AST Design; Chapter 6 — Flat Tree Structures;
+  Chapter 3 — Compiler Internals
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/codegen.ai ===
+PURPOSE: Aeonmi self-hosted code emitter. Takes flat AST array, does a single
+         forward pass, builds strs[] (string for each node) and collects
+         statement lines into out[]. Returns emitted source string. 8 functions.
+         Strategy: children always appear before parents (flat topological order).
+SYNTAX DEMONSTRATED:
+  - Forward-pass code generation (no recursion needed when children precede parents)
+  - b_op_str: op code integer -> operator string
+  - c_emit_node: leaf nodes return literal, BinOp looks up child strings in strs
+  - d_collect: accumulates strs and statement lines; returns out[]
+  - gen_emit: public API — calls d_collect, joins output with newlines
+  - String accumulation:  result = result + out.slice(j, j+1).pop() + "\n";
+  - let stmt emission:  s = "let " + f0 + " = " + vs + ";";
+  - return stmt emission:  s = "return " + vs + ";";
+  - is_stmt boolean to decide what goes to output
+KEY CODE EXAMPLES:
+◯ b_op_str⟨op⟩ {
+    if (op == 20) { return "+"; }
+    if (op == 24) { return "=="; }
+    return "?";
+}
+◯ c_emit_node⟨nd, i, strs⟩ {
+    let tt = a_ntype(nd, i);
+    if (tt == 1) { return a_nf0(nd, i); }  // Number: return value
+    if (tt == 4) {
+        let op = b_op_str(a_nf0(nd, i));
+        let ls = strs.slice(li, li + 1).pop();
+        let rs = strs.slice(ri, ri + 1).pop();
+        return ls + " " + op + " " + rs;
+    }
+}
+◯ gen_emit⟨nd⟩ {
+    let strs = [];
+    let out  = [];
+    out = d_collect(nd, strs, out);
+    // join output lines with newlines
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Code Generation; Chapter 3 — Compiler Pipeline;
+  Chapter 6 — Forward-Pass Tree Processing
+
+================================================================================
+SECTION 10: VSCODE / COPILOT EXTENSION ANALYSIS
+================================================================================
+
+VSCode/Copilot Extension Analysis
+==================================
+
+How the .ai files collectively form the language server / copilot
+-----------------------------------------------------------------
+The .ai files ARE the Aeonmi extension — not generated stubs or metadata, but
+actual executable Aeonmi programs that define, test, and demonstrate every
+aspect of the language. The VSCode/Copilot layer is built from these files:
+
+1. LANGUAGE DEFINITION LAYER (lang/ops.ai, lang/types.ai):
+   These files define the operator table, precedence, associativity, and the
+   type system as runnable code. A language server can load these to provide
+   accurate hover documentation (operator precedence), type-checking hints
+   (is_numeric, is_quantum predicates), and operator completion lists. When
+   you hover over + in an Aeonmi file, the server knows its precedence is 40
+   because op_prec() returns 40 — computed by running Aeonmi itself.
+
+2. LEXER / PARSER / AST / CODEGEN LAYER (shard/lexer.ai, shard/parser.ai,
+   shard/ast.ai, shard/codegen.ai, shard/main.ai):
+   This is the self-hosted compiler pipeline. The language server runs these
+   files to tokenize source, build ASTs, and re-emit formatted code. This
+   provides: syntax highlighting token data (lexer), parse error locations
+   (parser state [pos, err]), auto-format (codegen), and go-to-definition
+   (AST node indices). The shard/main.ai file serves double duty as both
+   the compiler entry point and the canonical language reference document.
+
+3. STDLIB INTELLIGENCE LAYER (stdlib/tests/):
+   The test files enumerate every builtin with correct argument signatures and
+   expected return types. A Copilot feature would index these to provide:
+   - Completion: type "ran" -> suggest range(n) / range(start, end) / range(start, end, step)
+   - Signature help: show assert_eq(actual, expected, label) parameter names
+   - Quick fixes: suggest arr.slice(i, i+1).pop() when arr[i] is not yet supported
+   - Type inference: map() returns same-length array; filter() returns subset

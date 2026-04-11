@@ -1,0 +1,24 @@
+=== Multi-File Programs ===
+
+BODY:
+Aeonmi programs can span multiple files. The VM's import resolution (resolve_import) finds files relative to the current file's location or the aeonmi_ai/ root. The exact import syntax and resolution behavior is part of the operational module system.
+
+For programs in the aeonmi_ai/ directory tree, the module layout follows this structure:
+
+CODE:
+```
+aeonmi_ai/
+  shard/       — Shard compiler modules
+  quantum/     — Quantum programs
+  agent/       — Agent AI (oracle, hype, closer, devil, conductor)
+  learn/       — Learning modules
+  sensory/     — Sensory input modules
+  selfmod/     — Self-modification modules
+  swarm/       — Swarm coordination
+  stdlib/      — Standard library
+  store/       — Key-value store modules
+  net/         — Network modules
+  mother/      — Mother AI .ai programs (journal, memory, rules, core)
+  demo/        — Demo programs
+  generated/   — Self-generated programs (written by Phase 9 build cycle)
+```

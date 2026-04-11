@@ -1,0 +1,25 @@
+=== BFS Traversal and the graph Command ===
+
+BODY: The `graph` command without arguments renders the full knowledge graph as
+a structured text panel — every node, its tags, its links, and its content.
+
+`graph <key>` runs a breadth-first traversal rooted at that key and displays
+only the connected subgraph. This is useful when the full graph has grown large
+(50+ nodes) and you want to see only what Mother knows about a specific topic
+and its direct neighbors.
+
+`neighbors <key>` shows only the immediate neighbors of a node without
+traversing further. `query <tag>` filters to all nodes carrying a specific tag.
+
+CODE:
+```
+// In the REPL:
+> teach qft_definition = QFT maps computational basis to frequency domain
+> teach qft_use = QFT used for period finding in Shor's algorithm
+> teach shor_algorithm = Shor's uses QFT to factor integers in polynomial time
+> graph qft_definition
+// Shows: qft_definition -> qft_use (auto-link via "qft" keyword)
+//                       -> shor_algorithm (auto-link via shared quantum tag)
+> query quantum
+// Shows all quantum-tagged nodes
+```

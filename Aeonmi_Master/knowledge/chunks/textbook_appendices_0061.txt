@@ -1,0 +1,5 @@
+=== Key Management Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: Provider 'X' not found | `key-get` or `key-delete` called for an unregistered provider | Use `key-list` to see stored providers; use `key-set` to add a new one
+TABLE_ROW: Decryption failed | Key storage record corrupted or vault key changed | Run `key-rotate` after changing the MGK passphrase; or re-set the key with `key-set`

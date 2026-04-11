@@ -1,0 +1,5 @@
+=== Three-Qubit Gates ===
+
+TABLE_HEADER: Gate | Symbol | Syntax | Description
+TABLE_ROW: Toffoli | CCX | CCX(q[0], q[1], q[2]) | Controlled-Controlled-NOT. Flips target (q[2]) if both controls (q[0], q[1]) are |1>. Universal for classical computation.
+TABLE_ROW: Fredkin | CSWAP | CSWAP(q[0], q[1], q[2]) | Controlled-SWAP. Swaps q[1] and q[2] if q[0] is |1>. Preserves particle count (useful in quantum chemistry).

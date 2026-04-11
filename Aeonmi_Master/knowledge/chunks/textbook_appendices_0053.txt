@@ -1,0 +1,8 @@
+=== Glyph Identity System Operators ===
+
+BODY: The Glyph Identity System uses several visual concepts derived from these operators in its terminal rendering:
+
+TABLE_HEADER: Visual Symbol | Context | Meaning
+TABLE_ROW: ◈ | Startup screen | "No Shard identity found" indicator; prompts vault init
+TABLE_ROW: ╔ ║ ╚ (box drawing) | Boot ceremony | Terminal UI frame for the AEONMI SHARD identity display
+TABLE_ROW: ⚠ | Warning prefix | Boot failure or anomaly detection warning in glyph ceremony

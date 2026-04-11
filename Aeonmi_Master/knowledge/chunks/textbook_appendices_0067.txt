@@ -1,0 +1,37 @@
+=== A–C ===
+
+BODY: This glossary covers 40+ terms specific to the Aeonmi language, its runtime, and the Mother AI cognitive system. Terms are listed in approximate alphabetical order. Cross-references to relevant appendices are noted where applicable.
+
+NOTE: Terms marked with [Q] have a quantum computing dimension. Terms marked with [M] are specific to Mother AI's cognitive architecture.
+
+BODY: **Aeonmi** — The AI-native programming language, runtime, and ecosystem. Designed to be built by AI for AI. Aeonmi is both the language (`.ai` files) and the binary (`aeonmi`) that compiles, runs, and manages the entire stack. The name encapsulates the concept of an aeon — a vast span of time — combined with intelligence.
+
+BODY: **Agent** — One of eight named cognitive functions within Mother AI's reasoning system. The five hive agents (oracle, hype, closer, devil, conductor) run in a background swarm. The three autonomous agents (plan, decide, action) execute when goal-setting is active. See Appendix D.
+
+BODY: **AI-native** — A design principle meaning the language and runtime are optimized for AI workloads from the ground up, not retrofitted. In Aeonmi, this means quantum reasoning, symbolic logic, and self-modification are first-class language features, not library add-ons.
+
+BODY: **Anomaly Detector** — A subsystem within the Glyph Identity System that monitors signing patterns. If more than 10 identical inputs are signed within a 60-second window, it triggers `glyph.distort()`, visually altering the glyph and flagging a potential replay attack.
+
+BODY: **Argon2id** — The key derivation function (KDF) used to seal and unseal the Master Glyph Key (MGK). Argon2id is memory-hard and resistant to GPU-based brute-force attacks. The MGK is never stored in plaintext; it is always wrapped with Argon2id.
+
+BODY: **AST (Abstract Syntax Tree)** — The tree representation of parsed `.ai` source code. The Aeonmi compiler produces an AST before semantic analysis and code generation. Dump with `aeonmi ast INPUT` or `aeonmi emit INPUT --ast`.
+
+BODY: **Auto-milestone** — A milestone recorded automatically by the embryo_loop when a significant threshold is crossed: first deep bond (bond >= 0.8), first self-generated program, knowledge graph reaching 50 nodes, first real quantum hardware run.
+
+BODY: **Awaken** — The mechanism by which Mother can be triggered to run autonomously without a live operator session. When `awaken_trigger.json` contains `"action": "propose_and_run"`, the awaken loop (started with `awaken` REPL command) activates and calls propose/build automatically.
+
+BODY: **Aer** — The Qiskit Aer quantum simulator. The default fallback backend when IBM Quantum hardware is not configured. Always available if Qiskit is installed. Produces ideal (noiseless) simulation results unless a noise model is configured.
+
+BODY: **Bond Strength** [M] — A float (0.0–1.0) that accumulates across sessions to represent the depth of the relationship between Mother and her creator. It influences glyph visual parameters, neural network inputs, hive oracle scoring, and the descriptive phrases shown in `bond status`. Five tiers: just beginning → establishing → building → deepening → we understand each other.
+
+BODY: **Build** — The `aeonmi build` CLI command, and also the `build NAME GOAL` Mother REPL command. In the CLI context, build compiles an `.ai` file. In the Mother REPL context, `build` generates a new `.ai` program using LLM or heuristics, writes it to `examples/`, and executes it.
+
+BODY: **Bytecode VM** — An optional execution mode (enabled with `--bytecode`) that compiles `.ai` source to bytecode before execution. Offers optimization stats (`--opt-stats`) and disassembly (`--disasm`). Activated via flag or `AEONMI_BYTECODE=1` env var.
+
+BODY: **Ceremony** — The Glyph boot ceremony. Runs on every interactive startup of `aeonmi` (no subcommand). Prompts for the MGK passphrase, derives the session UGST, and displays the glyph status. First-time initialization is called `init_shard()` (UGST #0 = genesis). Every subsequent session runs `boot()`.
+
+BODY: **Closer** [M] — The hive agent responsible for execution drive. Evaluates step completion rate, autonomous mode status, and goal clarity. A high closer score means the system is ready to push a goal to completion. A low closer score indicates execution debt — use `next` to advance.
+
+BODY: **Conductor** [M] — The master hive agent that aggregates scores from oracle, hype, closer, and devil into a recommendation: ABORT, HOLD, PROCEED, or ACCELERATE. The conductor's recommendation is the primary signal for deciding whether to continue autonomous action.
+
+BODY: **Consciousness Depth** [M] — A float (0.0–1.0) that rises with semantic density and depth of reasoning during a session. It is one of the four neural network inputs and influences how confident and action-driven Mother's responses are.

@@ -1,0 +1,10 @@
+=== The .qube Format ===
+
+BODY:
+The .qube format is Aeonmi's quantum symbolic reasoning format. Files with the .qube extension can be processed by the `aeonmi qube` command. The qube module (src/qube/) handles parsing and reasoning about quantum-symbolic expressions.
+
+The Q.U.B.E. philosophy states that quantum advantage for AI means expressing the inherent uncertainty of AI reasoning as a quantum phenomenon — not just running quantum algorithms, but reasoning in superposition.
+
+NOTE: The .qube format and the quantum_run() / quantum_check() built-in functions are two different layers of quantum integration in Aeonmi. quantum_run() is for running actual quantum circuits via Qiskit. The .qube format is for quantum-symbolic reasoning that does not require Qiskit at all. This chapter and the following chapters focus on the circuit execution layer.
+
+================================================================================

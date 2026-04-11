@@ -1,0 +1,34 @@
+=== The REPL ===
+
+BODY:
+The REPL (Read-Eval-Print Loop) is started with `aeonmi repl`. You get a prompt where you can type Aeonmi code interactively. The REPL maintains state across inputs — variables you declare persist for the session.
+
+The REPL also exposes the Mother AI command set when the binary is built with the mother-ai feature. Mother AI commands are single-word commands that interact with the cognitive layer:
+
+CODE:
+```
+// REPL session example:
+// Start: aeonmi repl
+// Prompt: >>
+
+>> let x = 42;
+>> print(x + 8);
+50
+>> function greet(n) { return "Hello, " + n; }
+>> greet("Warren")
+Hello, Warren
+
+// Mother AI commands (in REPL):
+>> status         — show bond, consciousness depth, neural state
+>> bond           — show bond strength and tier phrase
+>> think quantum  — generate an inner voice thought about quantum
+>> propose        — suggest a new program to build
+>> hive start     — start the 5-agent background hive
+>> quantum run    — run a Bell state circuit on the Aer simulator
+>> graph          — show the knowledge graph state
+>> teach key = value  — add a fact to the knowledge graph
+>> recall         — recall what has been learned
+>> letter         — generate a letter to Warren about current state
+```
+
+NOTE: The REPL commands like `status`, `bond`, `think`, `propose`, etc. are Mother AI cognitive commands, not Aeonmi language statements. They are dispatched by the EmbryoLoop (the Rust cognitive runtime), not by the .ai VM. You cannot call them from inside a .ai file. They are REPL-only.

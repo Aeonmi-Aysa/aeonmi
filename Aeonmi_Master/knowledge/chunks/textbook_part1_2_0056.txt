@@ -1,0 +1,46 @@
+=== The Quantum Operator Set ===
+
+BODY:
+Aeonmi recognizes quantum gate names as built-in identifiers. The following are available:
+
+Single-qubit gates: H (Hadamard), X (Pauli-X / NOT), Y (Pauli-Y), Z (Pauli-Z), S (phase gate), T (T gate), NOT, HADAMARD
+
+Two-qubit gates: CNOT, CX (same as CNOT)
+
+Special: MEASURE
+
+These names appear in quantum programs and in the descriptor format that quantum_run() uses. In the Shard Developer Kit, they are listed under the QUANTUM section of built-ins.
+
+CODE:
+```
+// quantum_operators.ai
+// The quantum gate vocabulary in Aeonmi
+
+function main() {
+    print("Quantum gates available in Aeonmi:");
+    print("  Single-qubit: H, X, Y, Z, S, T, NOT, HADAMARD");
+    print("  Two-qubit:    CNOT, CX");
+    print("");
+    print("In quantum_run() descriptor format:");
+    print("  H gate     = op type 0");
+    print("  X gate     = op type 1");
+    print("  Y gate     = op type 2");
+    print("  Z gate     = op type 3");
+    print("  CX/CNOT    = op type 4");
+    print("  S gate     = op type 5");
+    print("  T gate     = op type 6");
+    print("  MEASURE    = op type 7");
+    print("");
+    print("Entanglement operators recognized by lexer:");
+    print("  Tensor product: ⊗");
+    print("  Bra-ket inner:  ⟨⟩");
+    print("  Mapping:        ↦");
+    print("  Entangle:       ⧉");
+}
+
+main();
+```
+
+NOTE: The quantum operators ⊗ (tensor product), ⟨⟩ (bra-ket inner product notation), ↦ (mapping), and ⧉ (entanglement symbol) are recognized by the Aeonmi lexer as special tokens. They appear in quantum programs for documentation and symbolic reasoning. Their execution semantics in the VM are handled through the quantum descriptor system rather than direct evaluation.
+
+================================================================================

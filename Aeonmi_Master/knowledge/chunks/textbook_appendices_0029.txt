@@ -1,0 +1,3 @@
+=== Overview ===
+
+BODY: Quantum gates are the fundamental operations in Aeonmi's quantum computing layer. They transform qubit states, create entanglement, and implement quantum algorithms. In Aeonmi syntax, gates are applied using the glyph operator `⊗` for tensor product composition, or within `quantum circuit` blocks using function-call style syntax. The QUBE format uses a declarative gate list.

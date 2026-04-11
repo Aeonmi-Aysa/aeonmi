@@ -440,4 +440,3 @@ function main() {
     log("ARC solver ready.");
     log("==================================================");
 }
-        if grid_a[r

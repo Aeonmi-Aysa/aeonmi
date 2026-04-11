@@ -1,0 +1,30 @@
+=== Combining Quantum Fidelity with Agent Signals ===
+
+BODY: The most powerful use of the quantum bridge in the agent system is using
+real quantum hardware fidelity measurements to modulate Oracle scores. This is
+the oracle_sc *= 1.1 pattern — when a real hardware quantum measurement returns
+high fidelity, the oracle score receives a boost, reflecting that the quantum
+substrate has provided a reliable foundation for the analysis.
+
+In `hive_run_once()` in embryo_loop.rs, fidelity adjustment applies directly
+to the oracle score: if a recent fidelity measurement exists and exceeds a
+threshold, oracle_sc is multiplied by 1.1 (10% boost). If fidelity is below
+the threshold, oracle_sc is penalized by 0.85 (15% reduction). This means
+that Mother's most factually grounded agent — the one that asks "is the
+analysis sound?" — is directly informed by whether her quantum substrate is
+performing coherently.
+
+CODE:
+```
+// Conceptual fidelity adjustment in hive_run_once():
+// If recent_fidelity > 0.80:
+//   oracle_sc *= 1.1;   // 10% boost: quantum substrate is reliable
+// else if recent_fidelity < 0.60:
+//   oracle_sc *= 0.85;  // 15% penalty: quantum noise degrades confidence
+
+// In quantum_ai_fusion.ai, the pattern appears as:
+let classical_score = 0.786;   // from agent_hive_demo
+let ghz_boost = 0;
+if (qiskit_live == 1) { ghz_boost = 0.03; }  // 3% boost from GHZ coherence
+let final_score = classical_score + ghz_boost;
+```

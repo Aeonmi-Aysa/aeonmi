@@ -1,0 +1,130 @@
+=== The Six QUBE Keywords ===
+
+================================================================================
+
+BODY:
+QUBE has exactly six keywords. Each has one job. They are listed below with their
+precise syntax and semantics.
+
+--- state ---
+
+state declares and initializes a qubit. The name can be any valid identifier,
+including Greek letter names (q, q0, q1, ψ, φ, α, β are all legal).
+
+Syntax:
+  state <name> = <qubit_literal>
+  state <name> = <amplitude>|0⟩ + <amplitude>|1⟩
+
+The first form initializes to a basis state. The second form initializes to an
+explicit superposition with amplitudes. Amplitudes are floating-point numbers.
+The conventional normalized amplitude for a 50/50 superposition is 0.707
+(which is 1/√2 to three decimal places).
+
+CODE:
+```
+∴ state declarations — basic forms
+state q0 = |0⟩
+state q1 = |1⟩
+state q2 = |+⟩
+state q3 = |−⟩
+
+∴ state with Greek letter identifier
+state ψ = |0⟩
+
+∴ explicit superposition state
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+∴ general state with amplitude variables α and β
+state φ = 0.6|0⟩ + 0.8|1⟩
+```
+
+--- apply ---
+
+apply applies a quantum gate to one or more qubits. The arrow syntax -> is
+mandatory — QUBE does not use function-call style for single-qubit gates. For
+two-qubit gates (CNOT, CZ, SWAP), parentheses carry the control and target.
+
+Syntax:
+  apply <GATE> -> <qubit>                      (single-qubit gate)
+  apply <GATE>(<control>, <target>)            (two-qubit gate)
+  apply <GATE>(<angle>) -> <qubit>             (rotation gate)
+
+CODE:
+```
+∴ single-qubit gates — arrow syntax
+apply H -> q0
+apply X -> q1
+apply Y -> q0
+apply Z -> q1
+apply S -> q0
+apply T -> q0
+
+∴ two-qubit gates — parenthesis syntax
+apply CNOT(q0, q1)
+apply CZ(q0, q1)
+apply SWAP(q0, q1)
+
+∴ rotation gates — angle in radians
+apply Rx(1.5708) -> q0
+apply Ry(3.1416) -> q0
+apply Rz(0.7854) -> q0
+```
+
+--- collapse ---
+
+collapse measures a qubit and stores the classical result. After collapse, the
+qubit is no longer in superposition — it has taken a definite value (0 or 1).
+
+Syntax:
+  collapse <qubit> -> <result_name>
+
+CODE:
+```
+collapse q0 -> r0
+collapse q1 -> r1
+```
+
+--- assert ---
+
+assert verifies that a measurement result belongs to a valid set. The set
+membership operator ∈ is native to QUBE syntax. This is the standard way to
+confirm that a collapse produced a valid quantum measurement outcome.
+
+Syntax:
+  assert <result> ∈ {<value>, <value>, ...}
+  assert <result> == <value>
+  assert <result> != <value>
+
+CODE:
+```
+∴ standard quantum measurement assertion
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+
+∴ deterministic outcome assertion (after X gate)
+assert r0 == 1
+
+∴ inequality assertion
+assert r0 != 2
+```
+
+--- log and print ---
+
+log and print both emit output. log is the preferred QUBE output keyword — it
+maps directly to the QUBE snippet. print is also valid and supported by the
+extension's syntax highlighting as a QUBE builtin. In practice, use log inside
+.qube files and print inside .ai files to keep the formats visually distinct,
+though both work in both contexts.
+
+Syntax:
+  log(<value>)
+  print(<value>)
+
+CODE:
+```
+log(r0)
+log(r1)
+print(r0)
+```
+
+================================================================================

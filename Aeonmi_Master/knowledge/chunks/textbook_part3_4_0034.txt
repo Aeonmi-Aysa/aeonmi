@@ -1,0 +1,23 @@
+=== Current Connection Status ===
+
+BODY: Track 1 and Track 2 are not yet directly wired to each other. genesis.json
+serves as the shared bus, but the Rust cognitive metrics and the .ai operational
+knowledge do not update each other in real time. This is not a defect to paper
+over — it is the clearest accurate description of where the system is.
+
+Two live bridges currently exist between Track 1 and Track 2:
+
+Bridge 1 — The Learn Probe: Every 5 interactions, run_learn_cycle() in
+embryo_loop.rs writes a _learn_probe.ai file and runs it via the native binary.
+It parses LEARN_OUTPUT:key:value lines from the output back into the knowledge
+graph. This is one-directional: Track 1 sends data to a Track 2 program and
+reads the output back.
+
+Bridge 2 — The Hive Runner: When `hive start` runs, the background thread
+generates hive_runner.ai dynamically from a Rust template and runs it as a
+subprocess. This is Track 1 initiating a Track 2 action, parsing the results,
+and updating hive_state.json.
+
+All other .ai modules in aeonmi_ai/ — sensory/, selfmod/, swarm/, mother/ — are
+called zero times during a normal session. They are standalone programs and
+design templates. They do not feed back into Track 1.

@@ -1,0 +1,40 @@
+=== Installing and Verifying Aer ===
+
+BODY:
+To use the Aer simulator with Aeonmi's quantum_run():
+
+CODE:
+```
+// Installation (run in your terminal, not in Aeonmi)
+// pip install qiskit qiskit-aer qiskit-ibm-runtime
+
+// Verify in Aeonmi:
+// quantum_check() will return 1 if installation succeeded
+```
+
+CODE:
+```
+// verify_aer.ai
+function main() {
+    let status = quantum_check();
+
+    if status == 1 {
+        print("Aer simulator: AVAILABLE");
+        print("quantum_run() will execute real circuit simulation");
+        print("");
+
+        // Run a quick test circuit
+        let test_desc = "1 1 100 2  0 0 -1  7 0 0";
+        let result = quantum_run(test_desc);
+        print("Test (H gate, 100 shots):");
+        print(result);
+        print("Expected: approximately 50 zeros, 50 ones");
+    } else {
+        print("Aer simulator: NOT AVAILABLE");
+        print("quantum_run() is in dry-run mode");
+        print("Install with: pip install qiskit qiskit-aer qiskit-ibm-runtime");
+    }
+}
+
+main();
+```

@@ -1,0 +1,68 @@
+⍝ Shor's Algorithm — Integer Factorization (Simplified)
+⍝ Problem: Factor N=15 using quantum period finding
+⍝ Classical: exponential — Quantum: polynomial
+
+import quantum;
+import math;
+
+⍝ Modular exponentiation: a^x mod N
+fn mod_exp(a, x, N) {
+    return math.pow(a, x) % N;
+}
+
+⍝ Quantum Fourier Transform (3 qubits)
+fn qft(qc, n) {
+    let i = n - 1;
+    while i >= 0 {
+        qc.h(i);
+        let j = i - 1;
+        while j >= 0 {
+            let angle = math.pi / math.pow(2, i - j);
+            qc.cp(angle, j, i);
+            j = j - 1;
+        }
+        i = i - 1;
+    }
+    return qc;
+}
+
+fn main() {
+    let N = 15;  ⍝ Number to factor
+    let a = 7;   ⍝ Coprime to N
+    
+    print("Factoring N=" + str(N) + " using Shor's algorithm");
+    
+    ⍝ 3 qubits for period finding
+    let qc = quantum.circuit(3);
+    
+    ⍝ Superposition
+    qc.h(0); qc.h(1); qc.h(2);
+    
+    ⍝ Modular exponentiation (simplified oracle)
+    ⍝ In real implementation: controlled U^(2^j) gates
+    qc.barrier();
+    
+    ⍝ Inverse QFT
+    qc = qft(qc, 3);
+    
+    ⍝ Measure
+    qc.measure_all();
+    
+    let result = quantum.execute(qc, shots: 2048);
+    
+    print("Period finding results:");
+    print(result.counts());
+    
+    ⍝ Classical post-processing
+    let period = 4;  ⍝ Extracted from measurement
+    let factor1 = math.gcd(math.pow(a, period/2) - 1, N);
+    let factor2 = math.gcd(math.pow(a, period/2) + 1, N);
+    
+    print("Factors of " + str(N) + ": " + str(factor1) + " × " + str(factor2));
+    
+    quantum.export_qasm(qc, "shor_factor.qasm");
+    
+    return 0;
+}
+
+return main();

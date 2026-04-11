@@ -1,0 +1,66 @@
+=== QUBE Exercise S2 — GHZ State in Three Qubits ===
+
+================================================================================
+
+EXERCISE_TITLE: Supplement Exercise S2 — Three-Qubit GHZ State in QUBE
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a .qube file called ghz.qube that creates a three-qubit GHZ (Greenberger-
+Horne-Zeilinger) state. The GHZ state is the three-qubit analog of the Bell
+state: (|000⟩ + |111⟩)/√2. The circuit is:
+  H on q0
+  CNOT with q0 as control, q1 as target
+  CNOT with q0 as control, q2 as target
+  Measure all three qubits
+
+Include proper ∴ and ∵ comments. Assert all three results. Log all three.
+After the circuit, add a ∴ comment explaining what the expected measurement
+outcomes are and why.
+
+EXERCISE_SOLUTION:
+```
+∴ GHZ State — Three-Qubit Maximal Entanglement
+
+∵ initialize all three qubits in ground state
+state q0 = |0⟩
+state q1 = |0⟩
+state q2 = |0⟩
+
+∵ Hadamard on q0 creates superposition: q0 = (|0⟩ + |1⟩)/√2
+∵ combined state becomes (|000⟩ + |100⟩)/√2
+apply H -> q0
+
+∵ CNOT with q0 as control, q1 as target
+∵ |000⟩ → |000⟩ (control is 0, no flip)
+∵ |100⟩ → |110⟩ (control is 1, target flips)
+∵ combined state becomes (|000⟩ + |110⟩)/√2
+apply CNOT(q0, q1)
+
+∵ CNOT with q0 as control, q2 as target
+∵ |000⟩ → |000⟩ (control is 0, no flip)
+∵ |110⟩ → |111⟩ (control is 1, target flips)
+∵ combined state is now (|000⟩ + |111⟩)/√2 — the GHZ state
+apply CNOT(q0, q2)
+
+∵ collapse all three qubits
+collapse q0 -> r0
+collapse q1 -> r1
+collapse q2 -> r2
+
+∵ all results must be valid quantum measurements
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+assert r2 ∈ {0, 1}
+
+∵ output all three results
+log(r0)
+log(r1)
+log(r2)
+
+∴ Expected outcomes: always (0, 0, 0) or (1, 1, 1) — never mixed
+∴ This is the GHZ signature: all three qubits correlated simultaneously
+∴ In 1024 shots: approximately 512 as "000" and 512 as "111"
+∴ Any result like "001", "010", "100", "110" etc. would indicate an error
+```
+
+================================================================================

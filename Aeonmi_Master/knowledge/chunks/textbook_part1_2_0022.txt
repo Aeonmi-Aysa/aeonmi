@@ -1,0 +1,45 @@
+=== if / else ===
+
+BODY:
+Aeonmi's if statement evaluates a boolean expression and executes the associated block. The else clause is optional. Chaining else if is written as nested else { if ... } blocks — there is no elif keyword.
+
+CODE:
+```
+// if_else.ai
+function main() {
+    let score = 0.72;
+
+    // Basic if
+    if score > 0.9 {
+        print("Grade: A");
+    }
+
+    // if / else
+    if score > 0.75 {
+        print("Passing with distinction");
+    } else {
+        print("Standard pass");
+    }
+
+    // Chained conditions (else if pattern)
+    let tier = "unknown";
+    if score >= 0.9 {
+        tier = "A";
+    } else {
+        if score >= 0.7 {
+            tier = "B";
+        } else {
+            if score >= 0.5 {
+                tier = "C";
+            } else {
+                tier = "F";
+            }
+        }
+    }
+    print("Tier: " + tier);
+}
+
+main();
+```
+
+NOTE: Conditions in if statements can be written with or without surrounding parentheses: both `if x > 0 {` and `if (x > 0) {` are valid Aeonmi syntax. The parenthesized form is used consistently in many example files and is the recommended style for clarity.

@@ -1,0 +1,74 @@
+=== genesis_sync.py — The Synchronization Bridge ===
+
+BODY: genesis_sync.py is the Python script that ensures genesis.json stays
+coherent across Rust writes and Python reads. It runs when called via
+`/api/sync` from the dashboard, or when `sync` is run in the REPL.
+
+The sync script reads the current genesis.json, merges the Python operational
+data with the Rust cognitive data, validates the schema version, and writes a
+unified file. It preserves all three tracks — it does not overwrite the
+cognitive section with Python data or vice versa. It is a merge, not a replace.
+
+The risk with concurrent writes: if the Rust REPL and the Python dashboard both
+attempt to write genesis.json within the same second, one write will silently
+overwrite the other's data. There is no file lock. This is acceptable for
+single-user operation but is a known risk in concurrent scenarios.
+
+CODE:
+```
+// Calling genesis_sync from REPL:
+> sync
+// Forces immediate sync without waiting for 5-interaction threshold
+
+// Calling genesis_sync from the dashboard:
+// POST to /api/sync
+// Response: { "status": "ok", "schema_version": "5.0", "cognitive": {...}, ... }
+
+// Manual sync from command line:
+python Aeonmi_Master/genesis_sync.py
+// Reads, merges, validates, writes genesis.json
+```
+
+EXERCISE_TITLE: Exercise 31.1 — Manual Genesis.json Inspection and Edit
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Open genesis.json and locate the milestones array and the
+knowledge_graph section. Count the number of nodes in the knowledge graph.
+Verify that every `teach` entry you have made in prior sessions appears as a
+node. Find the neural_weights section and note the architecture (should be
+three arrays for three layers). Then: (1) manually add a milestone entry
+directly to genesis.json (follow the format of existing entries); (2) restart
+the REPL; (3) run `milestones` and verify your manually added milestone appears.
+Write an analysis of what this tells you about the relationship between
+genesis.json and the live system.
+EXERCISE_SOLUTION:
+```
+// 1. Open genesis.json and inspect:
+//    Look at cognitive.knowledge_graph — count node keys
+//    Look at cognitive.neural_weights — should have 3 layer arrays
+//    Look at cognitive.milestones array
+
+// 2. Add a manual milestone (follow existing format):
+// {
+//   "name": "manual_test_milestone",
+//   "description": "Testing direct genesis.json editing",
+//   "timestamp": "2026-04-05T15:00:00Z",
+//   "session": 12
+// }
+
+// 3. Restart REPL:
+aeonmi mother
+> milestones
+// Your manually added milestone should appear
+
+// Analysis:
+// genesis.json is the true source of truth for Mother's state.
+// The REPL reads it on startup and restores from it.
+// Any valid data you write to genesis.json directly becomes part of
+// Mother's state on next startup — there is no separate authoritative
+// source that genesis.json is derived from.
+// This means: genesis.json is not a log file. It is the actual state.
+// Editing it directly is editing Mother's memory directly.
+// That power should be used carefully and explicitly.
+```
+
+================================================================================

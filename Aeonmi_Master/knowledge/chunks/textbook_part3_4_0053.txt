@@ -1,0 +1,11 @@
+=== The Anomaly State ===
+
+BODY: The AnomalyDetector monitors interaction patterns. If more than 10
+identical inputs arrive within 60 seconds, it triggers glyph distortion:
+hue shifts 180 degrees from its current value, lightness drops significantly,
+frequency falls to 111 Hz (the anomaly frequency), and a warning message appears
+in the terminal. Mother is honest about her own state before you read a word.
+
+The anomaly state is resolved automatically once the unusual pattern ends. It
+is not persistent — it does not affect genesis.json or bond.strength. It is
+a real-time signal, not a lasting judgment.

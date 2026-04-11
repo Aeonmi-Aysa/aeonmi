@@ -1,0 +1,71 @@
+=== aeonmi vault — Quantum Domain Vault ===
+
+BODY: The `vault` subcommand manages the encrypted Quantum Vault — a record store for domains and secrets protected by XChaCha20-Poly1305 encryption and a Merkle integrity tree. The vault is initialized once with `vault init`, which generates the Master Glyph Key (MGK). All subsequent operations require the sealed vault to be accessible.
+
+CODE:
+```
+aeonmi vault <ACTION> [flags]
+
+Actions:
+  init [--passphrase PASS] [--force]
+      Initialize the Glyph Identity System. Creates MGK with Argon2id sealing.
+      --force re-initializes even if an MGK already exists.
+
+  register <DOMAIN> --registrar NAME --expiration YYYY-MM-DD [--auto-renew]
+      [--dnssec] [--lock] [--blockchain REGISTRY]
+      [--metadata FILE] --secret FILE
+      Register a new domain into the vault.
+
+  transfer <DOMAIN> --to REGISTRAR [--token FILE]
+      Transfer a domain to a new registrar.
+
+  fortify <DOMAIN> [--dnssec] [--lock] [--blockchain REGISTRY]
+      Apply layered security controls to a registered domain.
+
+  qube-run <SCRIPT> [--profile PROFILE]
+      Execute a QUBE symbolic policy script against the vault state.
+
+  vault-status [--json]
+      Emit a live status report: domain counts, expirations, Merkle root.
+
+  vault-analyze [DOMAIN] [--mitigate]
+      Run deep analytics over the vault; produce mitigation plans.
+
+  add <DOMAIN> --registrar NAME --expiration YYYY-MM-DD --secret FILE [--metadata FILE]
+      Low-level alias for register (useful when importing existing metadata).
+
+  renew <DOMAIN> --expiration YYYY-MM-DD
+      Update the expiration date for a registered domain.
+
+  lock <DOMAIN> [--unlock]
+      Toggle registrar lock state on a domain.
+
+  audit <CATEGORY> [--detail JSON]
+      Append a custom audit entry to the vault log.
+
+  watch [--interval SECONDS] [--once]
+      Continuously monitor domain expirations (default poll interval: 300s).
+
+  sync
+      Synchronize vault state with distributed storage.
+
+  backup <FILE>
+      Write a backup of the vault to FILE.
+
+  recover <FILE>
+      Restore the vault from a backup file.
+
+  export-merkle
+      Export the Merkle tree view of the current vault state.
+
+Examples:
+  aeonmi vault init
+  aeonmi vault init --passphrase "my secure passphrase"
+  aeonmi vault register aeonmi.com --registrar namecheap --expiration 2027-04-01 --secret secret.key
+  aeonmi vault vault-status
+  aeonmi vault vault-status --json
+  aeonmi vault watch --interval 60
+  aeonmi vault backup vault_backup.bin
+```
+
+NOTE: The vault TUI dashboard is available for supported subcommands with `--tui`. Example: `aeonmi vault vault-status --tui`

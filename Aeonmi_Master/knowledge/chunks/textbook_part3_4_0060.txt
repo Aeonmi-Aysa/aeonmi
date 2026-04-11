@@ -1,0 +1,22 @@
+=== Starting and Navigating the Dashboard ===
+
+BODY: The canonical launcher for the Nexus dashboard is:
+
+CODE:
+```
+// Windows:
+start_dashboard.bat
+// Or directly:
+python Aeonmi_Master/dashboard.py
+// Opens on localhost:7777
+```
+
+BODY: The dashboard runs as a Flask server. It serves a three-panel web
+interface that reads from genesis.json and communicates with the native binary
+for chat operations.
+
+WARNING: Multiple launcher scripts exist in the project — nexus_relay.py,
+nexus_standalone.py, aeonmi_launcher.py, and tools/mother_ai/dashboard.py are
+all stale or superseded. Only Aeonmi_Master/dashboard.py and start_dashboard.bat
+are canonical. Using a stale launcher will connect to an older, unmaintained
+interface version.

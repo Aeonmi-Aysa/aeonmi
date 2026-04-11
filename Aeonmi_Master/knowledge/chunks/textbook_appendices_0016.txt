@@ -1,0 +1,29 @@
+=== aeonmi Additional Subcommands ===
+
+TABLE_HEADER: Subcommand | Description
+TABLE_ROW: aeonmi format [FILES] [--check] | Format .ai source files in place; --check validates without modifying
+TABLE_ROW: aeonmi lint [FILES] [--fix] | Lint .ai source files; --fix applies automatic corrections
+TABLE_ROW: aeonmi edit [FILE] [--tui] | Open the line-mode editor or TUI editor (--tui)
+TABLE_ROW: aeonmi new [FILE] [--open] [--tui] [--compile] [--run] | Create a new .ai file with optional follow-up actions
+TABLE_ROW: aeonmi open FILE | Open a file in the editor
+TABLE_ROW: aeonmi save [FILE] | Save current editor buffer
+TABLE_ROW: aeonmi save-as FILE | Save with a new filename
+TABLE_ROW: aeonmi close [FILE] | Close editor buffer
+TABLE_ROW: aeonmi import FILE | Import an external file
+TABLE_ROW: aeonmi export FILE [FORMAT] | Export editor content to a file
+TABLE_ROW: aeonmi upload PATH | Upload a file
+TABLE_ROW: aeonmi download FILE | Download a file
+TABLE_ROW: aeonmi tokens INPUT | Dump the token stream for an .ai file (debug)
+TABLE_ROW: aeonmi ast INPUT | Dump the AST for an .ai file (debug)
+TABLE_ROW: aeonmi vm start/stop/status/reset | VM lifecycle control
+TABLE_ROW: aeonmi vm snapshot NAME / restore NAME | VM state snapshots
+TABLE_ROW: aeonmi vm mount DIR | Mount a directory into the VM
+TABLE_ROW: aeonmi ai suggest/debug/optimize | AI-powered code suggestions
+TABLE_ROW: aeonmi ai explain [SECTION] | AI explanation of code sections
+TABLE_ROW: aeonmi ai refactor [RULE] | AI-guided refactoring
+TABLE_ROW: aeonmi ai chat [PROVIDER] [PROMPT] | Direct AI provider chat
+TABLE_ROW: aeonmi cargo ARGS... | Passthrough to system cargo (e.g., aeonmi cargo build --release)
+TABLE_ROW: aeonmi python ARGS... | Passthrough to system Python (e.g., aeonmi python script.py)
+
+
+# APPENDIX B: Complete Mother REPL Command Reference

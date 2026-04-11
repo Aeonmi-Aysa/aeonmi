@@ -1,0 +1,17 @@
+=== Prerequisites ===
+
+BODY:
+To build and run Aeonmi programs you need:
+
+1. Rust toolchain (stable). Install from https://rustup.rs. The project compiles against stable Rust. You do not need nightly.
+
+2. Cargo, which ships with Rust.
+
+3. Python 3.9 or later, if you want quantum execution via Qiskit. Python is not required to run non-quantum .ai programs.
+
+4. Qiskit and qiskit-ibm-runtime, if you want quantum simulation or real hardware execution:
+   pip install qiskit qiskit-aer qiskit-ibm-runtime
+
+5. An IBM Quantum account and API token, only if you want to run on real IBM quantum hardware (IBM Brisbane, 127-qubit). The Aer simulator works without any token.
+
+NOTE: Quantum programs using quantum_run() will check for Qiskit at runtime using quantum_check(). If Qiskit is not installed, quantum_check() returns 0 and quantum_run() operates in dry-run mode, returning a placeholder result. Your program will still execute — it just will not produce real quantum measurement results.

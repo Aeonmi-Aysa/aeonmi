@@ -1,0 +1,89 @@
+=== String Interpolation ===
+
+BODY:
+Aeonmi supports f-string style interpolation. Concatenation with + is the primary mechanism; direct interpolation syntax is also parsed. In practice, the + concatenation is the safest and most universal form across the VM.
+
+CODE:
+```
+// string_ops.ai
+function main() {
+    let name = "Aeonmi";
+    let version = 4.1;
+    let ready = true;
+
+    // Concatenation-based "interpolation"
+    print("Language: " + name + " version " + version);
+    print("Ready: " + ready);
+
+    // String functions
+    let s = "quantum computing";
+    print(upper(s));                   // QUANTUM COMPUTING
+    print(contains(s, "quantum"));     // true
+    print(replace(s, "quantum", "AI")); // AI computing
+    print(substr(s, 0, 7));            // quantum
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 4.1 — Variable Manipulation
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a program that:
+1. Declares three numeric variables: a = 15, b = 4, c = 7
+2. Computes and prints: a + b, a - b, a * b, a / b (as float), a % b (use fmod)
+3. Finds and prints the maximum of a, b, c using the max() builtin
+4. Computes the average of a, b, c and prints it rounded to 2 decimal places (use floor and multiply by 100 then divide)
+
+EXERCISE_SOLUTION:
+```
+// ex4_1.ai
+function main() {
+    let a = 15.0;
+    let b = 4.0;
+    let c = 7.0;
+
+    print("a + b = " + (a + b));
+    print("a - b = " + (a - b));
+    print("a * b = " + (a * b));
+    print("a / b = " + (a / b));
+    print("a mod b = " + fmod(a, b));
+
+    let maximum = max(max(a, b), c);
+    print("max(a,b,c) = " + maximum);
+
+    let avg = (a + b + c) / 3.0;
+    let avg_rounded = floor(avg * 100.0) / 100.0;
+    print("average = " + avg_rounded);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 4.2 — String Operations
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a program that takes the string "  Built by AI for AI  " and:
+1. Trims whitespace from both ends
+2. Converts it to uppercase
+3. Splits it on the space character
+4. Prints the number of words
+5. Joins the words back together with a hyphen separator
+
+EXERCISE_SOLUTION:
+```
+// ex4_2.ai
+function main() {
+    let original = "  Built by AI for AI  ";
+    let trimmed = trim(original);
+    let upper_s = upper(trimmed);
+    let words = split(upper_s, " ");
+    print("Word count: " + len(words));
+    let joined = join(words, "-");
+    print("Joined: " + joined);
+}
+
+main();
+```
+
+================================================================================

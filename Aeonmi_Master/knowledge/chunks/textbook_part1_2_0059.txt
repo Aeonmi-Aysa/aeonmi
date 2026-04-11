@@ -1,0 +1,77 @@
+=== Building Circuits ===
+
+BODY:
+Let us build several common quantum circuits and encode them as descriptors.
+
+CODE:
+```
+// circuit_examples.ai
+function main() {
+
+    // Circuit 1: Single qubit superposition
+    // Apply H to qubit 0, measure
+    // 1 qubit, 1 classical bit, 100 shots, 2 operations
+    let superposition_desc = "1 1 100 2  0 0 -1  7 0 0";
+    print("Superposition circuit descriptor:");
+    print(superposition_desc);
+    print("");
+
+    // Circuit 2: Bell state (maximally entangled pair)
+    // H on q0, CNOT ctrl=0 target=1, measure both
+    // 2 qubits, 2 classical bits, 512 shots, 4 operations
+    let bell_desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    print("Bell state circuit descriptor:");
+    print(bell_desc);
+    print("");
+
+    // Circuit 3: Three-qubit GHZ state (maximally entangled triple)
+    // H on q0, CNOT ctrl=0 target=1, CNOT ctrl=0 target=2, measure all
+    // 3 qubits, 3 classical bits, 1024 shots, 6 operations
+    let ghz_desc = "3 3 1024 6  0 0 -1  4 1 0  4 2 0  7 0 0  7 1 1  7 2 2";
+    print("GHZ state circuit descriptor:");
+    print(ghz_desc);
+    print("");
+
+    // Circuit 4: X gate (bit flip)
+    // X on q0 (flips |0> to |1>), measure
+    let x_gate_desc = "1 1 100 2  1 0 -1  7 0 0";
+    print("X gate descriptor:");
+    print(x_gate_desc);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 14.1 — Writing Circuit Descriptors
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write descriptor strings for the following circuits without running them yet:
+1. Apply H then Z to qubit 0, measure. (2 qubits is fine, just use q0 for everything.)
+2. Apply X to qubit 0 and H to qubit 1, then CNOT ctrl=1 target=0, measure both.
+3. A circuit with 2 qubits, 1024 shots, that creates superposition on q0 only and measures only q0.
+Write each descriptor as a let variable and print it. Verify your op_count matches the actual number of operations listed.
+
+EXERCISE_SOLUTION:
+```
+// ex14_1.ai
+function main() {
+    // 1. H then Z on q0, measure q0
+    // 1 qubit, 1 classical bit, 100 shots, 3 operations
+    let desc1 = "1 1 100 3  0 0 -1  3 0 -1  7 0 0";
+    print("H-Z circuit: " + desc1);
+
+    // 2. X on q0, H on q1, CNOT ctrl=1 target=0, measure both
+    // 2 qubits, 2 classical bits, 512 shots, 5 operations
+    let desc2 = "2 2 512 5  1 0 -1  0 1 -1  4 0 1  7 0 0  7 1 1";
+    print("X-H-CNOT circuit: " + desc2);
+
+    // 3. H on q0 only, measure q0 only
+    // 2 qubits, 1 classical bit, 1024 shots, 2 operations
+    let desc3 = "2 1 1024 2  0 0 -1  7 0 0";
+    print("Superposition q0 only: " + desc3);
+}
+
+main();
+```
+
+================================================================================

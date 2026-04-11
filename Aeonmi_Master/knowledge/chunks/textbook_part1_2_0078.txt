@@ -1,0 +1,41 @@
+=== .qube Is a Separate File Format ===
+
+================================================================================
+
+BODY:
+The most important correction to absorb from Chapters 12–18 is this: .qube is not
+a dialect of .ai. It is a completely separate file format with its own syntax,
+its own keyword set, its own comment glyphs, and its own execution model. Files
+with the .qube extension are processed by the `aeonmi qube` command, not by
+`aeonmi run` or `aeonmi native`.
+
+The confusion arises because both formats live in the same Aeonmi ecosystem and
+both deal with quantum concepts. But the distinction is sharp:
+
+- A .ai file is an imperative program. It uses function definitions, let
+  declarations, control flow (if/else/while), the standard library, and calls
+  quantum_run() with a descriptor string to delegate circuit execution to Qiskit.
+
+- A .qube file is a quantum circuit description. It has no functions, no loops,
+  and no general-purpose programming constructs. It expresses quantum state
+  initialization, gate application, measurement collapse, and assertion — nothing
+  more and nothing less. It reads like a circuit schematic written in a language
+  that humans and AI can both author and reason about directly.
+
+The relationship is analogous to the difference between a C program (imperative,
+general-purpose) and an assembly listing (low-level, structural). A .ai program
+can orchestrate .qube execution; a .qube file cannot call back into .ai.
+
+BODY:
+The second critical distinction is syntactic. .qube does not use the function/fn
+declaration pattern. There are no variable declarations with let. There are no
+curly-brace blocks. Statements are written one per line, and the language has
+exactly six keywords: state, apply, collapse, assert, log, and print.
+
+This minimalism is intentional. A quantum circuit description has a natural
+sequential structure (initialize → transform → measure → verify) that maps
+directly onto the QUBE keyword sequence. The format is designed so that an AI
+system can generate a correct .qube file by following a simple template — no
+scope tracking, no type inference, no operator precedence to reason about.
+
+================================================================================

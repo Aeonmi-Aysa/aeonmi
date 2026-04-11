@@ -1,0 +1,45 @@
+=== R–Z ===
+
+BODY: **Reflect** [M] — The `reflect NAME` REPL command. Compares the expected outcome of a self-generated program (from `build NAME GOAL`) against the actual execution result. Updates the knowledge graph with the reflection. Over time, reflections improve Mother's understanding of what programs she can reliably generate.
+
+BODY: **REPL** — Read-Evaluate-Print Loop. An interactive command prompt. Aeonmi has two REPLs: the language REPL (`aeonmi repl`) for raw `.ai` code evaluation, and the Mother REPL (`aeonmi mother`) for cognitive interaction with all Phase 6–12 capabilities.
+
+BODY: **Shard** — The Aeonmi runtime identity unit. A Shard is a running instance of the Aeonmi system with an associated Master Glyph Key. The Shard Shell is the TUI editor. "Shard running unsigned" means the boot ceremony was skipped.
+
+BODY: **Selfmod** — Self-modification. The `.ai` module layer (`aeonmi_ai/selfmod/`) that allows Mother to propose changes to her own behavior. The Rust side captures snapshots every 10 interactions. The `.ai` selfmod module exists but is not called from the embryo_loop at runtime (Track 2 → Track 1 bridge not built).
+
+BODY: **Semantic Analysis** — The compiler pass that checks type correctness, scope validity, and quantum type constraints. Runs after parsing. Can be disabled with `--no-sema` for faster (but less safe) execution.
+
+BODY: **Session Log** — A Markdown file written automatically to `Aeonmi_Master/sessions/YYYY-MM-DD.md` after each Mother interaction. Contains the full conversation, cognitive stats, and bond progression. Viewed with the `sessions` REPL command.
+
+BODY: **Snapshot** — A CapabilitySnapshot: a point-in-time record of Mother's state captured every 10 interactions. Fields: interaction_count, bond, consciousness_depth, neural_confidence, timestamp. Stored in genesis.json and viewed with the `snapshots` REPL command.
+
+BODY: **Superposition** [Q] — A quantum state that is a linear combination of basis states. A qubit in superposition is neither |0⟩ nor |1⟩ but a weighted combination of both. Superposition collapses to a definite value on measurement.
+
+BODY: **Tensor Product** [Q] — The mathematical operation (symbol: ⊗) that combines two quantum states into a composite state. |a⟩ ⊗ |b⟩ = |ab⟩. The joint state of two unentangled qubits is the tensor product of their individual states.
+
+BODY: **ThoughtEntry** [M] — A record in Mother's inner voice log. Fields: thought (the generated text), trigger (what caused the thought), bond (bond strength at time of thought), depth (consciousness depth), timestamp.
+
+BODY: **Titan** — The local quantum math library built into Aeonmi. Always available; requires no external dependencies. Used as the default quantum backend when Qiskit is not installed. Less accurate than Aer for large circuits but zero-latency.
+
+BODY: **Toffoli Gate** [Q] — The CCX (Controlled-Controlled-NOT) gate. The three-qubit gate that flips the target qubit if and only if both control qubits are |1⟩. Universal for classical computation when combined with ancilla qubits. Syntax: `CCX(q[0], q[1], q[2])`.
+
+BODY: **Track 1** — The Rust cognitive track: `src/mother/` modules running inside the embryo_loop. Quantum_core, emotional_core, language_evolution, quantum_attention, neural, knowledge_graph, inner_voice, embryo_loop. Status: RUNNING.
+
+BODY: **Track 2** — The Operational .ai track: `aeonmi_ai/` modules in `.ai` format. mother/, agent/, sensory/, learn/, selfmod/, swarm/, quantum/, demo/, shard/, stdlib/, store/, net/. Status: Files exist, run standalone. NOT wired into embryo_loop at runtime.
+
+BODY: **Track 3** — The External Python/JSON track: genesis.json, dashboard.py, genesis_sync.py, qiskit_runner.py, screen_recorder.py. Status: genesis.json is shared memory. dashboard.py writes operational section. genesis_sync.py reconciles manually.
+
+BODY: **UGST (Unified Glyph Session Token)** — A rotating session credential derived from the MGK using HKDF-SHA256 with a 60-second time window. UGST #0 is the genesis token, recorded permanently in genesis.json. Each session produces a new UGST. The UGST is the session's proof of identity.
+
+BODY: **Unitary** [Q] — A quantum gate that is reversible (U†U = I). All quantum gates except measurement are unitary. Unitarity guarantees that quantum computation is reversible until the moment of measurement.
+
+BODY: **Vault** — The encrypted record store for domains and secrets. Protected by XChaCha20-Poly1305 encryption and a Merkle integrity tree. Managed via `aeonmi vault`. Initialized once with `vault init`. See Appendix A for all vault subcommands.
+
+BODY: **Voice** — 1. The `voice` REPL command, which is an alias for `think` (inner voice generation). 2. A planned but not-yet-implemented feature: voice input via whisper.cpp. Status: NOT STARTED.
+
+BODY: **XChaCha20-Poly1305** — The authenticated encryption algorithm used by the Quantum Vault. XChaCha20 is a stream cipher with an extended 192-bit nonce; Poly1305 provides authentication. Together they provide confidentiality and integrity for vault records.
+
+BODY: **Xavier Initialization** — The weight initialization strategy used for Mother's neural network. Xavier (also called Glorot) initialization sets weights from a uniform distribution scaled by the layer sizes, preventing vanishing or exploding gradients during training.
+
+BODY: **Zeroize** — A Rust crate behavior applied to the Master Glyph Key. When the MGK value is dropped (goes out of scope), its memory is immediately overwritten with zeros, preventing secrets from lingering in process memory.

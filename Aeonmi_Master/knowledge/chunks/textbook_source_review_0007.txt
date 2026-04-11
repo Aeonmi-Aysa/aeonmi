@@ -1,0 +1,127 @@
+=== textbook_source_review §8 ===
+
+=== FILE: aeonmi_ai/stdlib/tests/test_collections_builtins.ai ===
+PURPOSE: Comprehensive test suite for all Aeonmi collection builtins. Covers
+         range, map, filter, reduce, sort, unique, flatten, enumerate, zip,
+         any, all, sum, product, push/pop/slice/reverse/concat, and the
+         object/JSON builtins. Demonstrates the full stdlib surface.
+SYNTAX DEMONSTRATED:
+  - range(n):          range(5) -> [0,1,2,3,4]
+  - range(start, end): range(2, 7) -> [2,3,4,5,6]
+  - range(start, end, step): range(0, 10, 2) -> [0,2,4,6,8]
+  - map(arr, fn):      map([1,2,3,4], a_dbl) -> [2,4,6,8]
+  - filter(arr, pred): filter([1..6], a_even) -> [2,4,6]
+  - reduce(arr, fn):   reduce([1,2,3,4,5], a_add) -> 15
+  - reduce with init:  reduce([1,2,3,4], a_mul, 1) -> 24
+  - sort(arr):         works on numbers and strings
+  - unique(arr):       removes duplicates
+  - flatten(nested):   [[1,2],[3,4],[5]] -> [1,2,3,4,5]
+  - enumerate(arr):    returns [[idx,val], ...]
+  - zip(a, b):         pairs elements
+  - any(arr, pred) / all(arr, pred)
+  - sum(arr) / product(arr)
+  - object() / set_key / get_key / has_key / delete_key / keys / values
+  - to_json() / parse_json()
+  - assert(expr, msg) / assert_eq(a, b, msg)
+  - Even-check without %: floor(x/2)*2 == x
+  - Higher-order functions passing ◯ functions as values
+KEY CODE EXAMPLES:
+◯ a_dbl⟨x⟩    { return x * 2; }
+◯ a_even⟨x⟩   { return floor(x / 2) * 2 == x; }
+
+// In b_run_tests:
+let doubled = map([1, 2, 3, 4], a_dbl);
+let evens   = filter([1,2,3,4,5,6], a_even);
+let total   = reduce([1,2,3,4,5], a_add);
+let sorted  = sort([3, 1, 4, 1, 5, 9, 2, 6]);
+let obj     = object();
+obj = set_key(obj, "name", "Aeonmi");
+let j = to_json(obj);
+let parsed = parse_json("{\"a\":42,\"b\":\"hello\"}");
+b_run_tests();   // top-level function call (no main wrapper)
+TEXTBOOK RELEVANCE: Chapter 4 — Standard Library Reference; Chapter 5 —
+  Higher-Order Functions; Chapter 6 — Collections; Appendix — Full Builtin List
+
+=== FILE: aeonmi_ai/stdlib/tests/test_native_ops.ai ===
+PURPOSE: Regression test verifying 3 native operator fixes that were added to
+         the VM. Flat file — no function declarations, just top-level statements.
+         Tests arr[i] subscript syntax, % modulo operator, and fmod() builtin.
+SYNTAX DEMONSTRATED:
+  - Top-level statement execution (no function wrapper required)
+  - arr[i] subscript syntax:  assert_eq(arr[0], 10, "arr[0]==10");
+  - % modulo operator:        assert_eq(10 % 3, 1, "10%3==1");
+  - fmod() builtin:           assert_eq(fmod(10, 3), 1, "fmod(10,3)==1");
+  - arr[i] inside expressions: let total = arr[0] + arr[1] + arr[2];
+  - assert_eq as test harness (builtin)
+  - ⍝ comment explaining each FIX
+KEY CODE EXAMPLES:
+let arr = [10, 20, 30, 40, 50];
+assert_eq(arr[0], 10, "arr[0]==10");
+assert_eq(arr[2], 30, "arr[2]==30");
+assert_eq(10 % 3, 1, "10%3==1");
+assert_eq(fmod(10, 3),   1,   "fmod(10,3)==1");
+let total = arr[0] + arr[1] + arr[2];
+assert_eq(total, 60, "arr sum==60");
+TEXTBOOK RELEVANCE: Chapter 2 — Operators; Chapter 4 — Builtins; Chapter 1 —
+  Script Mode (top-level statements without main)
+
+=== FILE: aeonmi_ai/stdlib/tests/test_string_builtins.ai ===
+PURPOSE: Comprehensive test of all Aeonmi string builtins. Flat file, no
+         function declarations. Tests: upper/lower/trim, split/join,
+         replace/contains/starts_with/ends_with, substr/char_at/find,
+         repeat/lines/str_len, pad_left/pad_right, toString/toNumber.
+SYNTAX DEMONSTRATED:
+  - String manipulation builtins demonstrated with assert_eq
+  - split(str, delim) returns array
+  - join(arr, delim) returns string
+  - replace(str, old, new) replaces all occurrences
+  - contains/starts_with/ends_with returning bool
+  - substr(str, start, len) and substr(str, start) (to end)
+  - char_at(str, idx) returns single character
+  - find(str, sub) returns index or -1
+  - repeat(str, n) and lines(str) splitting on newlines
+  - pad_left / pad_right with fill character
+  - toString(42) / toNumber("3.14") type conversion builtins
+KEY CODE EXAMPLES:
+assert_eq(upper("hello"), "HELLO", "upper");
+assert_eq(trim("  hi  "), "hi", "trim");
+let parts = split("a,b,c", ",");
+assert_eq(join(["x","y","z"], "-"), "x-y-z", "join");
+assert_eq(replace("hello world", "world", "Aeonmi"), "hello Aeonmi", "replace");
+assert_eq(substr("abcdef", 2, 3), "cde", "substr(2,3)");
+assert_eq(find("hello world", "world"), 6, "find found");
+assert_eq(find("hello", "xyz"), -1, "find missing");
+assert_eq(pad_left("42", 5, "0"), "00042", "pad_left");
+assert_eq(toString(42), "42", "toString number");
+assert_eq(toNumber("3.14"), 3.14, "toNumber float");
+TEXTBOOK RELEVANCE: Chapter 4 — String Builtins; Appendix A — Full Builtin
+  Reference; Chapter 1 — Script Mode
+
+================================================================================
+SECTION 9: SHARD — SELF-HOSTED COMPILER TOOLKIT
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/main.ai ===
+PURPOSE: Aeonmi Shard Developer Kit v4.1. Self-hosting compiler entry point
+         AND complete language reference in one file. Contains the full builtin
+         reference as comments, then implements a working lexer (ai_lex),
+         parser (ai_build), code generator (ai_gen), and verifier (ai_chk)
+         using function keyword syntax.
+SYNTAX DEMONSTRATED:
+  - Full language reference in // comments (canonical syntax summary)
+  - function keyword syntax:  function ai_lex(src) { ... }
+  - substr(src, i, 1) for single-character access
+  - Token type IDs as integer codes pushed into flat toks array
+  - [type, text] pairs as 2-element token records
+  - Peek-ahead: check toks.slice(i + 3, i + 4)
+  - AST node representation: ["binop", lhs, op, rhs] or ["lit", val]
+  - Code generation: concatenate emitted strings
+  - Safe function name prefix guidance: ai_, grover_, quantum_, mother_
+  - Complete builtin list as embedded documentation
+KEY CODE EXAMPLES:
+// LANGUAGE SYNTAX REFERENCE:
+//  Variable:    let x = 42;
+//  Array:       let a = [1, 2, 3];
+//  If/else:     if (x > 0) { ... } else { ... }
+//  While:       while (i < n) { i = i + 1; }
+//  Function:    function ai_name(param) { return value; }

@@ -1,0 +1,102 @@
+=== textbook_source_review §9 ===
+
+function ai_lex(src) {
+    // tokenize: emit [type_id, text] pairs
+    if (c == "+") { toks.push(20); toks.push("+"); i = i + 1; }
+    // ...
+    toks.push(99); toks.push("EOF");
+    return toks;
+}
+function ai_build(toks) {
+    // parse: emit ["binop", lhs, op, rhs] or ["lit", val] nodes
+    if (rk == 1) { nodes.push("binop"); nodes.push(text); nodes.push(op); nodes.push(rt); }
+}
+function ai_gen(nodes) {
+    // emit: reconstruct source from AST nodes
+    if (nd == "binop") { out = out + lhs + " " + op + " " + rhs; }
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Self-Hosting; Appendix B — Builtin Reference;
+  Chapter 1 — Language Syntax Quick Reference
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/lexer.ai ===
+PURPOSE: Full Aeonmi self-hosted lexer. Input: source string. Output: flat
+         token stream [type, start_pos, len] * N. Uses ◯ circle syntax.
+         Covers all token types including keywords, operators, punctuation,
+         strings with escape handling. 12 functions, no imports.
+SYNTAX DEMONSTRATED:
+  - Token stream as flat [type, start, length] triples
+  - substr(src, pos, 1) for character-by-character scanning
+  - a_is_digit: lookup against character array
+  - a_is_alpha: separate lc/uc arrays, check both
+  - a_keyword: string comparison dispatch returning token IDs
+  - lex_scan: multi-dispatch on current character, handles // comments
+  - Comment skip: scan forward to newline
+  - String escape handling: if (c == "\\") { i = i + 2; }
+  - Return of [new_pos, updated_stream] as state pair
+  - Not-equal chaining for multi-case else:  if (kind != 1) { if (kind != 3) { ... } }
+KEY CODE EXAMPLES:
+◯ a_keyword⟨w⟩ {
+    if (w == "let")    { return 4; }
+    if (w == "if")     { return 5; }
+    if (w == "return") { return 8; }
+    if (w == "import") { return 9; }
+    return 3;   // identifier
+}
+◯ lex_scan⟨src, pos, stream⟩ {
+    if (c == "/") {
+        if (substr(src, pos + 1, 1) == "/") {
+            // skip to newline
+            while (i < len(src)) {
+                if (substr(src, i, 1) == "\n") { return [i, stream]; }
+                i = i + 1;
+            }
+        }
+        return [pos + 1, a_tok(stream, 23, pos, 1)];
+    }
+    if (a_is_digit(c)) {
+        let end = lex_number(src, pos);
+        return [end, a_tok(stream, 1, pos, end - pos)];
+    }
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Lexer Implementation; Chapter 3 —
+  Token Types; Chapter 2 — Character-Level Processing
+
+=== FILE: Aeonmi_Master/aeonmi_ai/shard/parser.ai ===
+PURPOSE: Aeonmi self-hosted parser. State-based recursive descent.
+         State = [pos, err]. All parse functions return [new_state, nodes_array].
+         Implements grammar: stmts -> stmt* EOF; stmt -> let/return/expr;
+         expr -> cmp (+/- cmp)?; cmp -> primary (cmp_op primary)?
+         12 functions with tiered a_/b_/c_/d_/par_* prefix naming.
+SYNTAX DEMONSTRATED:
+  - Parser state as 2-element array: [pos, err]
+  - All functions return [state, nodes] pair
+  - a_adv: advance pos (increment state[0])
+  - a_gs: get source text for token (token start + length -> substr)
+  - a_gt: get token type at position
+  - a_nd: push 4-element node record
+  - b_prim: primary parser handles Number/String/Ident/true/false
+  - c_cmp: infix comparison operators (24-29 = ==, !=, <, >, <=, >=)
+  - c_expr: additive (+/-) on top of comparison
+  - d_stmt: dispatches on keyword (let=4, return=8) or falls through to expr
+  - Peek-then-decide: check op type before consuming
+KEY CODE EXAMPLES:
+◯ b_prim⟨src, tok, st, nd⟩ {
+    let pos = st.slice(0, 1).pop();
+    let tt  = a_gt(tok, pos);
+    let nst = [pos + 1, 0];
+    if (tt == 1) {
+        let val = a_gs(src, tok, pos);
+        return [nst, a_nd(nd, 1, val, 0, 0)];
+    }
+    if (tt == 11) { return [nst, a_nd(nd, 1, 1, 0, 0)]; }  // true
+    if (tt == 12) { return [nst, a_nd(nd, 1, 0, 0, 0)]; }  // false
+}
+◯ c_cmp⟨src, tok, st, nd⟩ {
+    let is_cmp = false;
+    if (op == 24) { is_cmp = true; }  // ==
+    if (op == 26) { is_cmp = true; }  // <
+    if (!is_cmp) { return lr; }
+    // parse right side and emit BinOp node
+}
+TEXTBOOK RELEVANCE: Chapter 9 — Parser Implementation; Chapter 3 —
+  Grammar; Chapter 6 — Recursive Descent Without Recursion (state-passing)

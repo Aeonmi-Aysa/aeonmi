@@ -1,0 +1,91 @@
+=== The Five Agents and Their Roles ===
+
+BODY: Mother has five agents that form her decision hive. Each is implemented
+as a .ai program in Aeonmi_Master/aeonmi_ai/agent/ and as a template used by
+the Rust-generated hive_runner.ai during live hive cycles.
+
+ORACLE AGENT (oracle_agent.ai): Evaluates quantum coherence and factual
+accuracy. Takes three inputs: trend (-100 to 100), vol (0 to 100), vscore
+(0 to 100). Oracle determines which quantum circuit is most appropriate for the
+current context — Bell state for correlation mapping, Grover for anomaly search,
+QFT for cyclical pattern analysis. Its score is a composite of trend signal
+strength (40%), volume score (30%), and inverse volatility (30%). A high Oracle
+score means the underlying analysis is sound and the factual basis is strong.
+
+CODE:
+```
+// oracle_agent.ai — core scoring function
+◯ ora_score⟨trend, vol, vscore⟩ {
+    let abs_trend = trend;
+    if (trend < 0) { abs_trend = 0 - trend; }
+    let inv_vol = 100 - vol;
+    let s = abs_trend * 40 / 100 + vscore * 30 / 100 + inv_vol * 30 / 100;
+    return s;
+}
+
+// Circuit selection
+◯ ora_circuit⟨trend, vol⟩ {
+    if (vol > 65) {
+        let nb = ora_bearish(trend);
+        let nl = ora_bullish(trend);
+        if (nb == 0) { if (nl == 0) { return 1; } }  // Grover
+    }
+    let b = ora_bullish(trend);
+    if (b == 1) { return 2; }   // QFT
+    let be = ora_bearish(trend);
+    if (be == 1) { return 2; }  // QFT
+    return 0;                    // Bell
+}
+```
+
+HYPE AGENT (hype_agent.ai): Evaluates upside potential and forward momentum.
+Takes engagement (0-100), share_vel (0-100), and sentiment (0-100) as inputs.
+The composite hype score is engagement × 35% + share_vel × 40% + sentiment × 25%.
+Tiers run from LOW (<30) through MID (30-59), HIGH (60-79), to BREAKOUT (>=80).
+An amplify flag fires when score >= 70 and sentiment is not negative. A go_viral
+flag fires when share_vel > 75 and engagement > 60.
+
+CODE:
+```
+// hype_agent.ai — score and tier
+◯ hyp_score⟨engagement, share_vel, sentiment⟩ {
+    return engagement * 35 / 100 + share_vel * 40 / 100 + sentiment * 25 / 100;
+}
+
+◯ hyp_tier⟨score⟩ {
+    if (score >= 80) { return 3; }  // BREAKOUT
+    if (score >= 60) { return 2; }  // HIGH
+    if (score >= 30) { return 1; }  // MID
+    return 0;                        // LOW
+}
+```
+
+CLOSER AGENT (closer_agent.ai): Evaluates execution readiness and closing
+criteria. Takes sales intent, urgency, and friction as inputs. High closer score
+means conditions are right to act — intent is high, urgency is present, and
+friction is low. An urgency amplifier (1.15x) activates when urgency > 0.6.
+
+DEVIL AGENT (devil_agent.ai): Evaluates risk and downside. Takes volatility,
+regulatory exposure, and counter-pressure scores as inputs. A high Devil score
+means significant risk is present — caution is warranted. Devil's score feeds
+into the conductor as an inverse (safety = 1 - risk), so high devil score
+reduces the overall recommendation level.
+
+CONDUCTOR AGENT (conductor_agent.ai): Synthesizes all four agent scores into
+a single recommendation. The decision hierarchy is: if risk_sc >= 80, ABORT
+regardless of other scores; if all three positive agents >= 70 and risk < 30,
+ACCELERATE; if consensus >= 50 and risk < 60, PROCEED; otherwise HOLD.
+
+CODE:
+```
+// conductor_agent.ai — recommendation logic
+◯ con_rec⟨oracle_sc, hype_sc, close_sc, risk_sc⟩ {
+    let ab = con_abort(risk_sc);
+    if (ab == 1) { return 0; }   // ABORT
+    let acc = con_accelerate(oracle_sc, hype_sc, close_sc, risk_sc);
+    if (acc == 1) { return 3; }  // ACCELERATE
+    let pr = con_proceed(oracle_sc, hype_sc, close_sc, risk_sc);
+    if (pr == 1) { return 2; }   // PROCEED
+    return 1;                     // HOLD
+}
+```

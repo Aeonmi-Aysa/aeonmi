@@ -1,0 +1,41 @@
+=== Array Operations ===
+
+BODY:
+The array builtins cover most common operations: slicing, sorting, reversing, flattening, and statistical functions.
+
+CODE:
+```
+// array_ops.ai
+function main() {
+    let data = [5, 3, 9, 1, 7, 2, 8, 4, 6];
+
+    // Sort (ascending)
+    let sorted = sort(data);
+    print("sorted: " + sorted);
+
+    // Reverse
+    let rev = reverse(sorted);
+    print("reversed: " + rev);
+
+    // Slice — slice(arr, start, end) — end is exclusive
+    let first_three = slice(sorted, 0, 3);
+    print("first three: " + first_three);  // [1, 2, 3]
+
+    // Statistical
+    print("sum: " + sum(data));
+    print("min via sort: " + sorted[0]);
+    print("max via sort: " + sorted[len(sorted) - 1]);
+
+    // Unique
+    let dupes = [1, 2, 2, 3, 3, 3, 4];
+    let uniq = unique(dupes);
+    print("unique: " + uniq);  // [1, 2, 3, 4]
+
+    // Flatten nested array
+    let nested = [[1, 2], [3, 4], [5, 6]];
+    let flat = flatten(nested);
+    print("flat: " + flat);   // [1, 2, 3, 4, 5, 6]
+}
+
+main();
+```

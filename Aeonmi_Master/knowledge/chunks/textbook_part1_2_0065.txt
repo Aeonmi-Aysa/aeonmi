@@ -1,0 +1,18 @@
+=== The Theory of Bell States ===
+
+BODY:
+Bell states are the four maximally entangled two-qubit states. They are named after physicist John Stewart Bell. In a Bell state, the two qubits are perfectly correlated: measuring one qubit instantly determines the outcome of measuring the other, regardless of the physical distance between them. This is quantum entanglement.
+
+The four Bell states are:
+- |Φ+> = (|00> + |11>) / √2 — both qubits same, equal superposition
+- |Φ-> = (|00> - |11>) / √2 — both qubits same with phase flip
+- |Ψ+> = (|01> + |10>) / √2 — both qubits opposite, equal superposition
+- |Ψ-> = (|01> - |10>) / √2 — both qubits opposite with phase flip
+
+The most common Bell state is |Φ+>, created by applying a Hadamard gate to the first qubit and then a CNOT gate with the first qubit as control and the second as target. Starting from |00>:
+
+1. H applied to qubit 0: (|0> + |1>) / √2 ⊗ |0>  =  (|00> + |10>) / √2
+2. CNOT ctrl=0 target=1: |00> stays |00>, |10> becomes |11>
+3. Result: (|00> + |11>) / √2 — this is |Φ+>
+
+When you measure this state, you always get either 00 or 11, never 01 or 10. The qubits are entangled.

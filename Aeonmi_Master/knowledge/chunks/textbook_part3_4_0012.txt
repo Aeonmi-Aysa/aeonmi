@@ -1,0 +1,53 @@
+=== Synthesis Nodes and the consolidate Command ===
+
+BODY: As the knowledge graph grows, some nodes will share two or more tags but
+have no direct link — perhaps because they were entered at different times or
+the auto-linker found five closer matches for each. The `consolidate` command
+addresses this by scanning for such unlinked pairs and creating synthesis nodes.
+
+A synthesis node is a new node named synthesis_N that summarizes the
+relationship between two knowledge areas that belong together but haven't been
+explicitly connected. The synthesis node links to both source nodes, and both
+source nodes link back to it.
+
+Running `consolidate` after a long session of teaching is good practice. It
+ensures that Mother's knowledge structure remains navigable and that her inner
+voice can draw on cross-domain connections.
+
+NOTE: Auto-tag detection is keyword-based, not semantic. Tags may occasionally
+be imprecise — a fact about "quantum economics" will be tagged quantum even if
+the quantum reference is superficial. The `link <a> <b>` command lets you create
+explicit links to correct for this when needed.
+
+EXERCISE_TITLE: Exercise 21.1 — Building and Traversing a Knowledge Cluster
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Build a knowledge cluster of at least eight related facts using
+`teach`. Choose a coherent domain — quantum circuits, evolutionary algorithms,
+or agent scoring. After entering all eight facts, run `graph` to observe the
+auto-linked structure. Use `query` with the relevant tag to filter to your
+cluster. Use `neighbors` on the central node. Then run `consolidate` and
+observe whether any synthesis nodes are created. Finally, run `think <topic>`
+and observe how the inner voice draws on the cluster.
+EXERCISE_SOLUTION:
+```
+aeonmi mother
+> teach bell_state = H+CNOT creates |00>+|11>/sqrt(2)
+> teach ghz_state = H+CX+CX creates 3-qubit |000>+|111>/sqrt(2)
+> teach grover_k = optimal Grover iterations = floor(pi/4 * sqrt(N))
+> teach grover_prob = P(success) = sin^2((2k+1)/sqrt(N))
+> teach qft_def = QFT converts computational basis to Fourier basis
+> teach circuit_depth = total gate count affects decoherence risk
+> teach shot_count = 1024 shots gives ~3% statistical uncertainty
+> teach fidelity_tvd = fidelity = 1 - total_variation_distance from ideal
+> graph bell_state
+// Observe: bell_state links to ghz_state (quantum), grover_k (quantum), etc.
+> query quantum
+// Shows all 8 nodes
+> neighbors grover_k
+> consolidate
+// Synthesis node may form between qft_def and grover_k (both quantum/math)
+> think quantum circuits
+// Inner voice draws on the full cluster
+```
+
+================================================================================

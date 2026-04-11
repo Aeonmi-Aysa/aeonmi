@@ -1,0 +1,52 @@
+=== QUBE Exercise S1 — Single-Qubit Superposition and Measurement ===
+
+================================================================================
+
+EXERCISE_TITLE: Supplement Exercise S1 — Superposition in QUBE
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a .qube file called superposition.qube that:
+1. Declares a qubit ψ as an explicit superposition with equal amplitudes
+2. Applies a Z gate to ψ (phase flip — does not change measurement probabilities)
+3. Applies an S gate to ψ (π/2 phase rotation)
+4. Collapses ψ and stores the result as r
+5. Asserts r is a valid measurement
+6. Logs the result
+Use ∵ comments to explain each gate choice. Use a ∴ comment as the file title.
+
+EXERCISE_SOLUTION:
+```
+∴ Superposition with Phase Operations
+
+∵ initialize ψ in equal superposition: amplitude 1/√2 on each basis state
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+∵ Z gate applies a phase flip: |1⟩ component gains factor -1
+∵ this does not change measurement outcome probabilities
+apply Z -> ψ
+
+∵ S gate applies a π/2 phase rotation to the |1⟩ component
+∵ S = diag(1, i) in matrix form
+apply S -> ψ
+
+∵ collapse ψ to a classical bit — superposition resolves to 0 or 1
+collapse ψ -> r
+
+∵ verify the measurement is a valid qubit outcome
+assert r ∈ {0, 1}
+
+∵ output the result
+log(r)
+```
+
+EXERCISE_NOTE:
+Run with: aeonmi qube superposition.qube
+
+After the Z gate and S gate, the qubit is still in a 50/50 superposition of
+|0⟩ and |1⟩. The phase operations change the relative phase of the amplitudes
+but do not affect the measurement probability distribution — you still expect
+approximately 50% chance of measuring 0 and 50% of measuring 1. Phase matters
+when combining with further gates (e.g., another H would turn phase differences
+into amplitude differences), but measurement alone cannot distinguish phase.
+
+================================================================================

@@ -1,0 +1,36 @@
+=== Tensor Product and Symbolic Binding Operators ===
+
+================================================================================
+
+BODY:
+Two additional glyph operators appear in .ai quantum programs that are worth
+understanding explicitly.
+
+⊗ (tensor product, U+2297): In quantum mechanics, the tensor product combines
+two quantum state spaces. In Aeonmi, ⊗ is a recognized operator token used in
+quantum symbolic programs. Example: a ⊗ b represents the combined state of
+qubits a and b before entanglement.
+
+↦ (symbolic binding, U+21A6): The "maps to" arrow. Used to express functional
+mappings or symbolic bindings that are distinct from ordinary = assignment.
+Example: name ↦ value binds name to value in a declarative, math-style way.
+
+Both ⊗ and ↦ are highlighted as keyword.operator.glyph tokens by the VSCode
+extension's .ai grammar. They do not appear in .qube files.
+
+CODE:
+```
+// Tensor product and binding in .ai
+fn main() {
+    // Tensor product — symbolic combination of states
+    let combined = "|0⟩" ⊗ "|1⟩";
+    print("Combined state: " + combined);
+
+    // Symbolic binding — mathematical "maps to"
+    let transform ↦ "H gate transforms |0⟩ to superposition";
+    print(transform);
+}
+return main();
+```
+
+================================================================================

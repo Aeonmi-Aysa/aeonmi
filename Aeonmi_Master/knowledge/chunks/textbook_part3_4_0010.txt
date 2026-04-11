@@ -1,0 +1,19 @@
+=== Architecture and Auto-Tagging ===
+
+BODY: The knowledge graph is Mother's primary long-term memory structure. It is
+not a flat key-value store. Every fact you teach creates a node that is tagged
+and linked to other nodes automatically.
+
+When you run `teach <key> = <value>`, the system creates a node with the key as
+its identifier and the value as its content. The system then auto-tags the node
+based on keyword presence. Current tag categories are: quantum, neural, mother,
+operational, goal, reflection, hive, generated, and system. A node about a Bell
+state will receive the "quantum" tag. A node about agent coordination will
+receive "hive". A node about a self-generated program will receive both
+"generated" and whatever content tags apply.
+
+After tagging, the system attempts to link the new node to up to five existing
+nodes that share one or more tags. These links are bidirectional. The result is
+that closely related facts automatically form clusters — all your quantum
+observations link to each other, all your hive observations link to each other,
+and cross-cluster links form when a fact touches multiple domains.

@@ -1,0 +1,33 @@
+=== Array Creation and Access ===
+
+BODY:
+Arrays are one of the most-used data structures in Aeonmi. They are ordered, 0-indexed, and can hold mixed types. Arrays are created with bracket syntax and modified in place using push and pop.
+
+CODE:
+```
+// arrays.ai
+function main() {
+    // Creating arrays
+    let empty = [];
+    let nums = [1, 2, 3, 4, 5];
+    let mixed = ["hello", 42, true, 3.14];
+    let nested = [[1, 2], [3, 4], [5, 6]];
+
+    // Accessing elements
+    print(nums[0]);        // 1
+    print(nums[4]);        // 5
+    print(nested[1][0]);   // 3
+
+    // Modifying arrays
+    nums.push(6);
+    print(len(nums));      // 6
+    let last = nums.pop();
+    print("popped: " + last);  // 6
+    print(len(nums));      // 5
+
+    // Checking length
+    print(len(mixed));     // 4
+}
+
+main();
+```

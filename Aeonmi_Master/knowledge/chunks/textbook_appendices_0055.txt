@@ -1,0 +1,3 @@
+=== Overview ===
+
+BODY: This appendix documents the most common error messages encountered when using Aeonmi, what they mean, and how to resolve them. Errors are grouped by the subsystem that generates them. Enable `--pretty-errors` for colorized, formatted diagnostic output.

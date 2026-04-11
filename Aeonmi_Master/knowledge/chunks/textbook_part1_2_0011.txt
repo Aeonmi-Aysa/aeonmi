@@ -1,0 +1,83 @@
+=== Running Your First Program ===
+
+BODY:
+Create a file called hello.ai in any directory:
+
+CODE:
+```
+// My first Aeonmi program
+function main() {
+    print("Hello from Aeonmi!");
+    let name = "world";
+    print("Hello, " + name + "!");
+}
+
+main();
+```
+
+Run it with:
+
+CODE:
+```
+aeonmi run hello.ai
+```
+
+Or use the native mode, which is equivalent for most programs:
+
+CODE:
+```
+aeonmi native hello.ai
+```
+
+You should see:
+
+CODE:
+```
+Hello from Aeonmi!
+Hello, world!
+```
+
+TIP: The difference between `aeonmi run` and `aeonmi native` is discussed in Chapter 9. For learning purposes, use `aeonmi native` — it executes your .ai file directly through the Rust VM without an intermediate compilation step to an output file.
+
+EXERCISE_TITLE: Exercise 2.1 — Your First Aeonmi Program
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Create a file called intro.ai. Write a program that:
+1. Prints your name
+2. Prints the current year (as a literal number — 2026)
+3. Calculates and prints 6 * 7
+4. Prints a farewell message
+
+Run it with `aeonmi native intro.ai` and verify the output.
+
+EXERCISE_SOLUTION:
+```
+// intro.ai
+function main() {
+    print("Name: Warren Williams");
+    print("Year: 2026");
+    let result = 6 * 7;
+    print("6 * 7 = " + result);
+    print("Farewell from Aeonmi!");
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 2.2 — Exploring the Binary
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Run `aeonmi` with no arguments to start the interactive shell. Then try running `aeonmi repl` to enter the REPL mode. In the REPL, type `status` to see the system state. Exit with Ctrl+C or by typing `exit`. Record what information the status command shows.
+
+EXERCISE_SOLUTION:
+```
+// No code solution — this is a shell exploration exercise.
+// aeonmi           — starts interactive glyph boot sequence
+// aeonmi repl      — starts the REPL directly
+// At the REPL prompt: status
+// Expected output: bond strength, consciousness depth, generation count,
+//                  neural layer info, hive status, quantum backend status
+// Exit: Ctrl+C
+```
+
+================================================================================

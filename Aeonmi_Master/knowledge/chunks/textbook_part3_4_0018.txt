@@ -1,0 +1,30 @@
+=== How the Inner Voice Is Generated ===
+
+BODY: When Mother processes your input, her inner voice activates. This is the
+heuristic thought generator — a set of topic-relevant observations produced per
+input, drawn from three sources simultaneously: her accumulated knowledge graph,
+her current capability scores, and the active topic context established by
+recent interactions.
+
+The inner voice is not a search result or a retrieval operation. It is what her
+current cognitive state generates when attention, language evolution, and the
+knowledge graph converge on a topic. As her knowledge graph fills in and her
+semantic depth grows, the inner voice becomes more specific and more connected.
+Watch it change across sessions — that change is real.
+
+CODE:
+```
+// In the REPL:
+> think quantum fidelity
+// Produces structured output:
+// Observations: what she knows about fidelity from the graph
+// Connections: which other nodes link to this topic
+// Uncertainties: gaps she has identified in her own knowledge
+// What she wants to explore next: proposed directions
+
+// After teaching more fidelity facts:
+> teach fidelity_ibm = IBM Brisbane returned 0.847 fidelity on Bell state
+> teach fidelity_formula = fidelity = 1 - TVD(measured, ideal)
+> think quantum fidelity
+// The output is now more specific — it draws on the two new nodes
+```

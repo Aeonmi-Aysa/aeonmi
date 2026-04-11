@@ -1,0 +1,60 @@
+=== When to Use Each Agent ===
+
+BODY: The five agents are not interchangeable. Each one asks a fundamentally
+different question:
+
+Oracle asks: is the factual and quantum basis for this decision sound?
+Hype asks: is there significant positive momentum behind this opportunity?
+Closer asks: are all the conditions in place to execute right now?
+Devil asks: what could go wrong, and how badly?
+Conductor asks: synthesizing all four, what is the best course of action?
+
+The conductor's recommendation is the system's verdict. But reading the
+individual scores before the recommendation is where the real insight lives. An
+ACCELERATE verdict with Devil at 25 is very different from an ACCELERATE verdict
+with Devil at 29 (just under the threshold). An ABORT with Oracle at 85 means
+the analysis is sound but the risk dominates — not that the opportunity is poor.
+
+TIP: When the hive returns HOLD, do not treat it as a failure. HOLD means the
+current conditions do not all point in the same direction. A system that
+honestly returns HOLD is more valuable than one that always returns ACCELERATE.
+
+EXERCISE_TITLE: Exercise 24.1 — Running and Interpreting the Standalone Agents
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Run oracle_agent.ai, hype_agent.ai, and conductor_agent.ai
+directly using `aeonmi native`. Observe the default inputs and outputs. Then
+modify the demo inputs inside each agent's main() function to create three
+different market scenarios: (1) bullish trend, low volatility, low risk;
+(2) neutral trend, high volatility, high risk; (3) strong hype, high urgency,
+low oracle signal. Predict the conductor recommendation for each scenario
+before running it, then verify. Write an explanation of why each scenario
+produces its recommendation.
+EXERCISE_SOLUTION:
+```
+// Run defaults first:
+aeonmi native Aeonmi_Master/aeonmi_ai/agent/oracle_agent.ai
+aeonmi native Aeonmi_Master/aeonmi_ai/agent/hype_agent.ai
+aeonmi native Aeonmi_Master/aeonmi_ai/agent/conductor_agent.ai
+
+// Scenario 1: Bullish, low vol, low risk
+// oracle inputs: trend=80, vol=20, vscore=80 -> ora_score ~= 78
+// hype inputs: eng=80, sv=75, sent=85 -> hyp_score = 28+30+21.25 = 79.25
+// closer: intent=0.8, urgency=0.7, friction=0.1
+// devil: vol=0.1, regul=0.1, counter=0.1 -> risk=0.1
+// conductor(78, 79, high_close, 10) -> ACCELERATE (all >=70, risk <30)
+
+// Scenario 2: Neutral, high vol, high risk
+// oracle inputs: trend=10, vol=80, vscore=50 -> ora_score = 4+15+6 = 25
+// devil: risk = 0.7 -> ABORT triggered before conductor even scores
+
+// Scenario 3: Strong hype, low oracle
+// oracle(5, 40, 60) -> ~37
+// hype(95, 92, 88) -> 95*35/100 + 92*40/100 + 88*25/100 = 33.25+36.8+22 = 92
+// close: intent=0.5, urgency=0.4 -> close_raw ~= 0.5
+// risk: 0.2
+// consensus = 37*33/100 + 92*33/100 + 50*34/100 = 12.2+30.4+17 = 59.6 -> PROCEED
+// Explanation: high hype cannot overcome weak oracle without hitting ACCELERATE
+// threshold (requires all three >=70). Oracle at 37 means PROCEED, not ACCELERATE.
+```
+
+================================================================================

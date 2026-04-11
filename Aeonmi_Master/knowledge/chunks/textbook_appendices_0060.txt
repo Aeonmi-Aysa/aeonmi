@@ -1,0 +1,9 @@
+=== Mother REPL Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: No AI provider configured | No API key set and no fallback model available | Run `aeonmi key-set openai sk-...` or set OPENAI_API_KEY in environment
+TABLE_ROW: genesis.json write failed | File permission error or disk full | Check write permissions on Aeonmi_Master/ and available disk space
+TABLE_ROW: hive thread already running | `hive start` called when hive is already active | Use `hive status` to check; `hive stop` then `hive start` to restart
+TABLE_ROW: goal not set | `next` or `run auto` called without an active goal | Set a goal first: `goal <description>`
+TABLE_ROW: build failed: LLM returned empty source | `build NAME GOAL` called but AI provider returned no code | Check API key; try again; or write the .ai file manually and use `reflect`
+TABLE_ROW: reflect: program 'X' not found in generated list | `reflect X` called but X was never built | Use `generated` to list available programs; only reflect on built programs

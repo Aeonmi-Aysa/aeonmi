@@ -1,0 +1,6 @@
+=== CLI and Argument Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: error: unrecognized subcommand 'X' | Typo in subcommand name | Check Appendix A for the correct subcommand spelling
+TABLE_ROW: error: the following required arguments were not provided: --registrar | Missing required flag on vault register or add | Add all required flags; check Appendix A vault section
+TABLE_ROW: error: invalid value 'X' for '--emit': expected one of ai, js | Unknown emit format passed to emit or run | Use --emit ai (default) or --emit js only

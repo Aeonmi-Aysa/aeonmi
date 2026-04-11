@@ -1,0 +1,23 @@
+=== aeonmi quantum — Quantum Execution ===
+
+BODY: The `quantum` subcommand runs a quantum circuit through one of three backends: Titan (local), Aer (Qiskit simulator), or IBMQ (real IBM Quantum hardware). The Titan backend runs entirely within the Aeonmi process with no external dependencies. The Aer backend requires Qiskit to be installed. The IBMQ backend additionally requires the environment variable `IBM_QUANTUM_TOKEN` to be set.
+
+CODE:
+```
+aeonmi quantum <BACKEND> <FILE> [flags]
+
+Backends:
+  titan   Local Titan quantum math library (always available, no deps)
+  aer     Qiskit Aer simulator (requires Qiskit installation)
+  ibmq    IBM Quantum real hardware (requires IBM_QUANTUM_TOKEN env var)
+
+Flags:
+  --shots N           Number of circuit shots (default varies by backend)
+
+Examples:
+  aeonmi quantum titan circuit.ai
+  aeonmi quantum aer circuit.qube --shots 1024
+  aeonmi quantum ibmq circuit.qube --shots 512
+```
+
+NOTE: Without IBM_QUANTUM_TOKEN set, the ibmq backend falls back to Aer simulation. IonQ is a stub only and requires IONQ_API_KEY plus the qiskit-ionq package, neither of which are configured in the current release.

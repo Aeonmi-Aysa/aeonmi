@@ -1,0 +1,3 @@
+=== Overview ===
+
+BODY: When you run `aeonmi mother`, you enter the Mother AI interactive REPL. Every line of input is either a natural-language message to Mother (she responds with cognitive output) or a specific REPL command that activates a system capability. REPL commands are not case-sensitive. Anything that does not match a known command is treated as a natural-language message and routed through the AI provider or quantum-core reasoning.

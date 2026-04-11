@@ -1,0 +1,32 @@
+=== Variable Declaration with let ===
+
+BODY:
+Variables in Aeonmi are declared with the let keyword. Type annotations are not required — the VM infers types from assignment. Variables are mutable by default; you can reassign them after declaration.
+
+CODE:
+```
+// variables.ai
+function main() {
+    // Declaring variables
+    let x = 42;
+    let name = "Aeonmi";
+    let active = true;
+    let score = 0.95;
+    let items = [1, 2, 3];
+
+    // Reassigning variables (no let on reassignment)
+    x = x + 1;
+    name = "Mother AI";
+    active = false;
+
+    print(x);      // 43
+    print(name);   // Mother AI
+    print(active); // false
+    print(score);  // 0.95
+    print(items);  // [1, 2, 3]
+}
+
+main();
+```
+
+NOTE: In Aeonmi, the let keyword is only used on the first declaration of a variable in a scope. To reassign, use the variable name directly on the left side of the = without let. Using let again creates a new variable that shadows the outer one in languages with that feature, but in Aeonmi's current VM, re-declaring with let in the same scope simply reassigns.

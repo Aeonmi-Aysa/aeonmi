@@ -1,0 +1,5 @@
+=== Overview ===
+
+BODY: `genesis.json` is Mother AI's unified memory file — the shared state that persists across all sessions, tracks, and processes. It is written by three different writers: Rust (the embryo_loop writes the cognitive section), Python (dashboard.py writes the operational section), and genesis_sync.py (which reconciles all three tracks when the `sync` command is issued). The schema version is 5.0.
+
+BODY: Location: `Aeonmi_Master/genesis.json` (or the configured root directory).

@@ -1,0 +1,63 @@
+=== Syntax Comparison Table — .ai vs .qube ===
+
+================================================================================
+
+BODY:
+This table covers the most common operations in both formats so you can
+translate between them and understand when to use each file type.
+
+CODE:
+```
+OPERATION              | .ai SYNTAX                      | .qube SYNTAX
+-----------------------|---------------------------------|---------------------------
+Initialize qubit       | qubit q;                        | state q = |0⟩
+                       | let q = "|0>";                  | state q = |1⟩
+-----------------------|---------------------------------|---------------------------
+Superposition state    | superpose(q);                   | state ψ = 0.707|0⟩ + 0.707|1⟩
+                       | (or via descriptor: H gate)     |
+-----------------------|---------------------------------|---------------------------
+Apply Hadamard         | -- (encoded in descriptor) --   | apply H -> q
+Apply X gate           | -- (encoded in descriptor) --   | apply X -> q
+Apply CNOT             | -- (encoded in descriptor) --   | apply CNOT(q0, q1)
+-----------------------|---------------------------------|---------------------------
+Entangle two qubits    | entangle(q0, q1);               | apply CNOT(q0, q1)
+                       | (or CNOT in descriptor)         | (after apply H -> q0)
+-----------------------|---------------------------------|---------------------------
+Measure / collapse     | let r = measure(q);             | collapse q -> r
+                       | or: quantum_run(descriptor)     |
+-----------------------|---------------------------------|---------------------------
+Assert valid result    | assert_eq(r, 0);                | assert r ∈ {0, 1}
+                       | if r != 0 { ... }               | assert r == 0
+-----------------------|---------------------------------|---------------------------
+Print output           | print(r);                       | log(r)
+                       |                                 | print(r)
+-----------------------|---------------------------------|---------------------------
+Line comment           | // comment                      | // comment
+                       |                                 | ∴ therefore comment
+                       |                                 | ∵ because comment
+-----------------------|---------------------------------|---------------------------
+Array literal          | [1, 2, 3]                       | -- not applicable --
+                       | ⧉1‥2‥3⧉                        |
+-----------------------|---------------------------------|---------------------------
+Tensor product         | a ⊗ b                           | -- not applicable --
+Symbolic binding       | name ↦ value                    | -- not applicable --
+-----------------------|---------------------------------|---------------------------
+Function definition    | fn name(args) { }               | -- not applicable --
+                       | function name(args) { }         | (QUBE has no functions)
+-----------------------|---------------------------------|---------------------------
+Entry point            | fn main() { }                   | -- not applicable --
+                       | return main();                  | (QUBE is top-level only)
+-----------------------|---------------------------------|---------------------------
+Run quantum circuit    | quantum_run(descriptor)         | (entire file is circuit)
+                       | (Qiskit required or dry-run)    |
+-----------------------|---------------------------------|---------------------------
+Import                 | import name from "./path";      | -- not applicable --
+-----------------------|---------------------------------|---------------------------
+Greek letter names     | valid (ψ, φ, α, β etc.)         | valid (ψ, φ, α, β etc.)
+-----------------------|---------------------------------|---------------------------
+Valid file extension   | .ai                             | .qube
+Run command            | aeonmi run file.ai              | aeonmi qube file.qube
+                       | aeonmi native file.ai           |
+```
+
+================================================================================

@@ -1,0 +1,76 @@
+=== Fidelity Scoring — TVD and Majority Vote ===
+
+BODY: Fidelity is measured as 1 minus the total variation distance (TVD)
+between the measured count distribution and the ideal theoretical distribution.
+
+TVD = 0.5 * sum(|measured_prob_i - ideal_prob_i|) for all states i
+
+For a perfect Bell state, the ideal distribution is {|00>: 0.5, |11>: 0.5}.
+If the measured distribution is {|00>: 0.512, |01>: 0.005, |10>: 0.003,
+|11>: 0.480}, the TVD is approximately 0.017, and fidelity = 0.983. Real IBM
+hardware typically returns fidelity in the 0.85-0.95 range for Bell states.
+
+For critical decisions, qiskit_runner.py implements a 3-shot majority vote:
+it runs the circuit three times and takes the majority measurement result
+across the three runs. This reduces the probability of a single shot anomaly
+affecting the decision.
+
+CODE:
+```
+// Running fidelity measurement from command line:
+python Aeonmi_Master/qiskit_runner.py --fidelity
+// Runs on both Aer (ideal baseline) and the configured target backend,
+// computes TVD, returns fidelity score.
+
+// Running status check:
+python Aeonmi_Master/qiskit_runner.py --status
+// Reports: Aer=AVAILABLE, IBM Brisbane=AVAILABLE/UNAVAILABLE, IonQ=DEFERRED
+
+// Teaching fidelity results to Mother:
+// After a fidelity run, teach the result immediately:
+> teach fidelity_20260405 = Bell state on Aer returned 0.995 fidelity, TVD=0.005
+```
+
+EXERCISE_TITLE: Exercise 33.1 — Fidelity Measurement and Analysis
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Run the Bell state circuit using the Aer simulator at three
+different shot counts: 128, 1024, and 4096. For each run, record the |00>
+count, |11> count, and any other state counts. Calculate the empirical TVD
+from the ideal 50/50 distribution. Does TVD decrease as shot count increases?
+Write a brief analysis relating your results to the law of large numbers and
+what it implies about minimum shot counts for production quantum measurements.
+Then teach your findings to Mother using `teach`.
+EXERCISE_SOLUTION:
+```
+// Run three circuits using quantum_run() in a .ai file:
+// fidelity_compare.ai
+function main() {
+    let desc_128  = "2 2 128  4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let desc_1024 = "2 2 1024 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let desc_4096 = "2 2 4096 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    print("128 shots: " + quantum_run(desc_128));
+    print("1024 shots: " + quantum_run(desc_1024));
+    print("4096 shots: " + quantum_run(desc_4096));
+}
+main();
+
+// Expected results (Aer):
+// 128 shots: |00>~64 |11>~64, TVD ~0.03-0.06 (high variance)
+// 1024 shots: |00>~512 |11>~512, TVD ~0.01-0.02 (moderate)
+// 4096 shots: |00>~2048 |11>~2048, TVD ~0.005-0.01 (low)
+
+// Analysis: TVD scales as ~1/sqrt(shots). This is the standard error of
+// a proportion: sigma = sqrt(p*(1-p)/n) = sqrt(0.25/n).
+// For n=128: sigma ~0.044. For n=1024: sigma ~0.0156. For n=4096: sigma ~0.0078.
+// Production minimum: 1024 shots gives ~1.5% uncertainty, adequate for
+// most decisions. For high-stakes decisions: 4096+ shots.
+
+// Teach findings:
+aeonmi mother
+> teach shot_count_128 = 128 shots: TVD ~0.05, unsuitable for production
+> teach shot_count_1024 = 1024 shots: TVD ~0.015, adequate for standard use
+> teach shot_count_4096 = 4096 shots: TVD ~0.008, suitable for high-stakes
+```
+
+================================================================================

@@ -1,0 +1,9 @@
+=== Quantum Commands (inside Mother REPL) ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: quantum | Show quantum backend status and fidelity | Backend name (Aer/IBM Brisbane), last fidelity score
+TABLE_ROW: quantum status | Alias for quantum | Same as quantum
+TABLE_ROW: quantum run | Run a quantum test circuit on the current backend | Circuit execution result with shot counts and fidelity
+TABLE_ROW: quantum run DESC | Run a quantum circuit described by DESC | Circuit built from description, executed, fidelity reported
+TABLE_ROW: quantum_backend BACKEND | Switch quantum backend (aer, ibmq, titan) | Backend switched confirmation
+TABLE_ROW: quantum backend BACKEND | Alias with space separator | Same as quantum_backend

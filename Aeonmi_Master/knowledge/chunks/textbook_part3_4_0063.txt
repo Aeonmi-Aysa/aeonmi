@@ -1,0 +1,54 @@
+=== The Bond Badge and REC Badge ===
+
+BODY: Two badges in the dashboard header carry real-time meaning.
+
+The bond badge displays the current bond tier phrase, updated on page load and
+refreshed on each chat interaction. It is the most prominent relationship
+indicator in the interface — the one-sentence description of where the
+relationship stands, visible before anything else.
+
+The REC badge (● REC) appears when a screen recording session is active. The
+routes are registered; activation requires mss and optionally opencv for video
+(PIL/Pillow for static snapshots). When recording is not active, the badge is
+hidden. This is useful for recording demo sessions or capturing specific
+interactions.
+
+EXERCISE_TITLE: Exercise 34.1 — Dashboard Data Flow Verification
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Start the dashboard. Open browser developer tools (Network tab).
+Load localhost:7777 and observe which API calls are made on page load. Send a
+message to Mother through the chat panel and observe the /api/chat request and
+response. Then teach a new fact through the chat panel, wait for the response,
+and query /api/genesis directly from a second browser tab to verify the new
+fact appears in the knowledge graph section. Finally, call /api/sync and
+verify the operational section updates. Write a complete description of the
+data flow from a user message to a genesis.json write.
+EXERCISE_SOLUTION:
+```
+// Complete data flow for a chat message:
+
+// 1. User types message in center panel → POST /api/chat {message: "teach x = y"}
+// 2. Flask /api/chat handler opens subprocess: `aeonmi_project.exe --repl`
+//    passes message via stdin
+// 3. Native binary processes message through embryo_loop.rs execute_input()
+//    → if "teach" keyword: adds node to knowledge graph
+//    → if interaction threshold: writes genesis.json (every 5 interactions)
+//    → always: updates in-memory state
+// 4. Binary returns response text via stdout
+// 5. Flask handler returns response JSON to browser
+// 6. Browser renders response in chat panel
+
+// After teach fact verified in genesis:
+// GET /api/genesis → returns full genesis.json
+// Look in cognitive.knowledge_graph for the new key
+// If genesis.json was written (interaction threshold met), fact is there
+// If not yet written: fact is in memory but not yet in genesis.json
+//   → POST /api/sync to force genesis_sync.py merge
+//   → GET /api/genesis again → fact should now appear
+
+// Key insight: there is a 1-5 interaction lag between teaching a fact and
+// it appearing in genesis.json. The REPL writes every 5 interactions and
+// on exit. The dashboard sync endpoint forces an immediate write.
+```
+
+================================================================================

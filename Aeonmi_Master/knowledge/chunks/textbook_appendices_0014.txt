@@ -1,0 +1,28 @@
+=== aeonmi key-* — API Key Management ===
+
+BODY: The `key-*` subcommands manage encrypted API keys for AI providers. Keys are stored in the vault using the same XChaCha20-Poly1305 encryption as domain secrets. The `key-rotate` command re-encrypts all stored keys with the current KDF derivation (use after passphrase changes).
+
+CODE:
+```
+aeonmi key-list [--json]
+    List all stored API key provider names.
+
+aeonmi key-get <PROVIDER> [--json]
+    Decrypt and display the API key for a provider.
+
+aeonmi key-set <PROVIDER> <KEY>
+    Store (create or update) an API key for a provider.
+
+aeonmi key-delete <PROVIDER>
+    Delete a stored API key.
+
+aeonmi key-rotate [--json]
+    Re-encrypt all stored keys with the current KDF derivation.
+
+Examples:
+  aeonmi key-set openai sk-...
+  aeonmi key-set anthropic sk-ant-...
+  aeonmi key-list
+  aeonmi key-get openai
+  aeonmi key-rotate
+```

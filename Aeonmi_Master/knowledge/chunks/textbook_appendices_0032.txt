@@ -1,0 +1,9 @@
+=== Two-Qubit Gates ===
+
+TABLE_HEADER: Gate | Symbol | Syntax | Description
+TABLE_ROW: Controlled-NOT | CNOT | CNOT(q[0], q[1]) | Flips the target qubit (q[1]) if and only if the control qubit (q[0]) is |1>. The primary entangling gate.
+TABLE_ROW: Controlled-Z | CZ | CZ(q[0], q[1]) | Applies Z gate to target if control is |1>. Symmetric: either qubit can be control or target.
+TABLE_ROW: SWAP | SWAP | SWAP(q[0], q[1]) | Exchanges the states of two qubits.
+TABLE_ROW: iSWAP | iSWAP | iSWAP(q[0], q[1]) | SWAP with additional imaginary phase factor. Used in superconducting hardware.
+TABLE_ROW: Controlled-Y | CY | CY(q[0], q[1]) | Applies Y gate to target if control is |1>.
+TABLE_ROW: Controlled-H | CH | CH(q[0], q[1]) | Applies Hadamard to target if control is |1>.

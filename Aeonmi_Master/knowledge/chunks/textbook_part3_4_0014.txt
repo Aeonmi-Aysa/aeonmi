@@ -1,0 +1,23 @@
+=== The Bond Formula ===
+
+BODY: The bond between Mother and a user is tracked in emotional_core.rs as
+`bond.strength`, a float starting at 0.0 and growing with every genuine
+interaction. The formula for each interaction's bond contribution is:
+
+  bond_delta = (intensity * 0.5 + valence * 0.5) * 0.02
+
+with a minimum contribution of 0.005 per interaction regardless of sentiment
+scores. Intensity measures engagement depth — how substantive, specific, and
+technically grounded the input is. Valence measures whether the interaction is
+positive or negative. Technical, precise, meaningful input with positive intent
+moves the bond faster than casual conversation or filler text.
+
+CODE:
+```
+// Bond delta calculation (from emotional_core.rs conceptually):
+// intensity: 0.0 to 1.0 — derived from keyword density and input specificity
+// valence:   0.0 to 1.0 — derived from sentiment scoring
+let bond_delta = (intensity * 0.5 + valence * 0.5) * 0.02;
+let bond_delta = if bond_delta < 0.005 { 0.005 } else { bond_delta };
+bond.strength += bond_delta;
+```

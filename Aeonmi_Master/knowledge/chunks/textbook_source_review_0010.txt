@@ -1,0 +1,92 @@
+=== textbook_source_review §11 ===
+
+4. MOTHER COGNITIVE LAYER (mother/, core/, learning/, selfmodel/, sensory/):
+   These modules provide Copilot-style intelligence features by running inside
+   the language server:
+   - pattern.ai + reinforce.ai: track which identifiers the user types most
+     frequently; surface the highest-frequency symbols as priority completions
+   - learn.ai: orchestrates the pattern+reinforce state across editing sessions
+   - model.ai: tracks prediction accuracy — if the server suggests X and the
+     user accepts, accuracy goes up; if rejected, it adjusts
+   - mother_adaptive.ai: dynamically adjusts the confidence threshold for
+     surfacing suggestions (d_threshold) based on observed accuracy
+   - quantum_feed.ai: ingests real-time signals (keystrokes, file saves)
+     and routes them through Mother's sensory pipeline
+
+5. DEMO / PROOF-OF-CONCEPT LAYER (demo/, stage2/):
+   These files serve as interactive textbook examples that the Copilot can
+   present inline. When a user writes quantum code, the server can surface
+   quantum_demo.ai or quantum_cognition.ai as reference. When writing agents,
+   swarm_os.ai demonstrates the pattern. forge.ai shows meta-programming.
+   The stage2 programs (Mother-authored) demonstrate what the language can
+   produce when AI writes Aeonmi independently.
+
+What completion/intelligence features are implied by the module structure
+------------------------------------------------------------------------
+Based on the module hierarchy, these intelligence features are architecturally
+implied (and partially implemented):
+
+- OPERATOR COMPLETION: ops.ai defines all operators with precedence; the server
+  can suggest valid operators and warn when precedence causes ambiguity.
+
+- TYPE-AWARE SUGGESTIONS: types.ai defines is_numeric, is_quantum, etc.; the
+  server can filter completions based on whether the current context expects
+  a qubit, an agent, or a numeric value.
+
+- BUILTIN SIGNATURE HELP: test_collections_builtins.ai and test_string_builtins.ai
+  demonstrate every builtin's call signature via assert_eq patterns; the server
+  can extract these to display parameter hints.
+
+- FLAT-ARRAY PATTERN RECOGNITION: The dominant flat-array pattern (3 fields,
+  len/3 for count, base arithmetic) appears in every Mother module. The Copilot
+  can recognize this idiom and autocomplete the access pattern when it sees
+  a variable used with len() / 3.
+
+- IMPORT RESOLUTION: learn.ai demonstrates named imports from relative paths;
+  the server resolves these to their source files for go-to-definition.
+
+- FUNCTION BUDGET WARNING: Multiple files include comments like
+  "(budget <= 13)" — the server can surface a warning when a file approaches
+  the VM's function-count limit, preventing runtime hangs.
+
+- QUANTUM OPERATION GUIDANCE: The stage2 and demo files demonstrate correct
+  qubit declaration (qubit qa, qb;), superpose/entangle/measure usage, and
+  Bell pair patterns. The server can complete these quantum idioms.
+
+- SELF-HEALING SUGGESTIONS: model.ai's accuracy tracking means the server
+  accumulates knowledge of what suggestions were accepted vs rejected, feeding
+  back into mother_adaptive.ai's threshold adjustment.
+
+How a learner would use these files when working in VSCode with Aeonmi
+-----------------------------------------------------------------------
+A learner opening the Aeonmi project in VSCode encounters the .ai files as
+both the extension infrastructure AND the curriculum:
+
+1. REFERENCE: shard/main.ai is the first file to read — its comment block
+   is the canonical language syntax reference. Every construct is documented
+   with examples in // comments before the implementation begins.
+
+2. PATTERNS: When a learner writes their first flat-array data structure, the
+   server (powered by pattern.ai and memory.ai) recognizes the idiom and offers
+   to complete the boilerplate access pattern.
+
+3. EXAMPLES: Typing "quantum" in a new .ai file causes the Copilot to suggest
+   importing from quantum_demo.ai or quantum_cognition.ai as starting points.
+
+4. TESTS: The stdlib test files serve as documentation-by-example. A learner
+   wanting to know how split() works opens test_string_builtins.ai and sees
+   an executable example with expected output.
+
+5. DEBUGGING: The parser's [pos, err] state returns position information that
+   the server translates into red squiggles in the editor. Error state (err==1)
+   from d_stmt or c_expr maps to a parse error at the token position.
+
+6. PROGRESSION: The phase comments (Phase 1 sensory, Phase 2 quantum feed,
+   Phase 3 learning loop, Phase 4 self-model, Phase 5 unified pipeline) give
+   the learner a roadmap. Each file is a self-contained chapter.
+
+The self-hosting nature: the language extension IS written in Aeonmi
+---------------------------------------------------------------------
+This is the foundational architectural fact: there is no JavaScript, no Python
+extension host, no external language server protocol implementation written
+in another language. The Aeonmi Copilot extension is itself .ai files.

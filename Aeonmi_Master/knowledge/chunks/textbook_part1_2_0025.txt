@@ -1,0 +1,125 @@
+=== match ===
+
+BODY:
+The match expression compares a value against a series of patterns. Each arm has a pattern and a block to execute. This is Aeonmi's version of a switch statement, with cleaner syntax.
+
+CODE:
+```
+// match_example.ai
+function main() {
+    let command = "start";
+
+    match command {
+        "start" => {
+            print("Starting the system...");
+        }
+        "stop" => {
+            print("Stopping the system...");
+        }
+        "status" => {
+            print("Checking status...");
+        }
+        _ => {
+            print("Unknown command: " + command);
+        }
+    }
+
+    // match on numbers
+    let code = 2;
+    match code {
+        1 => { print("LOW priority"); }
+        2 => { print("MEDIUM priority"); }
+        3 => { print("HIGH priority"); }
+        _ => { print("UNKNOWN priority"); }
+    }
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 5.1 — FizzBuzz
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a classic FizzBuzz program in Aeonmi. For numbers 1 through 30:
+- Print "Fizz" if divisible by 3
+- Print "Buzz" if divisible by 5
+- Print "FizzBuzz" if divisible by both 3 and 5
+- Print the number itself otherwise
+Use fmod(n, 3) == 0 to test divisibility.
+
+EXERCISE_SOLUTION:
+```
+// fizzbuzz.ai
+function main() {
+    for n in range(1, 31, 1) {
+        let div3 = fmod(n, 3) == 0;
+        let div5 = fmod(n, 5) == 0;
+        if div3 {
+            if div5 {
+                print("FizzBuzz");
+            } else {
+                print("Fizz");
+            }
+        } else {
+            if div5 {
+                print("Buzz");
+            } else {
+                print(n);
+            }
+        }
+    }
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 5.2 — Array Search
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a function called find_max(arr) that takes an array of numbers and returns the maximum value using a while loop (do not use the max() builtin). Write a second function find_index_of(arr, target) that returns the index of the first occurrence of target in arr, or -1 if not found. Test both functions with [5, 3, 9, 1, 7, 2] and target 7.
+
+EXERCISE_SOLUTION:
+```
+// ex5_2.ai
+function find_max(arr) {
+    if len(arr) == 0 {
+        return null;
+    }
+    let best = arr[0];
+    let i = 1;
+    while i < len(arr) {
+        if arr[i] > best {
+            best = arr[i];
+        }
+        i = i + 1;
+    }
+    return best;
+}
+
+function find_index_of(arr, target) {
+    let i = 0;
+    while i < len(arr) {
+        if arr[i] == target {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function main() {
+    let data = [5, 3, 9, 1, 7, 2];
+    let mx = find_max(data);
+    print("max = " + mx);   // 9
+
+    let idx = find_index_of(data, 7);
+    print("index of 7 = " + idx);  // 4
+
+    let missing = find_index_of(data, 42);
+    print("index of 42 = " + missing);  // -1
+}
+
+main();
+```
+
+================================================================================

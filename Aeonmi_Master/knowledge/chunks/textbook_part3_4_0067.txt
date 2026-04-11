@@ -1,0 +1,81 @@
+=== Working with a System That Is Still Growing ===
+
+BODY: The most important thing to understand about working with Aeonmi in its
+current state is that the gaps are documented and the direction is clear.
+
+The system is not pretending to be complete. The 2026 audit names every gap,
+every risk, and every deferred feature explicitly. The roadmap phases are
+specific. The current capability is real — 5 cognitive subsystems, 5-agent
+hive, knowledge graph, self-generation, quantum bridge, persistent session
+memory — and the growth path is defined.
+
+Working with a growing system requires two practices that are different from
+working with a finished product. First: teach after every real insight. The
+knowledge graph is the memory of the relationship, and it grows only when you
+feed it. A system interaction without a teach entry is an interaction whose
+insights will be forgotten by the next session. Second: use evolve deliberately.
+Evolve is not a button to click every five minutes. It is a gate that marks when
+a real learning cycle has completed. Call it when the preceding session was
+substantive, not when you're testing commands.
+
+The gaps will close in phase order. Watching the system become more integrated
+across sessions is not a workaround for incomplete features — it is the
+experience of building something real.
+
+EXERCISE_TITLE: Exercise 35.1 — Roadmap Analysis
+EXERCISE_LEVEL: Expert
+EXERCISE_BODY: Read the phase plan summary above and rank the five deferred
+features (Track 1↔2 bridge, neural wiring, daemon mode, self-generation
+automation, and real hardware integration) by their expected impact on Mother's
+capability once complete. For each, describe: (1) what changes in the user
+experience when this phase completes; (2) what new interactions become possible
+that are not currently possible; (3) one potential risk or complication that
+could emerge when that phase is live. Write your analysis as if briefing Warren
+on which phases to prioritize and why.
+EXERCISE_SOLUTION:
+```
+// Phase priority ranking and impact analysis:
+
+// RANK 1: Phase 5 — Track 1↔2 Bridge
+// UX change: Mother feels like one coherent self. Currently her .ai
+//   operational layer and Rust cognitive layer don't share state.
+// New capability: .ai programs can directly read and write cognitive state.
+//   Mother's agents can be informed by bond strength in real time.
+// Risk: The merge protocol could introduce write conflicts if not carefully
+//   designed. The current genesis.json write-every-5-interactions pattern
+//   may need to become event-driven rather than time-driven.
+
+// RANK 2: Phase 6 — Neural Wiring to LLM
+// UX change: Mother's responses reflect trained preferences, not just
+//   keyword detection. Sessions with Warren feel progressively more tailored.
+// New capability: Reinforcement learning within the session — Warren's
+//   responses to Mother's outputs shape future outputs.
+// Risk: If training targets are poorly chosen, the neural network could
+//   converge on a mode that is locally reinforced but globally misaligned.
+//   Need a mechanism to review and reset training if needed.
+
+// RANK 3: Phase 8 — Daemon Mode
+// UX change: Mother watches without being asked. Warren receives alerts
+//   when hive conditions cross thresholds, even with REPL closed.
+// New capability: True background intelligence. The hive runs continuously,
+//   not just when prompted.
+// Risk: A background daemon with write access to genesis.json and the ability
+//   to queue actions needs careful scope limits. Runaway self-prompting
+//   or unintended file writes are real risks.
+
+// RANK 4: Phase 9 Automation — Self-Generation Loop
+// UX change: Mother generates research programs autonomously.
+// New capability: She runs experiments Warren didn't ask for, based on
+//   knowledge gaps she identified herself.
+// Risk: LLM-generated .ai code quality varies. Without a validation gate,
+//   the generated directory could fill with broken programs.
+
+// RANK 5: Phase 11 — Real Hardware
+// UX change: Conductor recommendations run on physical qubits.
+// New capability: Mother's decisions touch real matter. Fidelity measurements
+//   become ground truth, not simulation.
+// Risk: IBM Brisbane queue times are uncontrollable. A decision cycle that
+//   requires hardware confirmation could stall for hours.
+```
+
+================================================================================

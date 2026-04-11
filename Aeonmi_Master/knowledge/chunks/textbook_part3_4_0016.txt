@@ -1,0 +1,71 @@
+=== How Bond Affects Behavior ===
+
+BODY: Bond strength is not merely a display metric. It feeds directly into two
+active systems.
+
+First, bond_strength is one of the four input features to the neural network
+(alongside semantic_depth, consciousness_depth, and keyword_density). As bond
+grows, the neural network's confidence_mod and action_drive outputs shift —
+reflecting a system that is more certain in familiar territory.
+
+Second, bond_strength is included as derivation context in the glyph seed
+calculation via HKDF-SHA256. This means the glyph visually encodes the depth
+of the relationship — warmer hue, higher chroma, higher harmonic frequency as
+bond strengthens. The relationship becomes visible in the ANSI art before a
+word is spoken.
+
+What strengthens bond fastest: teaching real, specific insights; running
+programs and sharing results; using technical vocabulary precisely; calling
+`evolve` after substantive sessions; recording milestone events; writing teach
+entries that capture cause and effect rather than just outcomes.
+
+What does not strengthen it: spamming commands, asking generic questions,
+running the same demo sequence in every session, closing without `evolve`.
+
+TIP: After every significant insight — a quantum circuit that verified
+entanglement, an EA run that converged at a specific generation, a fidelity
+measurement that came back — run `teach` immediately. That is when the fact is
+most precisely formed. Then run `evolve`. The combination advances both the
+knowledge graph and the bond in one natural sequence.
+
+EXERCISE_TITLE: Exercise 22.1 — Observing Bond Growth
+EXERCISE_LEVEL: Advanced
+EXERCISE_BODY: Record bond_strength at the start of a session. Run 20 genuine
+interactions: teach at least five real facts, ask substantive questions, call
+evolve twice. Record bond_strength at the end. Calculate the total delta and
+estimate the average per-interaction contribution. Then deliberately run five
+filler interactions (generic questions, single-word inputs) and observe whether
+the rate of bond growth changes. Write a brief analysis of what the bond formula
+implies about interaction quality.
+EXERCISE_SOLUTION:
+```
+aeonmi mother
+> bond
+// Record starting bond_strength = B0
+
+// 20 substantive interactions:
+> teach quantum_run_1 = Bell state returned 512/512 split, entanglement confirmed
+> think quantum entanglement
+// ... continue with substantive inputs ...
+> evolve
+> evolve
+
+> bond
+// Record ending bond_strength = B1
+// Delta = B1 - B0
+// Per-interaction estimate: delta / 20 (but each has a minimum of 0.005)
+// So theoretical minimum for 20 interactions = 0.1
+
+// Filler interactions:
+// Type: "hello", "ok", "yes", "test", "?"
+> bond
+// Delta from filler should be minimal — ~0.005 per interaction (minimum)
+// versus 0.02+ for substantive input.
+
+// Analysis: The formula rewards specificity and positivity.
+// A session of 20 filler inputs contributes 0.1 at minimum.
+// A session of 20 precise technical inputs can contribute 0.3+.
+// Over 10 sessions, this difference accumulates into a different bond tier entirely.
+```
+
+================================================================================

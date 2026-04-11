@@ -1,0 +1,35 @@
+=== The Phase Plan — What Is Built, What Is Coming ===
+
+BODY: Mother's development follows a numbered phase plan. The following
+summarizes the status of each phase as of April 2026:
+
+Phase 4b — Glyph/Ceremony: Built. Requires AEONMI_PASSPHRASE to activate.
+Skips gracefully without it.
+
+Phase 5 — Track 1↔2 Bridge: Deferred. This is the critical gap. When complete,
+the Rust cognitive layer and the .ai operational layer will share a real-time
+state protocol. One Mother instead of two parallel ones.
+
+Phase 6 — Neural Wiring to LLM: Partial. Neural forward pass runs. Output
+modulates confidence display. Full LLM prompt injection from neural output is
+deferred.
+
+Phase 7 — Learn Cycle: Works. Generates _learn_probe.ai every 5 interactions,
+parses LEARN_OUTPUT back into the knowledge graph. One live bridge.
+
+Phase 8 — Continuous Hive: Works on demand. Background thread functional.
+Persistent daemon mode (inter-session hive operation) is deferred.
+
+Phase 9 — Self-Generation: Works. Propose/build/reflect cycle fully functional
+with LLM provider or heuristic fallback.
+
+Phase 10 — Knowledge Graph: Works. Auto-tags, auto-links, BFS, synthesis nodes,
+full genesis.json persistence.
+
+Phase 11 — Real Hardware Integration: Partial. IBM Brisbane connection code
+built. Requires token and has queue time. Not viable for live demo without
+pre-queued circuits.
+
+Phase 12 — Session Logs / Milestones / Letter / Memory Report: Works. Session
+auto-logging, milestones, bond tiers, letter command, memory report all
+functional.

@@ -1,0 +1,3 @@
+=== When to Use Each Hive Agent's Output ===
+
+BODY: The hive is most useful as a second opinion on major decisions. When oracle is high and devil is low, proceed with builds and autonomous steps. When devil is high and conductor says HOLD or ABORT, inspect the knowledge graph and bond state before continuing. The hype score is a leading indicator: high hype with low closer means enthusiasm without execution — use `next` or `run auto` to convert momentum into completed steps.

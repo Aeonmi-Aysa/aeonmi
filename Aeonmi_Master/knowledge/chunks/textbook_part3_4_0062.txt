@@ -1,0 +1,40 @@
+=== API Endpoints Reference ===
+
+BODY: The Flask server exposes the following endpoints:
+
+/api/status — Binary presence check. Returns {status: "ok"} if the binary is
+found at the expected path.
+
+/api/bond_phrase — Returns the current bond phrase derived from genesis.json
+bond_strength. Used by the header badge.
+
+/api/genesis — Returns the full genesis.json contents as JSON. Used by the
+knowledge graph and inner voice panels.
+
+/api/quantum_status — Returns quantum backend status from genesis.json cognitive
+quantum fields.
+
+/api/snapshots — Returns the last 50 capability snapshots.
+
+/api/chat — POST endpoint for sending messages to Mother. Routes to the native
+binary subprocess, returns the response. Blocks the Flask thread during
+execution — there is no streaming.
+
+/api/sync — POST endpoint that calls genesis_sync.py to merge Rust and Python
+genesis.json sections.
+
+/api/build — POST endpoint that triggers `cargo build --release` and returns
+build output.
+
+/api/test — POST endpoint that runs the test suite.
+
+/api/p9build — POST endpoint for Phase 9 self-generation (propose/build/reflect)
+initiated from the dashboard Generate panel.
+
+/api/record/start, /api/record/stop, /api/record/snapshot — Screen recording
+endpoints. Require mss and opencv-python installed.
+
+NOTE: The dashboard has no authentication. Anyone on the local network who
+knows the port can use it. This is acceptable for local development but is a
+real risk if the machine is on a shared network. Do not expose port 7777 to
+the public internet without adding authentication.

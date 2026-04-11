@@ -1,0 +1,127 @@
+=== textbook_source_review §2 ===
+
+=== FILE: Aeonmi_Master/aeonmi_ai/learn/pattern.ai ===
+PURPOSE: Frequency-tracking module. Implements an associative map over a flat
+         array using the [key, count] * N layout (2 fields per record). Provides
+         pat_add (insert/increment), pat_count (lookup), pat_top (argmax).
+         No imports — fully self-contained.
+SYNTAX DEMONSTRATED:
+  - Flat-array record pattern: 2 fields per entry, index arithmetic
+  - len(arr) / 2 to get record count
+  - While loop with manual index:  while (i < n) { ... i = i + 1; }
+  - Array index arithmetic:  let base = i * 2;
+  - Conditional record update (found/not-found pattern)
+  - Rebuilding array on update (immutable-style copy)
+  - Empty array initializer:  return [];
+  - Best-value tracking (argmax pattern)
+KEY CODE EXAMPLES:
+◯ pat_add⟨pat, key⟩ {
+    let n = len(pat) / 2;
+    let i = 0;
+    let found = -1;
+    while (i < n) {
+        let base = i * 2;
+        let k = pat.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        pat.push(key);
+        pat.push(1);
+        return pat;
+    }
+    // rebuild with incremented count at found position
+    ...
+}
+◯ pat_top⟨pat⟩ {
+    let n = len(pat) / 2;
+    if (n == 0) { return ""; }
+    let best_key = "";
+    let best_count = 0;
+    while (i < n) {
+        if (c > best_count) { best_key = k; best_count = c; }
+        i = i + 1;
+    }
+    return best_key;
+}
+TEXTBOOK RELEVANCE: Chapter 6 — Flat-Array Data Structures; Chapter 7 —
+  AI-Native Patterns (frequency learning without maps/dictionaries)
+
+=== FILE: Aeonmi_Master/aeonmi_ai/learn/reinforce.ai ===
+PURPOSE: Strength-weighted reinforcement memory. Flat array layout:
+         [key, val, strength] * N (3 fields per record). Implements
+         reinf_touch (add/strengthen), reinf_decay (weaken all by rate),
+         reinf_score (lookup strength). Memory that forgets over time.
+SYNTAX DEMONSTRATED:
+  - 3-field flat-array record layout
+  - len(mem) / 3 record count
+  - Strength arithmetic:  out.push(s * rate);
+  - "touch" (seen again = strengthen) vs "decay" (time passes = weaken)
+  - Upsert pattern: add if not found, strengthen if found
+  - Initial strength of 1 on first observation
+  - Rebuilding arrays immutably on update
+KEY CODE EXAMPLES:
+◯ reinf_decay⟨mem, rate⟩ {
+    let n = len(mem) / 3;
+    let i = 0;
+    let out = [];
+    while (i < n) {
+        let base = i * 3;
+        let k = mem.slice(base, base + 1).pop();
+        let v = mem.slice(base + 1, base + 2).pop();
+        let s = mem.slice(base + 2, base + 3).pop();
+        out.push(k);
+        out.push(v);
+        out.push(s * rate);
+        i = i + 1;
+    }
+    return out;
+}
+◯ reinf_touch⟨mem, key⟩ {
+    // if not found: push [key, "observed", 1]
+    // if found: rebuild with strength + 1 at that entry
+}
+TEXTBOOK RELEVANCE: Chapter 7 — Reinforcement Memory; Chapter 10 —
+  Temporal Decay in AI State
+
+================================================================================
+SECTION 3: MOTHER AI COGNITIVE MODULES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/mother/core.ai ===
+PURPOSE: Mother Memory bootstrap — unified state combining journal, memory,
+         and rules into a single 3-element flat array: [journal, memory, rules].
+         Imports from _min (minimal) versions of each submodule to cap total
+         function count. Includes ai_core_sync_genesis which emits parseable
+         log lines for the Python genesis_sync.py bridge.
+SYNTAX DEMONSTRATED:
+  - Import from relative path:  import { j_append, j_new } from "./journal_min";
+  - Composite state as nested array:  [journal_arr, memory_arr, rules_arr]
+  - State decomposition pattern:  state.slice(0,1).pop() / slice(1,2) / slice(2,3)
+  - State reconstruction:  result.push(j); result.push(m); result.push(r);
+  - Mixed syntax: ◯ function declarations alongside bare function declarations
+  - @@ comment (genesis sync annotation):  @@ core_sync_genesis: ...
+  - log() builtin (distinct from print — goes to structured output)
+  - String concatenation in log:  log("AI_MEMORY_STATE:mem_key:" + k + ":" + v);
+  - While loop over memory entries with base arithmetic
+KEY CODE EXAMPLES:
+◯ core_learn⟨state, key, val⟩ {
+    let j = state.slice(0, 1).pop();
+    let m = state.slice(1, 2).pop();
+    let r = state.slice(2, 3).pop();
+    let m2 = m_store(m, key, val);
+    let j2 = j_append(j, "learn", key);
+    let result = [];
+    result.push(j2);
+    result.push(m2);
+    result.push(r);
+    return result;
+}
+// Genesis sync bridge:
+function ai_core_sync_genesis(state) {
+    log("AI_MEMORY_STATE:memory_count:" + mem_total);
+    log("AI_MEMORY_STATE:mem_key:" + k + ":" + v);
+    log("AI_MEMORY_STATE:journal_entry:" + tag + ":" + payload);
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Mother Architecture; Chapter 8 — Module
+  Composition; Chapter 11 — Bridging Aeonmi to External Systems (genesis sync)

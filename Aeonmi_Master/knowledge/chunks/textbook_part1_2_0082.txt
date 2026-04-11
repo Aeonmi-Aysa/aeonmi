@@ -1,0 +1,51 @@
+=== Superposition State Syntax and Greek Letter Identifiers ===
+
+================================================================================
+
+BODY:
+QUBE supports Greek letter characters as valid identifier characters. The
+identifier regex used by the extension is:
+
+  [a-zA-Z_α-ωΑ-Ω][a-zA-Z0-9_α-ωΑ-Ω]*
+
+This means α, β, γ, δ, ψ, φ, Φ, Ψ and all other Greek letters are legal
+variable names without escaping or quoting. This enables quantum programs to
+use the same notation as quantum physics textbooks.
+
+CODE:
+```
+∴ Greek letter identifiers in QUBE
+
+∵ ψ (psi) is conventionally used for general quantum states
+state ψ = |0⟩
+
+∵ α and β are conventional probability amplitudes
+∵ |α|² + |β|² = 1 for a normalized state
+state φ = 0.6|0⟩ + 0.8|1⟩
+
+∵ Equal superposition: amplitude 1/√2 ≈ 0.707
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+apply H -> ψ
+collapse ψ -> r
+assert r ∈ {0, 1}
+log(r)
+```
+
+BODY:
+The superposition state syntax is:
+
+  state <name> = <float>|0⟩ + <float>|1⟩
+
+The qubit literals |0⟩, |1⟩, |+⟩, |−⟩, |ψ⟩ use the Unicode angle bracket
+characters ⟩ (U+27E9, mathematical right angle bracket), not the ASCII greater-
+than character >. The VSCode extension's TextMate grammar matches any |..⟩
+pattern as a qubit.literal token.
+
+NOTE: The normalized amplitude for equal superposition is 1/√2. In decimal:
+  1/√2 = 0.7071067811865476...
+The QUBE snippet uses 0.707. Using more decimal places (0.7071, 0.70711) is
+equally valid and does not affect the circuit semantics — the QUBE processor
+interprets the amplitude as a floating-point weight, not as an exact fractional.
+
+================================================================================

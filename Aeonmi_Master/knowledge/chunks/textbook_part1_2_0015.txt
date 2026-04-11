@@ -1,0 +1,88 @@
+=== The Module System ===
+
+BODY:
+Aeonmi resolves imports with the resolve_import function internally. For single-file programs, no import syntax is needed. The standard library functions (print, len, push, pop, sqrt, floor, etc.) are built into the VM — they require no import.
+
+For multi-file programs, the import mechanism is covered in Chapter 11. The short version: you use a string path reference and the VM resolves it relative to the current file's location or the aeonmi_ai/ root.
+
+The built-in functions available without any import are extensive. The full list from the Shard Developer Kit (main.ai documentation) is:
+
+CODE:
+```
+// MATH BUILTINS
+// sqrt, sin, cos, tan, atan2, floor, ceil, round, abs
+// exp, ln, log10, pow, min, max, fmod, clamp, lerp
+
+// STRING BUILTINS
+// len, substr, upper, lower, trim, split, join, repeat
+// contains, starts_with, ends_with, replace, find
+// pad_left, pad_right, char_at, str_len, concat
+
+// ARRAY BUILTINS
+// len, push, pop, slice, sort, reverse, flatten, unique
+// sum, product, range, map, filter, reduce, zip
+// enumerate, find, any, all
+
+// OBJECT BUILTINS
+// keys, values, has_key, get_key, set_key, delete_key
+
+// IO BUILTINS
+// print, read_file, write_file, append_file, file_exists
+// input, now, sleep, exit
+
+// TYPE CONVERSION
+// int, float, bool, str_len, is_nan, is_null, type_of
+// to_json, parse_json, hash, assert, assert_eq
+
+// QUANTUM BUILTINS
+// quantum_run, quantum_check, H, X, Y, Z, S, T, CNOT, CX, NOT, HADAMARD
+
+// MATH CONSTANTS
+// PI, E, TAU, INFINITY, NAN
+```
+
+TIP: You do not need to memorize this list. The most frequently used builtins are print, len, push, pop, floor, sqrt, split, join, and range. The quantum ones (quantum_run, quantum_check) are covered in Part 2.
+
+EXERCISE_TITLE: Exercise 3.1 — Exploring Builtins
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Write a program called builtins_demo.ai that demonstrates at least six different builtin functions. Include at least one math builtin, one string builtin, and one array builtin. Print the result of each call.
+
+EXERCISE_SOLUTION:
+```
+// builtins_demo.ai
+function main() {
+    // Math builtins
+    let root = sqrt(144.0);
+    print("sqrt(144) = " + root);
+
+    let pi_floor = floor(PI);
+    print("floor(PI) = " + pi_floor);
+
+    let power = pow(2.0, 10.0);
+    print("2^10 = " + power);
+
+    // String builtins
+    let s = "  hello aeonmi  ";
+    let trimmed = trim(s);
+    print("trimmed: '" + trimmed + "'");
+
+    let upper = upper("aeonmi");
+    print("upper: " + upper);
+
+    let parts = split("a,b,c", ",");
+    print("split result length: " + len(parts));
+
+    // Array builtins
+    let nums = [5, 3, 1, 4, 2];
+    let sorted = sort(nums);
+    print("sorted: " + sorted);
+
+    let total = sum(nums);
+    print("sum: " + total);
+}
+
+main();
+```
+
+================================================================================

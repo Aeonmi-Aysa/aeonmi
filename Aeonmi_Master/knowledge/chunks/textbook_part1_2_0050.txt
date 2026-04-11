@@ -1,0 +1,51 @@
+=== The aeonmi_ai Module Structure ===
+
+BODY:
+Each subdirectory in aeonmi_ai/ is a module group. Programs in these directories are runnable standalone via `aeonmi native`. They are not automatically imported by each other — you call them explicitly or they are dispatched by the Rust embryo_loop.
+
+The stdlib/ directory contains reusable functions: collections, math, sort algorithms, graph utilities. To use stdlib functions in a larger program, you either copy the functions you need (for standalone files) or rely on the import resolution mechanism.
+
+The agent/ directory contains the five hive agents: oracle_agent.ai, hype_agent.ai, closer_agent.ai, devil_agent.ai, and conductor_agent.ai. These are templates — when the Mother AI hive starts, it generates a dynamic hive_runner.ai from these templates rather than calling them directly.
+
+NOTE: A critical architectural fact: the .ai modules in aeonmi_ai/ run standalone when you invoke them with `aeonmi native`. They do NOT automatically communicate with the Rust cognitive layer (Track 1) at runtime. Only two live bridges exist as of April 2026: the learn probe (a generated _learn_probe.ai run every 5 interactions) and the dynamically generated hive_runner.ai. All other modules are standalone programs.
+
+EXERCISE_TITLE: Exercise 11.1 — Module Exploration
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Explore the aeonmi_ai/ directory. Run three different modules standalone:
+1. `aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai`
+2. Any module from agent/ directory
+3. Any module from quantum/ directory
+For each one, describe in a comment block what it does and what output it produces.
+
+EXERCISE_SOLUTION:
+```
+// module_exploration_notes.ai
+// This file documents what each module does when run standalone.
+
+// Module 1: shard/main.ai
+// Run: aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai
+// Output: The Shard Developer Kit language reference documentation,
+//         followed by a demonstration of the ai_lex/ai_build/ai_gen
+//         pipeline processing a simple arithmetic expression.
+//         Shows all available builtin functions.
+
+// Module 2: agent/oracle_agent.ai (example)
+// Run: aeonmi native Aeonmi_Master/aeonmi_ai/agent/oracle_agent.ai
+// Output: Agent assessment output, probability scores, HIVE_STATE lines
+//         in the format: HIVE_STATE:oracle_score:0.xx
+
+// Module 3: quantum/ modules
+// Run: aeonmi native Aeonmi_Master/aeonmi_ai/quantum/[module].ai
+// Output: Quantum circuit simulation results, probability calculations,
+//         entanglement demonstrations
+
+function main() {
+    print("See comments above for module exploration notes.");
+    print("Run each module with: aeonmi native <path>");
+}
+
+main();
+```
+
+================================================================================

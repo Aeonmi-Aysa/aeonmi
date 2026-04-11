@@ -1,0 +1,8 @@
+=== Vault and Glyph Identity Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: No Shard identity found. Run `aeonmi vault init` | MGK file does not exist | Run `aeonmi vault init` to create the Master Glyph Key
+TABLE_ROW: Boot failed: X. Check passphrase. | Argon2id unseal failed — wrong passphrase | Re-enter the correct passphrase used during `vault init`
+TABLE_ROW: glyph identity skipped — shard running unsigned | User pressed Enter to skip passphrase at boot | Normal operation; glyph features work but identity is not verified this session
+TABLE_ROW: Vault file not found or corrupted | The vault binary file is missing or unreadable | Restore from backup: `aeonmi vault recover backup.bin`
+TABLE_ROW: Merkle integrity check failed | Vault records do not match the stored Merkle root | The vault may have been modified externally; run `aeonmi vault vault-analyze` to assess damage

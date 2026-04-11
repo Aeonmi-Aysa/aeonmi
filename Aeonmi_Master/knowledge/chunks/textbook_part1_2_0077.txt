@@ -1,0 +1,13 @@
+=== CHAPTER SUPPLEMENT: QUBE File Format — Complete Reference ===
+
+================================================================================
+================================================================================
+
+SUPPLEMENT_NOTE:
+This supplement corrects and extends Chapters 12–18 with the confirmed QUBE
+grammar sourced directly from the VSCode extension specification (vscode-aeonmi/,
+authoritative from aeonmi-copilot-test-bug-for-alias.zip). All syntax shown here
+is canonical — verified against the extension's TextMate grammar (qube.tmLanguage),
+snippet file (qube.json), and language configuration (qube-language-configuration.json).
+
+================================================================================

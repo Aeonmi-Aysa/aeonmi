@@ -1,0 +1,33 @@
+=== for-in Loops ===
+
+BODY:
+Aeonmi supports two forms of the for-in loop: iterating over an array, and iterating over a range. The range() builtin takes three arguments: start, end (exclusive), and step.
+
+CODE:
+```
+// for_in.ai
+function main() {
+    // for-in over array
+    let vals = [0.3, 0.6, 0.9, 1.2, 1.5];
+    let total = 0.0;
+    for v in vals {
+        total = total + v;
+        print("v = " + v);
+    }
+    print("total = " + total);
+
+    // for-in over range(start, end, step)
+    let sum = 0;
+    for n in range(0, 5, 1) {
+        sum = sum + n;
+    }
+    print("sum of 0..4 = " + sum);  // 10
+
+    // range with step > 1
+    for n in range(0, 20, 5) {
+        print(n);    // 0, 5, 10, 15
+    }
+}
+
+main();
+```

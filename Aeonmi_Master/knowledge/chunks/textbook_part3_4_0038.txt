@@ -1,0 +1,54 @@
+=== The selfmod/ Modules and the Core Pattern ===
+
+BODY: Self-modification in Aeonmi is not the system rewriting its own source
+code. It is the system altering its own decision weights through an evolutionary
+process, then generating new code that encodes those learned weights. The
+difference is crucial: the Rust VM is fixed; the weights, programs, and
+knowledge that run on it are not.
+
+The self-modification pattern has four stages:
+
+Stage 1 — Data and baseline: Define a labeled dataset and an initial weight set.
+Stage 2 — Evolutionary training: Run a generational loop with annealed
+temperature, generating mutant weight sets and evaluating each against the
+dataset. Keep the best mutation each generation.
+Stage 3 — Convergence: After N generations, the system has weights that achieve
+measurably better fitness than the baseline.
+Stage 4 — Code generation: Using the learned weights, the program generates new
+Aeonmi decision function code that encodes those weights as literals.
+
+This is self-hosting intelligence: the output of the learning process is valid
+Aeonmi source code that makes better decisions than the code that started the
+process.
+
+CODE:
+```
+// self_modifying_ai.ai — core pattern (abbreviated):
+// Stage 1: initial weights
+let w0 = 0.5; let w1 = 0.3; let w2 = 0.7; let w3 = 0.2;
+
+// Stage 2: evolutionary loop
+let gen = 0;
+while (gen < 60) {
+    let temp = 0.6 / (1 + gen / 15);  // annealed temperature
+
+    // Mutate: random delta in [-temp, +temp] for each weight
+    // Generate guided child: force w3 toward negative (key insight)
+    let mw3b = w3 - abs(d3) - 0.05;
+
+    // Evaluate both children, keep best if fitness improves
+    if (best_child_fit > best_fit) {
+        w0 = bcw0; w1 = bcw1; w2 = bcw2; w3 = bcw3;
+        best_fit = best_child_fit;
+    }
+    gen = gen + 1;
+}
+
+// Stage 4: generate Aeonmi code from learned weights
+print("function learned_decide(sig, coh, trend, noise) {");
+print("    let logit = " + w0 + "*sig + " + w1 + "*coh");
+print("             + " + w2 + "*trend + " + w3 + "*noise;");
+print("    if (logit > 0.5) { return 1; }");
+print("    return 0;");
+print("}");
+```

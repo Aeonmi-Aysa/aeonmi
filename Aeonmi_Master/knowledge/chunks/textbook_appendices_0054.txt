@@ -1,0 +1,30 @@
+=== Using Glyphs in .ai Source ===
+
+CODE:
+```
+// Tensor product composition
+let joint_state = qubit_a ⊗ qubit_b
+
+// Bra-ket inner product (overlap)
+let amplitude = ⟨psi | phi⟩
+
+// Maps-to in function type signatures
+quantum function evolve : |qubit⟩ ↦ |qubit⟩ {
+    H(q)
+    return q
+}
+
+// Entanglement annotation
+quantum struct BellPair {
+    q0: qubit ⧉,
+    q1: qubit ⧉,  // q0 and q1 are entangled
+}
+
+// Hermitian conjugate
+let U_inv = U†  // inverse of unitary U
+```
+
+NOTE: All glyph operators are valid UTF-8. They can be typed using OS-level Unicode input methods or copied from this reference. The Aeonmi lexer recognizes all listed Unicode code points as valid tokens.
+
+
+# APPENDIX G: Error Messages Reference

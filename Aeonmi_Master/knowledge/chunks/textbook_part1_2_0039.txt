@@ -1,0 +1,20 @@
+=== The Primary Commands ===
+
+BODY:
+The Aeonmi binary accepts several subcommands for running programs. Understanding when to use each one is important for effective development.
+
+`aeonmi run <file.ai>` — The general-purpose run command. Compiles and executes the file. By default uses the native Rust VM. Accepts flags for watch mode, bytecode mode, and emit options.
+
+`aeonmi native <file.ai>` — Explicit native VM execution. Equivalent to `aeonmi run <file.ai>` without bytecode flags. The most direct way to run a .ai file during development.
+
+`aeonmi exec <file.ai>` — Execution path intended for programmatic dispatch. Used internally by the hive runner and learn cycle when they spawn subprocess calls to the binary.
+
+`aeonmi repl` — Starts the Read-Eval-Print Loop. You can type Aeonmi expressions and statements interactively and see results immediately. The REPL also provides access to Mother AI commands.
+
+`aeonmi emit <file.ai> --emit ai` — Compiles the file and emits the processed .ai output to a file. Useful for inspecting what the compiler produces.
+
+`aeonmi tokens <file.ai>` — Runs the lexer only and dumps the token stream. Useful for debugging lexer behavior.
+
+`aeonmi ast <file.ai>` — Runs the lexer and parser, then dumps the AST. Useful for understanding how the parser sees your code.
+
+`aeonmi build <file.ai>` — Compilation-only pass without execution.

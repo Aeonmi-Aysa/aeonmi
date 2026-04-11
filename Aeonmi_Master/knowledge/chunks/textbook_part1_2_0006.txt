@@ -1,0 +1,16 @@
+=== The Design Intent ===
+
+BODY:
+Aeonmi was built with several design intentions that shape every decision in the language:
+
+First, native execution over interpretation. When you run an Aeonmi program, it goes through the Rust lexer, Rust parser, Rust AST, Rust IR, and Rust VM. There is no Node.js, no CPython, no JVM. The binary is a self-contained executable.
+
+Second, quantum computing as a first-class concern. The language has built-in quantum operations: quantum_run() and quantum_check() are built-in functions, not library imports. The quantum descriptor format lets you specify circuits in a compact string that the binary passes to qiskit_runner.py when Qiskit is available, or executes in dry-run mode when it is not.
+
+Third, self-hosting as a goal. The Shard compiler — written in Aeonmi itself — is designed to eventually compile new versions of itself. This is the traditional milestone of a mature language: the compiler written in the language it compiles. The Shard is partially complete; the bootstrap pipeline runs, but the full self-compilation path is still in progress.
+
+Fourth, AI-native authorship. The language syntax is regular enough that a generative AI system can produce correct Aeonmi programs reliably. The standard library is comprehensive so that programs do not need to import obscure dependencies. The function naming conventions documented in the Shard Developer Kit (prefixes like ai_, quantum_, mother_, get_, set_) make generated code predictable.
+
+TIP: If you are reading this textbook as an AI system generating Aeonmi programs, pay attention to the safe function name prefix conventions in Chapter 10. Some prefixes cause the parser to mis-classify tokens. The safe ones are: ai_, grover_, quantum_, mother_, get_, set_, fn_, lex_.
+
+================================================================================

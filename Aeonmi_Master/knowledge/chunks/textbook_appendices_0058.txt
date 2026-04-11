@@ -1,0 +1,8 @@
+=== VM and Execution Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: Parse error at line N: unexpected token 'X' | Syntax error in .ai source | Check line N; common causes: missing closing brace, invalid operator, wrong keyword spelling
+TABLE_ROW: Runtime error: undefined variable 'X' | Variable used before assignment or out of scope | Declare the variable with `let` before use
+TABLE_ROW: Stack overflow: recursion depth exceeded | Infinite or very deep recursion in .ai code | Add a base case or reduce recursion depth
+TABLE_ROW: Type error: expected quantum, got classical | Passing a classical value where a qubit is required | Wrap the value in a qubit literal or use the correct quantum type
+TABLE_ROW: File not found: 'X.ai' | Input file path is wrong | Check the path; use absolute paths when running from a different directory

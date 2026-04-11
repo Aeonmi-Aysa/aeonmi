@@ -1,0 +1,14 @@
+=== Native Mode vs. Other Modes ===
+
+BODY:
+The `run` command is the primary way to execute Aeonmi programs. The `native` subcommand within run executes the .ai file through the native Rust VM — it does not produce an intermediate output file unless you ask it to.
+
+`aeonmi run myfile.ai` — runs the file, may produce output.ai as a side effect in some configurations.
+
+`aeonmi native myfile.ai` — runs the file natively through the Rust VM. This is the cleanest execution path for development.
+
+`aeonmi exec myfile.ai` — similar to run; the distinction is that exec is designed for production execution paths where the binary is dispatching to a subprocess.
+
+The bytecode VM is an alternative execution backend available when building with `--features bytecode`. It produces a compact instruction stream with more aggressive optimization but is not the default path. You would invoke it via command line flags or environment variable AEONMI_BYTECODE=1.
+
+NOTE: "Native" in Aeonmi means executing in the Rust VM — not compiling to machine code. The language is interpreted through a tree-walking or bytecode VM, not compiled to native machine instructions. This may change in future phases. The word "native" in the CLI context contrasts with "transpiled to JavaScript" — Aeonmi's native mode generates no JavaScript.

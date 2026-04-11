@@ -1,0 +1,57 @@
+=== Running the qiskit_runner Directly ===
+
+BODY:
+The Aeonmi binary calls qiskit_runner.py as a subprocess when quantum_run() is invoked. You can also call qiskit_runner.py directly from the command line for testing:
+
+CODE:
+```
+// From your terminal (not Aeonmi):
+python Aeonmi_Master/qiskit_runner.py --status
+// Shows which backends are available
+
+python Aeonmi_Master/qiskit_runner.py --fidelity
+// Runs a fidelity test between Aer and target backend
+```
+
+EXERCISE_TITLE: Exercise 17.1 — Aer Simulation Study
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a program that runs the same Bell state circuit five times with 512 shots each. For each run, print the result. Then explain in comments why the results differ between runs even though the circuit is identical. If you do not have Qiskit installed, explain what dry-run mode shows instead and what a real result would look like.
+
+EXERCISE_SOLUTION:
+```
+// ex17_1.ai
+function main() {
+    print("=== AER SIMULATION STUDY ===");
+    print("Running Bell state 5 times with 512 shots each");
+    print("");
+
+    let desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+
+    let run = 1;
+    while run <= 5 {
+        print("Run " + run + ":");
+        let result = quantum_run(desc);
+        print("  " + result);
+        run = run + 1;
+    }
+
+    print("");
+    print("Why results differ:");
+    print("  Quantum measurement is inherently probabilistic.");
+    print("  Each shot samples from a probability distribution.");
+    print("  For a Bell state, each shot independently has 50%");
+    print("  chance of 00 and 50% chance of 11.");
+    print("  With 512 shots, the counts fluctuate by approximately");
+    print("  sqrt(512)/2 ≈ 11 shots from the 256 mean — statistical sampling.");
+    print("");
+    print("In dry-run mode:");
+    print("  quantum_run() returns a placeholder with fixed counts.");
+    print("  The placeholder does not show statistical variation.");
+    print("  Real Aer results would show different counts each time.");
+}
+
+main();
+```
+
+================================================================================

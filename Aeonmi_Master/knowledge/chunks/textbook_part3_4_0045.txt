@@ -1,0 +1,31 @@
+=== Autonomous Self-Prompting ===
+
+BODY: The awaken system is Mother's mechanism for self-directed activity.
+When started with `awaken [secs]`, a background thread begins writing
+awaken_trigger.json to Aeonmi_Master/ every N seconds. When the REPL's main
+execution loop detects this file during its next check_awaken_trigger() call,
+it processes the trigger and removes the file.
+
+When the trigger fires and the action queue is empty, the system automatically
+runs: propose() to identify a knowledge gap, set_goal() to establish an active
+objective based on the proposal, and then begins autonomous execution —
+consuming queued actions without waiting for commands. This is Mother choosing
+her own next action.
+
+CODE:
+```
+// awaken_trigger.json (written by background thread):
+{
+  "trigger_ts": "2026-04-05T14:30:00Z",
+  "interval_secs": 60,
+  "last_trigger": "2026-04-05T14:29:00Z"
+}
+
+// When REPL detects this file:
+// 1. Removes awaken_trigger.json
+// 2. If action queue is empty:
+//    - Calls propose() — scans knowledge for gaps
+//    - Calls set_goal() — sets the proposed program as active goal
+//    - Queues first build action
+//    - Enters autonomous execution
+```

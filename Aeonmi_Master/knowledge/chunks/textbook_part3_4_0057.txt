@@ -1,0 +1,17 @@
+=== Circuit Depth Optimization ===
+
+BODY: Circuit depth is the number of sequential gate layers in a quantum circuit.
+Deeper circuits accumulate more decoherence — quantum state degradation from
+environmental noise. On real hardware, every gate has an error rate of
+approximately 0.001 for single-qubit gates and 0.01 for two-qubit gates (CNOT).
+
+For IBM Brisbane, transpilation maps your logical qubits to physical qubits and
+replaces gates with the backend's native gate set (typically CNOT, SX, Rz, and
+X). The transpiled circuit is often deeper than the logical circuit, because the
+physical qubit connectivity is not all-to-all — additional SWAP gates may be
+inserted to route entanglement between non-adjacent physical qubits.
+
+The practical implication: keep your Aeonmi gate descriptor circuits as shallow
+as possible. A Bell state (2 gates: H + CNOT) is nearly optimal. A GHZ state
+(3 gates: H + CNOT + CNOT) remains practical. Circuits with depth >20 after
+transpilation will show significantly degraded fidelity on real hardware.

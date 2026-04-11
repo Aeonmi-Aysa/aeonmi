@@ -1,0 +1,43 @@
+=== Defining Functions ===
+
+BODY:
+Functions in Aeonmi are defined with the function keyword, followed by the name, a parameter list in parentheses, and a block body. The return statement is used to return a value. A function without a return statement returns null.
+
+CODE:
+```
+// functions.ai
+
+// A function with no parameters
+function say_hello() {
+    print("Hello from a function!");
+}
+
+// A function with parameters
+function add(a, b) {
+    return a + b;
+}
+
+// A function with multiple returns
+function classify(n) {
+    if n > 0 {
+        return "positive";
+    }
+    if n < 0 {
+        return "negative";
+    }
+    return "zero";
+}
+
+function main() {
+    say_hello();
+
+    let sum = add(10, 25);
+    print("sum = " + sum);  // 35
+
+    print(classify(5));    // positive
+    print(classify(-3));   // negative
+    print(classify(0));    // zero
+}
+
+main();
+```

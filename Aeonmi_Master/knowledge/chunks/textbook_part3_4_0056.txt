@@ -1,0 +1,33 @@
+=== Multiple Backends and Configuration ===
+
+BODY: The qiskit_runner.py bridge supports three backends in its current
+implementation: Aer (always available, local simulation), IBM Brisbane (127-qubit
+real hardware, requires IBM_QUANTUM_TOKEN), and IonQ (stub only, requires
+qiskit-ionq package and IONQ_API_KEY, currently deferred).
+
+Setting the active backend from the REPL:
+
+CODE:
+```
+> quantum_backend aer
+// Switches to local Aer simulation. Always available. No token needed.
+
+> quantum_backend ibm_brisbane
+// Switches to IBM Brisbane 127-qubit hardware.
+// Requires IBM_QUANTUM_TOKEN in .env or environment.
+// Queue times vary: minutes during off-peak, hours during peak.
+
+> quantum status
+// Shows availability of all configured backends.
+```
+
+BODY: The Aer simulator is the standard working environment. It runs on the
+local machine, returns results immediately, and produces counts that are
+statistically consistent with the theoretical distribution. For a 1024-shot
+Bell state, expect approximately 512/512 — not exactly, because quantum
+mechanics is statistical. An exact 512/512 split would be suspicious.
+
+IBM Brisbane uses `QiskitRuntimeService` with `SamplerV2` and requires ISA
+transpilation via `generate_preset_pass_manager`. The circuit must be transpiled
+to the target backend's native gate set before submission. This is handled
+automatically by qiskit_runner.py.

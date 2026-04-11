@@ -1,0 +1,106 @@
+=== textbook_source_review §7 ===
+
+=== FILE: aeonmi_ai/learning/loop.ai ===
+PURPOSE: Phase 3 Learning Loop. Mother accumulates signals, reinforces memory
+         on correct predictions, decays stale patterns, and evolves its bias
+         over multiple cycles. Demonstrates memory-with-strength as the core
+         learning substrate.
+SYNTAX DEMONSTRATED:
+  - b_m_decay: multiply every strength field by rate (0.9 in main)
+  - c_reinforce: PROCEED/ACCELERATE bump proceed_count + confidence_sum
+  - c_bias: percent integer = proceed_count / total * 100
+  - d_learn_cycle: one full cycle — decay → reinforce → store signal
+  - Signal as integer verdict code
+  - Integer percent bias (no floats needed)
+  - Budget comment: ⍝ Standalone. 10 fns + main = 11 total (budget <= 13).
+KEY CODE EXAMPLES:
+◯ b_m_decay⟨m, rate⟩ {
+    ⍝ multiply every strength field by rate (0 < rate < 1)
+    while (i < total) {
+        result.push(k); result.push(v); result.push(s * rate);
+        i = i + 1;
+    }
+    return result;
+}
+◯ d_learn_cycle⟨m, verdict, conf⟩ {
+    ⍝ one learning cycle: decay → reinforce → update last signal
+    m = b_m_decay(m, 9 / 10);
+    m = c_reinforce(m, verdict);
+    m = b_m_store(m, "last_verdict", verdict);
+    m = b_m_store(m, "last_conf",    conf);
+    return m;
+}
+TEXTBOOK RELEVANCE: Chapter 7 — Reinforcement Learning Loop; Chapter 10 —
+  Temporal Memory Dynamics
+
+=== FILE: aeonmi_ai/selfmodel/model.ai ===
+PURPOSE: Phase 4 Self-Model. Mother tracks its own prediction accuracy,
+         calibration (average confidence when correct), and drift (cumulative
+         prediction error). Each cycle Mother predicts then observes, scoring
+         itself. Pure introspection — the AI knowing how well it knows things.
+SYNTAX DEMONSTRATED:
+  - Self-model state via flat memory (same structure as external memory)
+  - c_accuracy: correct * 100 / predictions, clamped
+  - c_calibration: conf_sum / correct (avg confidence when right)
+  - c_observe: records pred, outcome, conf; increments on hit
+  - a_abs: absolute value helper for error calculation
+  - d_self_report: comprehensive human-readable summary
+  - String concatenation in print:  print("Accuracy     : " + acc + "%");
+KEY CODE EXAMPLES:
+◯ c_observe⟨m, pred, outcome, conf⟩ {
+    ⍝ record one prediction/outcome pair
+    let hit = 0; if (pred == outcome) { hit = 1; }
+    if (hit == 1) {
+        m = b_m_store(m, "correct",  corr + 1);
+        m = b_m_store(m, "conf_sum", csum + conf);
+    }
+    let err = a_abs(pred - outcome);
+    m = b_m_store(m, "drift", drift + err);
+    return m;
+}
+◯ d_self_report⟨m⟩ {
+    print("=== MOTHER SELF-MODEL ===");
+    print("Accuracy     : " + acc + "%");
+    print("Calibration  : " + cal + "  (avg conf when right)");
+    print("Total drift  : " + drift + "  (prediction error sum)");
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Self-Monitoring AI; Chapter 7 —
+  Meta-Cognition Patterns; Chapter 15 — Introspective Architecture
+
+=== FILE: aeonmi_ai/sensory/quantum_feed.ai ===
+PURPOSE: Phase 2 Sensory Input. Receives a quantum hive signal (verdict, confidence,
+         entanglement %) and journals the event then updates Mother memory.
+         Inlines all Mother primitives (journal + memory subset) to stay within
+         the 13-function budget. Demonstrates the sensory layer of Mother.
+SYNTAX DEMONSTRATED:
+  - a_int_str: LUT-based integer-to-string (no toString in early phases)
+  - String array as lookup table:  let lut = ["0","1","2",...,"30"];
+  - Special-case large values before LUT
+  - Journal + memory as separate state streams initialized empty
+  - Rule firing inline:  let is_proceed = 0; if (verdict == 2) { is_proceed = 1; }
+  - Conditional reinforcement:  if (is_proceed == 1) { m = b_m_store(...) }
+  - Print with int_str conversion
+  - Budget comment: ⍝ 8 fns + main = 9 total (budget <= 13)
+KEY CODE EXAMPLES:
+◯ a_int_str⟨n⟩ {
+    if (n == 100) { return "100"; }
+    if (n == 50)  { return "50"; }
+    let lut = ["0","1",...,"30"];
+    return lut.slice(n, n + 1).pop();
+}
+// In main():
+let verdict = 2;    ⍝ PROCEED
+let conf    = 16;
+let ent     = 100;
+j = b_j_append(j, "quantum_signal", vtag);
+m = b_m_store(m, "last_verdict", verdict);
+if (is_proceed == 1) {
+    m = b_m_store(m, "proceed_count", 1);
+    j = b_j_append(j, "rule_fired", "reinforce_on_proceed");
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Sensory Layer; Chapter 7 — Event-Driven
+  Memory Update; Chapter 2 — String Conversion Techniques
+
+================================================================================
+SECTION 8: STDLIB TEST FILES
+================================================================================

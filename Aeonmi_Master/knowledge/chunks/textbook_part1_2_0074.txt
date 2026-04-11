@@ -1,0 +1,19 @@
+=== Getting an IBM Quantum Token ===
+
+BODY:
+To use IBM Brisbane from Aeonmi, you need an IBM Quantum account and API token.
+
+1. Create a free account at quantum.ibm.com
+2. Navigate to your account settings and find your API token
+3. Set the environment variable: IBM_QUANTUM_TOKEN=your_token_here
+
+In the Aeonmi project, the token is expected in the .env file:
+
+CODE:
+```
+// .env file (never commit this file — it contains your private token)
+IBM_QUANTUM_TOKEN=your_ibm_quantum_token_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+```
+
+WARNING: Never commit your .env file to a public repository. The .gitignore must exclude .env. The Aeonmi project documentation explicitly lists this as a critical security risk. If you accidentally commit your IBM or Anthropic API key, rotate it immediately.

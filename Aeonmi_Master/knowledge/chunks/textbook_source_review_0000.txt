@@ -1,0 +1,128 @@
+=== textbook_source_review §1 ===
+
+================================================================================
+AEONMI TEXTBOOK SOURCE REVIEW — .AI FILE ANALYSIS
+Generated: 2026-04-05
+Purpose: Extract syntax patterns, module purposes, and instructive examples
+         from all .ai source files for use in the Aeonmi language textbook.
+================================================================================
+
+================================================================================
+SECTION 1: LANGUAGE DEFINITION FILES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/lang/ops.ai ===
+PURPOSE: Self-describing operator registry for the Aeonmi language. The language
+         defines its own operator table in Aeonmi itself — IDs, precedence,
+         associativity, and arity are all encoded as pure functions returning
+         integers. This is language self-description: Aeonmi models itself.
+SYNTAX DEMONSTRATED:
+  - Circle-function declaration:  ◯ fn_name⟨param⟩ { ... }
+  - Zero-parameter functions:     ◯ op_add⟨⟩ { return N; }
+  - Single-parameter functions:   ◯ op_arity⟨id⟩ { ... }
+  - Inline comment:               ⍝ comment text (APL-derived comment character)
+  - Integer return values
+  - if-statement with comparison: if (id == 10) { return 1; }
+  - Chained if blocks (no else-if): sequential if statements
+  - main function entry point:    ◯ main⟨⟩ { ... }
+  - print() builtin call
+  - String argument to print
+KEY CODE EXAMPLES:
+◯ op_arity⟨id⟩ {
+    ⍝ Arity (1=unary, 2=binary)
+    if (id == 10) { return 1; }  ⍝ not
+    return 2;
+}
+◯ op_prec⟨id⟩ {
+    ⍝ Precedence level (higher = binds tighter)
+    if (id == 3) { return 50; }   ⍝ *
+    if (id == 4) { return 50; }   ⍝ /
+    if (id == 1) { return 40; }   ⍝ +
+    if (id == 2) { return 40; }   ⍝ -
+    if (id == 5) { return 30; }   ⍝ ==
+    if (id == 9) { return 20; }   ⍝ &&
+    if (id == 11) { return 10; }  ⍝ ||
+    if (id == 10) { return 60; }  ⍝ ! (unary, high prec)
+    return 0;
+}
+◯ main⟨⟩ {
+    print("ops module loaded — add sub mul div eq neq gt lt and or not + arity prec assoc");
+}
+TEXTBOOK RELEVANCE: Chapter 2 — Operators and Expressions; Chapter 9 —
+  Self-Hosting (the language modeling its own operator table)
+
+=== FILE: Aeonmi_Master/aeonmi_ai/lang/types.ai ===
+PURPOSE: Self-describing type registry. Encodes the entire Aeonmi type system
+         as integer IDs returned from functions. Includes type predicates
+         (is_numeric, is_quantum). The language knows what types it has by
+         running Aeonmi code — not by consulting an external schema.
+SYNTAX DEMONSTRATED:
+  - Circle-function zero-parameter returning int: ◯ ty_bool⟨⟩ { return 1; }
+  - Type predicate functions returning bool:      ◯ ty_is_numeric⟨id⟩ { ... }
+  - Boolean literals:  return true; / return false;
+  - Inline APL comment: ⍝ True if type is int or float
+  - Function call within print:  print("... ", ty_is_numeric(ty_int()), ...)
+  - Multi-argument print with mixed literals and calls
+  - Type system IDs: 0=nil 1=bool 2=int 3=float 4=string 5=array 6=func 7=qubit 8=circuit 9=agent
+KEY CODE EXAMPLES:
+◯ ty_is_numeric⟨id⟩ {
+    ⍝ True if type is int or float
+    if (id == 2) { return true; }
+    if (id == 3) { return true; }
+    return false;
+}
+◯ ty_is_quantum⟨id⟩ {
+    ⍝ True if type is qubit or circuit
+    if (id == 7) { return true; }
+    if (id == 8) { return true; }
+    return false;
+}
+◯ main⟨⟩ {
+    print("types module loaded — nil bool int float string array func qubit circuit agent");
+    print("is_numeric(int):", ty_is_numeric(ty_int()), "is_quantum(qubit):", ty_is_quantum(ty_qubit()));
+}
+TEXTBOOK RELEVANCE: Chapter 3 — The Aeonmi Type System; Chapter 9 —
+  Self-Hosting; sidebar on qubit and agent as first-class types
+
+================================================================================
+SECTION 2: LEARNING / REINFORCEMENT FILES
+================================================================================
+
+=== FILE: Aeonmi_Master/aeonmi_ai/learn/learn.ai ===
+PURPOSE: Learning loop orchestrator. Combines the pattern tracker (pattern.ai)
+         and reinforcement memory (reinforce.ai) into a unified state machine.
+         State is a 2-element flat array: [pattern_store, memory_store]. All
+         operations are pure functions returning new state — no mutation.
+SYNTAX DEMONSTRATED:
+  - Import statement:  import { fn1, fn2, fn3 } from "./module";
+  - Destructured named imports
+  - State represented as flat array: let state = []; state.push(x); state.push(y);
+  - Array element extraction pattern: state.slice(0, 1).pop()
+  - Let binding: let pat = state.slice(0, 1).pop();
+  - Building a new array and returning it
+  - Function composition (calling imported functions)
+  - Multiple return values via array
+KEY CODE EXAMPLES:
+import { pat_add, pat_count, pat_new, pat_top } from "./pattern";
+import { reinf_decay, reinf_new, reinf_score, reinf_touch } from "./reinforce";
+
+◯ learn_absorb⟨state, key⟩ {
+    let pat = state.slice(0, 1).pop();
+    let mem = state.slice(1, 2).pop();
+    let pat2 = pat_add(pat, key);
+    let mem2 = reinf_touch(mem, key);
+    let out = [];
+    out.push(pat2);
+    out.push(mem2);
+    return out;
+}
+◯ learn_new⟨⟩ {
+    let pat = pat_new();
+    let mem = reinf_new();
+    let out = [];
+    out.push(pat);
+    out.push(mem);
+    return out;
+}
+TEXTBOOK RELEVANCE: Chapter 7 — AI-Native Patterns; Chapter 8 — Module System
+  and Imports; Chapter 10 — Building Cognitive State Machines

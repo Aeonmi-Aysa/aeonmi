@@ -1,0 +1,44 @@
+=== The Agent Contract ===
+
+BODY: An Aeonmi agent is any .ai program that takes a defined set of numeric
+inputs, applies a scoring or decision function, and produces a numeric output
+on a known scale. This is the agent contract. The oracle, hype, closer, devil,
+and conductor agents all fulfill this contract. Your custom agents must fulfill
+it too to integrate with the hive.
+
+The agent contract requires:
+1. A primary scoring function that returns a value on a consistent scale
+   (typically 0-1 or 0-100, choose one and be consistent).
+2. A main() function that demonstrates the agent with example inputs and prints
+   output in a format the hive can parse.
+3. No external dependencies — the agent must run standalone via `aeonmi native`.
+4. Defined input semantics: every input parameter must have a documented range
+   and interpretation.
+
+CODE:
+```
+// Template for a custom agent following the contract:
+// custom_agent.ai — Example: Coherence Agent
+// Input: signal_clarity (0..100), data_consistency (0..100), noise_level (0..100)
+// Output: coherence_score (0..100)
+
+◯ coh_score⟨clarity, consistency, noise⟩ {
+    let inv_noise = 100 - noise;
+    let s = clarity * 40 / 100 + consistency * 35 / 100 + inv_noise * 25 / 100;
+    if (s > 100) { s = 100; }
+    return s;
+}
+
+◯ coh_tier⟨score⟩ {
+    if (score >= 80) { return 3; }   // COHERENT
+    if (score >= 60) { return 2; }   // STABLE
+    if (score >= 40) { return 1; }   // MARGINAL
+    return 0;                         // INCOHERENT
+}
+
+◯ main⟨⟩ {
+    let sc = coh_score(85, 78, 15);
+    let t = coh_tier(sc);
+    print("coherence: score=", sc, "tier=", t);
+}
+```

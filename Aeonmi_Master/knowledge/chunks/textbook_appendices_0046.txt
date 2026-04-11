@@ -1,0 +1,18 @@
+=== ai_memory Section ===
+
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: ai_memory.layer_ok | boolean | genesis_sync.py | Whether the .ai memory layer is accessible | true
+TABLE_ROW: ai_memory.probe_ok | boolean | genesis_sync.py | Whether the .ai probe executed successfully | true
+TABLE_ROW: ai_memory.memory_active | boolean | genesis_sync.py | Whether .ai memory system is active | true
+TABLE_ROW: ai_memory.journal_active | boolean | genesis_sync.py | Whether .ai journal system is active | true
+TABLE_ROW: ai_memory.rules_active | boolean | genesis_sync.py | Whether .ai rules engine is active | true
+TABLE_ROW: ai_memory.memory_count | integer | genesis_sync.py | Number of entries in .ai memory | 0
+TABLE_ROW: ai_memory.journal_count | integer | genesis_sync.py | Number of .ai journal entries | 0
+TABLE_ROW: ai_memory.memory_keys | array | genesis_sync.py | Keys stored in .ai memory layer | []
+TABLE_ROW: ai_memory.journal_entries | array | genesis_sync.py | Recent .ai journal entries | []
+TABLE_ROW: ai_memory.cognitive_seeded_keys | array | genesis_sync.py | Keys seeded from Rust cognitive layer into .ai memory | []
+TABLE_ROW: ai_memory.cognitive_learned_count | integer | genesis_sync.py | Count of learned entries seeded into .ai memory | 0
+TABLE_ROW: ai_memory.probe_output | string | genesis_sync.py | Raw output from the last .ai probe execution | ""
+TABLE_ROW: ai_memory.last_sync | string (ISO8601) | genesis_sync.py | Timestamp of last successful sync | "2026-04-05T16:01:10Z"
+
+NOTE: The ai_memory section is populated only when `sync` is issued (which runs genesis_sync.py). The .ai Track 2 modules do not write to genesis.json automatically during normal sessions. This is the primary architectural gap in the current release.

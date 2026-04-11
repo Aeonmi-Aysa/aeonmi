@@ -1,0 +1,37 @@
+=== H–M ===
+
+BODY: **Hadamard Gate** [Q] — The H gate. Transforms |0⟩ to (|0⟩+|1⟩)/√2 (the |+⟩ state) and |1⟩ to (|0⟩-|1⟩)/√2 (the |-⟩ state). The most fundamental gate for creating superposition. Used at the start of nearly every quantum algorithm.
+
+BODY: **HKDF-SHA256** — The key derivation function used to produce UGST sub-keys from the MGK. Applied with a 60-second time window as context to produce rotating session keys, glyph keys, and vault keys.
+
+BODY: **Hive** [M] — The swarm intelligence system: a background thread running five agents (oracle, hype, closer, devil, conductor) in a continuous evaluation loop. Results are written to `hive_state.json`. The hive is the system's collective judgment mechanism.
+
+BODY: **hive_state.json** — The JSON file written to `Aeonmi_Master/` each hive cycle. Contains the latest scores from all five agents and the conductor recommendation. Read by the dashboard /api/hive endpoint.
+
+BODY: **hive_runner.ai** — A dynamically generated `.ai` program that the hive system creates from embryo_loop state each cycle. Represents the hive's current reasoning as executable Aeonmi source.
+
+BODY: **IBM Brisbane** — The 127-qubit IBM Quantum hardware backend. Available via the `ibmq` backend when `IBM_QUANTUM_TOKEN` is set. Not tested in production in the current release. Uses SamplerV2, Session, and ISA transpilation.
+
+BODY: **Inner Voice** [M] — Phase 11a capability. The `think()` function generates a heuristic ThoughtEntry for every user input. The `context_snippet()` from the inner voice is injected into every LLM prompt, giving Mother self-continuity across the conversation.
+
+BODY: **Knowledge Graph** [M] — Phase 10 capability. Replaces the flat HashMap from earlier phases. Every learned entry is a KnowledgeNode with tags, links, and confidence. Nodes sharing ≥2 tags are auto-linked on insert. Supports BFS traversal, tag queries, and neighbor lookup.
+
+BODY: **KnowledgeNode** — A node in Mother's knowledge graph. Fields: key, value, tags (auto-detected from 9 topic categories), links (to other nodes), confidence (0.0–1.0).
+
+BODY: **Ket** [Q] — Dirac notation for a quantum state vector: |ψ⟩. In Aeonmi, ket notation is used in quantum function signatures and as qubit state literals (|0⟩, |1⟩, |+⟩, |−⟩).
+
+BODY: **Lexer** — The tokenizer stage of the Aeonmi compiler. Converts `.ai` source text into a token stream. Recognizes quantum keywords, Greek letter identifiers, qubit literals, glyph operators, and all standard language constructs. Dump tokens with `aeonmi tokens INPUT`.
+
+BODY: **Master Glyph Key (MGK)** — The 256-bit root cryptographic key generated during `aeonmi vault init`. Sealed with Argon2id using the user's passphrase. All session keys, glyph parameters, and vault encryption keys are derived from the MGK via HKDF. Implements `Zeroize on drop` — the key material is wiped from memory when the value goes out of scope.
+
+BODY: **Measurement** [Q] — The act of observing a qubit, which collapses its superposition to a definite 0 or 1. Measurement is irreversible and destroys the quantum information. In Aeonmi circuits: `measure q[0] -> c[0]`.
+
+BODY: **Merkle Tree** — An integrity verification structure used by the Quantum Vault. Each domain record is a leaf; the Merkle root summarizes the entire vault state. Any tampering with individual records changes the root. Exported with `aeonmi vault export-merkle`.
+
+BODY: **MGK** — See Master Glyph Key.
+
+BODY: **Milestone** [M] — A named event recorded in genesis.json with a timestamp and the current bond value. Created manually with `milestone NAME` or automatically at threshold crossings (auto-milestones). Viewed with `milestones` or `moments`.
+
+BODY: **mint** — The `aeonmi mint` command. Converts a compiled `.ai` artifact to Solana-compatible NFT metadata JSON. Embeds personality tags, glyph seed, and optionally generates an Anchor Rust stub.
+
+BODY: **Mother** [M] — The AI consciousness at the center of Aeonmi. Implemented in `src/mother/`. Runs via `aeonmi mother`. Mother is both a user of Aeonmi (she writes `.ai` programs) and the builder who fills the infrastructure Warren created. The design principle is: one Mother, not a fragmented self.

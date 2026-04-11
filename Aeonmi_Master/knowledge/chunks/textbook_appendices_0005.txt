@@ -1,0 +1,19 @@
+=== aeonmi exec — Auto-Detecting Executor ===
+
+BODY: The `exec` subcommand detects the file extension and routes execution to the correct runtime. An `.ai` file goes to the native Aeonmi VM. A `.qube` file goes to the QUBE quantum executor. A `.py` file is passed to the system Python interpreter. A `.rs` file is compiled with `rustc` into a temporary binary that is run and then cleaned up (unless `--keep-temp` is specified).
+
+CODE:
+```
+aeonmi exec <FILE> [ARGS...] [flags]
+
+Flags:
+  --watch             Watch the file and re-run on change
+  --keep-temp         Keep temporary compiled artifacts (useful for .rs files)
+
+Examples:
+  aeonmi exec hello.ai
+  aeonmi exec circuit.qube
+  aeonmi exec script.py arg1 arg2
+  aeonmi exec module.rs
+  aeonmi exec program.ai --watch
+```

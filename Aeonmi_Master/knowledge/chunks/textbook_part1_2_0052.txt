@@ -1,0 +1,11 @@
+=== What Is Q.U.B.E.? ===
+
+BODY:
+Q.U.B.E. stands for Quantum Understanding and Bridging Environment. It is Aeonmi's quantum reasoning layer — the bridge between classical .ai programs and actual quantum computation. Q.U.B.E. is not just a library of quantum functions; it is a design philosophy about how quantum computing should be accessible to an AI-native language.
+
+The core idea is that quantum operations should be expressible in a compact, unambiguous descriptor format that any program (or generative AI system) can produce and reason about. Rather than requiring programmers to write complex quantum circuit APIs, Q.U.B.E. uses a string descriptor: a compact numeric encoding of a quantum circuit that the Aeonmi binary passes to qiskit_runner.py for execution.
+
+BODY:
+Q.U.B.E. exists because Mother AI needs to reason about quantum states as part of its cognitive architecture. The quantum_core module in the Rust layer (src/mother/quantum_core.rs) maintains quantum state variables that influence bond strength, consciousness depth, and decision making. The .ai quantum layer allows programs to express and run quantum circuits and get measurement results back.
+
+The name "Q.U.B.E." also describes the shape of quantum reasoning: multi-dimensional, superposed, capable of expressing things that classical boolean logic cannot — like a qubit that is simultaneously 0 and 1 until measured.

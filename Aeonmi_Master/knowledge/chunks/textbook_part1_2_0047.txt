@@ -1,0 +1,66 @@
+=== Safe Function Name Conventions ===
+
+BODY:
+The Shard Developer Kit documents an important convention for function names when writing Aeonmi programs intended to be parsed by the Shard. Some common English words as function name prefixes cause the Aeonmi parser to misclassify the token.
+
+The documentation states:
+- Safe prefixes: ai_, grover_, quantum_, mother_, get_, set_, fn_, lex_
+- Avoid prefixes that start with: test, par, simple, validate, with, tok
+
+This is a known issue with the Aeonmi lexer's keyword matching and will be resolved in a later version of the parser. For programs written to be parsed by the Shard specifically, follow the safe prefix convention.
+
+CODE:
+```
+// GOOD — safe prefixes
+function ai_parse(src) { ... }
+function quantum_run_circuit(desc) { ... }
+function get_token_kind(tok) { ... }
+function lex_identifier(src, pos) { ... }
+
+// RISKY — avoid these as function name starts when targeting Shard
+// function test_parser(input) { ... }   // "test" can be misread
+// function parse_expression(src) { ... } // "par" prefix issue
+// function simple_eval(expr) { ... }     // "simple" prefix issue
+```
+
+EXERCISE_TITLE: Exercise 10.1 — Running the Shard Dev Kit
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Run `aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai` and observe the output. Then write a new file called my_shard_test.ai that:
+1. Calls ai_lex() on the string "3 + 4 * 2"
+2. Passes the result to ai_build()
+3. Passes that to ai_gen()
+4. Prints the generated output
+5. Calls ai_chk() and prints whether it passed
+
+Note: you will need to import or copy the four functions from main.ai into your file for this to work as a standalone program.
+
+EXERCISE_SOLUTION:
+```
+// my_shard_test.ai
+// Copy the ai_lex, ai_build, ai_gen, ai_chk functions from main.ai here
+// then add:
+
+function main() {
+    let src = "3 + 4";
+    let toks = ai_lex(src);
+    print("Tokens: " + toks);
+
+    let nodes = ai_build(toks);
+    print("AST nodes: " + nodes);
+
+    let emitted = ai_gen(nodes);
+    print("Generated: " + emitted);
+
+    let valid = ai_chk(emitted);
+    if valid == 1 {
+        print("PASS: shard pipeline produced output");
+    } else {
+        print("FAIL: no output produced");
+    }
+}
+
+main();
+```
+
+================================================================================

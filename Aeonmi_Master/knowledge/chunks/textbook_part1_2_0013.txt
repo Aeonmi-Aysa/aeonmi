@@ -1,0 +1,33 @@
+=== File Structure ===
+
+BODY:
+An Aeonmi source file has the .ai extension. There is no required preamble, no module declaration at the top, and no mandatory import syntax for single-file programs. A .ai file is a sequence of:
+
+- Comments (// style, single line only)
+- Function definitions
+- Variable declarations at top level
+- Statements at top level (executed in order when the file runs)
+
+The most common structure is to define all your functions first, then call a main() function at the bottom of the file. This is a convention, not a requirement — Aeonmi executes top-level statements in order, so you can call functions inline.
+
+CODE:
+```
+// file_structure_example.ai
+// Comments use double-slash. No block comments /* */ exist in the current VM.
+
+// Functions defined first
+function greet(name) {
+    return "Hello, " + name + "!";
+}
+
+function compute(x, y) {
+    return x * y + 1;
+}
+
+// Top-level statements execute in order
+let msg = greet("Aeonmi");
+print(msg);
+
+let result = compute(3, 4);
+print("Result: " + result);
+```

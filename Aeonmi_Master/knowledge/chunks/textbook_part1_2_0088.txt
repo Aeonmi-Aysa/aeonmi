@@ -1,0 +1,147 @@
+=== Installing the VSCode Extension for Aeonmi Development ===
+
+================================================================================
+
+BODY:
+The Aeonmi VSCode extension (vscode-aeonmi) provides syntax highlighting,
+bracket matching, and code snippets for both .ai and .qube files. It supports:
+
+- Full syntax highlighting for .ai files: keywords, quantum keywords, glyph
+  operators, string literals, numbers, comments, and builtin functions
+- Full syntax highlighting for .qube files: QUBE keywords, gate names, qubit
+  literals, glyph comment tokens (∴ ∵), and the ∈ operator
+- Code snippets with tab stops for both .ai and .qube (see snippet tables below)
+- Auto-closing bracket pairs: () [] {} ⟨⟩ and the ⧉ glyph (matches itself)
+- Word pattern for Greek letter identifiers (enables correct word selection)
+
+--- Method 1: Manual Directory Installation ---
+
+This is the fastest method during development. Copy the extension folder
+directly into VSCode's extensions directory.
+
+CODE:
+```
+// Windows:
+// Source folder: vscode-aeonmi/  (from the Aeonmi project root)
+// Destination:   %USERPROFILE%\.vscode\extensions\aeonmi-0.1.0\
+
+// Using File Explorer: copy vscode-aeonmi/ to:
+//   C:\Users\<your-username>\.vscode\extensions\aeonmi-0.1.0\
+
+// Using terminal (PowerShell or cmd from the Aeonmi project root):
+// xcopy /E /I vscode-aeonmi "%USERPROFILE%\.vscode\extensions\aeonmi-0.1.0"
+
+// After copying, restart VSCode completely (not just reload window).
+// Open any .ai or .qube file — syntax highlighting should activate.
+```
+
+CODE:
+```
+// macOS / Linux:
+// Destination: ~/.vscode/extensions/aeonmi-0.1.0/
+cp -r vscode-aeonmi ~/.vscode/extensions/aeonmi-0.1.0
+// Restart VSCode.
+```
+
+--- Method 2: Install from VSIX Package ---
+
+If the extension has been packaged as a .vsix file, use the VSCode CLI:
+
+CODE:
+```
+code --install-extension aeonmi-0.1.0.vsix
+```
+
+Or via the VSCode UI: Extensions panel → three-dot menu (top right) →
+"Install from VSIX..." → select the .vsix file.
+
+--- Method 3: Build the VSIX from Source ---
+
+If you have the vscode-aeonmi/ source folder and want to build the .vsix
+yourself, you need the vsce packaging tool from npm.
+
+CODE:
+```
+// Step 1: Install Node.js if not already installed (nodejs.org)
+
+// Step 2: Install the vsce packaging tool globally
+npm install -g @vscode/vsce
+
+// Step 3: Navigate to the extension source folder
+cd vscode-aeonmi
+
+// Step 4: Package the extension
+vsce package
+
+// This produces aeonmi-0.1.0.vsix in the current directory.
+
+// Step 5: Install it
+code --install-extension aeonmi-0.1.0.vsix
+```
+
+NOTE: The vscode-aeonmi/ folder is located in the Aeonmi project root alongside
+src/, examples/, and Aeonmi_Master/. It is a self-contained VSCode extension
+package with a package.json, syntaxes/ subfolder (containing the TextMate
+grammar files aeonmi.tmLanguage and qube.tmLanguage), and a snippets/ subfolder
+(containing aeonmi.json and qube.json). No compilation step is required — the
+extension is pure JSON/XML configuration.
+
+--- Verifying the Installation ---
+
+CODE:
+```
+// Verification steps after installation:
+//
+// 1. Open VSCode
+// 2. File → New File → save as test.ai
+// 3. Type: fn main() {
+//    The { should auto-close to {}
+// 4. Type: let x =
+//    The snippet should offer let → let name = ;
+// 5. Open a new file, save as test.qube
+// 6. Type: state q0
+//    The keyword state should highlight differently from identifiers
+// 7. Type: ∴
+//    The therefore glyph should highlight as a comment token
+// 8. In the .qube file, type bell and press Tab
+//    The complete Bell state snippet should expand
+```
+
+--- Available Snippets (.ai files) ---
+
+CODE:
+```
+TRIGGER | EXPANDS TO
+--------|------------------------------------------
+fn      | fn name(args) { }
+let     | let name = ;
+if      | if (condition) { } else { }
+while   | while (condition) { }
+qubit   | qubit name;
+superpose | superpose(qubit);
+entangle  | entangle(q1, q2);
+measure   | let result = measure(qubit);
+arr     | ⧉a‥b‥c⧉
+tensor  | a ⊗ b
+bind    | name ↦ value
+main    | fn main() { }  return main();
+import  | import name from "./path";
+```
+
+--- Available Snippets (.qube files) ---
+
+CODE:
+```
+TRIGGER   | EXPANDS TO
+----------|------------------------------------------
+state     | state name = |0⟩
+super     | state ψ = 0.707|0⟩ + 0.707|1⟩
+apply     | apply H -> q
+cnot      | apply CNOT(control, target)
+collapse  | collapse q -> result
+assert    | assert result ∈ {0, 1}
+log       | log(value)
+bell      | (full Bell state circuit — 10 lines)
+```
+
+================================================================================

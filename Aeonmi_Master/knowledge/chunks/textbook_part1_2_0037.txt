@@ -1,0 +1,40 @@
+=== Optimization in the Bytecode VM ===
+
+BODY:
+When using the bytecode backend, the compiler applies several optimizations that are visible via the --opt-stats flag:
+
+Constant folding: 2 + 3 is precomputed to 5 at compile time.
+Chain folding: repeated constant additions like 1 + 2 + 3 collapse into a single constant.
+Dead code elimination: if false { ... } blocks are removed entirely at compile time.
+Pop elimination: unnecessary stack push/pop pairs are merged.
+
+These optimizations are tracked with a count available via `aeonmi run myfile.ai --opt-stats-json`.
+
+EXERCISE_TITLE: Exercise 8.1 — Tracing the Pipeline
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Use the `aeonmi tokens` command to see the token stream for a small .ai file. Create a file called trace_test.ai with a simple function that adds two numbers. Run `aeonmi tokens trace_test.ai` and `aeonmi ast trace_test.ai` to see the lexer output and AST respectively. Describe in comments inside the file what each stage produces.
+
+EXERCISE_SOLUTION:
+```
+// trace_test.ai
+// Run: aeonmi tokens trace_test.ai
+// Run: aeonmi ast trace_test.ai
+
+function add_two(a, b) {
+    return a + b;
+}
+
+let x = add_two(10, 20);
+print(x);
+
+// Tokens stage produces:
+// [Keyword("function"), Ident("add_two"), LParen, Ident("a"), Comma,
+//  Ident("b"), RParen, LBrace, Keyword("return"), Ident("a"),
+//  Plus, Ident("b"), Semicolon, RBrace, ...]
+//
+// AST stage produces the tree structure showing FunctionDef with
+// ReturnStmt containing BinOp("+", Ident("a"), Ident("b"))
+```
+
+================================================================================

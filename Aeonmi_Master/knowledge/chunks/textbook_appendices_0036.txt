@@ -1,0 +1,10 @@
+=== Quantum Operators in Aeonmi Language Context ===
+
+TABLE_HEADER: Operator | Quantum Meaning | Language Meaning
+TABLE_ROW: ⊗ | Tensor product of quantum states or gates | Composition operator for combining quantum structures
+TABLE_ROW: ⟨x|y⟩ | Inner product (bra-ket notation) | State overlap measurement expression
+TABLE_ROW: ↦ | Maps state to state (quantum channel) | Function mapping or transformation binding
+TABLE_ROW: ⧉ | Entanglement annotation | Marks a binding as quantum-entangled (shared state)
+
+
+# APPENDIX D: Agent Reference

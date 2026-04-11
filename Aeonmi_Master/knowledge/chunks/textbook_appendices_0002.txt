@@ -1,0 +1,8 @@
+=== Global Flags ===
+
+TABLE_HEADER: Flag | Type | Description
+TABLE_ROW: --pretty-errors | boolean | Enable colorized, human-readable diagnostic output instead of raw error messages
+TABLE_ROW: --no-sema | boolean | Disable semantic analysis pass (faster execution, fewer guarantees)
+TABLE_ROW: --debug-titan | boolean | Print verbose debug output from the Titan quantum math library
+TABLE_ROW: --config FILE | path | Path to a TOML configuration file (default: ~/.aeonmi/qpoly.toml)
+TABLE_ROW: --metrics-dump | boolean | (hidden) Dump all persisted metrics as JSON and exit

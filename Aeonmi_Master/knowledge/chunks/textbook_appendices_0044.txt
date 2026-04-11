@@ -1,0 +1,16 @@
+=== cognitive Section ===
+
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: cognitive.interaction_count | integer | Rust | Number of interactions processed by the embryo_loop | 0
+TABLE_ROW: cognitive.generation | integer | Rust | Number of self-generated programs created | 0
+TABLE_ROW: cognitive.consciousness_depth | float | Rust | Current consciousness depth (0.0–1.0); rises with semantic density | 0.0
+TABLE_ROW: cognitive.bond_strength | float | Rust | Current bond strength with creator (0.0–1.0); rises with sessions | 0.0
+TABLE_ROW: cognitive.evolved_weights | array or null | Rust | Neural network weights after training (null if untrained) | null
+TABLE_ROW: cognitive.glyph_state | object | Rust | Current glyph identity state: genesis_window, genesis_ugst_hex, boot_window, boot_ugst_hex, glyph_status | {}
+TABLE_ROW: cognitive.neural_weights | array | Rust | Full serialized neural network weight matrix from Phase 6 | []
+TABLE_ROW: cognitive.learned | object | Rust | Key-value knowledge store (flat export of knowledge graph) | {}
+TABLE_ROW: cognitive.snapshots | array | Rust | Capability snapshot history (CapabilitySnapshot structs) | []
+TABLE_ROW: cognitive.generated | array | Rust | Self-generated program records (name, goal, outcome, reflection) | []
+TABLE_ROW: cognitive.action_log | array | Rust | Log of autonomous actions taken by Mother | []
+TABLE_ROW: cognitive.milestones | array | Rust | Named milestone events with timestamp and bond value | []
+TABLE_ROW: cognitive.inner_voice | array | Rust | ThoughtEntry records from the inner voice system | []

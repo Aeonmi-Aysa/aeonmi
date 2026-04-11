@@ -1,0 +1,14 @@
+=== Comments ===
+
+BODY:
+Aeonmi supports single-line comments only, beginning with //. There are no block comments (/* */). Everything from // to the end of the line is ignored by the lexer.
+
+CODE:
+```
+// This is a comment
+let x = 42; // This is an inline comment
+// print("This line is commented out and will not execute");
+print(x);   // prints 42
+```
+
+NOTE: The absence of block comments is intentional. Single-line comments are unambiguous for both the lexer and for generative AI systems producing Aeonmi code. A block comment with nested content is a common source of lexer edge cases. Aeonmi avoids it.

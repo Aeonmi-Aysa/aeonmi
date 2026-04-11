@@ -1,0 +1,41 @@
+=== while Loops ===
+
+BODY:
+The while loop repeats a block as long as its condition is true. Aeonmi does not have a do-while loop. Loop variables must be declared before the while and updated inside the body.
+
+CODE:
+```
+// while_loop.ai
+function main() {
+    // Basic while
+    let i = 0;
+    while i < 5 {
+        print("i = " + i);
+        i = i + 1;
+    }
+
+    // Accumulation with while
+    let sum = 0;
+    let n = 1;
+    while n <= 10 {
+        sum = sum + n;
+        n = n + 1;
+    }
+    print("Sum 1..10 = " + sum);   // 55
+
+    // Nested while
+    let row = 0;
+    while row < 3 {
+        let col = 0;
+        let line = "";
+        while col < 3 {
+            line = line + (row * 3 + col) + " ";
+            col = col + 1;
+        }
+        print(line);
+        row = row + 1;
+    }
+}
+
+main();
+```

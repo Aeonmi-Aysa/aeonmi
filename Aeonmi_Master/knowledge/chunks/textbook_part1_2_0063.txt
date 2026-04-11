@@ -1,0 +1,82 @@
+=== Interpreting quantum_run() Output ===
+
+BODY:
+The JSON returned by quantum_run() maps measurement bit strings to counts. For a 2-qubit circuit with 512 shots, the result might look like:
+
+CODE:
+```
+// Sample quantum_run() output for Bell state (512 shots):
+// {"00": 258, "11": 254}
+//
+// This means:
+//   258 out of 512 shots measured as 00 (both qubits = 0)
+//   254 out of 512 shots measured as 11 (both qubits = 1)
+//   0 shots measured as 01 or 10
+//
+// This is the signature of a Bell state: perfect correlation.
+// Qubit 0 and qubit 1 are always measured in the same state.
+// This is quantum entanglement.
+//
+// For a single qubit in superposition (H gate only), you expect:
+// {"0": ~256, "1": ~256} — roughly 50/50 split
+//
+// For a qubit with X gate applied (|0> → |1>):
+// {"1": 512} — always 1
+
+// In dry-run mode (no Qiskit), quantum_run() returns something like:
+// {"dry_run": true, "00": 256, "11": 256}
+```
+
+EXERCISE_TITLE: Exercise 15.1 — Quantum Run Program
+EXERCISE_LEVEL: Intermediate
+EXERCISE_BODY:
+Write a complete program that:
+1. Checks quantum availability
+2. Defines three circuit descriptors: single qubit superposition, Bell state, and X-gate (bit flip)
+3. Runs all three with quantum_run()
+4. Prints each result with a label describing what to expect
+5. Adds a comment explaining what result you would expect for each circuit if Qiskit is installed
+
+EXERCISE_SOLUTION:
+```
+// ex15_1.ai
+function main() {
+    let qc = quantum_check();
+    print("=== QUANTUM CIRCUIT DEMO ===");
+    print("Qiskit available: " + qc);
+    print("");
+
+    // Circuit 1: Single qubit superposition
+    // Expected: ~50% "0", ~50% "1"
+    let desc1 = "1 1 512 2  0 0 -1  7 0 0";
+    let r1 = quantum_run(desc1);
+    print("[ Superposition ]");
+    print("Descriptor: " + desc1);
+    print("Result: " + r1);
+    print("Expected: approx {\"0\": 256, \"1\": 256}");
+    print("");
+
+    // Circuit 2: Bell state
+    // Expected: ~50% "00", ~50% "11", zero "01" and "10"
+    let desc2 = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let r2 = quantum_run(desc2);
+    print("[ Bell State ]");
+    print("Descriptor: " + desc2);
+    print("Result: " + r2);
+    print("Expected: approx {\"00\": 256, \"11\": 256}");
+    print("");
+
+    // Circuit 3: X gate (bit flip)
+    // Expected: 100% "1"
+    let desc3 = "1 1 512 2  1 0 -1  7 0 0";
+    let r3 = quantum_run(desc3);
+    print("[ X Gate (bit flip) ]");
+    print("Descriptor: " + desc3);
+    print("Result: " + r3);
+    print("Expected: {\"1\": 512}");
+}
+
+main();
+```
+
+================================================================================

@@ -1,0 +1,8 @@
+=== Quantum Backend Errors ===
+
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: IBM_QUANTUM_TOKEN not set; falling back to Aer | Real IBM hardware requested but no token configured | Set IBM_QUANTUM_TOKEN env var; or use `aeonmi quantum aer` explicitly
+TABLE_ROW: Qiskit not installed; cannot run Aer backend | Qiskit package not found in Python environment | Install Qiskit: `pip install qiskit qiskit-aer`
+TABLE_ROW: IonQ backend requires IONQ_API_KEY | IonQ backend selected but API key not configured | IonQ is a stub in the current release; use aer or titan instead
+TABLE_ROW: Circuit fidelity below threshold: 0.XX | Quantum circuit output quality is low | Increase shots with --shots, simplify the circuit, or switch to Aer simulator for clean results
+TABLE_ROW: qiskit_runner.py not found | Python quantum runner script missing from Aeonmi_Master | Verify the Aeonmi_Master/ directory is intact and qiskit_runner.py is present

@@ -1,0 +1,12 @@
+=== Single-Qubit Gates ===
+
+TABLE_HEADER: Gate | Symbol | Matrix Action | Aeonmi Syntax | Description
+TABLE_ROW: Hadamard | H | |0>→|+>, |1>→|-> | H(q[0]) | Creates equal superposition from basis state. The most fundamental gate in quantum computing.
+TABLE_ROW: Pauli-X | X | |0>→|1>, |1>→|0> | X(q[0]) | Quantum NOT gate. Flips qubit state completely. Equivalent to classical bit flip.
+TABLE_ROW: Pauli-Y | Y | |0>→i|1>, |1>→-i|0> | Y(q[0]) | Rotation around Y-axis by pi. Combines bit flip and phase flip.
+TABLE_ROW: Pauli-Z | Z | |0>→|0>, |1>→-|1> | Z(q[0]) | Phase flip gate. Leaves |0> unchanged; applies -1 phase to |1>.
+TABLE_ROW: S gate | S | Phase pi/2 | S(q[0]) | Square root of Z. Applies a pi/2 phase rotation.
+TABLE_ROW: T gate | T | Phase pi/4 | T(q[0]) | Fourth root of Z. Applies a pi/4 phase rotation. Used in fault-tolerant circuits.
+TABLE_ROW: S-dagger | Sdg | Phase -pi/2 | Sdg(q[0]) | Inverse of S gate. Phase rotation of -pi/2.
+TABLE_ROW: T-dagger | Tdg | Phase -pi/4 | Tdg(q[0]) | Inverse of T gate. Phase rotation of -pi/4.
+TABLE_ROW: Identity | I | No change | I(q[0]) | Identity operation. Used as a placeholder or timing delay.

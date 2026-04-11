@@ -1,0 +1,11 @@
+=== Neural Network Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: neural | Show neural network state: layer sizes, weight norms, last I/O | Layer config (4→8→4→2), weight norms, last training input/output
+TABLE_ROW: nn | Alias for neural | Same as neural
+TABLE_ROW: train good | Backpropagate positive reinforcement signal | Training confirmation with updated weight norms
+TABLE_ROW: train bad | Backpropagate negative reinforcement signal | Training confirmation with updated weight norms
+TABLE_ROW: train strong | Backpropagate high-confidence positive signal | Training confirmation
+TABLE_ROW: train weak | Backpropagate low-confidence correction signal | Training confirmation
+
+NOTE: The neural network uses 4 inputs: semantic_depth, bond_strength, consciousness_depth, keyword_density. Outputs are confidence_mod and action_drive. Weights are persisted to genesis.json on every save.

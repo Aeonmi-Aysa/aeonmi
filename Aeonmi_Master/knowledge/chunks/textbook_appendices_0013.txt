@@ -1,0 +1,17 @@
+=== aeonmi build — Build an .ai File ===
+
+BODY: The `build` subcommand runs the Aeonmi native compilation pipeline on an `.ai` file and writes the output. Without an input argument, it looks for `build.ai` in the current directory.
+
+CODE:
+```
+aeonmi build [INPUT] [flags]
+
+Flags:
+  --out FILE          Output file (default: output.ai)
+  --no-sema           Disable semantic analysis
+
+Examples:
+  aeonmi build
+  aeonmi build src/main.ai
+  aeonmi build src/main.ai --out dist/main.ai
+```

@@ -1,0 +1,111 @@
+=== textbook_source_review §6 ===
+
+=== FILE: Aeonmi_Master/aeonmi_ai/stage2/quantum_oracle.ai ===
+PURPOSE: Grover's Search Algorithm demonstration. Proves O(sqrt(N)) quantum
+         advantage over classical O(N) search. Covers: Bell verification,
+         advantage table, live simulation for N=16, phase-flip oracle on all
+         16 states, amplitude amplification progress bars. Authored by Mother AI.
+SYNTAX DEMONSTRATED:
+  - PI constant:  floor(PI / 4.0 * sqrt(n))
+  - sqrt() builtin
+  - sin() builtin for probability:  sin(theta) * sin(theta)
+  - Precomputed table arrays for display:  let ns = [4, 8, 16, 32, 64, 128, 256, 512, 1024];
+  - Bar chart construction via string concatenation in while loop:
+        while (bi < blen) { bar = bar + "█"; bi = bi + 1; }
+  - Native quantum ops: qubit q0, q1; superpose(q0); entangle(q0, q1);
+  - Multi-phase main function structure (6 labeled phases)
+  - floor() for display precision: floor(p * 1000.0) / 10.0
+  - Notes array parallel to data:  let notes = ["initial", "", "", "optimal k=3", ...];
+KEY CODE EXAMPLES:
+function grover_iterations(n) {
+    return floor(PI / 4.0 * sqrt(n));
+}
+function grover_probability(k, n) {
+    let theta = (2.0 * k + 1.0) / sqrt(n);
+    return sin(theta) * sin(theta);
+}
+// Phase 1: Bell verification
+qubit q0, q1;
+superpose(q0);
+entangle(q0, q1);
+let r0 = measure(q0);
+let r1 = measure(q1);
+
+// ASCII progress bar:
+let blen = floor(p * 24.0);
+while (bi < blen) { bar = bar + "█"; bi = bi + 1; }
+while (bi < 24) { bar = bar + "░"; bi = bi + 1; }
+TEXTBOOK RELEVANCE: Chapter 13 — Grover's Algorithm; Chapter 12 —
+  Quantum Advantage; Chapter 2 — Math Builtins (sqrt, sin, PI)
+
+================================================================================
+SECTION 6: CORE RUNTIME FILES (aeonmi_ai/core/)
+================================================================================
+
+=== FILE: aeonmi_ai/core/mother_adaptive.ai ===
+PURPOSE: Phase 5+ Mother Core with Adaptive Threshold. All mother_core logic
+         plus d_threshold: adjusts Conductor threshold dynamically based on
+         self-model accuracy. Accuracy >= 80% means aggressive (threshold=50),
+         >= 60% normal (55), else conservative (62). Standalone, 13 functions.
+SYNTAX DEMONSTRATED:
+  - Adaptive threshold logic:  if (acc >= 80) { return 50; }
+  - Inline let assignments on one line:  let total = len(m) / 3; let found = -1; let i = 0;
+  - Compact multi-statement lines in main
+  - c_learn with strength decay:  d.push(m.slice(b+2, b+3).pop() * 9 / 10);
+  - c_observe: tracks predictions, correct, confidence sum, drift
+  - d_accuracy: correct * 100 / predictions with clamp
+  - d_bias: proceed_count / (proceed + abort) as percent
+  - Verdict codes: 0=ABORT 1=HOLD 2=PROCEED 3=ACCELERATE
+KEY CODE EXAMPLES:
+◯ d_threshold⟨s⟩ {
+    ⍝ adapt Conductor's proceed threshold from self-model accuracy
+    let acc = d_accuracy(s);
+    if (acc >= 80) { return 50; }
+    if (acc >= 60) { return 55; }
+    return 62;
+}
+◯ c_observe⟨s, pred, outcome, conf⟩ {
+    let hit = 0; if (pred == outcome) { hit = 1; }
+    if (hit == 1) {
+        s = b_m_store(s, "correct",  corr + 1);
+        s = b_m_store(s, "conf_sum", csum + conf);
+    }
+    s = b_m_store(s, "drift", drift + a_abs(pred - outcome));
+    return s;
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Adaptive AI Systems; Chapter 7 —
+  Self-Monitoring; Chapter 15 — Conductor Architecture
+
+=== FILE: aeonmi_ai/core/mother_core.ai ===
+PURPOSE: Phase 5 Unified Mother Pipeline. One pass through a complete cognitive
+         cycle: quantum signal -> journal -> learn -> self-assess -> full state
+         report. Three flat-array state streams: j (journal), m (memory),
+         s (self-model). Budget <= 12 total functions.
+SYNTAX DEMONSTRATED:
+  - Three-stream state:  let j = []; let m = []; let s = [];
+  - Memory decay by 0.9 factor inline:  d.push(m.slice(b+2, b+3).pop() * 9 / 10);
+  - Verdict string mapping:  if (v == 0) { return "ABORT"; }
+  - Accumulating evidence across cycles (repeated b_j_append + c_learn + c_observe)
+  - String key names as identifiers in flat memory: "predictions", "correct", "drift"
+  - Self-report function accessing all fields
+  - Phase commentary in ⍝ comments explains the cognitive architecture
+KEY CODE EXAMPLES:
+⍝ State:
+⍝   j  — journal  flat [tag, payload, ts, ...]    3 fields/entry
+⍝   m  — memory   flat [key, val, strength, ...]  3 fields/entry
+⍝   s  — selfmod  flat [key, val, strength, ...]  3 fields/entry
+
+◯ c_learn⟨m, verdict⟩ {
+    ⍝ decay strengths × 0.9 then bump proceed_count or abort_count
+    let is_pos = 0; if (verdict == 2) { is_pos = 1; } if (verdict == 3) { is_pos = 1; }
+    if (is_pos == 1) {
+        let pc = b_m_recall(d, "proceed_count");
+        d = b_m_store(d, "proceed_count", pc + 1);
+    }
+}
+TEXTBOOK RELEVANCE: Chapter 10 — Full Cognitive Pipeline; Chapter 7 —
+  Learning Cycles; Chapter 15 — Production Mother Architecture
+
+================================================================================
+SECTION 7: LEARNING LOOP AND SELF-MODEL
+================================================================================

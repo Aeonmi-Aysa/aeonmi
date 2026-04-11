@@ -1,0 +1,3 @@
+=== Overview ===
+
+BODY: Aeonmi uses a set of Unicode mathematical and arrow operators that carry precise meanings in both quantum circuit contexts and general language semantics. These operators are called glyphs in the Aeonmi language specification. They are valid UTF-8 and can be entered directly in `.ai` source files. Their dual meanings — quantum and language — allow a single notation system to work across both computational domains.

@@ -1,0 +1,132 @@
+=== Appendix D — QUBE Quick Reference Card ===
+
+================================================================================
+
+BODY:
+This appendix supplements the existing Appendices A–C with a dedicated quick
+reference for .qube file syntax.
+
+CODE:
+```
+=== QUBE (.qube) QUICK REFERENCE ===
+
+FILE EXECUTION:
+  aeonmi qube file.qube
+
+KEYWORDS (6 total):
+  state    — declare/initialize a qubit
+  apply    — apply a quantum gate
+  collapse — measure a qubit
+  assert   — verify a result
+  log      — output a value
+  print    — output a value (alias for log in .qube)
+
+STATE SYNTAX:
+  state q = |0⟩                       basis state
+  state q = |1⟩                       excited state
+  state q = |+⟩                       positive superposition
+  state q = |−⟩                       negative superposition
+  state ψ = 0.707|0⟩ + 0.707|1⟩      explicit equal superposition
+  state φ = 0.6|0⟩ + 0.8|1⟩          explicit weighted superposition
+
+QUBIT LITERALS:
+  |0⟩  |1⟩  |+⟩  |−⟩  |ψ⟩           ⟩ is U+27E9, not ASCII >
+
+APPLY SYNTAX:
+  apply H -> q                        single-qubit: gate -> qubit
+  apply X -> q
+  apply Y -> q
+  apply Z -> q
+  apply S -> q
+  apply T -> q
+  apply Rx(1.5708) -> q               rotation: gate(angle) -> qubit
+  apply Ry(1.5708) -> q
+  apply Rz(1.5708) -> q
+  apply CNOT(q0, q1)                  two-qubit: gate(control, target)
+  apply CZ(q0, q1)
+  apply SWAP(q0, q1)
+
+COLLAPSE SYNTAX:
+  collapse q -> r                     measure q, store result in r
+
+ASSERT SYNTAX:
+  assert r ∈ {0, 1}                   set membership (∈ is U+2208)
+  assert r == 0                       equality
+  assert r != 1                       inequality
+
+OUTPUT:
+  log(r)
+  print(r)
+
+COMMENTS:
+  // standard comment
+  ∴ therefore comment  (∴ is U+2234, QUBE-only)
+  ∵ because comment    (∵ is U+2235, QUBE-only)
+
+IDENTIFIERS:
+  Standard: q, q0, q1, result, r0, r1
+  Greek:    α β γ δ ψ φ Φ Ψ (all valid without escaping)
+
+GATE NAMES (12 total):
+  Single-qubit: H  X  Y  Z  S  T  Rx  Ry  Rz
+  Two-qubit:    CNOT  CZ  SWAP
+
+COMMON PATTERNS:
+  ∴ Superposition
+  state ψ = 0.707|0⟩ + 0.707|1⟩
+  collapse ψ -> r
+  assert r ∈ {0, 1}
+  log(r)
+
+  ∴ Bell state
+  state q0 = |0⟩
+  state q1 = |0⟩
+  apply H -> q0
+  apply CNOT(q0, q1)
+  collapse q0 -> r0
+  collapse q1 -> r1
+  assert r0 ∈ {0, 1}
+  assert r1 ∈ {0, 1}
+  log(r0)
+  log(r1)
+```
+
+================================================================================
+SUPPLEMENT METADATA
+================================================================================
+
+Supplement covers: Chapters 12–18 QUBE grammar corrections and additions
+Items addressed:
+  1. .qube vs .ai as separate file formats — full dedicated section
+  2. All 6 QUBE keywords with complete syntax — state, apply, collapse,
+     assert, log, print
+  3. All 12 gate names — H, X, Y, Z, S, T, CNOT, CZ, SWAP, Rx, Ry, Rz
+  4. Arrow syntax for apply — apply H -> q (not function-call form)
+  5. ∴ and ∵ comment glyphs — unique to QUBE, full explanation
+  6. Set membership assertion — assert r ∈ {0, 1}
+  7. Confirmed Bell state circuit from snippet — complete with line-by-line
+     annotation
+  8. Superposition state syntax — state ψ = 0.707|0⟩ + 0.707|1⟩
+  9. Greek letter identifiers — α, β, ψ, φ confirmed valid
+  10. Array genesis — ⧉a‥b‥c⧉ syntax documented in .ai context
+  11. fn vs function — both valid; fn is canonical snippet form
+  12. Entry point pattern — fn main() { } return main();
+  Additional: Tensor product ⊗ and symbolic binding ↦ operators
+  Additional: VSCode extension installation — 3 methods with verification
+  Additional: .ai vs .qube comparison table — 17 operations compared
+  Additional: Snippet tables for both .ai and .qube
+  New exercises: 3 (S1 superposition, S2 GHZ state, S3 rotation gates)
+  New appendix: Appendix D — QUBE Quick Reference Card
+
+Source authority: vscode_extension_spec.txt (vscode-aeonmi/, confirmed from
+  aeonmi-copilot-test-bug-for-alias.zip)
+
+Authors: AEONMI INC — Warren Williams + Mother AI
+EIN: 41-4625361
+Supplement date: 2026-04-05
+
+================================================================================
+END OF SUPPLEMENT
+================================================================================
+
+================================================================================

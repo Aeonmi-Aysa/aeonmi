@@ -1,0 +1,8 @@
+=== Self-Generation Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: propose | Scan action log and snapshots; suggest 1-3 new program ideas | List of program suggestions with rationale
+TABLE_ROW: suggest | Alias for propose | Same as propose
+TABLE_ROW: build NAME GOAL | Generate a new .ai program, write to examples/, and execute it | Generated source path, execution result, and success/fail status
+TABLE_ROW: reflect NAME | Compare expected vs. actual outcome for a generated program; update knowledge graph | Reflection report with outcome assessment
+TABLE_ROW: generated | List all self-generated programs with their outcomes | Program names, goals, and reflect results

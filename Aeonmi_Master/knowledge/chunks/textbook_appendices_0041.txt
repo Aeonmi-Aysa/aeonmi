@@ -1,0 +1,14 @@
+=== Full Agent Quick Reference ===
+
+TABLE_HEADER: Agent | Type | Command to Inspect | Primary Use
+TABLE_ROW: oracle | Hive | hive | Probability assessment; consult before major autonomous runs
+TABLE_ROW: hype | Hive | hive | Opportunity scoring; high hype = good time to build or propose
+TABLE_ROW: closer | Hive | hive | Completion drive; low closer = execution debt, use 'next'
+TABLE_ROW: devil | Hive | hive | Risk analysis; treat high devil as a veto signal
+TABLE_ROW: conductor | Hive | hive | Master recommendation; act on ACCELERATE, pause on ABORT
+TABLE_ROW: decide | Autonomous | goal status | Step selection; determines which step runs next
+TABLE_ROW: action | Autonomous | (runs when next is called) | Step execution; the agent that actually does the work
+TABLE_ROW: plan | Autonomous | goal TEXT | Goal decomposition; the agent that makes goals concrete
+
+
+# APPENDIX E: genesis.json Schema Reference

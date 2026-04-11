@@ -1,0 +1,24 @@
+=== aeonmi emit — Compile and Emit Source ===
+
+BODY: The `emit` subcommand compiles an `.ai` or `.qube` file and writes the output to disk. The default emit format is canonical `.ai` source. A legacy `js` format is available for artifact-cache compatibility but is not the preferred path. Use `--watch` to continuously recompile as the source changes.
+
+CODE:
+```
+aeonmi emit <INPUT> [flags]
+
+Flags:
+  --emit KIND         Output format: ai (default) or js
+  --format KIND       Alias for --emit
+  -o, --out FILE      Output file path (default: output.ai, or output.js for js format)
+  --tokens            Dump the token stream (debug)
+  --ast               Dump the AST (debug)
+  --debug-titan       Enable Titan debug during compilation
+  --watch             Watch and re-emit on change
+
+Examples:
+  aeonmi emit demo.ai -o out.ai
+  aeonmi emit demo.qube --format ai -o canonical.ai
+  aeonmi emit src/main.ai --tokens
+  aeonmi emit src/main.ai --ast
+  aeonmi emit src/main.ai --watch
+```

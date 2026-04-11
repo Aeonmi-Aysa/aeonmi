@@ -1,0 +1,12 @@
+=== PART 4: EXPERT/MASTER ===
+
+================================================================================
+
+Part 4 is for practitioners who have built their own agents, navigated the full
+REPL command set, and understand the three-track architecture. These chapters
+go deep: self-modification, custom agent contracts, the awaken system, genesis.json
+schema in full, the glyph cryptography, IBM quantum advanced configuration, the
+full dashboard data flow, the roadmap, and what it actually means to work with
+Aeonmic Intelligence at the level of mastery.
+
+================================================================================

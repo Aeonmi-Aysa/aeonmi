@@ -1,0 +1,8 @@
+=== Autonomous Execution Agents ===
+
+BODY: Three additional agents operate within the autonomous execution subsystem. These are not separate processes; they are cognitive functions within the embryo_loop that activate when goal-setting is used.
+
+TABLE_HEADER: Agent | Role | Activation Command | What It Does
+TABLE_ROW: decide | Decision and prioritization | Activated by goal TEXT | Evaluates proposed steps and selects the highest-confidence next action from the decomposed step list
+TABLE_ROW: action | Step executor | Activated by next, run auto, or autonomous mode | Executes the selected step (may call build, propose, or issue REPL commands)
+TABLE_ROW: plan | Goal decomposition | Activated by goal TEXT or propose | Breaks a high-level goal into a sequence of concrete executable steps; uses AI provider if available, heuristic fallback if not

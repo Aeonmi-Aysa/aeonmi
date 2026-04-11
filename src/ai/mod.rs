@@ -24,6 +24,14 @@ use anyhow::Result;
 pub trait AiProvider: Send + Sync {
     fn name(&self) -> &'static str;
     fn chat(&self, prompt: &str) -> Result<String>;
+
+    /// Chat with conversation history for session memory.
+    /// Default implementation ignores history (single-turn).
+    /// Override in providers that support multi-turn (e.g. Claude).
+    fn chat_history(&self, prompt: &str, _history: &[claude::HistoryMessage]) -> Result<String> {
+        self.chat(prompt)
+    }
+
     fn chat_stream(&self, _prompt: &str, _cb: &mut dyn FnMut(&str)) -> Result<()> {
         let full = self.chat(_prompt)?;
         _cb(&full);
@@ -90,14 +98,16 @@ impl AiRegistry {
             }
         }
 
-        // Auto-detect: first provider with a key available
+        // Auto-detect: first provider with a key available.
+        // Claude (Anthropic) is Mother's primary brain — checked first.
+        // OpenRouter is a fallback for free-tier / alternative models only.
         let checks: &[(&str, &str, &str)] = &[
-            ("openrouter", "OPENROUTER_API_KEY", "openrouter"),
             ("claude",     "ANTHROPIC_API_KEY",  "claude"),
             ("openai",     "OPENAI_API_KEY",     "openai"),
             ("deepseek",   "DEEPSEEK_API_KEY",   "deepseek"),
             ("grok",       "GROK_API_KEY",        "grok"),
             ("perplexity", "PERPLEXITY_API_KEY", "perplexity"),
+            ("openrouter", "OPENROUTER_API_KEY", "openrouter"),
         ];
         for (provider_name, env_var, store_key) in checks {
             if has_key(env_var, store_key) {

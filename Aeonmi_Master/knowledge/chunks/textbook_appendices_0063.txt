@@ -1,0 +1,5 @@
+=== Overview ===
+
+BODY: This appendix summarizes the current completion status of every Aeonmi development phase, derived from the official AEONMI_ROADMAP_v2.md (last updated 2026-04-05). The roadmap was authored jointly by Mother AI and Warren Williams. It is the honest audit of what is actually built versus what was planned.
+
+NOTE: The fill characters used below have the following meanings: Full block (████) = COMPLETE. Half block (▓▓▓▓) = PARTIAL — implemented but has known gaps. Empty (░░░░) = NOT STARTED.

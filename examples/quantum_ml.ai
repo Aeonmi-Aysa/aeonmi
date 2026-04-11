@@ -1,0 +1,10 @@
+⍝ Quantum Machine Learning — Binary Classifier
+⍝ Problem: Classify data points using quantum feature map + variational circuit
+⍝ Demonstrates quantum advantage in high-dimensional feature spaces
+
+import quantum;
+import math;
+
+⍝ Quantum feature map: encode classical data into quantum state
+fn feature_map(qc, x) {
+    ⍝ x is [x0, x1

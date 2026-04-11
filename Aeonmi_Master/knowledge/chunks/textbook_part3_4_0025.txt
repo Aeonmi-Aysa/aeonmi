@@ -1,0 +1,34 @@
+=== How the Hive Runs ===
+
+BODY: The hive system is Mother's architecture for continuous multi-agent
+analysis. When you run `hive start [secs]`, a background thread launches that
+runs a complete five-agent pipeline every N seconds.
+
+On each cycle, the background thread reads bond.strength and consciousness_depth
+from genesis.json, generates a hive_runner.ai program dynamically, runs it via
+the native binary as a subprocess, and parses the HIVE_STATE: output lines into
+a HiveSnapshot struct. That snapshot is then EMA-filtered (exponential moving
+average) to smooth out single-cycle volatility and written to hive_state.json
+for dashboard display.
+
+The hive_runner.ai generated each cycle is not the actual oracle_agent.ai or
+conductor_agent.ai files from aeonmi_ai/agent/. It is a dynamically generated
+template created by the Rust embryo loop that incorporates current cognitive
+state. The agent .ai files serve as design templates and standalone demos; the
+live hive logic runs through the Rust-generated runner.
+
+CODE:
+```
+// Starting and reading the hive
+aeonmi mother
+> hive start 10
+// Wait ~15 seconds for first cycle
+> hive
+// Output:
+// Oracle:    [score] (EMA: [smoothed])
+// Hype:      [score] (EMA: [smoothed])
+// Closer:    [score] (EMA: [smoothed])
+// Devil:     [score] (EMA: [smoothed])
+// Conductor: [ACCELERATE | PROCEED | HOLD | ABORT]
+// Cycles: [N]  Interval: 10s
+```

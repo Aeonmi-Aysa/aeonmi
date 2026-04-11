@@ -1,0 +1,41 @@
+=== Array Genesis in .ai Files — ⧉a‥b‥c⧉ Syntax ===
+
+================================================================================
+
+BODY:
+Array genesis is a .ai feature, not a .qube feature. It is documented here
+because it appears in the VSCode extension spec and is often confused with
+quantum syntax due to its use of the ⧉ glyph (which also appears as the
+"entanglement symbol" in the quantum operator list).
+
+In .ai files, the ⧉ character serves as both the open and close bracket for
+the array genesis literal. The ‥ (two-dot ellipsis, U+2025) separates elements.
+
+CODE:
+```
+∴ Array genesis syntax in .ai files
+
+// Standard array declaration
+let arr1 = [1, 2, 3];
+
+// Array genesis syntax (glyph form — equivalent result)
+let arr2 = ⧉1‥2‥3⧉;
+
+// String elements
+let arr3 = ⧉"alpha"‥"beta"‥"gamma"⧉;
+
+// Mixed (the VM accepts mixed-type arrays)
+let arr4 = ⧉42‥"hello"‥true⧉;
+
+// The arr snippet in VSCode expands to ⧉a‥b‥c⧉
+// which serves as a template — replace a, b, c with your values
+```
+
+NOTE: The ⧉ glyph is highlighted differently depending on file type. In .ai
+files, the extension's TextMate grammar recognizes it as keyword.other.glyph.
+In documentation and quantum reasoning contexts it is also used as an
+entanglement symbol, but in the array genesis literal it is purely a bracket.
+Do not confuse the array genesis ⧉...⧉ construct with the quantum entangle()
+built-in function call — they are unrelated.
+
+================================================================================

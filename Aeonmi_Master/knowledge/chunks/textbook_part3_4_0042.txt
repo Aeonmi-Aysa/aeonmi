@@ -1,0 +1,13 @@
+=== Writing a Complete Custom Agent ===
+
+BODY: A complete agent has five to nine functions following the alphabetical
+ordering convention (alphabetical by function name within the module). The
+convention exists because the Aeonmi VM's capture environment for closures
+follows declaration order — a function can call functions declared before it but
+not after. Alphabetical ordering prevents forward-reference issues.
+
+Functions to implement in a complete agent: (1) a primary score function;
+(2) a tier or category function; (3) a confidence estimator; (4) one or two
+signal detection functions (e.g., go_viral, ora_bullish) that identify specific
+conditions; (5) a main() that demonstrates all functions with representative
+inputs.

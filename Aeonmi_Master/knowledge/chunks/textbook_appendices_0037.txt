@@ -1,0 +1,3 @@
+=== Overview ===
+
+BODY: Aeonmi's agent system consists of eight named agents organized into two groups: the five hive agents (which run in a background thread and produce scores and recommendations) and the three autonomous-execution agents (which decompose and execute goals). Understanding which agent does what determines how to interpret Mother's output and how to use goal-setting effectively.

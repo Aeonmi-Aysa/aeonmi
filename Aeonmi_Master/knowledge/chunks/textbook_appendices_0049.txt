@@ -1,0 +1,10 @@
+=== Generated Program Sub-Schema (cognitive.generated entries) ===
+
+TABLE_HEADER: Field | Type | Description
+TABLE_ROW: name | string | Program name (used for reflect and lookup)
+TABLE_ROW: goal | string | The goal that prompted the program's creation
+TABLE_ROW: outcome | string | "success" or "failed" (from build execution result)
+TABLE_ROW: reflection | string | Mother's reflection on the expected vs. actual result
+
+
+# APPENDIX F: Glyph Operator Reference

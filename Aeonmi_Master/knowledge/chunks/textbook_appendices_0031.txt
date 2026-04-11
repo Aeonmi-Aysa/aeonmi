@@ -1,0 +1,7 @@
+=== Rotation Gates ===
+
+TABLE_HEADER: Gate | Syntax | Description
+TABLE_ROW: Rx(theta) | Rx(theta, q[0]) | Rotation around X-axis by angle theta (radians)
+TABLE_ROW: Ry(theta) | Ry(theta, q[0]) | Rotation around Y-axis by angle theta (radians)
+TABLE_ROW: Rz(theta) | Rz(theta, q[0]) | Rotation around Z-axis by angle theta (radians)
+TABLE_ROW: U gate | U(theta, phi, lam, q[0]) | General single-qubit unitary: parameterized by 3 Euler angles

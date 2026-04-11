@@ -1,0 +1,10 @@
+=== Awaken Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: awaken | Start the awaken loop (checks awaken_trigger.json periodically) | Awaken loop started; polls at default interval
+TABLE_ROW: awaken SECONDS | Start awaken loop with specified poll interval | Awaken loop started with custom interval
+
+NOTE: The awaken mechanism polls awaken_trigger.json in Aeonmi_Master/. When the file contains `"action": "propose_and_run"`, Mother autonomously proposes and builds a program. This is an operator-assisted feature; it requires a human to write the trigger file.
+
+
+# APPENDIX C: Quantum Gate Reference

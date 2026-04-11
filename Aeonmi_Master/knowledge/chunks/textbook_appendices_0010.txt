@@ -1,0 +1,21 @@
+=== aeonmi qube — QUBE Circuit Files ===
+
+BODY: The `qube` subcommand operates on `.qube` quantum circuit files. QUBE (Quantum Unified Binary Expression) is Aeonmi's symbolic quantum reasoning format. Use `qube run` to execute a circuit and optionally print a text-mode diagram. Use `qube check` to validate the syntax without executing.
+
+CODE:
+```
+aeonmi qube <ACTION> [flags]
+
+Actions:
+  run <FILE> [--diagram]
+      Parse, execute, and optionally print the circuit diagram.
+      --diagram: print a text-mode ASCII circuit diagram after execution.
+
+  check <FILE>
+      Validate the .qube file (parse only, no execution).
+
+Examples:
+  aeonmi qube run circuit.qube
+  aeonmi qube run circuit.qube --diagram
+  aeonmi qube check circuit.qube
+```

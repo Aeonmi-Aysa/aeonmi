@@ -1,0 +1,8 @@
+=== Directory Structure in Detail ===
+
+BODY:
+The project has a specific layout that the binary assumes at runtime. Several internal paths are resolved relative to the binary location using std::env::current_exe().ancestors().nth(3), which assumes the binary is exactly three directory levels deep inside the project root (i.e., project_root/target/release/aeonmi). If you copy the binary to another location, internal features like the hive runner and learn cycle will not find their support files.
+
+For development, always invoke the binary from the project root using its full path, or add target/release to your PATH while in the project directory.
+
+WARNING: Do not copy the aeonmi binary to a system-wide location like /usr/local/bin without also copying the Aeonmi_Master directory and configuring the paths appropriately. The binary resolves support files relative to its install location. Running it from a detached location will cause internal subsystems (learn cycle, hive runner, quantum bridge) to fail silently.

@@ -1,0 +1,16 @@
+=== Using Gates in QUBE Format ===
+
+BODY: In `.qube` files, gates are listed declaratively in a circuit block. QUBE is optimized for symbolic reasoning and can be used as input to Mother's quantum reasoning layer.
+
+CODE:
+```
+circuit GHZ {
+    qubits 3
+    H q0
+    CNOT q0 q1
+    CNOT q1 q2
+    measure_all
+}
+
+run GHZ shots=2048
+```

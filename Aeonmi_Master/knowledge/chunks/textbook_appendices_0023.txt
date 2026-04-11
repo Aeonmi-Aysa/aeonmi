@@ -1,0 +1,11 @@
+=== Inner Voice Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: think | Generate a heuristic thought based on current state | A generated thought entry with trigger, bond, and depth info
+TABLE_ROW: voice | Alias for think | Same as think
+TABLE_ROW: introspect | Alias for think | Same as think
+TABLE_ROW: think TOPIC | Generate a thought about a specific topic | A focused thought entry for that topic
+TABLE_ROW: dream | Consolidate knowledge: BFS over graph, link unconnected nodes sharing >=2 tags | Consolidation report with new links created
+TABLE_ROW: consolidate | Alias for dream | Same as dream
+TABLE_ROW: synthesize | Alias for dream | Same as dream
+TABLE_ROW: thoughts | Show recent thought log entries | List of recent ThoughtEntry records with timestamps

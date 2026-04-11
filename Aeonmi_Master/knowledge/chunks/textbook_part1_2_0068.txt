@@ -1,0 +1,13 @@
+=== What Is Aer? ===
+
+BODY:
+Aer (full name: Qiskit Aer) is IBM's high-performance quantum circuit simulator. It runs on your local machine using classical computation to simulate what a quantum computer would do. Aer is the default backend for quantum_run() in Aeonmi.
+
+Unlike real quantum hardware, the Aer simulator:
+- Has no queue time — results are instant
+- Has no noise by default (though noise models can be added)
+- Can simulate arbitrarily large circuits within memory limits
+- Is completely free to use
+- Requires no IBM account or token
+
+For learning Aeonmi's quantum layer, Aer is everything you need. Real quantum hardware (IBM Brisbane) adds noise, queue times, and hardware-specific constraints. Aer is ideal for verifying that your circuit logic is correct before submitting to hardware.

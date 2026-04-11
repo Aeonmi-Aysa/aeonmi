@@ -1,0 +1,11 @@
+=== Next Priorities (Ordered by Impact) ===
+
+TABLE_HEADER: Priority | Item | Rationale
+TABLE_ROW: 1 | Stage 1 Website | The public cannot see what has been built; highest external impact
+TABLE_ROW: 2 | Track 2 → Track 1 Runtime Bridge | Closes the most important architectural gap: one Mother, not two parallel selves
+TABLE_ROW: 3 | Dashboard Phase 12 Integration | Sessions and milestones are accessible via REPL only; adding web endpoints is mechanical, high visibility
+TABLE_ROW: 4 | Shard Full Self-Hosting | Closes the original mission statement (lexer→parser→ast→codegen→main.ai compiling hello.ai)
+TABLE_ROW: 5 | Multi-Turn AI History | One function change; high coherence improvement for low cost
+
+
+# APPENDIX I: Glossary

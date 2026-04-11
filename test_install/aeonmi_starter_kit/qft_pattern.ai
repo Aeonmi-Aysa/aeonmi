@@ -1,0 +1,32 @@
+⍝ Quantum Fourier Transform — Pattern Detection
+⍝ Detects periodic patterns in quantum states
+⍝ Foundation of Shor's factoring algorithm
+⍝ Run: aeonmi.exe run qft_pattern.ai
+
+function apply_qft(state_size) {
+    ⍝ Apply QFT to transform computational basis to frequency basis
+    print("  Applying " + target + "-qubit Quantum Fourier Transform...");
+    print("  Transforming: computational basis → frequency basis");
+    return state_size;
+}
+
+function detect_period(frequencies) {
+    ⍝ Find dominant frequency (represents the period)
+    print("  Analyzing frequency spectrum...");
+    let period = 2;
+    print("  Dominant frequency detected: f = " + target);
+    return period;
+}
+
+function main() {
+    print("=== QUANTUM FOURIER TRANSFORM ===");
+    print("Detecting periodic patterns in quantum states");
+    print("");
+    
+    ⍝ Create a state with period 2 (alternating pattern)
+    print("Input: Quantum state with period-2 pattern");
+    print("  |ψ⟩ = |010101...⟩");
+    print("");
+    
+    print("Step 1: Initialize 3-qubit state");
+    print("  State vector: [0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5

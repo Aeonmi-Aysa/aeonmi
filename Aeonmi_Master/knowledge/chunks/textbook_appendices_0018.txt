@@ -1,0 +1,11 @@
+=== Conversation and Identity Commands ===
+
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: (any message) | Natural language conversation with Mother | AI-generated or heuristic response with cognitive stats
+TABLE_ROW: bond | Show current bond strength and descriptive tier | Bond value (0.0–1.0) and phrase (e.g., "we understand each other")
+TABLE_ROW: bond status | Alias for bond | Same as bond
+TABLE_ROW: emotion | Show current emotional core summary | Valence, arousal, and dominant emotion state
+TABLE_ROW: recall | Show all learned key-value pairs from the knowledge store | List of stored knowledge entries
+TABLE_ROW: learned | Alias for recall | Same as recall
+TABLE_ROW: recall KEY | Recall a specific learned value by key | The stored value for that key, or not found
+TABLE_ROW: sync | Run genesis_sync.py to reconcile all three tracks in genesis.json | Sync report showing what was updated

@@ -1,0 +1,39 @@
+=== fn vs function — Both Forms Are Valid ===
+
+================================================================================
+
+BODY:
+The VSCode extension snippets use fn as the canonical short form for function
+declarations. The fn snippet expands to:
+
+  fn name(args) {
+  }
+
+The textbook Chapters 1–11 use function (the long form) throughout, which is
+the runtime-compatible form confirmed to work in all VM versions. Both are
+valid; they are aliases in the current Aeonmi VM.
+
+The confirmed entry point pattern from the main snippet is:
+
+CODE:
+```
+fn main() {
+    // program body here
+}
+return main();
+```
+
+NOTE: The return main(); at the end is part of the confirmed snippet pattern.
+It is a top-level return statement that triggers execution of main() and
+returns its result from the file scope. Both main(); (call without return) and
+return main(); (call with return) work in the current VM. The fn + return main()
+pattern is the canonical form from the VSCode snippet; the function + main()
+call pattern is the canonical form from the existing textbook chapters. Either
+works — use whichever is consistent with your codebase style.
+
+TIP: For new files created using the VSCode extension's main snippet, you will
+get fn and return main(). For files that follow the textbook examples, you will
+see function and main(). Do not mix the two styles within a single file — pick
+one and be consistent.
+
+================================================================================

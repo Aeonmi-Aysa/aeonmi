@@ -1,0 +1,85 @@
+=== Running the Examples ===
+
+BODY:
+The examples/ directory contains several fully working .ai programs that demonstrate different aspects of the language. To run any of them:
+
+CODE:
+```
+// Run the ARC-AGI solver
+aeonmi native examples/arc_solver.ai
+
+// Run the quantum entanglement network
+aeonmi native examples/quantum_entanglement_network.ai
+
+// Run the Phase 4 verification suite
+aeonmi native examples/phase4_demo.ai
+
+// Run the Shard Developer Kit (self-hosting compiler)
+aeonmi native Aeonmi_Master/aeonmi_ai/shard/main.ai
+```
+
+The phase4_demo.ai example is particularly useful for beginners — it tests if/else chains, for-in loops over arrays, for-in over range(), quantum_check(), and quantum_run() all in one file.
+
+EXERCISE_TITLE: Exercise 9.1 — Running and Inspecting Programs
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Run examples/phase4_demo.ai and observe the output. Then:
+1. Note what quantum_check() returns (0 if Qiskit not installed, 1 if it is)
+2. Note what quantum_run() returns for the Bell state descriptor
+3. Create a modified copy called my_phase4.ai that changes the for-in loop to sum values from 1 to 10 using range(1, 11, 1) and prints the sum
+
+EXERCISE_SOLUTION:
+```
+// my_phase4.ai
+function main() {
+    print("=== MY PHASE 4 ===");
+
+    // Modified for-in: sum 1 to 10
+    let total = 0;
+    for n in range(1, 11, 1) {
+        total = total + n;
+    }
+    print("Sum 1..10 = " + total);   // 55
+
+    // quantum_check
+    let qc = quantum_check();
+    print("quantum_check() = " + qc);
+
+    // quantum_run Bell state
+    let desc = "2 2 512 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    let result = quantum_run(desc);
+    print("quantum_run() result: " + result);
+}
+
+main();
+```
+
+EXERCISE_TITLE: Exercise 9.2 — Watch Mode Development
+EXERCISE_LEVEL: Beginner
+EXERCISE_BODY:
+Create a file called watcher_test.ai with a simple counter that prints numbers 1 through 5. Start it with `aeonmi run watcher_test.ai --watch`. While it is running, edit the file to count from 1 to 10 instead. Save the file and observe the automatic re-run. Document what you see.
+
+EXERCISE_SOLUTION:
+```
+// watcher_test.ai
+// Initial version: count 1 to 5
+// After edit in watch mode: count 1 to 10
+
+function main() {
+    // Change this to range(1, 11, 1) while watch mode is running
+    for i in range(1, 11, 1) {
+        print(i);
+    }
+}
+
+main();
+
+// What you observe:
+// 1. First run: prints 1 through 5
+// 2. After changing range to (1, 11, 1) and saving:
+//    The terminal re-runs automatically within 500ms
+//    Prints 1 through 10
+// 3. This is the watch mode development loop
+```
+
+================================================================================
