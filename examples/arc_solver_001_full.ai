@@ -1,0 +1,7 @@
+⍝ Aeonmi ARC Test 001 — Full Implementation
+⍝ Reads JSON, processes grid, outputs solution
+⍝ Run: aeonmi run arc_solver_001_full.ai
+
+function is_border(grid, row, col, rows, cols) {
+    ⍝ Check if cell is on the border of a filled region
+    if (grid[row

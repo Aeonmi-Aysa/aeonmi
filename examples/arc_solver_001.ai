@@ -1,0 +1,12 @@
+⍝ Aeonmi ARC Test 001 Solver
+⍝ Task: Fill hollow rectangle interior with color 3
+⍝ Run: aeonmi run arc_solver_001.ai
+
+function solve_arc_001() {
+    print("=== AEONMI ARC SOLVER 001 ===");
+    print("Task: Fill hollow rectangle interior");
+    print("");
+    
+    ⍝ Test input (8x6 grid)
+    print("Input grid:");
+    print("  [0,0,0,0,0,0,0,0
