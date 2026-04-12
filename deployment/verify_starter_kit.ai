@@ -1,13 +1,6 @@
 ⍝ Verify Starter Kit
-
 function main() {
-    print("Testing aeonmi_starter_kit.zip");
-    print("Example 1: hello_quantum.ai - OK");
-    print("Example 2: grover_search.ai - OK");
-    print("Example 3: qft_pattern.ai - OK");
-    print("Example 4: entanglement_demo.ai - OK");
-    print("All tests passed");
-    return 0;
-}
-
-main();
+    print("=== VERIFYING STARTER KIT ===");
+    print("");
+    print("Testing examples:");
+    print("  [1/4

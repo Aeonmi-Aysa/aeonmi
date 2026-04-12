@@ -1,12 +1,6 @@
-⍝ Launch Checklist
-
+⍝ Deployment Checklist
 function main() {
-    print("Step 1: Upload website_deploy.zip to Netlify");
-    print("Step 2: Create GitHub Release v1.0.0");
-    print("Step 3: Upload aeonmi_starter_kit.zip");
-    print("Step 4: Announce on social media");
-    print("Status: Ready to launch");
-    return 0;
-}
-
-main();
+    print("=== DEPLOYMENT CHECKLIST ===");
+    print("");
+    print("Pre-deployment:");
+    print("  [x
