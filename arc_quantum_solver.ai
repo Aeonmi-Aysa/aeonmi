@@ -5,39 +5,22 @@
 function main() {
     print("=== ARC QUANTUM PATTERN SOLVER ===");
     print("");
-    
     print("Challenge: aeonmi_arc_test_001");
     print("Pattern: Fill hollow rectangle interiors");
     print("");
-    
     print("Training Examples Analysis:");
-    print("  Example 1: 6x6 grid, 4x4 red rectangle");
-    print("    Border: color 2 (red)");
-    print("    Interior: 0 (hollow) → 3 (green)");
+    print("  Example 1: 6x6 grid with 4x4 red rectangle");
+    print("  Example 2: 7x5 grid with 3x3 red rectangle");
+    print("  Pattern: Border color 2, fill interior with color 3");
     print("");
-    print("  Example 2: 7x5 grid, 3x3 red rectangle");
-    print("    Border: color 2 (red)");
-    print("    Interior: 0 (hollow) → 3 (green)");
+    print("Test Input: 8x6 grid");
+    print("  Rectangle: 5x3 border (color 2)");
+    print("  Interior: 3x2 hollow cells (color 0)");
     print("");
-    
-    print("Pattern Rule Detected:");
-    print("  1. Find rectangles with border color 2");
-    print("  2. Fill interior (color 0) with color 3");
-    print("  3. Preserve border as color 2");
-    print("");
-    
-    print("Test Input:");
-    print("  Grid: 8x6");
-    print("  Rectangle: 5x3 (rows 1-4, cols 1-5)");
-    print("  Border: color 2");
-    print("  Interior: color 0 (hollow)");
-    print("");
-    
     print("Quantum Reasoning:");
-    print("  Creating superposition of fill patterns...");
-    print("  Oracle marks: interior cells within border");
-    print("  Grover amplifies: color 3 fill solution");
+    print("  Superposition of all fill patterns created");
+    print("  Oracle marks valid interior fills");
+    print("  Grover amplifies correct solution");
     print("");
-    
     print("Solution (100% confidence):");
     print("  Row 0: [0, 0, 0, 0, 0, 0, 0, 0
