@@ -1,21 +1,16 @@
 ⍝ Build Website Deployment Package
-⍝ Creates website_deploy.zip from Aeonmi_Master/website
 
 function main() {
     print("=== BUILDING WEBSITE DEPLOYMENT ===");
     print("");
-    
     print("Source: Aeonmi_Master/website/");
     print("Output: website_deploy.zip");
     print("");
-    
     print("Files to include:");
     print("  - index.html");
     print("  - starter-kit.html");
     print("  - contact.html");
     print("  - blog/index.html");
-    print("  - styles.css (embedded)");
     print("");
-    
     print("Building zip archive...");
     print("  [1/4

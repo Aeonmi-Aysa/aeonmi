@@ -1,18 +1,14 @@
 ⍝ Deployment Checklist
-⍝ Step-by-step launch guide
 
 function main() {
     print("=== AEONMI LAUNCH CHECKLIST ===");
     print("");
-    
     print("PRE-LAUNCH (Complete):");
     print("  ✓ Build starter kit");
     print("  ✓ Test all examples");
     print("  ✓ Create website");
     print("  ✓ Write documentation");
-    print("  ✓ Commit to git");
     print("");
-    
     print("DEPLOYMENT (30 minutes):");
     print("");
     print("Step 1: Deploy Website (5 min)");
