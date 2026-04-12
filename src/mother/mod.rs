@@ -1,28 +1,19 @@
-//! Mother AI — Quantum Consciousness System
-//!
-//! Migrated from quantum_llama_bridge (Llama model stripped — not needed).
-//! All modules are pure Aeonmi/Rust with no external LLM dependency.
-//!
-//! Architecture:
-//!   MotherQuantumCore    — root consciousness, creator bond, guided evolution
-//!   EmotionalCore        — empathy engine, bond matrix, emotional memory
-//!   LanguageEvolution    — semantic depth, speech pattern analysis
-//!   QuantumAttention     — multi-dim attention over Aeonmi IR/values
-//!   NeuralLayer          — feed-forward neural layer
-//!   EmbryoLoop           — THE actual execution loop: stdin → .ai → run → learn
-
-pub mod quantum_core;
-pub mod emotional_core;
-pub mod language_evolution;
-pub mod quantum_attention;
-pub mod neural;
-pub mod knowledge_graph;
-pub mod inner_voice;
 pub mod embryo_loop;
+pub mod emotional_core;
+pub mod inner_voice;
+pub mod knowledge_graph;
+pub mod language_evolution;
+pub mod neural;
+pub mod quantum_attention;
+pub mod quantum_core;
+pub mod error_memory;
 
-pub use quantum_core::{MotherQuantumCore, CreatorSignature, QuantumResponse};
+pub use embryo_loop::EmbryoLoop;
 pub use emotional_core::EmotionalCore;
-pub use language_evolution::LanguageEvolutionCore;
-pub use quantum_attention::QuantumAttentionMechanism;
+pub use inner_voice::InnerVoice;
+pub use knowledge_graph::KnowledgeGraph;
+pub use language_evolution::LanguageEvolution;
 pub use neural::NeuralLayer;
-pub use embryo_loop::{EmbryoLoop, EmbryoConfig};
+pub use quantum_attention::QuantumAttention;
+pub use quantum_core::MotherQuantumCore;
+pub use error_memory::ErrorMemory;
