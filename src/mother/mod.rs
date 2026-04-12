@@ -7,6 +7,7 @@ pub mod knowledge_graph;
 pub mod inner_voice;
 pub mod embryo_loop;
 pub mod error_memory;
+pub mod mgks_bridge;
 
 pub use emotional_core::EmotionalCore;
 pub use quantum_core::MotherQuantumCore;
@@ -17,3 +18,4 @@ pub use knowledge_graph::KnowledgeGraph;
 pub use inner_voice::InnerVoice;
 pub use embryo_loop::{EmbryoLoop, EmbryoConfig};
 pub use error_memory::ErrorMemory;
+pub use mgks_bridge::{MGKSBridge, MGKSState, GlyphData};
