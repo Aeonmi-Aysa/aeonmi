@@ -1,0 +1,7 @@
+⍝ Agent: arc_solver
+⍝ Goal: Specialized in ARC challenge solving
+
+fn main() {
+  print("Specialized in ARC challenge solving")
+}
+return main();
