@@ -5,4 +5,4 @@ use rusqlite::{Connection, Result as SqlResult};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Clone)
+#[derive(Debug, Clone)pub struct ErrorMemory {} 
