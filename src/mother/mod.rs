@@ -18,4 +18,4 @@ pub use knowledge_graph::KnowledgeGraph;
 pub use inner_voice::InnerVoice;
 pub use embryo_loop::{EmbryoLoop, EmbryoConfig};
 pub use error_memory::ErrorMemory;
-pub use mgks_bridge::{MGKSBridge, MGKSState, GlyphData};
+pub use mgks_bridge::MGKSBridge;

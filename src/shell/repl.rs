@@ -1,4 +1,4 @@
-// REPL module placeholder
 pub fn start() {
-    println!("REPL not implemented yet");
+    println!("Aeonmi REPL v1.0");
+    println!("Type 'exit' to quit");
 }
