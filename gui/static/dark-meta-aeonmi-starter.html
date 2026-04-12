@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dark Meta x Aeonmi — Starter Game</title>
+  <style>
+    :root {
+      --bg: #05050b;
+      --panel: rgba(11, 13, 26, 0.82);
+      --ink: #d4d6ff;
+      --accent: #f000ff;
+      --accent2: #00e7ff;
+      --danger: #ff4f8b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(240, 0, 255, 0.22), transparent 45%),
+        radial-gradient(circle at 80% 10%, rgba(0, 231, 255, 0.18), transparent 40%),
+        linear-gradient(180deg, #090913 0%, #05050b 100%);
+      color: var(--ink);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      padding: 18px;
+    }
+
+    .shell {
+      width: min(980px, 100%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 18px 54px rgba(0, 0, 0, 0.5);
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 16px rgba(240, 0, 255, 0.75);
+    }
+
+    .stats {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pill {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.04);
+      font-size: 12px;
+    }
+
+    .arena-wrap {
+      position: relative;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        radial-gradient(circle at 50% 110%, rgba(0, 231, 255, 0.18), transparent 48%);
+      background-size: 28px 28px, 28px 28px, auto;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(6, 6, 12, 0.7);
+      text-align: center;
+      padding: 20px;
+    }
+
+    .card {
+      max-width: 620px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(5, 8, 20, 0.92);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.2rem, 2vw, 1.8rem);
+    }
+
+    p {
+      margin: 8px 0;
+      line-height: 1.45;
+      font-size: 14px;
+      opacity: 0.94;
+    }
+
+    button {
+      margin-top: 10px;
+      border: 0;
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), #7f3dff);
+      box-shadow: 0 8px 22px rgba(240, 0, 255, 0.35);
+    }
+
+    .hint {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 8px;
+    }
+
+    .footer {
+      padding: 10px 14px 14px;
+      font-size: 12px;
+      opacity: 0.82;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span> Dark Meta // Aeonmi Starter</div>
+      <div class="stats">
+        <span class="pill" id="score">Score 0</span>
+        <span class="pill" id="wave">Wave 1</span>
+        <span class="pill" id="health">Integrity 100</span>
+      </div>
+    </div>
+
+    <div class="arena-wrap">
+      <canvas id="game" width="960" height="540"></canvas>
+      <div id="overlay" class="overlay">
+        <div class="card">
+          <h1>Night Protocol: Dark Meta Awakens</h1>
+          <p>
+            You are <strong>Dark Meta</strong>, the neon phantom. Defend the Aeonmi relay from Null Shades.
+            This is a lightweight starter loop you can extend with real sprites, powers, and bosses.
+          </p>
+          <p><strong>Move:</strong> WASD / Arrow Keys · <strong>Shoot:</strong> Space · <strong>Dash:</strong> Shift</p>
+          <button id="startBtn">Start Run</button>
+          <div class="hint">If you lose all integrity, press Start Run again to reboot the mission.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Starter mechanics: movement, shooting, enemy waves, collision, health, score, and restart flow.
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const scoreEl = document.getElementById('score');
+    const waveEl = document.getElementById('wave');
+    const healthEl = document.getElementById('health');
+
+    const keys = new Set();
+    const state = {
+      running: false,
+      score: 0,
+      wave: 1,
+      spawnTick: 0,
+      bullets: [],
+      enemies: [],
+      particles: [],
+      player: null,
+    };
+
+    function reset() {
+      state.running = true;
+      state.score = 0;
+      state.wave = 1;
+      state.spawnTick = 0;
+      state.bullets = [];
+      state.enemies = [];
+      state.particles = [];
+      state.player = {
+        x: 140,
+        y: canvas.height / 2,
+        r: 16,
+        speed: 3.4,
+        dash: 0,
+        fireCd: 0,
+        hp: 100,
+      };
+      updateHud();
+    }
+
+    function updateHud() {
+      scoreEl.textContent = `Score ${state.score}`;
+      waveEl.textContent = `Wave ${state.wave}`;
+      healthEl.textContent = `Integrity ${Math.max(0, Math.round(state.player.hp))}`;
+    }
+
+    function spawnEnemy() {
+      const size = 14 + Math.random() * 12;
+      const speed = 1.2 + Math.random() * 1.4 + state.wave * 0.12;
+      state.enemies.push({
+        x: canvas.width + size,
+        y: 40 + Math.random() * (canvas.height - 80),
+        r: size,
+        speed,
+        hp: 14 + state.wave * 4,
+      });
+    }
+
+    function shoot() {
+      const p = state.player;
+      state.bullets.push({ x: p.x + 24, y: p.y, vx: 8.8, r: 4, dmg: 8 + state.wave * 0.6 });
+      for (let i = 0; i < 6; i++) {
+        state.particles.push({
+          x: p.x + 18,
+          y: p.y,
+          vx: 2 + Math.random() * 2,
+          vy: (Math.random() - 0.5) * 2,
+          life: 14,
+          color: '#f000ff'
+        });
+      }
+    }
+
+    function collide(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return dx * dx + dy * dy <= (a.r + b.r) * (a.r + b.r);
+    }
+
+    function update() {
+      if (!state.running) return;
+
+      const p = state.player;
+      const up = keys.has('w') || keys.has('arrowup');
+      const down = keys.has('s') || keys.has('arrowdown');
+      const left = keys.has('a') || keys.has('arrowleft');
+      const right = keys.has('d') || keys.has('arrowright');
+
+      const boost = p.dash > 0 ? 2.4 : 1;
+      if (up) p.y -= p.speed * boost;
+      if (down) p.y += p.speed * boost;
+      if (left) p.x -= p.speed * boost;
+      if (right) p.x += p.speed * boost;
+      p.x = Math.max(30, Math.min(canvas.width - 30, p.x));
+      p.y = Math.max(30, Math.min(canvas.height - 30, p.y));
+
+      if ((keys.has(' ') || keys.has('space')) && p.fireCd <= 0) {
+        shoot();
+        p.fireCd = 8;
+      }
+      if ((keys.has('shift') || keys.has('shiftleft') || keys.has('shiftright')) && p.dash <= 0) {
+        p.dash = 12;
+      }
+
+      p.fireCd--;
+      p.dash--;
+      state.spawnTick++;
+
+      const spawnRate = Math.max(20, 60 - state.wave * 4);
+      if (state.spawnTick % spawnRate === 0) spawnEnemy();
+
+      for (const b of state.bullets) b.x += b.vx;
+      for (const e of state.enemies) {
+        const dx = p.x - e.x;
+        const dy = p.y - e.y;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        e.x += (dx / d) * e.speed;
+        e.y += (dy / d) * e.speed;
+      }
+
+      state.bullets = state.bullets.filter((b) => b.x < canvas.width + 30);
+
+      for (const b of state.bullets) {
+        for (const e of state.enemies) {
+          if (!e.dead && collide(b, e)) {
+            e.hp -= b.dmg;
+            b.x = canvas.width + 99;
+            if (e.hp <= 0) {
+              e.dead = true;
+              state.score += 10;
+              for (let i = 0; i < 12; i++) {
+                state.particles.push({
+                  x: e.x,
+                  y: e.y,
+                  vx: (Math.random() - 0.5) * 4,
+                  vy: (Math.random() - 0.5) * 4,
+                  life: 24,
+                  color: i % 2 ? '#f000ff' : '#00e7ff'
+                });
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      for (const e of state.enemies) {
+        if (!e.dead && collide(e, p)) {
+          e.dead = true;
+          p.hp -= 12;
+          for (let i = 0; i < 10; i++) {
+            state.particles.push({
+              x: p.x,
+              y: p.y,
+              vx: (Math.random() - 0.5) * 3.5,
+              vy: (Math.random() - 0.5) * 3.5,
+              life: 18,
+              color: '#ff4f8b'
+            });
+          }
+        }
+      }
+
+      state.enemies = state.enemies.filter((e) => !e.dead && e.x > -60);
+
+      for (const fx of state.particles) {
+        fx.x += fx.vx;
+        fx.y += fx.vy;
+        fx.life -= 1;
+      }
+      state.particles = state.particles.filter((fx) => fx.life > 0);
+
+      const nextWave = 1 + Math.floor(state.score / 140);
+      if (nextWave !== state.wave) state.wave = nextWave;
+
+      updateHud();
+
+      if (p.hp <= 0) {
+        state.running = false;
+        overlay.style.display = 'grid';
+        startBtn.textContent = 'Restart Run';
+      }
+    }
+
+    function drawCity() {
+      ctx.fillStyle = '#05050b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < 44; i++) {
+        const x = (i * 83) % canvas.width;
+        const h = 80 + (i * 19) % 220;
+        ctx.fillStyle = i % 2 ? 'rgba(75, 40, 128, 0.35)' : 'rgba(15, 28, 60, 0.5)';
+        ctx.fillRect(x, canvas.height - h - 42, 58, h);
+      }
+
+      for (let i = 0; i < 25; i++) {
+        const x = ((i * 227) + performance.now() * 0.06) % (canvas.width + 80) - 40;
+        const y = 40 + (i * 31) % (canvas.height - 80);
+        ctx.fillStyle = i % 2 ? 'rgba(240, 0, 255, 0.15)' : 'rgba(0, 231, 255, 0.14)';
+        ctx.fillRect(x, y, 36, 3);
+      }
+    }
+
+    function draw() {
+      drawCity();
+
+      if (state.player) {
+        const p = state.player;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+
+        ctx.fillStyle = '#4b136f';
+        ctx.fillRect(-12, -24, 24, 34);
+
+        ctx.fillStyle = '#2645a6';
+        ctx.fillRect(-10, -34, 20, 10);
+
+        ctx.fillStyle = '#8f3cff';
+        ctx.fillRect(-15, -28, 30, 4);
+
+        ctx.fillStyle = '#f000ff';
+        ctx.fillRect(8, -6, 18, 5);
+
+        if (p.dash > 0) {
+          ctx.strokeStyle = 'rgba(0, 231, 255, 0.7)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.r + 8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      for (const b of state.bullets) {
+        ctx.fillStyle = '#00e7ff';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      for (const e of state.enemies) {
+        ctx.fillStyle = '#ff4f8b';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 140, 180, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(e.x - e.r * 0.5, e.y - e.r * 0.5);
+        ctx.lineTo(e.x + e.r * 0.5, e.y + e.r * 0.5);
+        ctx.moveTo(e.x + e.r * 0.5, e.y - e.r * 0.5);
+        ctx.lineTo(e.x - e.r * 0.5, e.y + e.r * 0.5);
+        ctx.stroke();
+      }
+
+      for (const fx of state.particles) {
+        ctx.fillStyle = fx.color;
+        ctx.globalAlpha = Math.max(0, fx.life / 24);
+        ctx.fillRect(fx.x, fx.y, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+
+      if (!state.running && state.player) {
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function tick() {
+      update();
+      draw();
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener('keydown', (e) => keys.add(e.key.toLowerCase()));
+    window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+    startBtn.addEventListener('click', () => {
+      reset();
+      overlay.style.display = 'none';
+      canvas.focus();
+    });
+
+    tick();
+  </script>
+</body>
+</html>
