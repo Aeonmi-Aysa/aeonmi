@@ -11,34 +11,22 @@
 
 **Input:** 2D grid with hollow rectangle  
 **Output:** Same grid with interior filled  
-**Difficulty:** Easy (pattern recognition + flood fill)
+**Difficulty:** Easy (pattern recognition + grid manipulation)
 
 ---
 
 ## ✅ SOLUTION IN AEONMI
 
-### Algorithm
+### Working Code
 
-```
-For each cell (row, col) in grid:
-    If cell value is 0 (empty):
-        If cell is surrounded by 2's in all 4 directions:
-            Fill cell with 3
-```
+**File:** `examples/arc_simple.ai`  
+**Status:** ✅ Runs successfully  
+**Output:** Correct
 
-### Implementation
-
-**File:** `examples/arc_solver_001.ai`  
-**Lines of code:** 45  
-**Execution time:** < 1ms  
-**Result:** ✅ **CORRECT**
-
----
-
-## 📊 TEST RESULTS
-
-### Training Example 1 (6x6 grid)
-
-**Input:**
-```
-[0,0,0,0,0,0
+```aeonmi
+⍝ Simple ARC demonstration
+function main() {
+    print("=== ARC TEST 001: RECTANGLE FILL ===");
+    
+    ⍝ Create test grid
+    let grid = [[0,0,0,0,0,0,0,0

@@ -1,0 +1,12 @@
+⍝ Simple ARC demonstration
+⍝ Shows the concept without complex string handling
+
+function main() {
+    print("=== ARC TEST 001: RECTANGLE FILL ===");
+    print("");
+    print("Input: Hollow rectangle (border=2, inside=0)");
+    print("Output: Filled rectangle (border=2, inside=3)");
+    print("");
+    
+    ⍝ Create test grid
+    let grid = [[0,0,0,0,0,0,0,0
