@@ -1,15 +1,12 @@
-⍝ Deployment Checklist
+⍝ Launch Checklist
 
 function main() {
-    print("=== AEONMI LAUNCH CHECKLIST ===");
-    print("");
-    print("PRE-LAUNCH (Complete):");
-    print("  ✓ Build starter kit");
-    print("  ✓ Test all examples");
-    print("  ✓ Create website");
-    print("  ✓ Write documentation");
-    print("");
-    print("DEPLOYMENT (30 minutes):");
-    print("");
-    print("Step 1: Deploy Website (5 min)");
-    print("  [
+    print("Step 1: Upload website_deploy.zip to Netlify");
+    print("Step 2: Create GitHub Release v1.0.0");
+    print("Step 3: Upload aeonmi_starter_kit.zip");
+    print("Step 4: Announce on social media");
+    print("Status: Ready to launch");
+    return 0;
+}
+
+main();
