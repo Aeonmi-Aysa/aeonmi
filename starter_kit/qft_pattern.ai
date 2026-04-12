@@ -1,13 +1,16 @@
-? Quantum Fourier Transform Pattern Detection 
- 
-function main() { 
-    print("=== QUANTUM FOURIER TRANSFORM ==="); 
-    print("Detecting periodic patterns"); 
-    print(""); 
-    print("Classical FFT: O(N log N)"); 
-    print("Quantum QFT: O(log� N)"); 
-    print("Speedup: 50,000x faster!"); 
-    return 0; 
-} 
- 
-main();
+⍝ Quantum Fourier Transform Pattern Detection
+⍝ Detects periodic patterns in quantum states
+⍝ Foundation of Shor's factoring algorithm
+
+function main() {
+    print("=== QUANTUM FOURIER TRANSFORM ===");
+    print("Detecting periodic patterns in quantum states");
+    print("");
+    
+    print("Input: State with period-2 pattern");
+    print("  |ψ⟩ = (|001⟩ + |011⟩ + |101⟩ + |111⟩)/2");
+    print("  Pattern: alternating bits");
+    print("");
+    
+    print("Step 1: Initialize 3-qubit superposition");
+    print("  Amplitudes: [0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5

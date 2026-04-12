@@ -1,0 +1,178 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: examples/mgks_demo.ai
+// Layer: Usage Examples + Integration Demo
+// ============================================================
+// This file demonstrates how Mother AI and the hive agents
+// interact with MGKS in real Aeonmi sessions.
+//
+// Run with:
+//   aeonmi run examples/mgks_demo.ai --native
+// ============================================================
+
+↦ mgks::mgks
+
+// ── 1. Initialize the MGKS Runtime ───────────────────────────
+let rt = mgks_init(
+    "C:\\Users\\wlwil\\Desktop\\Aeonmi Files\\Aeonmi-aeonmi01\\data\\mgks",
+    "postgresql://localhost:5432/aeonmi_mgks"
+)
+
+↦print("MGKS initialized — session: {rt.session_id}")
+
+// ── 2. Oracle Agent — Market Signal Observation ───────────────
+// Oracle observes a bullish market signal and writes it to T1.
+
+let (rt, signal_id) = qube_glyph(
+    rt,
+    "launch_signal",
+    "market_signal",
+    {
+        "signal_label":  "quantum_language_demand_rising",
+        "market_domain": "developer_tools",
+        "direction":     "bullish",
+        "strength":      0.87,
+        "source_url":    "https://trends.google.com/...",
+    },
+    AGENT_ORACLE,
+    0.87,
+)
+
+↦print("Oracle wrote glyph: {signal_id}")
+
+// ── 3. Hype Machine — Audience Signal ────────────────────────
+// Hype Machine observes viral potential for Aeonmi's launch.
+
+let (rt, hype_id) = qube_glyph(
+    rt,
+    "viral_signal",
+    "agent_observation",
+    {
+        "content": "Developer TikTok community responding to quantum syntax demos",
+        "intent":  "audience_growth_opportunity",
+        "agent_id": "hype_machine",
+        "tags":    ["tiktok", "developer", "viral", "quantum"],
+    },
+    AGENT_HYPE,
+    0.72,
+)
+
+// Bind: market signal CAUSES the viral opportunity
+let rt = qube_bind(rt, "launch_signal", BindingType::Causes, "viral_signal", 0.75, AGENT_ORACLE)
+
+↦print("Hype Machine wrote glyph: {hype_id}")
+↦print("Oracle bound: launch_signal CAUSES viral_signal")
+
+// ── 4. Closer — Opportunity Glyph ────────────────────────────
+// Closer sees a conversion opportunity from the signals above.
+
+let (rt, deal_id) = qube_glyph(
+    rt,
+    "dev_opportunity",
+    "strategic_insight",
+    {
+        "insight":       "Developer API tier for Aeonmi should launch at hackathon",
+        "rationale":     "Bullish market signal + viral audience momentum align",
+        "action":        "launch_api_waitlist_now",
+        "priority":      "high",
+        "evidence_ids":  [signal_id, hype_id],
+    },
+    AGENT_CLOSER,
+    0.81,
+)
+
+let rt = qube_bind(rt, "launch_signal", BindingType::Supports, "dev_opportunity", 0.81, AGENT_CLOSER)
+
+// ── 5. Devil's Advocate — Contradiction ──────────────────────
+// Devil's Advocate disagrees — sees risk in early launch.
+
+let (rt, risk_id) = qube_glyph(
+    rt,
+    "launch_risk",
+    "agent_observation",
+    {
+        "content": "Premature API launch without stability guarantees will damage trust",
+        "intent":  "risk_identification",
+        "agent_id": "devils_advocate",
+        "tags":    ["risk", "launch", "trust", "stability"],
+    },
+    AGENT_DEVIL,
+    0.78,
+)
+
+let rt = qube_bind(rt, "launch_risk", BindingType::Contradicts, "dev_opportunity", 0.78, AGENT_DEVIL)
+
+↦print("Devil's Advocate raised contradiction on dev_opportunity")
+
+// ── 6. Entangle Correlated Signals ───────────────────────────
+// Oracle and Hype signals are correlated — if market is bullish,
+// viral probability rises. Entangle them.
+
+let rt = qube_entangle(rt, "launch_signal", "viral_signal", 0.75, AGENT_ORACLE)
+↦print("Entangled: launch_signal <~> viral_signal (correlation: 0.75)")
+
+// ── 7. Mother AI — Collapse the Strategic Glyph ──────────────
+// Mother AI reviews the Conductor's synthesis and collapses
+// dev_opportunity to a single verified truth, accepting
+// the risk as manageable.
+
+let rt = qube_collapse(rt, "dev_opportunity", AGENT_MOTHER)
+↦print("Mother AI collapsed dev_opportunity — dominant truth verified")
+
+// ── 8. Recall from Consensus ──────────────────────────────────
+// Mother AI recalls the top strategic insights from T3.
+
+let results = qube_recall(
+    rt,
+    "highest value market opportunities for Aeonmi launch",
+    0.75,
+    QueryScope::ConsensusOnly,
+    5,
+)
+
+↦print("=== CONSENSUS RECALL RESULTS ===")
+↦for_each(results, fn(r) => {
+    ↦print("  Rank {r.rank} | Score {r.score} | Glyph: {r.glyph.id}")
+    ↦print("  Domain: {r.glyph.domain} | Confidence: {r.glyph.confidence}")
+    ↦print("  QState: {r.glyph.qstate}")
+    ↦print("---")
+})
+
+// ── 9. QUBE Quantum Circuit — Store Result as Glyph ──────────
+// Run a quantum circuit and store the result as MGKS knowledge.
+
+let q0 = ⊗|0⟩
+let q1 = ⊗|0⟩
+
+superpose(q0)          // Hadamard — put q0 in equal superposition
+entangle(q0, q1)       // Bell state — entangle q0 and q1
+let result = measure(q0, q1)
+
+let (rt, quantum_id) = qube_glyph(
+    rt,
+    "bell_state_session",
+    "quantum_result",
+    {
+        "circuit_id":       "bell_state_demo",
+        "entanglement_pct": result.entanglement_pct,
+        "accuracy_pct":     result.accuracy_pct,
+        "verdict":          result.verdict,
+        "session_id":       rt.session_id,
+        "raw_output":       result.raw,
+    },
+    AGENT_MOTHER,
+    1.0,
+)
+
+↦print("Quantum result stored as glyph: {quantum_id}")
+↦print("Entanglement: {result.entanglement_pct}%")
+
+// ── 10. Session End + Health Report ──────────────────────────
+let rt = mgks_end_session(rt)
+let report = mgks_mother_report(rt)
+
+↦print("=== MGKS SESSION COMPLETE ===")
+↦print(report)
+
+// Write to mother_journal.txt (Mother AI's native log)
+↦journal_write(⊗"MGKS session complete. {report}")

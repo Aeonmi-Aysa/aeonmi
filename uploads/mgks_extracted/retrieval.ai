@@ -1,0 +1,285 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/retrieval.ai
+// Layer: Hybrid Retrieval Engine
+// Depends on: mgks/types.ai, mgks/glyph.ai, mgks/memory.ai
+// ============================================================
+// Three-channel retrieval fused into a single ranked result list.
+//
+// Channel 1 — Semantic Similarity  (weight: 0.50 default)
+//   Cosine similarity on 1536-dim embeddings via pgvector.
+//   Best for: conceptually related glyphs.
+//
+// Channel 2 — Graph Traversal      (weight: 0.30 default)
+//   BFS/DFS on binding graph with edge-weight scoring.
+//   Best for: causally or logically linked glyphs.
+//
+// Channel 3 — Temporal Recency     (weight: 0.20 default)
+//   Exponential decay score: e^(-λ × age)
+//   Best for: fresh, high-confidence knowledge.
+//
+// Fusion formula:
+//   score = (w_sem × semantic + w_graph × graph + w_temp × temporal)
+//           × qstate_modifier(g, include_unresolved)
+// ============================================================
+
+⊗ mgks::retrieval
+↦ mgks::types
+↦ mgks::glyph
+↦ mgks::memory
+
+// ── Retrieval Weight Config ───────────────────────────────────
+struct RetrievalWeights {
+    semantic:  ⟨f32⟩,
+    graph:     ⟨f32⟩,
+    temporal:  ⟨f32⟩,
+}
+
+const DEFAULT_WEIGHTS: RetrievalWeights = RetrievalWeights {
+    semantic: 0.50,
+    graph:    0.30,
+    temporal: 0.20,
+}
+
+// Temporal decay lambda — controls how fast temporal score drops
+const TEMPORAL_LAMBDA: f32 = 0.05   // e^(-0.05 × age_days)
+
+// ── Glyph Query ───────────────────────────────────────────────
+// Unified query interface for all agents and Mother AI.
+// Every retrieval goes through this struct — enabling full audit.
+
+struct GlyphQuery {
+    intent:            ⟨str⟩,              // Natural language or QUBE intent
+    embedding:         ⟨vec⟨f32⟩⟩,         // Pre-computed query vector
+    anchor_glyph_id:   ⟨Option⟨GlyphId⟩⟩,  // Graph traversal start point
+    domain_filter:     ⟨Option⟨SemanticDomain⟩⟩,
+    min_confidence:    ⟨f32⟩,              // 0.0 = all, 0.7 = high-confidence only
+    tier_filter:       ⟨Option⟨MemoryTier⟩⟩,
+    include_unresolved: ⟨bool⟩,            // Include Superposition glyphs
+    agent_scope:       ⟨QueryScope⟩,
+    top_k:             ⟨usize⟩,
+    weights:           ⟨RetrievalWeights⟩,
+}
+
+// ── Query Result ──────────────────────────────────────────────
+struct GlyphQueryResult {
+    glyph:          ⟨Glyph⟩,
+    score:          ⟨f32⟩,
+    semantic_score: ⟨f32⟩,
+    graph_score:    ⟨f32⟩,
+    temporal_score: ⟨f32⟩,
+    rank:           ⟨usize⟩,
+}
+
+// ── Individual Channel Scores ─────────────────────────────────
+
+// Channel 1: Semantic similarity (cosine distance on embeddings)
+fn score_semantic(
+    g:         ⟨Glyph⟩,
+    query_vec: ⟨vec⟨f32⟩⟩,
+) -> ⟨f32⟩ {
+    ↦cosine_similarity(g.embedding, query_vec)
+}
+
+// Channel 2: Graph proximity — how many hops from anchor glyph
+// Score decays with hop count: 1.0 at 0 hops, 0.5 at 1 hop, 0.25 at 2 hops
+fn score_graph(
+    g:         ⟨Glyph⟩,
+    anchor_id: ⟨Option⟨GlyphId⟩⟩,
+    t3:        ⟨T3Store⟩,
+) -> ⟨f32⟩ {
+    ↦match anchor_id {
+        None => 0.0,
+        Some(aid) => {
+            let hops = ↦graph_hop_count(t3, aid, g.id)
+            ↦match hops {
+                None    => 0.0,
+                Some(h) => ↦pow(0.5, ↦as_f32(h))
+            }
+        }
+    }
+}
+
+// Channel 3: Temporal recency — e^(-λ × age_days) × confidence
+fn score_temporal(g: ⟨Glyph⟩) -> ⟨f32⟩ {
+    let now      = ↦timestamp_now()
+    let age_days = ↦days_between(g.last_access, now)
+    let decay    = ↦exp(-(TEMPORAL_LAMBDA ⊗ age_days))
+    decay ⊗ g.confidence
+}
+
+// ── Fusion Score ──────────────────────────────────────────────
+// Combine all three channels weighted + quantum state modifier.
+fn score_fuse(
+    g:                 ⟨Glyph⟩,
+    query_vec:         ⟨vec⟨f32⟩⟩,
+    anchor_id:         ⟨Option⟨GlyphId⟩⟩,
+    t3:                ⟨T3Store⟩,
+    weights:           ⟨RetrievalWeights⟩,
+    include_unresolved: ⟨bool⟩,
+) -> ⟨(f32, f32, f32, f32)⟩ {
+    let sem  = score_semantic(g, query_vec)
+    let grph = score_graph(g, anchor_id, t3)
+    let temp = score_temporal(g)
+    let qmod = glyph_qstate_modifier(g, include_unresolved)
+
+    let fused = (weights.semantic ⊗ sem
+               + weights.graph    ⊗ grph
+               + weights.temporal ⊗ temp) ⊗ qmod
+
+    (fused, sem, grph, temp)
+}
+
+// ── Main Retrieval Function ───────────────────────────────────
+// Execute a GlyphQuery against the memory stores.
+// Returns ranked list of GlyphQueryResults.
+
+fn retrieve(
+    query: ⟨GlyphQuery⟩,
+    mgr:   ⟨MemoryManager⟩,
+) -> ⟨vec⟨GlyphQueryResult⟩⟩ {
+
+    // Step 1 — Gather candidates based on scope
+    let candidates = ↦match query.agent_scope {
+
+        QueryScope::ConsensusOnly => {
+            // T3 vector search — semantic channel drives candidate selection
+            let vec_results = t3_vector_search(
+                mgr.t3,
+                query.embedding,
+                query.top_k ⊗ 3,    // Oversample, then re-rank
+                query.min_confidence,
+            )
+            ↦map(vec_results, fn((g, _)) => g)
+        },
+
+        QueryScope::OwnShard => {
+            // Caller's T2 only
+            let agent_id = ↦context_agent_id()
+            let t2 = ↦map_get(mgr.t2_stores, agent_id)
+            ↦match t2 {
+                None    => [],
+                Some(t) => ↦db_scan_all(t.path)
+            }
+        },
+
+        QueryScope::AllShards => {
+            // T3 + all T2 shards (Mother AI only)
+            let t3_results = t3_vector_search(mgr.t3, query.embedding, query.top_k ⊗ 3, query.min_confidence)
+            let t3_glyphs  = ↦map(t3_results, fn((g, _)) => g)
+            let t2_glyphs  = ↦flat_map(
+                ↦map_values(mgr.t2_stores),
+                fn(t2) => ↦db_scan_all(t2.path)
+            )
+            ↦concat(t3_glyphs, t2_glyphs)
+        },
+    }
+
+    // Step 2 — Apply filters
+    let filtered = ↦filter(candidates, fn(g) => {
+        let conf_ok   = glyph_effective_confidence(g, ↦timestamp_now()) >= query.min_confidence
+        let domain_ok = ↦match query.domain_filter {
+            None    => true,
+            Some(d) => g.domain == d,
+        }
+        let tier_ok = ↦match query.tier_filter {
+            None    => true,
+            Some(t) => g.tier == t,
+        }
+        conf_ok ⊗ domain_ok ⊗ tier_ok
+    })
+
+    // Step 3 — Score and rank
+    let scored = ↦map(filtered, fn(g) => {
+        let (fused, sem, grph, temp) = score_fuse(
+            g,
+            query.embedding,
+            query.anchor_glyph_id,
+            mgr.t3,
+            query.weights,
+            query.include_unresolved,
+        )
+        (g, fused, sem, grph, temp)
+    })
+
+    let ranked = ↦sort_desc_by(scored, fn((_, score, _, _, _)) => score)
+    let top    = ↦take(ranked, query.top_k)
+
+    // Step 4 — Build results with rank
+    ↦map_indexed(top, fn(i, (g, fused, sem, grph, temp)) =>
+        GlyphQueryResult {
+            glyph:          g,
+            score:          fused,
+            semantic_score: sem,
+            graph_score:    grph,
+            temporal_score: temp,
+            rank:           i + 1,
+        }
+    )
+}
+
+// ── Convenience Query Builders ────────────────────────────────
+
+// Build a simple intent-based query for agent use
+fn query_by_intent(
+    intent:  ⟨str⟩,
+    agent:   ⟨AgentId⟩,
+    top_k:   ⟨usize⟩,
+) -> ⟨GlyphQuery⟩ {
+    GlyphQuery {
+        intent:             intent,
+        embedding:          ↦embed_generate_str(intent),
+        anchor_glyph_id:    None,
+        domain_filter:      None,
+        min_confidence:     0.5,
+        tier_filter:        None,
+        include_unresolved: false,
+        agent_scope:        QueryScope::OwnShard,
+        top_k:              top_k,
+        weights:            DEFAULT_WEIGHTS,
+    }
+}
+
+// Mother AI consensus query — searches T3 only
+fn query_consensus(
+    intent:        ⟨str⟩,
+    min_confidence: ⟨f32⟩,
+    top_k:         ⟨usize⟩,
+) -> ⟨GlyphQuery⟩ {
+    GlyphQuery {
+        intent:             intent,
+        embedding:          ↦embed_generate_str(intent),
+        anchor_glyph_id:    None,
+        domain_filter:      None,
+        min_confidence:     min_confidence,
+        tier_filter:        Some(MemoryTier::T3_Semantic),
+        include_unresolved: false,
+        agent_scope:        QueryScope::ConsensusOnly,
+        top_k:              top_k,
+        weights:            DEFAULT_WEIGHTS,
+    }
+}
+
+// Graph-anchored query — traverses from a known glyph outward
+fn query_from_glyph(
+    anchor_id: ⟨GlyphId⟩,
+    intent:    ⟨str⟩,
+    top_k:     ⟨usize⟩,
+) -> ⟨GlyphQuery⟩ {
+    GlyphQuery {
+        intent:             intent,
+        embedding:          ↦embed_generate_str(intent),
+        anchor_glyph_id:    Some(anchor_id),
+        domain_filter:      None,
+        min_confidence:     0.4,
+        tier_filter:        None,
+        include_unresolved: true,    // Show linked unresolved states too
+        agent_scope:        QueryScope::AllShards,
+        top_k:              top_k,
+        weights:            RetrievalWeights {
+            semantic: 0.20,
+            graph:    0.70,   // Graph-anchored query: weight graph heavily
+            temporal: 0.10,
+        },
+    }
+}

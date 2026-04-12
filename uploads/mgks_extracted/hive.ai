@@ -1,0 +1,328 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/hive.ai
+// Layer: Multi-Agent Hive Memory Topology
+// Depends on: mgks/types.ai, mgks/glyph.ai, mgks/memory.ai, mgks/retrieval.ai
+// ============================================================
+// The hive topology gives each of the five agents their own
+// sovereign memory shard (T1+T2), while Mother AI maintains
+// the T3 Semantic consensus graph that every agent can read.
+//
+// Knowledge Flow:
+//   Agent observes → writes T1 glyph
+//   → Session end or significance flag → T2 persist
+//   → Access threshold met → PromotionRequest to Mother AI
+//   → Mother AI consensus check → conflict? → Devil's Advocate
+//   → Resolved → T3 write with provenance
+//
+// Conflict Resolution:
+//   Two agents with contradicting glyphs → Superposition state
+//   with confidence-weighted amplitudes.
+//   Clear dominant → Collapse. Ambiguous → Hold superposition.
+// ============================================================
+
+⊗ mgks::hive
+↦ mgks::types
+↦ mgks::glyph
+↦ mgks::memory
+↦ mgks::retrieval
+
+// ── Agent Shard ───────────────────────────────────────────────
+// Each hive agent has a sovereign memory shard.
+// T1 is cleared per session. T2 persists between sessions.
+
+struct AgentShard {
+    agent_id: ⟨AgentId⟩,
+    t1:       ⟨T1Store⟩,
+    t2:       ⟨T2Store⟩,
+    session:  ⟨SessionId⟩,
+    accuracy_history: ⟨vec⟨f32⟩⟩,    // Rolling accuracy scores for trust weighting
+}
+
+fn shard_new(agent: ⟨AgentId⟩, base_path: ⟨str⟩, session: ⟨SessionId⟩) -> ⟨AgentShard⟩ {
+    AgentShard {
+        agent_id:         agent,
+        t1:               t1_new(agent, session),
+        t2:               t2_new(agent, ⊗"{base_path}/{agent}/t2"),
+        session:          session,
+        accuracy_history: [],
+    }
+}
+
+// Agent observes something — creates a T1 glyph
+fn shard_observe(
+    shard:      ⟨AgentShard⟩,
+    genesis_name: ⟨str⟩,
+    genesis_id: ⟨GenesisId⟩,
+    payload:    ⟨GlyphPayload⟩,
+    domain:     ⟨SemanticDomain⟩,
+    confidence: ⟨f32⟩,
+) -> ⟨(AgentShard, Glyph)⟩ {
+    let g = glyph_new(
+        genesis_id,
+        payload,
+        domain,
+        shard.agent_id,
+        shard.session,
+        confidence,
+    )
+    let new_t1 = t1_insert(shard.t1, g)
+    let new_shard = AgentShard { ..shard, t1: new_t1 }
+    (new_shard, g)
+}
+
+// Agent recalls from its own shard — T1 first, T2 fallback
+fn shard_recall(
+    shard: ⟨AgentShard⟩,
+    query: ⟨GlyphQuery⟩,
+    mgr:   ⟨MemoryManager⟩,
+) -> ⟨vec⟨GlyphQueryResult⟩⟩ {
+    retrieve(query, mgr)
+}
+
+// Agent marks a glyph as significant → promotes to T2 immediately
+fn shard_flag_significant(
+    shard: ⟨AgentShard⟩,
+    id:    ⟨GlyphId⟩,
+) -> ⟨AgentShard⟩ {
+    let g = t1_get(shard.t1, id)
+    ↦match g {
+        None    => shard,
+        Some(g) => {
+            t2_write(shard.t2, g)
+            AgentShard {
+                ..shard,
+                t1: T1Store {
+                    ..shard.t1,
+                    glyphs: ↦map_remove(shard.t1.glyphs, id)
+                }
+            }
+        }
+    }
+}
+
+// Session end — drain T1, persist everything significant to T2
+fn shard_end_session(shard: ⟨AgentShard⟩) -> ⟨AgentShard⟩ {
+    let drained = t1_drain_session(shard.t1)
+    ↦for_each(drained, fn(g) => {
+        // Persist to T2 if confidence > 0.3
+        ↦if g.confidence > 0.3 {
+            t2_write(shard.t2, g)
+        }
+    })
+    AgentShard {
+        ..shard,
+        t1: t1_new(shard.agent_id, ↦uuid_v4()),
+        session: ↦uuid_v4(),
+    }
+}
+
+// ── Promotion Request ─────────────────────────────────────────
+// Sent from an agent shard to Mother AI's intake.
+struct PromotionRequest {
+    glyph:      ⟨Glyph⟩,
+    agent_id:   ⟨AgentId⟩,
+    justification: ⟨str⟩,
+    requested_at: ⟨Timestamp⟩,
+}
+
+// ── Conflict Resolution ───────────────────────────────────────
+// When Mother AI detects a CONTRADICTS binding between incoming
+// and existing T3 glyphs, conflict resolution is triggered.
+//
+// Algorithm:
+//   1. Weight each truth by: agent_confidence × agent_trust_score
+//   2. If gap > COLLAPSE_THRESHOLD → collapse to dominant truth
+//   3. If gap <= COLLAPSE_THRESHOLD → hold as Superposition
+//   4. Devil's Advocate is always notified of any conflict
+
+fn resolve_conflict(
+    incoming:   ⟨Glyph⟩,
+    existing:   ⟨Glyph⟩,
+    mgr:        ⟨MemoryManager⟩,
+) -> ⟨QuantumGlyphState⟩ {
+
+    let trust_a = incoming.provenance.trust_score
+    let trust_b = existing.provenance.trust_score
+
+    let weight_a = incoming.confidence ⊗ trust_a
+    let weight_b = existing.confidence ⊗ trust_b
+    let total    = weight_a + weight_b
+
+    let gap = ↦abs(weight_a - weight_b)
+
+    ↦if gap > COLLAPSE_THRESHOLD {
+        // Clear winner — collapse to the dominant truth
+        let winner_payload = ↦if weight_a > weight_b {
+            incoming.payload
+        } else {
+            existing.payload
+        }
+        QuantumGlyphState::Collapsed {
+            observed:     winner_payload,
+            collapsed_by: AGENT_MOTHER,
+            collapsed_at: ↦timestamp_now(),
+        }
+    } else {
+        // Ambiguous — hold both truths in superposition
+        QuantumGlyphState::Superposition {
+            states: [
+                (incoming.payload, weight_a / total),
+                (existing.payload, weight_b / total),
+            ]
+        }
+    }
+}
+
+// ── Mother AI Consensus Interface ────────────────────────────
+// Mother AI's intake handler for promotion requests.
+// Runs conflict check, stores to T3, notifies Devil's Advocate on conflict.
+
+struct MotherIntake {
+    t3:  ⟨T3Store⟩,
+    mgr: ⟨MemoryManager⟩,
+}
+
+fn mother_process_promotion(
+    intake:  ⟨MotherIntake⟩,
+    request: ⟨PromotionRequest⟩,
+) -> ⟨str⟩ {
+
+    let g = request.glyph
+
+    // Find any existing T3 glyphs that might contradict this one
+    let conflict_query = GlyphQuery {
+        intent:             ⊗"potential_conflict:{g.payload}",
+        embedding:          g.embedding,
+        anchor_glyph_id:    None,
+        domain_filter:      Some(g.domain),
+        min_confidence:     0.4,
+        tier_filter:        Some(MemoryTier::T3_Semantic),
+        include_unresolved: true,
+        agent_scope:        QueryScope::ConsensusOnly,
+        top_k:              5,
+        weights:            DEFAULT_WEIGHTS,
+    }
+
+    let similar = retrieve(conflict_query, intake.mgr)
+
+    // Check for CONTRADICTS bindings in similar glyphs
+    let conflicts = ↦filter(similar, fn(r) =>
+        ↦any(r.glyph.bindings, fn(b) =>
+            b.binding_type == BindingType::Contradicts
+            ⊗ ↦is_semantically_close(r.glyph.payload, g.payload)
+        )
+    )
+
+    ↦if ↦is_empty(conflicts) {
+        // No conflict — promote directly to T3
+        let promoted = glyph_promote(g)
+        t3_write(intake.t3, promoted)
+        ⊗"PROMOTED: no conflict detected — glyph {g.id} written to T3"
+    } else {
+        // Conflict detected — resolve and store result
+        let conflicting_glyph = (↦first(conflicts)).glyph
+
+        // Notify Devil's Advocate
+        ↦emit_event(⊗"mgks::conflict", {
+            "incoming_id": g.id,
+            "existing_id": conflicting_glyph.id,
+            "agent":       request.agent_id,
+        })
+
+        let resolved_state = resolve_conflict(g, conflicting_glyph, intake.mgr)
+
+        // Store conflict record
+        let conflict_glyph = glyph_new(
+            ↦genesis_id("conflict_record"),
+            {
+                "glyph_a_id":  g.id,
+                "glyph_b_id":  conflicting_glyph.id,
+                "agent_a":     g.provenance.agent_id,
+                "agent_b":     conflicting_glyph.provenance.agent_id,
+                "description": ⊗"Conflict detected during promotion of {g.id}",
+                "resolved":    ↦match resolved_state {
+                    QuantumGlyphState::Collapsed { .. } => true,
+                    _                                   => false,
+                },
+            },
+            SemanticDomain::Relational,
+            AGENT_MOTHER,
+            ↦uuid_v4(),
+            0.9,
+        )
+        t3_write(intake.t3, conflict_glyph)
+
+        // Apply resolved state to incoming glyph and write
+        let resolved_glyph = Glyph { ..g, qstate: resolved_state }
+        let promoted        = glyph_promote(resolved_glyph)
+        t3_write(intake.t3, promoted)
+
+        ↦match resolved_state {
+            QuantumGlyphState::Collapsed { .. } =>
+                ⊗"RESOLVED_COLLAPSED: glyph {g.id} — dominant truth written to T3",
+            QuantumGlyphState::Superposition { .. } =>
+                ⊗"RESOLVED_SUPERPOSITION: glyph {g.id} — ambiguous, held in superposition",
+            _ =>
+                ⊗"RESOLVED_OTHER: glyph {g.id} written to T3",
+        }
+    }
+}
+
+// ── Hive ─────────────────────────────────────────────────────
+// The top-level hive container. Holds all agent shards + Mother AI intake.
+
+struct Hive {
+    shards: ⟨map⟨AgentId, AgentShard⟩⟩,
+    mother: ⟨MotherIntake⟩,
+    mgr:    ⟨MemoryManager⟩,
+}
+
+fn hive_new(base_path: ⟨str⟩, t3_db_url: ⟨str⟩) -> ⟨Hive⟩ {
+    let session = ↦uuid_v4()
+    let mgr     = memory_manager_new(t3_db_url, base_path)
+
+    let agents = [
+        AGENT_ORACLE,
+        AGENT_HYPE,
+        AGENT_CLOSER,
+        AGENT_DEVIL,
+        AGENT_CONDUCTOR,
+    ]
+
+    let shards = ↦fold(agents, ↦map_empty(), fn(acc, agent) =>
+        ↦map_insert(acc, agent, shard_new(agent, base_path, session))
+    )
+
+    Hive {
+        shards: shards,
+        mother: MotherIntake { t3: mgr.t3, mgr: mgr },
+        mgr:    mgr,
+    }
+}
+
+// Agent observes something through the hive
+fn hive_observe(
+    hive:        ⟨Hive⟩,
+    agent_id:    ⟨AgentId⟩,
+    genesis_id:  ⟨GenesisId⟩,
+    payload:     ⟨GlyphPayload⟩,
+    domain:      ⟨SemanticDomain⟩,
+    confidence:  ⟨f32⟩,
+) -> ⟨(Hive, Glyph)⟩ {
+    let shard = ↦map_get(hive.shards, agent_id)
+    let (new_shard, g) = shard_observe(shard, "", genesis_id, payload, domain, confidence)
+    let new_shards = ↦map_insert(hive.shards, agent_id, new_shard)
+    (Hive { ..hive, shards: new_shards }, g)
+}
+
+// Mother AI recalls from consensus — the single source of truth
+fn hive_recall_consensus(
+    hive:          ⟨Hive⟩,
+    intent:        ⟨str⟩,
+    min_confidence: ⟨f32⟩,
+    top_k:         ⟨usize⟩,
+) -> ⟨vec⟨GlyphQueryResult⟩⟩ {
+    let q = query_consensus(intent, min_confidence, top_k)
+    retrieve(q, hive.mgr)
+}
