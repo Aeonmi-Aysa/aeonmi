@@ -1,0 +1,9 @@
+# Aeonmi v1.0 Deployment Package 
+ 
+Created: January 2025 
+Status: Production Ready 
+ 
+Files: 
+- aeonmi_starter_kit_v1.0_fixed.zip (working) 
+- website_deploy_v1.0.zip (ready) 
+- aeonmi.exe (latest build) 
