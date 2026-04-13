@@ -8,6 +8,16 @@
 
 ---
 
+## Documentation Hub
+
+- [Wiki Home](./wiki/Home.md)
+- [Getting Started](./wiki/Getting-Started.md)
+- [Architecture](./wiki/Architecture.md)
+- [CLI Reference](./wiki/CLI-Reference.md)
+- [Development Guide](./wiki/Development-Guide.md)
+
+---
+
 ## What Aeonmi actually is
 
 Aeonmi is a symbolic programming language implemented in Rust. It has a complete pipeline:
