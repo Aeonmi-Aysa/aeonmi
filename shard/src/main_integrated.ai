@@ -1,0 +1,416 @@
+// SHARD: The AEONMI Quantum Compiler
+// World's first self-hosting quantum programming language compiler
+// Written entirely in hybrid AEONMI syntax (classical + quantum)
+
+import { HybridLexer } from "./lexer";
+import { TokenStream } from "./token";
+import { HybridParser } from "./parser";
+import { AST, ASTNode } from "./ast";
+import { CodeGenerator, CodeTarget } from "./codegen";
+import { QiskitBridge } from "./qiskit_bridge";
+
+// === SHARD QUANTUM COMPILER CORE ===
+quantum command_line ShardCompiler {
+    version: "1.0.0-quantum";
+    description: "AEONMI Quantum-Classical Hybrid Compiler";
+    
+    // Quantum-enhanced configuration
+    quantum config CompilerConfig {
+        target: CompilationTarget;
+        quantum_enabled: bool = true;
+        optimization_level: usize = 2;
+        debug_mode: bool = false;
+        input_files: Vec<String> = vec![];
+        output_directory: String = "./output";
+        qiskit_backend: String = "qasm_simulator";
+        shots: usize = 1024;
+    }
+    
+    // Main compiler entry point
+    async function main() {
+        log("🔮 SHARD: AEONMI Quantum Compiler v1.0.0");
+        log("==========================================");
+        log("⚡ World's first self-hosting quantum compiler");
+        log("🌟 Quantum-enhanced compilation pipeline");
+        log("");
+        
+        let args = std::env::args().collect::<Vec<String>>();
+        
+        if args.len() < 2 {
+            show_usage();
+            return;
+        }
+        
+        // Parse command line arguments
+        let config = parse_args(args);
+        
+        if config.input_files.is_empty() {
+            eprintln!("❌ No input files specified");
+            show_usage();
+            return;
+        }
+        
+        // Process input files
+        for input_file in &config.input_files {
+            if input_file.ends_with(".ai") {
+                log(f"📁 Compiling AEONMI source: {input_file}");
+                compile_aeonmi_file(input_file.clone(), &config).await;
+            } else {
+                log(f"❌ Unsupported file type: {input_file}");
+            }
+        }
+        
+        log("🎉 Compilation complete!");
+    }
+    
+    // === MAIN COMPILATION PIPELINE ===
+    async function compile_aeonmi_file(file_path: String, config: &CompilerConfig) {
+        log(f"🔮 Starting quantum-enhanced compilation of {file_path}");
+        
+        let start_time = std::time::Instant::now();
+        
+        // === PHASE 1: SOURCE LOADING ===
+        log("📄 Phase 1: Loading source file");
+        let source_code = match std::fs::read_to_string(&file_path) {
+            Ok(content) => content,
+            Err(error) => {
+                eprintln!("❌ Failed to read file {}: {}", file_path, error);
+                return;
+            }
+        };
+        
+        log(f"✅ Source loaded: {} bytes, {} lines", 
+            source_code.len(), source_code.lines().count());
+        
+        // === PHASE 2: HYBRID TOKENIZATION ===
+        log("🔤 Phase 2: Hybrid quantum-classical tokenization");
+        let mut lexer = HybridLexer::new(&source_code, &file_path);
+        let tokens = match lexer.tokenize() {
+            Ok(tokens) => tokens,
+            Err(error) => {
+                eprintln!("❌ Tokenization failed: {}", error);
+                return;
+            }
+        };
+        
+        log(f"✅ Tokenization complete: {} tokens", tokens.len());
+        log(f"   📊 Quantum tokens: {}", count_quantum_tokens(&tokens));
+        
+        // === PHASE 3: QUANTUM-AWARE PARSING ===
+        log("🌳 Phase 3: Quantum-aware AST generation");
+        let token_stream = TokenStream::new(tokens);
+        let mut parser = HybridParser::new(token_stream);
+        let mut ast = parser.parse();
+        
+        log(f"✅ Parsing complete: {} AST nodes", ast.nodes.len());
+        log(f"   📊 Quantum circuits: {}", count_quantum_circuits(&ast));
+        log(f"   📊 Quantum functions: {}", count_quantum_functions(&ast));
+        
+        // === PHASE 4: QUANTUM CIRCUIT OPTIMIZATION ===
+        if config.quantum_enabled && config.optimization_level > 0 {
+            log(f"⚡ Phase 4: Quantum circuit optimization (level {})", config.optimization_level);
+            ast.optimize_quantum_circuits();
+            log("✅ Quantum optimization complete");
+        }
+        
+        // === PHASE 5: CODE GENERATION ===
+        log(f"🚀 Phase 5: Code generation ({:?} target)", config.target);
+        let code_target = match config.target {
+            CompilationTarget::Executable => CodeTarget::Executable,
+            CompilationTarget::QASM => CodeTarget::QASM,
+            CompilationTarget::Qiskit => CodeTarget::Qiskit,
+            CompilationTarget::QSharp => CodeTarget::QSharp,
+        };
+        
+        let mut code_generator = CodeGenerator::new(code_target, config.optimization_level as u8);
+        let generation_result = code_generator.generate(ast.clone());
+        
+        if generation_result.has_errors() {
+            eprintln!("❌ Code generation failed with {} errors:", generation_result.errors.len());
+            for error in &generation_result.errors {
+                eprintln!("   {}", error);
+            }
+            return;
+        }
+        
+        log(f"✅ Code generation complete: {} lines generated", generation_result.total_lines());
+        
+        // === PHASE 6: QISKIT INTEGRATION ===
+        if config.quantum_enabled && (matches!(config.target, CompilationTarget::Qiskit) || config.debug_mode) {
+            log("🔗 Phase 6: Qiskit quantum hardware integration");
+            
+            let mut qiskit_bridge = QiskitBridge::new(config.qiskit_backend.clone(), config.shots);
+            
+            match qiskit_bridge.connect() {
+                Ok(_) => {
+                    log("✅ Qiskit connection established");
+                    
+                    // Compile and optionally execute quantum circuits
+                    let mut circuit_count = 0;
+                    for node in &ast.nodes {
+                        if let ASTNode::QuantumCircuit { name, .. } = node {
+                            circuit_count += 1;
+                            
+                            match qiskit_bridge.compile_circuit(node) {
+                                Ok(qiskit_circuit) => {
+                                    log(f"✅ Compiled circuit '{name}': {} qubits, depth {}", 
+                                        qiskit_circuit.qubit_count, qiskit_circuit.depth);
+                                    
+                                    // Execute in debug mode for validation
+                                    if config.debug_mode {
+                                        log(f"🎯 Executing circuit '{name}' for validation...");
+                                        match qiskit_bridge.execute_circuit(&qiskit_circuit) {
+                                            Ok(result) => {
+                                                log(f"✅ Execution successful: {} shots in {:?}", 
+                                                    result.shots, result.execution_time);
+                                                if !result.counts.is_empty() {
+                                                    log("📊 Measurement results:");
+                                                    for (outcome, count) in &result.counts {
+                                                        let probability = *count as f64 / result.shots as f64;
+                                                        log(f"   |{outcome}⟩: {} ({:.1}%)", count, probability * 100.0);
+                                                    }
+                                                }
+                                            },
+                                            Err(error) => {
+                                                eprintln!("❌ Circuit execution failed: {}", error);
+                                            }
+                                        }
+                                    }
+                                },
+                                Err(error) => {
+                                    eprintln!("❌ Qiskit compilation failed for circuit '{}': {}", name, error);
+                                }
+                            }
+                        }
+                    }
+                    
+                    if circuit_count == 0 {
+                        log("ℹ️  No quantum circuits found in source");
+                    }
+                    
+                    qiskit_bridge.disconnect();
+                },
+                Err(error) => {
+                    eprintln!("⚠️  Qiskit connection failed: {}", error);
+                    log("   Continuing with code generation only...");
+                }
+            }
+        }
+        
+        // === PHASE 7: OUTPUT GENERATION ===
+        log("💾 Phase 7: Writing output files");
+        let output_path = generate_output_path(&file_path, config);
+        
+        // Create output directory if it doesn't exist
+        if let Some(parent) = std::path::Path::new(&output_path).parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        
+        match std::fs::write(&output_path, generation_result.get_combined_code()) {
+            Ok(_) => {
+                let compilation_time = start_time.elapsed();
+                log("");
+                log("✅ COMPILATION SUCCESSFUL!");
+                log("========================");
+                log(f"📁 Input:  {file_path}");
+                log(f"📁 Output: {output_path}");
+                log(f"⏱️  Time:   {:?}", compilation_time);
+                log(f"📊 Lines:  {}", generation_result.total_lines());
+                log(f"🚀 Speed:  {:.0} lines/sec", 
+                    generation_result.total_lines() as f64 / compilation_time.as_secs_f64());
+                log("");
+                
+                // Show next steps
+                match config.target {
+                    CompilationTarget::Executable => {
+                        log("🎯 Next steps: Run the compiled executable");
+                        log(f"   ./{}", std::path::Path::new(&output_path).file_name().unwrap().to_str().unwrap());
+                    },
+                    CompilationTarget::Qiskit => {
+                        log("🎯 Next steps: Execute with Qiskit");
+                        log(f"   python {}", output_path);
+                    },
+                    CompilationTarget::QASM => {
+                        log("🎯 Next steps: Load into quantum simulator");
+                        log(f"   qiskit-aer {}", output_path);
+                    },
+                    CompilationTarget::QSharp => {
+                        log("🎯 Next steps: Run with Q# simulator");
+                        log(f"   dotnet run {}", output_path);
+                    },
+                }
+            },
+            Err(error) => {
+                eprintln!("❌ Failed to write output file: {}", error);
+            }
+        }
+    }
+    
+    // === ARGUMENT PARSING ===
+    function parse_args(args: Vec<String>) -> CompilerConfig {
+        let mut config = CompilerConfig {
+            target: CompilationTarget::Executable,
+            quantum_enabled: true,
+            optimization_level: 2,
+            debug_mode: false,
+            input_files: vec![],
+            output_directory: "./output".to_string(),
+            qiskit_backend: "qasm_simulator".to_string(),
+            shots: 1024,
+        };
+        
+        let mut i = 1; // Skip program name
+        while i < args.len() {
+            match args[i].as_str() {
+                "--target" | "-t" => {
+                    if i + 1 < args.len() {
+                        config.target = match args[i + 1].as_str() {
+                            "executable" | "exe" => CompilationTarget::Executable,
+                            "qasm" => CompilationTarget::QASM,
+                            "qiskit" => CompilationTarget::Qiskit,
+                            "qsharp" | "qs" => CompilationTarget::QSharp,
+                            _ => {
+                                eprintln!("❌ Unknown target: {}", args[i + 1]);
+                                CompilationTarget::Executable
+                            }
+                        };
+                        i += 1;
+                    }
+                },
+                
+                "--optimize" | "-O" => {
+                    if i + 1 < args.len() {
+                        config.optimization_level = args[i + 1].parse().unwrap_or(2);
+                        i += 1;
+                    }
+                },
+                
+                "--debug" | "-d" => {
+                    config.debug_mode = true;
+                    log("🐛 Debug mode enabled");
+                },
+                
+                "--no-quantum" => {
+                    config.quantum_enabled = false;
+                    log("⚠️  Quantum features disabled");
+                },
+                
+                "--backend" | "-b" => {
+                    if i + 1 < args.len() {
+                        config.qiskit_backend = args[i + 1].clone();
+                        i += 1;
+                    }
+                },
+                
+                "--shots" | "-s" => {
+                    if i + 1 < args.len() {
+                        config.shots = args[i + 1].parse().unwrap_or(1024);
+                        i += 1;
+                    }
+                },
+                
+                "--output" | "-o" => {
+                    if i + 1 < args.len() {
+                        config.output_directory = args[i + 1].clone();
+                        i += 1;
+                    }
+                },
+                
+                "--help" | "-h" => {
+                    show_usage();
+                    std::process::exit(0);
+                },
+                
+                "--version" | "-v" => {
+                    println!("SHARD AEONMI Quantum Compiler v{}", "1.0.0");
+                    std::process::exit(0);
+                },
+                
+                arg if arg.starts_with("--") => {
+                    eprintln!("❌ Unknown option: {}", arg);
+                },
+                
+                file => {
+                    config.input_files.push(file.to_string());
+                }
+            }
+            i += 1;
+        }
+        
+        config
+    }
+    
+    // === UTILITY FUNCTIONS ===
+    function show_usage() {
+        println!("🔮 SHARD: AEONMI Quantum Compiler");
+        println!();
+        println!("USAGE:");
+        println!("    shard [OPTIONS] <input_files>...");
+        println!();
+        println!("OPTIONS:");
+        println!("    -t, --target <target>     Compilation target [executable|qasm|qiskit|qsharp]");
+        println!("    -O, --optimize <level>    Optimization level [0-3] (default: 2)");
+        println!("    -d, --debug              Enable debug mode with quantum execution");
+        println!("    -b, --backend <backend>   Qiskit backend (default: qasm_simulator)");
+        println!("    -s, --shots <count>       Number of quantum shots (default: 1024)");
+        println!("    -o, --output <dir>        Output directory (default: ./output)");
+        println!("        --no-quantum         Disable quantum features");
+        println!("    -h, --help               Show this help message");
+        println!("    -v, --version            Show version information");
+        println!();
+        println!("EXAMPLES:");
+        println!("    shard quantum_algorithm.ai                    # Compile to executable");
+        println!("    shard -t qiskit -d quantum_circuit.ai         # Compile to Qiskit with debug");
+        println!("    shard -t qasm -O 3 advanced_circuit.ai       # Compile to QASM with max optimization");
+        println!("    shard -b ibmq_qasm_simulator circuit.ai      # Use IBM Quantum backend");
+    }
+    
+    function generate_output_path(input_path: &str, config: &CompilerConfig) -> String {
+        let input_file = std::path::Path::new(input_path);
+        let file_stem = input_file.file_stem().unwrap().to_str().unwrap();
+        
+        let extension = match config.target {
+            CompilationTarget::Executable => "",
+            CompilationTarget::QASM => ".qasm",
+            CompilationTarget::Qiskit => ".py",
+            CompilationTarget::QSharp => ".qs",
+        };
+        
+        format!("{}/{}{}", config.output_directory, file_stem, extension)
+    }
+    
+    function count_quantum_tokens(tokens: &[Token]) -> usize {
+        tokens.iter()
+            .filter(|token| token.is_quantum_related())
+            .count()
+    }
+    
+    function count_quantum_circuits(ast: &AST) -> usize {
+        ast.nodes.iter()
+            .filter(|node| matches!(node, ASTNode::QuantumCircuit { .. }))
+            .count()
+    }
+    
+    function count_quantum_functions(ast: &AST) -> usize {
+        ast.nodes.iter()
+            .filter(|node| matches!(node, ASTNode::QuantumFunction { .. }))
+            .count()
+    }
+}
+
+// === COMPILATION TARGETS ===
+quantum enum CompilationTarget {
+    Executable,  // Native AEONMI executable
+    QASM,        // OpenQASM 3.0
+    Qiskit,      // Qiskit Python
+    QSharp,      // Microsoft Q#
+}
+
+// === QUANTUM BACKEND TYPES ===
+quantum enum QuantumBackend {
+    Simulator,
+    IBMQ,
+    IonQ,
+    Rigetti,
+    Google,
+}

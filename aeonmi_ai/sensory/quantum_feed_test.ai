@@ -1,0 +1,58 @@
+⍝ quantum_feed_test.ai — Phase 2 sensory tests
+⍝ imports 8 fns from quantum_feed + check + main = 11 total (budget ≤ 13)
+
+import { a_int_str, b_j_append, b_j_count, b_m_count, b_m_recall, b_m_store, c_verdict_str, d_print_state } from "./quantum_feed";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) {
+        print("[PASS] " + label);
+    } else {
+        print("[FAIL] " + label + " got=" + got + " want=" + want);
+    }
+}
+
+◯ main⟨⟩ {
+    ⍝ ── journal ──────────────────────────────────────────────────────────
+    let j = [];
+    check("j_count empty",     b_j_count(j), 0);
+
+    j = b_j_append(j, "quantum_signal", "PROCEED");
+    check("j_count after 1",   b_j_count(j), 1);
+
+    j = b_j_append(j, "entanglement", "confirmed");
+    check("j_count after 2",   b_j_count(j), 2);
+
+    ⍝ ── memory ───────────────────────────────────────────────────────────
+    let m = [];
+    check("m_count empty",     b_m_count(m), 0);
+
+    m = b_m_store(m, "last_verdict", 2);
+    check("m_count after 1",   b_m_count(m), 1);
+    check("m_recall verdict",  b_m_recall(m, "last_verdict"), 2);
+
+    m = b_m_store(m, "last_conf", 16);
+    check("m_count after 2",   b_m_count(m), 2);
+    check("m_recall conf",     b_m_recall(m, "last_conf"), 16);
+
+    ⍝ update existing key
+    m = b_m_store(m, "last_verdict", 3);
+    check("m_count after update", b_m_count(m), 2);
+    check("m_recall updated",     b_m_recall(m, "last_verdict"), 3);
+
+    ⍝ recall missing key
+    check("m_recall missing",  b_m_recall(m, "nope"), "");
+
+    ⍝ ── verdict_str ──────────────────────────────────────────────────────
+    check("verdict 0", c_verdict_str(0), "ABORT");
+    check("verdict 1", c_verdict_str(1), "HOLD");
+    check("verdict 2", c_verdict_str(2), "PROCEED");
+    check("verdict 3", c_verdict_str(3), "ACCELERATE");
+
+    ⍝ ── int_str ──────────────────────────────────────────────────────────
+    check("int_str 0",   a_int_str(0),   "0");
+    check("int_str 16",  a_int_str(16),  "16");
+    check("int_str 100", a_int_str(100), "100");
+    check("int_str 50",  a_int_str(50),  "50");
+
+    print("=== quantum_feed tests done ===");
+}

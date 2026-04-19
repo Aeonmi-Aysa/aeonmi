@@ -1,0 +1,465 @@
+// glyphpuf_processor.ai — Aeonmi Quantum Coprocessor Suite
+// Role: Quantum challenge-response authentication processor.
+//       Generates N random gate-sequence circuits from a key-derived seed,
+//       stores output distributions as a "physical fingerprint" (enroll),
+//       then re-runs and checks Hellinger distance drift (auth).
+//
+// HONEST CAVEAT: On Aer (simulator), PUF identity = sampling variance only.
+//   Real identity signal requires hardware noise/calibration drift (IBM QPU).
+//   Still useful for: backend sanity, session seeding, config attestation.
+//
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+let PUF_MODE      = "enroll";          // "enroll" or "auth"
+let PUF_KEY       = "aeonmi-nexus-01"; // change per deployment/session
+let PUF_N         = 8;                 // number of challenges (keep low, each = 1 circuit)
+let PUF_SHOTS     = 1024;             // shots per challenge
+let PUF_REPEATS   = 2;                // baseline repeats per challenge (enroll only)
+let PUF_PROG_LEN  = 32;              // gate depth for challenge circuits
+let PUF_THRESHOLD = 0.12;            // Hellinger accept threshold (0=identical,1=max drift)
+// ────────────────────────────────────────────────────────────────────────────
+
+// ── Extract count from quantum_run() JSON ────────────────────────────────────
+function fn_extract_count(json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(json) {
+        if char_at(json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+// ── Integer mod (safe for float VM) ─────────────────────────────────────────
+function fn_mod(a, b) { return a - floor(a / b) * b; }
+
+// ── Simple LCG — seed derivation from key string ────────────────────────────
+// djb2-lite: accumulate char codes via shift-and-compare (no ord() needed)
+// Maps printable chars to values 1-94 via ordered comparison chains
+function fn_char_val(ch) {
+    if ch <= " " { return 0; }
+    if ch == "!" { return 1; }  if ch == "\"" { return 2; }
+    if ch == "#" { return 3; }  if ch == "$" { return 4; }
+    if ch == "%" { return 5; }  if ch == "&" { return 6; }
+    if ch == "'" { return 7; }  if ch == "(" { return 8; }
+    if ch == ")" { return 9; }  if ch == "*" { return 10; }
+    if ch == "+" { return 11; } if ch == "," { return 12; }
+    if ch == "-" { return 13; } if ch == "." { return 14; }
+    if ch == "/" { return 15; }
+    if ch >= "0" {
+        if ch <= "9" {
+            if ch == "0" { return 16; } if ch == "1" { return 17; }
+            if ch == "2" { return 18; } if ch == "3" { return 19; }
+            if ch == "4" { return 20; } if ch == "5" { return 21; }
+            if ch == "6" { return 22; } if ch == "7" { return 23; }
+            if ch == "8" { return 24; } return 25;
+        }
+    }
+    if ch == ":" { return 26; } if ch == ";" { return 27; }
+    if ch == "<" { return 28; } if ch == "=" { return 29; }
+    if ch == ">" { return 30; } if ch == "?" { return 31; }
+    if ch == "@" { return 32; }
+    if ch >= "A" {
+        if ch <= "Z" {
+            if ch == "A" { return 33; } if ch == "B" { return 34; }
+            if ch == "C" { return 35; } if ch == "D" { return 36; }
+            if ch == "E" { return 37; } if ch == "F" { return 38; }
+            if ch == "G" { return 39; } if ch == "H" { return 40; }
+            if ch == "I" { return 41; } if ch == "J" { return 42; }
+            if ch == "K" { return 43; } if ch == "L" { return 44; }
+            if ch == "M" { return 45; } if ch == "N" { return 46; }
+            if ch == "O" { return 47; } if ch == "P" { return 48; }
+            if ch == "Q" { return 49; } if ch == "R" { return 50; }
+            if ch == "S" { return 51; } if ch == "T" { return 52; }
+            if ch == "U" { return 53; } if ch == "V" { return 54; }
+            if ch == "W" { return 55; } if ch == "X" { return 56; }
+            if ch == "Y" { return 57; } return 58;
+        }
+    }
+    if ch == "[" { return 59; } if ch == "\\" { return 60; }
+    if ch == "]" { return 61; } if ch == "^" { return 62; }
+    if ch == "_" { return 63; }
+    if ch >= "a" {
+        if ch <= "z" {
+            if ch == "a" { return 65; } if ch == "b" { return 66; }
+            if ch == "c" { return 67; } if ch == "d" { return 68; }
+            if ch == "e" { return 69; } if ch == "f" { return 70; }
+            if ch == "g" { return 71; } if ch == "h" { return 72; }
+            if ch == "i" { return 73; } if ch == "j" { return 74; }
+            if ch == "k" { return 75; } if ch == "l" { return 76; }
+            if ch == "m" { return 77; } if ch == "n" { return 78; }
+            if ch == "o" { return 79; } if ch == "p" { return 80; }
+            if ch == "q" { return 81; } if ch == "r" { return 82; }
+            if ch == "s" { return 83; } if ch == "t" { return 84; }
+            if ch == "u" { return 85; } if ch == "v" { return 86; }
+            if ch == "w" { return 87; } if ch == "x" { return 88; }
+            if ch == "y" { return 89; } return 90;
+        }
+    }
+    return 64;
+}
+
+function fn_key_seed(key) {
+    // djb2-lite hash, constrained to 2^20 for float32 safety
+    let h = 5381.0;
+    let i = 0;
+    while i < len(key) {
+        let cv = fn_char_val(char_at(key, i));
+        h = fn_mod(h * 33.0 + cv, 1048576.0);
+        i = i + 1;
+    }
+    return h;
+}
+
+function fn_lcg(x) {
+    // Park-Miller lite — stays within 2^20
+    return fn_mod(x * 279470273.0 + 1.0, 1048576.0);
+}
+
+// ── Build 3-qubit random circuit descriptor from seed ───────────────────────
+// Gate palette: H(0) X(1) S(5) T(6) CX(4-forward) CX(4-reverse)
+// Maps op_sel 0..5 deterministically to gate+qubit from LCG state
+function fn_build_challenge(shots, seed, prog_len) {
+    // Start descriptor components
+    let ops = "";
+    let op_count = 0;
+
+    // Initial H on q0 to seed superposition
+    ops = ops + " 0 0 -1";
+    op_count = op_count + 1;
+
+    let x = seed;
+    let i = 0;
+    while i < prog_len {
+        x = fn_lcg(x);
+        let op_sel = int(fn_mod(x, 6));
+
+        x = fn_lcg(x);
+        let q = int(fn_mod(x, 3));
+
+        x = fn_lcg(x);
+        let q2 = int(fn_mod(x, 3));
+        if q2 == q {
+            q2 = q2 + 1;
+            if q2 == 3 { q2 = 0; }
+        }
+
+        if op_sel == 0 { ops = ops + " 0 " + q + " -1"; op_count = op_count + 1; }
+        if op_sel == 1 { ops = ops + " 1 " + q + " -1"; op_count = op_count + 1; }
+        if op_sel == 2 { ops = ops + " 5 " + q + " -1"; op_count = op_count + 1; }
+        if op_sel == 3 { ops = ops + " 6 " + q + " -1"; op_count = op_count + 1; }
+        if op_sel == 4 { ops = ops + " 4 " + q2 + " " + q; op_count = op_count + 1; }
+        if op_sel == 5 { ops = ops + " 4 " + q + " " + q2; op_count = op_count + 1; }
+
+        i = i + 1;
+    }
+
+    // Measure all
+    ops = ops + " 7 0 0  7 1 1  7 2 2";
+    op_count = op_count + 3;
+
+    return "3 3 " + shots + " " + op_count + ops;
+}
+
+// ── Extract 3-qubit probability vector [p000..p111] ─────────────────────────
+function fn_probs3(json, shots) {
+    let out = [];
+    out.push(fn_extract_count(json, "000") / shots);
+    out.push(fn_extract_count(json, "001") / shots);
+    out.push(fn_extract_count(json, "010") / shots);
+    out.push(fn_extract_count(json, "011") / shots);
+    out.push(fn_extract_count(json, "100") / shots);
+    out.push(fn_extract_count(json, "101") / shots);
+    out.push(fn_extract_count(json, "110") / shots);
+    out.push(fn_extract_count(json, "111") / shots);
+    return out;
+}
+
+// ── Hellinger distance H(P,Q) = sqrt(1 - sum(sqrt(p_i * q_i))) ──────────────
+// Approximating sqrt via 8-iteration Newton-Raphson (no sqrt builtin assumed)
+function fn_sqrt_nr(x) {
+    if x <= 0 { return 0.0; }
+    let g = 1.0;
+    let i = 0;
+    while i < 20 { g = (g + x / g) / 2.0; i = i + 1; }
+    return g;
+}
+
+function fn_hellinger(p, q) {
+    let bc = 0.0;  // Bhattacharyya coefficient
+    let i = 0;
+    while i < len(p) {
+        bc = bc + fn_sqrt_nr(p[i] * q[i]);
+        i = i + 1;
+    }
+    let v = 1.0 - bc;
+    if v < 0 { v = 0.0; }
+    return fn_sqrt_nr(v);
+}
+
+// ── Round to 4dp ─────────────────────────────────────────────────────────────
+function fn_r4(x) { return floor(x * 10000.0) / 10000.0; }
+
+// ── Encode float array as CSV string ─────────────────────────────────────────
+function fn_vec_csv(vec) {
+    let s = "";
+    let i = 0;
+    while i < len(vec) {
+        if i > 0 { s = s + ","; }
+        s = s + fn_r4(vec[i]);
+        i = i + 1;
+    }
+    return s;
+}
+
+// ── Decode CSV string to float array ─────────────────────────────────────────
+function fn_csv_vec(csv) {
+    let out = [];
+    let cur = "";
+    let i = 0;
+    while i < len(csv) {
+        let ch = char_at(csv, i);
+        if ch == "," {
+            if len(cur) > 0 { out.push(float(cur)); cur = ""; }
+        } else {
+            cur = cur + ch;
+        }
+        i = i + 1;
+    }
+    if len(cur) > 0 { out.push(float(cur)); }
+    return out;
+}
+
+// ── Baseline file path from key ───────────────────────────────────────────────
+function fn_baseline_path(key) {
+    let seed = fn_key_seed(key);
+    return "glyphpuf_" + int(seed) + ".baseline";
+}
+
+// ── ENROLL: generate challenges, store baseline distributions ─────────────────
+function fn_enroll(key, N, shots, repeats, prog_len) {
+    print("MODE: ENROLL");
+    print("Key:      " + key);
+    print("Challenges: " + N + "  Shots: " + shots + "  Repeats: " + repeats);
+    print("");
+
+    let seed = fn_key_seed(key);
+    let out = "key_seed=" + int(seed) + "\n";
+    out = out + "shots=" + shots + "\n";
+    out = out + "prog_len=" + prog_len + "\n";
+    out = out + "N=" + N + "\n";
+
+    let i = 0;
+    while i < N {
+        seed = fn_lcg(seed);
+        let challenge_seed = int(fn_mod(seed, 1048576.0));
+
+        // Accumulate averaged probability vector over repeats
+        let acc = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let r = 0;
+        while r < repeats {
+            let desc = fn_build_challenge(shots, challenge_seed, prog_len);
+            let probs = fn_probs3(quantum_run(desc), shots);
+            let j = 0;
+            while j < 8 {
+                acc[j] = acc[j] + probs[j];
+                j = j + 1;
+            }
+            r = r + 1;
+        }
+        let j = 0;
+        while j < 8 {
+            acc[j] = acc[j] / repeats;
+            j = j + 1;
+        }
+
+        out = out + "c" + i + "=" + challenge_seed + ":" + fn_vec_csv(acc) + "\n";
+        print("  Challenge " + i + " enrolled (seed=" + challenge_seed + ")");
+        i = i + 1;
+    }
+
+    let path = fn_baseline_path(key);
+    write_file(path, out);
+    print("");
+    print("Baseline written: " + path);
+    log("HIVE_STATE:puf_enrolled:" + N);
+    log("HIVE_STATE:puf_baseline:" + path);
+}
+
+// ── AUTH: re-run challenges, compare to baseline ─────────────────────────────
+function fn_auth(key, threshold) {
+    print("MODE: AUTH");
+    print("Key:       " + key);
+    print("Threshold: " + threshold);
+    print("");
+
+    let path = fn_baseline_path(key);
+    if file_exists(path) != true {
+        print("ERROR: No baseline found at: " + path);
+        print("Run enroll mode first.");
+        log("HIVE_STATE:puf_auth:ERROR_NO_BASELINE");
+        return 0;
+    }
+
+    let txt = read_file(path);
+
+    // Read shots and prog_len from baseline header
+    let shots = 1024;
+    let prog_len = 32;
+    let N = 8;
+
+    let pos_s = find(txt, "shots=");
+    if pos_s >= 0 {
+        let i = pos_s + 6;
+        let ds = "";
+        while i < len(txt) {
+            let ch = char_at(txt, i);
+            if ch == "\n" { break; } if ch == "\r" { break; }
+            ds = ds + ch; i = i + 1;
+        }
+        shots = int(ds);
+    }
+    let pos_p = find(txt, "prog_len=");
+    if pos_p >= 0 {
+        let i = pos_p + 9;
+        let ds = "";
+        while i < len(txt) {
+            let ch = char_at(txt, i);
+            if ch == "\n" { break; } if ch == "\r" { break; }
+            ds = ds + ch; i = i + 1;
+        }
+        prog_len = int(ds);
+    }
+    let pos_n = find(txt, "\nN=");
+    if pos_n >= 0 {
+        let i = pos_n + 3;
+        let ds = "";
+        while i < len(txt) {
+            let ch = char_at(txt, i);
+            if ch == "\n" { break; } if ch == "\r" { break; }
+            ds = ds + ch; i = i + 1;
+        }
+        N = int(ds);
+    }
+
+    print("Loaded baseline: shots=" + shots + " prog_len=" + prog_len + " N=" + N);
+    print("");
+
+    let total_dist = 0.0;
+    let count = 0;
+    let ci = 0;
+    while ci < N {
+        // Find challenge line "c<ci>="
+        let tag = "c" + ci + "=";
+        let pos = find(txt, tag);
+        if pos >= 0 {
+            let i = pos + len(tag);
+            // Read challenge_seed (up to ":")
+            let seed_str = "";
+            while i < len(txt) {
+                let ch = char_at(txt, i);
+                if ch == ":" { i = i + 1; break; }
+                seed_str = seed_str + ch; i = i + 1;
+            }
+            // Read CSV probs (up to newline)
+            let csv = "";
+            while i < len(txt) {
+                let ch = char_at(txt, i);
+                if ch == "\n" { break; } if ch == "\r" { break; }
+                csv = csv + ch; i = i + 1;
+            }
+
+            let challenge_seed = int(seed_str);
+            let base_probs = fn_csv_vec(csv);
+
+            // Re-run
+            let desc = fn_build_challenge(shots, challenge_seed, prog_len);
+            let live_probs = fn_probs3(quantum_run(desc), shots);
+
+            let d = fn_hellinger(base_probs, live_probs);
+            total_dist = total_dist + d;
+            count = count + 1;
+
+            print("  Challenge " + ci + " (seed=" + challenge_seed + ") Hellinger=" + fn_r4(d));
+        }
+        ci = ci + 1;
+    }
+
+    print("");
+    if count == 0 {
+        print("ERROR: No challenges found in baseline.");
+        log("HIVE_STATE:puf_auth:ERROR_NO_CHALLENGES");
+        return 0;
+    }
+
+    let avg = total_dist / count;
+    print("Average Hellinger distance: " + fn_r4(avg));
+    print("Threshold:                  " + threshold);
+    print("");
+
+    if avg <= threshold {
+        print("RESULT: AUTH PASS — distribution matches enrolled baseline.");
+        log("HIVE_STATE:puf_auth:PASS");
+        log("HIVE_STATE:puf_hellinger:" + fn_r4(avg));
+    } else {
+        print("RESULT: AUTH FAIL — drift beyond threshold.");
+        print("  Possible causes: different backend, calibration drift, wrong key.");
+        log("HIVE_STATE:puf_auth:FAIL");
+        log("HIVE_STATE:puf_hellinger:" + fn_r4(avg));
+    }
+
+    print("");
+    print("NOTE: On Aer, drift = sampling variance only. Enroll/auth on same");
+    print("      simulator session will usually PASS. Real identity signal");
+    print("      requires QPU hardware noise (IBM backend via IBM_QUANTUM_TOKEN).");
+
+    return 1;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+function fn_puf_main() {
+    print("==============================================");
+    print("GLYPHPUF QUANTUM PROCESSOR");
+    print("Quantum challenge-response authentication");
+    print("==============================================");
+    print("");
+
+    if quantum_check() != 1 {
+        print("ERROR: Qiskit bridge not available.");
+        print("Run quantum_install.bat then restart dashboard.");
+        log("HIVE_STATE:puf_auth:NO_QISKIT");
+        return 0;
+    }
+
+    print("Key:   " + PUF_KEY);
+    print("Mode:  " + PUF_MODE);
+    print("");
+
+    if PUF_MODE == "enroll" {
+        fn_enroll(PUF_KEY, PUF_N, PUF_SHOTS, PUF_REPEATS, PUF_PROG_LEN);
+        return 1;
+    }
+
+    if PUF_MODE == "auth" {
+        fn_auth(PUF_KEY, PUF_THRESHOLD);
+        return 1;
+    }
+
+    print("ERROR: PUF_MODE must be 'enroll' or 'auth'. Got: " + PUF_MODE);
+    return 0;
+}
+
+fn_puf_main();

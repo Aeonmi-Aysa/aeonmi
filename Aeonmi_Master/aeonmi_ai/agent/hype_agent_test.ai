@@ -1,0 +1,32 @@
+⍝ hype_agent_test.ai
+⍝ Total fns: 9 (hype) + check + main = 11
+import { hyp_amplify, hyp_go_viral, hyp_momentum, hyp_peak_score, hyp_resonance, hyp_score, hyp_tier, hyp_timing } from "./hype_agent";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "got=", got, "want=", want);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ hyp_score with inputs producing exact f64 results
+    p = p + check("score(10,10,10)=10",  hyp_score(10, 10, 10), 10);
+    p = p + check("score(20,25,20)=22",  hyp_score(20, 25, 20), 22);
+    p = p + check("tier breakout",        hyp_tier(85), 3);
+    p = p + check("tier high",            hyp_tier(65), 2);
+    p = p + check("tier mid",             hyp_tier(45), 1);
+    p = p + check("tier low",             hyp_tier(20), 0);
+    p = p + check("go_viral yes",         hyp_go_viral(80, 70), 1);
+    p = p + check("go_viral no-vel",      hyp_go_viral(60, 90), 0);
+    p = p + check("momentum(80,60)=72",   hyp_momentum(80, 60), 72);
+    p = p + check("resonance(80,75)=60",  hyp_resonance(80, 75), 60);
+    p = p + check("amplify yes",          hyp_amplify(80, 90, 70), 1);
+    p = p + check("amplify no-sent",      hyp_amplify(80, 90, 30), 0);
+    p = p + check("timing yes",           hyp_timing(70, 60), 1);
+    p = p + check("timing no-vel",        hyp_timing(50, 80), 0);
+
+    print("hype_agent tests passed:", p, "/ 14");
+    print("=== PASS ===");
+}

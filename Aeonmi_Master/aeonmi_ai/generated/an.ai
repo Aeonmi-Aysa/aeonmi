@@ -1,0 +1,196 @@
+I'll build the complete Game Arena executable now.
+
+First, let me finish writing the game_arena.ai file:
+<function_calls>
+<invoke name="write_file">C:\Users\wlwil\Desktop\Aeonmi Apps - Copy\Aeonmi-aeonmi01\games\game_arena.ai|⍝ ============================================================================
+⍝ GAME ARENA FOR AEONMI — Complete Benchmarking System v1.0
+⍝ Dynamic game environments measuring frontier of model capabilities
+⍝ Four in a Row | Heads Up Poker | Werewolf | Chess
+⍝ ============================================================================
+
+module GameArena {
+  use std::collections::HashMap;
+  use std::time::SystemTime;
+
+  ⍝ ========== CORE TYPES ==========
+
+  struct GameState {
+    game_id: String,
+    game_type: String,
+    board: Vec<Vec<i32>>,
+    turn: u32,
+    player1: String,
+    player2: String,
+    status: String,
+    moves: Vec<String>,
+    score_p1: i32,
+    score_p2: i32,
+  }
+
+  struct GameResult {
+    game_id: String,
+    game_type: String,
+    winner: String,
+    loser: String,
+    duration_ms: u64,
+    total_moves: u32,
+    player1_score: i32,
+    player2_score: i32,
+  }
+
+  struct LeaderboardEntry {
+    model: String,
+    wins: u32,
+    losses: u32,
+    draws: u32,
+    win_rate: f64,
+    games_played: u32,
+  }
+
+  ⍝ ========== FOUR IN A ROW ENGINE ==========
+
+  fn four_in_a_row_new() -> GameState {
+    GameState {
+      game_id: format!("4IR-{}", now_ms()),
+      game_type: "FourInARow".to_string(),
+      board: vec![vec![0; 7]; 6],
+      turn: 0,
+      player1: "AI_Alpha".to_string(),
+      player2: "AI_Beta".to_string(),
+      status: "Active".to_string(),
+      moves: Vec::new(),
+      score_p1: 0,
+      score_p2: 0,
+    }
+  }
+
+  fn four_in_a_row_display(state: &GameState) -> String {
+    let mut out = String::new();
+    out.push_str("\n╔════════════════════════════╗\n");
+    out.push_str("║   FOUR IN A ROW - Arena     ║\n");
+    out.push_str("╚════════════════════════════╝\n\n");
+    
+    for row in 0..6 {
+      out.push_str("  ");
+      for col in 0..7 {
+        match state.board[row][col] {
+          0 => out.push_str("· "),
+          1 => out.push_str("🔴 "),
+          2 => out.push_str("🟡 "),
+          _ => out.push_str("? "),
+        }
+      }
+      out.push('\n');
+    }
+    
+    out.push_str("  0 1 2 3 4 5 6\n\n");
+    out.push_str(&format!("Turn: {} | Status: {}\n", state.turn, state.status));
+    out.push_str(&format!("{}: {} | {}: {}\n\n", state.player1, state.score_p1, state.player2, state.score_p2));
+    
+    out
+  }
+
+  fn four_in_a_row_move(state: &mut GameState, col: usize, player_id: i32) -> Result<bool, String> {
+    if col >= 7 {
+      return Err("Column out of bounds (0-6)".to_string());
+    }
+    
+    for row in (0..6).rev() {
+      if state.board[row][col] == 0 {
+        state.board[row][col] = player_id;
+        state.turn += 1;
+        state.moves.push(format!("{}:{}", player_id, col));
+        
+        let won = check_win(&state.board, row, col, player_id);
+        if won {
+          state.status = format!("Player{}Win", player_id);
+          if player_id == 1 { state.score_p1 += 1; } else { state.score_p2 += 1; }
+          return Ok(true);
+        }
+        
+        if state.turn >= 42 {
+          state.status = "Draw".to_string();
+        }
+        
+        return Ok(false);
+      }
+    }
+    
+    Err("Column full".to_string())
+  }
+
+  fn check_win(board: &Vec<Vec<i32>>, row: usize, col: usize, player: i32) -> bool {
+    let dirs = vec![(0,1), (1,0), (1,1), (1,-1)];
+    
+    for (dr, dc) in dirs {
+      let mut count = 1;
+      
+      let mut r = row as i32 + dr;
+      let mut c = col as i32 + dc;
+      while r >= 0 && r < 6 && c >= 0 && c < 7 {
+        if board[r as usize][c as usize] == player { count += 1; }
+        else { break; }
+        r += dr; c += dc;
+      }
+      
+      r = row as i32 - dr;
+      c = col as i32 - dc;
+      while r >= 0 && r < 6 && c >= 0 && c < 7 {
+        if board[r as usize][c as usize] == player { count += 1; }
+        else { break; }
+        r -= dr; c -= dc;
+      }
+      
+      if count >= 4 { return true; }
+    }
+    false
+  }
+
+  fn get_valid_moves(board: &Vec<Vec<i32>>) -> Vec<usize> {
+    (0..7).filter(|&col| board[0][col] == 0).collect()
+  }
+
+  ⍝ ========== AI STRATEGY ENGINE ==========
+
+  fn ai_evaluate_position_4ir(board: &Vec<Vec<i32>>, player: i32) -> Vec<(usize, i32)> {
+    let mut scores: Vec<(usize, i32)> = Vec::new();
+    let opponent = if player == 1 { 2 } else { 1 };
+    
+    for col in get_valid_moves(board) {
+      let mut temp_board = board.clone();
+      let mut score = 0i32;
+      
+      for row in (0..6).rev() {
+        if temp_board[row][col] == 0 {
+          temp_board[row][col] = player;
+          
+          ⍝ Winning move check
+          if check_win(&temp_board, row, col, player) {
+            score += 1000;
+          }
+          
+          ⍝ Blocking opponent
+          temp_board[row][col] = opponent;
+          if check_win(&temp_board, row, col, opponent) {
+            score += 500;
+          }
+          temp_board[row][col] = 0;
+          
+          ⍝ Center control heuristic
+          let center_dist = (3 - col as i32).abs();
+          score += (7 - center_dist) * 10;
+          
+          break;
+        }
+      }
+      
+      scores.push((col, score));
+    }
+    
+    scores.sort_by(|a, b| b.1.cmp(&a.1));
+    scores
+  }
+
+  fn ai_best_move_4ir(board: &Vec<Vec<i32>>, player: i32) -> usize {
+    let scored = ai_evaluate_position_4ir(board, player);
+    if scored.is_empty()

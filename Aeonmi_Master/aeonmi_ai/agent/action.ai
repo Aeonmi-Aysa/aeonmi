@@ -1,0 +1,96 @@
+⍝ action.ai — Action registry: named executable operations
+⍝ Registry = flat array, 4 fields per entry: [name_id, type_id, cost, enabled]
+⍝ enabled: 0=disabled  1=enabled
+⍝ Functions: 10 total, no imports
+
+◯ act_cheapest⟨reg⟩ {
+    ⍝ Name ID of cheapest enabled action (-1 if none)
+    let total = len(reg) / 4;
+    let best_name = -1;
+    let best_cost = -1;
+    let i = 0;
+    while (i < total) {
+        let en = reg.slice(i*4+3, i*4+4).pop();
+        let c  = reg.slice(i*4+2, i*4+3).pop();
+        if (en == 1) {
+            if (best_name == -1) {
+                best_name = reg.slice(i*4, i*4+1).pop();
+                best_cost = c;
+            } else {
+                if (c < best_cost) {
+                    best_cost = c;
+                    best_name = reg.slice(i*4, i*4+1).pop();
+                }
+            }
+        }
+        i = i + 1;
+    }
+    return best_name;
+}
+
+◯ act_count⟨reg⟩ {
+    return len(reg) / 4;
+}
+
+◯ act_cost⟨reg, idx⟩ {
+    return reg.slice(idx*4+2, idx*4+3).pop();
+}
+
+◯ act_disable⟨reg, idx⟩ {
+    let total = len(reg) / 4;
+    let result = [];
+    let i = 0;
+    while (i < total) {
+        let base = i * 4;
+        result.push(reg.slice(base, base+1).pop());
+        result.push(reg.slice(base+1, base+2).pop());
+        result.push(reg.slice(base+2, base+3).pop());
+        if (i == idx) { result.push(0); } else { result.push(reg.slice(base+3, base+4).pop()); }
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ act_enabled⟨reg, idx⟩ {
+    return reg.slice(idx*4+3, idx*4+4).pop();
+}
+
+◯ act_find⟨reg, name_id⟩ {
+    ⍝ Return index of action with name_id (-1 if not found)
+    let total = len(reg) / 4;
+    let i = 0;
+    while (i < total) {
+        let n = reg.slice(i*4, i*4+1).pop();
+        if (n == name_id) { return i; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+◯ act_name⟨reg, idx⟩ {
+    return reg.slice(idx*4, idx*4+1).pop();
+}
+
+◯ act_new⟨⟩ {
+    return [];
+}
+
+◯ act_register⟨reg, name_id, type_id, cost⟩ {
+    ⍝ Append new action (enabled by default)
+    let result = [];
+    let i = 0; let total = len(reg);
+    while (i < total) { result.push(reg.slice(i, i+1).pop()); i = i + 1; }
+    result.push(name_id);
+    result.push(type_id);
+    result.push(cost);
+    result.push(1);
+    return result;
+}
+
+◯ act_type⟨reg, idx⟩ {
+    return reg.slice(idx*4+1, idx*4+2).pop();
+}
+
+◯ main⟨⟩ {
+    print("action module loaded — new register count name type cost enabled find cheapest disable");
+}

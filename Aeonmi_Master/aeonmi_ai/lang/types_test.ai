@@ -1,0 +1,36 @@
+⍝ types_test.ai — Tests for lang/types.ai
+import { ty_nil, ty_bool, ty_int, ty_float, ty_array, ty_func, ty_qubit, ty_circuit, ty_agent, ty_is_numeric, ty_is_quantum } from "./types";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("nil=0",     ty_nil(),     0);
+    p = p + check("bool=1",    ty_bool(),    1);
+    p = p + check("int=2",     ty_int(),     2);
+    p = p + check("float=3",   ty_float(),   3);
+    p = p + check("array=5",   ty_array(),   5);
+    p = p + check("func=6",    ty_func(),    6);
+    p = p + check("qubit=7",   ty_qubit(),   7);
+    p = p + check("circuit=8", ty_circuit(), 8);
+    p = p + check("agent=9",   ty_agent(),   9);
+
+    p = p + check("is_numeric(int)=true",   ty_is_numeric(ty_int()),   true);
+    p = p + check("is_numeric(float)=true", ty_is_numeric(ty_float()), true);
+    p = p + check("is_numeric(bool)=false", ty_is_numeric(ty_bool()),  false);
+    p = p + check("is_numeric(array)=false",ty_is_numeric(ty_array()), false);
+
+    p = p + check("is_quantum(qubit)=true",   ty_is_quantum(ty_qubit()),   true);
+    p = p + check("is_quantum(circuit)=true", ty_is_quantum(ty_circuit()), true);
+    p = p + check("is_quantum(int)=false",    ty_is_quantum(ty_int()),     false);
+
+    print("types tests passed:", p, "/ 16");
+}

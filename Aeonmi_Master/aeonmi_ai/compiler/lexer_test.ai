@@ -1,0 +1,208 @@
+// =============================================================================
+// Aeonmi Lexer — test suite
+// Uses assert_eq: test passes if all assertions pass (exit 0), fails on throw.
+// =============================================================================
+
+import { tok, tokenize, keyword_kind, dump_tokens } from "./lexer";
+
+// ── Test 1: empty source ──────────────────────────────────────────────────────
+let t1 = tokenize("");
+assert_eq(len(t1), 1);
+assert_eq(t1[0]["kind"], "EOF");
+print("PASS:T01 empty source");
+
+// ── Test 2: whitespace only ───────────────────────────────────────────────────
+let t2 = tokenize("   \n\t  ");
+assert_eq(len(t2), 1);
+assert_eq(t2[0]["kind"], "EOF");
+print("PASS:T02 whitespace only");
+
+// ── Test 3: single-char operators ─────────────────────────────────────────────
+let t3 = tokenize("+ - * / = < > ! % ^ & | ( ) { } [ ] , ; . :");
+assert_eq(t3[0]["kind"], "Plus");
+assert_eq(t3[1]["kind"], "Minus");
+assert_eq(t3[2]["kind"], "Star");
+assert_eq(t3[3]["kind"], "Slash");
+assert_eq(t3[4]["kind"], "Equals");
+assert_eq(t3[5]["kind"], "LessThan");
+assert_eq(t3[6]["kind"], "GreaterThan");
+assert_eq(t3[7]["kind"], "Bang");
+assert_eq(t3[8]["kind"], "Percent");
+assert_eq(t3[9]["kind"], "Caret");
+assert_eq(t3[10]["kind"], "Ampersand");
+assert_eq(t3[11]["kind"], "Pipe");
+assert_eq(t3[12]["kind"], "OpenParen");
+assert_eq(t3[13]["kind"], "CloseParen");
+assert_eq(t3[14]["kind"], "OpenBrace");
+assert_eq(t3[15]["kind"], "CloseBrace");
+assert_eq(t3[16]["kind"], "OpenBracket");
+assert_eq(t3[17]["kind"], "CloseBracket");
+assert_eq(t3[18]["kind"], "Comma");
+assert_eq(t3[19]["kind"], "Semicolon");
+assert_eq(t3[20]["kind"], "Dot");
+assert_eq(t3[21]["kind"], "Colon");
+print("PASS:T03 single-char operators");
+
+// ── Test 4: two-char operators ────────────────────────────────────────────────
+let t4 = tokenize("== != <= >= := :: && || -> =>");
+assert_eq(t4[0]["kind"], "DoubleEquals");
+assert_eq(t4[1]["kind"], "NotEquals");
+assert_eq(t4[2]["kind"], "LessEqual");
+assert_eq(t4[3]["kind"], "GreaterEqual");
+assert_eq(t4[4]["kind"], "ColonEquals");
+assert_eq(t4[5]["kind"], "ColonColon");
+assert_eq(t4[6]["kind"], "AndAnd");
+assert_eq(t4[7]["kind"], "OrOr");
+assert_eq(t4[8]["kind"], "Arrow");
+assert_eq(t4[9]["kind"], "FatArrow");
+print("PASS:T04 two-char operators");
+
+// ── Test 5: number literals ───────────────────────────────────────────────────
+let t5 = tokenize("42 3.14 0 100");
+assert_eq(t5[0]["kind"],  "Number");
+assert_eq(t5[0]["value"], "42");
+assert_eq(t5[1]["kind"],  "Number");
+assert_eq(t5[1]["value"], "3.14");
+assert_eq(t5[2]["value"], "0");
+assert_eq(t5[3]["value"], "100");
+print("PASS:T05 number literals");
+
+// ── Test 6: string literals ───────────────────────────────────────────────────
+let t6 = tokenize("\"hello\" \"world\"");
+assert_eq(t6[0]["kind"],  "String");
+assert_eq(t6[0]["value"], "hello");
+assert_eq(t6[1]["kind"],  "String");
+assert_eq(t6[1]["value"], "world");
+print("PASS:T06 string literals");
+
+// ── Test 7: string escape sequences ──────────────────────────────────────────
+let t7 = tokenize("\"line1\\nline2\"");
+assert_eq(t7[0]["kind"], "String");
+let escaped_val = t7[0]["value"];
+// value should contain actual newline character
+assert_eq(contains(escaped_val, "\n"), true);
+print("PASS:T07 string escape newline");
+
+// ── Test 8: core keywords ──────────────────────────────────────────────────────
+let t8 = tokenize("let const function return if else while for in null true false");
+assert_eq(t8[0]["kind"],  "Let");
+assert_eq(t8[1]["kind"],  "Const");
+assert_eq(t8[2]["kind"],  "Function");
+assert_eq(t8[3]["kind"],  "Return");
+assert_eq(t8[4]["kind"],  "If");
+assert_eq(t8[5]["kind"],  "Else");
+assert_eq(t8[6]["kind"],  "While");
+assert_eq(t8[7]["kind"],  "For");
+assert_eq(t8[8]["kind"],  "In");
+assert_eq(t8[9]["kind"],  "Null");
+assert_eq(t8[10]["kind"], "True");
+assert_eq(t8[11]["kind"], "False");
+print("PASS:T08 core keywords");
+
+// ── Test 9: phase-1 keywords ──────────────────────────────────────────────────
+let t9 = tokenize("quantum import export from match class struct enum impl async await pub");
+assert_eq(t9[0]["kind"],  "Quantum");
+assert_eq(t9[1]["kind"],  "Import");
+assert_eq(t9[2]["kind"],  "Export");
+assert_eq(t9[3]["kind"],  "From");
+assert_eq(t9[4]["kind"],  "Match");
+assert_eq(t9[5]["kind"],  "Class");
+assert_eq(t9[6]["kind"],  "Struct");
+assert_eq(t9[7]["kind"],  "Enum");
+assert_eq(t9[8]["kind"],  "Impl");
+assert_eq(t9[9]["kind"],  "Async");
+assert_eq(t9[10]["kind"], "Await");
+assert_eq(t9[11]["kind"], "Pub");
+print("PASS:T09 phase-1 keywords");
+
+// ── Test 10: identifiers ──────────────────────────────────────────────────────
+let t10 = tokenize("foo bar baz _priv myVar count123");
+assert_eq(t10[0]["kind"],  "Ident");
+assert_eq(t10[0]["value"], "foo");
+assert_eq(t10[4]["kind"],  "Ident");
+assert_eq(t10[4]["value"], "myVar");
+assert_eq(t10[5]["kind"],  "Ident");
+assert_eq(t10[5]["value"], "count123");
+print("PASS:T10 identifiers");
+
+// ── Test 11: line comments are skipped ───────────────────────────────────────
+let t11 = tokenize("let x // this is a comment\n= 5");
+assert_eq(t11[0]["kind"], "Let");
+assert_eq(t11[1]["kind"], "Ident");
+assert_eq(t11[2]["kind"], "Equals");
+assert_eq(t11[3]["kind"], "Number");
+print("PASS:T11 line comments skipped");
+
+// ── Test 12: line tracking ───────────────────────────────────────────────────
+let t12 = tokenize("let\nx = 5");
+let tok_x = t12[1];
+assert_eq(tok_x["kind"], "Ident");
+assert_eq(tok_x["line"], 2);
+print("PASS:T12 line tracking");
+
+// ── Test 13: real .ai function snippet ────────────────────────────────────────
+let snippet = "function add(a, b) { return a + b; }";
+let t13 = tokenize(snippet);
+assert_eq(t13[0]["kind"],  "Function");
+assert_eq(t13[1]["kind"],  "Ident");
+assert_eq(t13[1]["value"], "add");
+assert_eq(t13[2]["kind"],  "OpenParen");
+assert_eq(t13[3]["kind"],  "Ident");
+assert_eq(t13[4]["kind"],  "Comma");
+assert_eq(t13[5]["kind"],  "Ident");
+assert_eq(t13[6]["kind"],  "CloseParen");
+assert_eq(t13[7]["kind"],  "OpenBrace");
+assert_eq(t13[8]["kind"],  "Return");
+assert_eq(t13[9]["kind"],  "Ident");
+assert_eq(t13[10]["kind"], "Plus");
+assert_eq(t13[11]["kind"], "Ident");
+assert_eq(t13[12]["kind"], "Semicolon");
+assert_eq(t13[13]["kind"], "CloseBrace");
+assert_eq(t13[14]["kind"], "EOF");
+print("PASS:T13 function snippet");
+
+// ── Test 14: number dot vs member access dot ──────────────────────────────────
+let t14 = tokenize("x.y 3.14");
+assert_eq(t14[0]["kind"],  "Ident");   // x
+assert_eq(t14[1]["kind"],  "Dot");     // .
+assert_eq(t14[2]["kind"],  "Ident");   // y
+assert_eq(t14[3]["kind"],  "Number");  // 3.14
+assert_eq(t14[3]["value"], "3.14");
+print("PASS:T14 dot disambiguation");
+
+// ── Test 15: EOF is last token ────────────────────────────────────────────────
+let t15 = tokenize("abc");
+assert_eq(t15[1]["kind"], "EOF");
+print("PASS:T15 EOF sentinel");
+
+// ── Test 16: let statement tokenizes correctly ─────────────────────────────────
+let t16 = tokenize("let x = 42;");
+assert_eq(t16[0]["kind"],  "Let");
+assert_eq(t16[1]["kind"],  "Ident");
+assert_eq(t16[1]["value"], "x");
+assert_eq(t16[2]["kind"],  "Equals");
+assert_eq(t16[3]["kind"],  "Number");
+assert_eq(t16[3]["value"], "42");
+assert_eq(t16[4]["kind"],  "Semicolon");
+assert_eq(t16[5]["kind"],  "EOF");
+print("PASS:T16 let statement");
+
+// ── Test 17: if/else condition ────────────────────────────────────────────────
+let t17 = tokenize("if (x == 5) { return true; } else { return false; }");
+assert_eq(t17[0]["kind"], "If");
+assert_eq(t17[2]["kind"], "Ident");
+assert_eq(t17[3]["kind"], "DoubleEquals");
+assert_eq(t17[4]["kind"], "Number");
+assert_eq(t17[8]["kind"], "True");
+assert_eq(t17[11]["kind"], "Else");
+assert_eq(t17[14]["kind"], "False");
+print("PASS:T17 if/else");
+
+// ── Test 18: token count for a simple program ─────────────────────────────────
+let t18 = tokenize("let a = 1; let b = 2; let c = a + b;");
+// let(1) a(2) =(3) 1(4) ;(5)  let(6) b(7) =(8) 2(9) ;(10)  let(11) c(12) =(13) a(14) +(15) b(16) ;(17)  EOF(18) = 18
+assert_eq(len(t18), 18);
+print("PASS:T18 token count");
+
+print("==============================");
+print("ALL LEXER TESTS PASSED");

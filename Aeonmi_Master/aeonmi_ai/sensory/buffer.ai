@@ -1,0 +1,42 @@
+⍝ buffer.ai — flat signal queue: [tag, payload, strength] * N
+⍝ 6 functions, no imports, FIFO
+
+◯ buf_advance⟨buf⟩ {
+    let n = len(buf) / 3;
+    if (n == 0) { return buf; }
+    let out = [];
+    let i = 1;
+    while (i < n) {
+        let base = i * 3;
+        out.push(buf.slice(base, base + 1).pop());
+        out.push(buf.slice(base + 1, base + 2).pop());
+        out.push(buf.slice(base + 2, base + 3).pop());
+        i = i + 1;
+    }
+    return out;
+}
+
+◯ buf_count⟨buf⟩ {
+    return len(buf) / 3;
+}
+
+◯ buf_new⟨⟩ {
+    return [];
+}
+
+◯ buf_peek_payload⟨buf⟩ {
+    if (len(buf) == 0) { return ""; }
+    return buf.slice(1, 2).pop();
+}
+
+◯ buf_peek_tag⟨buf⟩ {
+    if (len(buf) == 0) { return ""; }
+    return buf.slice(0, 1).pop();
+}
+
+◯ buf_push⟨buf, tag, payload, strength⟩ {
+    buf.push(tag);
+    buf.push(payload);
+    buf.push(strength);
+    return buf;
+}

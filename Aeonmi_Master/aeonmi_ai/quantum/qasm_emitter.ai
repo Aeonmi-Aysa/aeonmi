@@ -1,0 +1,81 @@
+⍝ qasm_emitter.ai — OpenQASM 2.0 string emitter
+⍝ Input: Qiskit bridge descriptor (same format as qiskit.ai)
+⍝   [n_qubits, n_cbits, shots, op_count, op0_type, op0_tgt, op0_ctrl, ...]
+⍝ Gate type IDs: 0=h 1=x 2=y 3=z 4=cx 5=s 6=t 7=measure
+⍝ Output: OpenQASM 2.0 string (Python runner prepends include "qelib1.inc")
+⍝ Functions: 8 + main = 9, no imports
+
+◯ a_gate_str⟨t⟩ {
+    let names = ["h","x","y","z","cx","s","t","measure"];
+    return names.slice(t, t + 1).pop();
+}
+
+◯ a_int_str⟨n⟩ {
+    let lut = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"];
+    return lut.slice(n, n + 1).pop();
+}
+
+◯ a_op_ctrl⟨desc, i⟩ {
+    return desc.slice(4 + i * 3 + 2, 4 + i * 3 + 3).pop();
+}
+
+◯ a_op_tgt⟨desc, i⟩ {
+    return desc.slice(4 + i * 3 + 1, 4 + i * 3 + 2).pop();
+}
+
+◯ a_op_type⟨desc, i⟩ {
+    return desc.slice(4 + i * 3, 4 + i * 3 + 1).pop();
+}
+
+◯ b_emit_op⟨desc, i⟩ {
+    let t    = a_op_type(desc, i);
+    let tgt  = a_op_tgt(desc, i);
+    let ctrl = a_op_ctrl(desc, i);
+    let name = a_gate_str(t);
+    let sq   = a_int_str(tgt);
+    let is_meas = 0;
+    if (t == 7) { is_meas = 1; }
+    if (is_meas == 1) {
+        let sc = a_int_str(ctrl);
+        return "measure q[" + sq + "] -> c[" + sc + "];
+";
+    }
+    let is_cx = 0;
+    if (t == 4) { is_cx = 1; }
+    if (is_cx == 1) {
+        let sc = a_int_str(ctrl);
+        return "cx q[" + sc + "],q[" + sq + "];
+";
+    }
+    return name + " q[" + sq + "];
+";
+}
+
+◯ c_emit_ops⟨desc, n_ops⟩ {
+    let out = "";
+    let i   = 0;
+    while (i < n_ops) {
+        out = out + b_emit_op(desc, i);
+        i   = i + 1;
+    }
+    return out;
+}
+
+◯ qasm_emit⟨desc⟩ {
+    let nq   = a_int_str(desc.slice(0, 1).pop());
+    let nc   = a_int_str(desc.slice(1, 2).pop());
+    let nops = desc.slice(3, 4).pop();
+    let hdr  = "OPENQASM 2.0;
+qreg q[" + nq + "];
+creg c[" + nc + "];
+";
+    let body = c_emit_ops(desc, nops);
+    return hdr + body;
+}
+
+◯ main⟨⟩ {
+    ⍝ Bell circuit: [nq=2, nc=2, shots=1024, ops=4, H(0), CX(0,1), M(0,0), M(1,1)]
+    let desc = [2, 2, 1024, 4, 0, 0, -1, 4, 1, 0, 7, 0, 0, 7, 1, 1];
+    let qasm = qasm_emit(desc);
+    print(qasm);
+}

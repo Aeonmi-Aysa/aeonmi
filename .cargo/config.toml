@@ -1,0 +1,11 @@
+[build]
+# This project's build output stays in its own target/ — never shared with aeonmi01
+target-dir = "target"
+
+[env]
+# force = true overrides the system-level CARGO_TARGET_DIR env var
+# so this project never collides with Aeonmi-aeonmi01's C:\RustTarget
+CARGO_TARGET_DIR = { value = "target", relative = true, force = true }
+
+# Tells Rust exactly which Python to use
+PYO3_PYTHON = "python"

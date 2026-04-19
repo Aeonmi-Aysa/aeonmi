@@ -1,0 +1,130 @@
+﻿⍝ encode.ai — Serialize flat data arrays into versioned, typed buffers
+⍝ Buffer format: [magic, version, type_id, data_len, checksum, d0, d1, ...]
+⍝ magic = 42, header = 5 elements
+⍝ type_id: 0=raw 1=agent 2=map 3=graph 4=circuit 5=swarm
+⍝ Functions: 11 total, no imports
+
+◯ a_enc_sum⟨arr, start, stop⟩ {
+    ⍝ Sum elements from start (inclusive) to stop (exclusive)
+    let s = 0;
+    let i = start;
+    while (i < stop) {
+        s = s + arr.slice(i, i + 1).pop();
+        i = i + 1;
+    }
+    return s;
+}
+
+◯ enc_checksum⟨data⟩ {
+    ⍝ Simple sum checksum over all data elements
+    return a_enc_sum(data, 0, len(data));
+}
+
+◯ enc_concat⟨buf1, buf2⟩ {
+    ⍝ Concatenate two encoded buffers into a flat stream
+    let result = [];
+    let n1 = len(buf1);
+    let i = 0;
+    while (i < n1) {
+        result.push(buf1.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    let n2 = len(buf2);
+    i = 0;
+    while (i < n2) {
+        result.push(buf2.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ enc_data_at⟨buf, i⟩ {
+    ⍝ Get i-th data element (past 5-element header)
+    return buf.slice(5 + i, 6 + i).pop();
+}
+
+◯ enc_data_len⟨buf⟩ {
+    ⍝ Number of data elements (from header)
+    return buf.slice(3, 4).pop();
+}
+
+◯ enc_is_valid⟨buf⟩ {
+    ⍝ 1 if magic == 42 and checksum matches, 0 otherwise
+    let magic = buf.slice(0, 1).pop();
+    if (magic != 42) { return 0; }
+    let stored_cs = buf.slice(4, 5).pop();
+    let data_len  = enc_data_len(buf);
+    let computed  = enc_checksum(buf);
+    let header_sum = a_enc_sum(buf, 0, 5) - stored_cs;
+    let data_sum   = a_enc_sum(buf, 5, 5 + data_len);
+    if (stored_cs == data_sum) { return 1; }
+    return 0;
+}
+
+◯ enc_make⟨version, type_id, data⟩ {
+    ⍝ Build encoded buffer: [42, version, type_id, data_len, checksum, ...data]
+    let dl = len(data);
+    let cs = enc_checksum(data);
+    let result = [42, version, type_id, dl, cs];
+    let i = 0;
+    while (i < dl) {
+        result.push(data.slice(i, i + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ enc_type⟨buf⟩ {
+    return buf.slice(2, 3).pop();
+}
+
+◯ enc_unpack⟨buf⟩ {
+    ⍝ Extract data portion as flat array
+    let dl = enc_data_len(buf);
+    let result = [];
+    let i = 0;
+    while (i < dl) {
+        result.push(buf.slice(5 + i, 6 + i).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ enc_update⟨buf, i, val⟩ {
+    ⍝ Return new buffer with data element i replaced by val
+    let n = len(buf);
+    let result = [];
+    let j = 0;
+    while (j < n) {
+        if (j == 5 + i) {
+            result.push(val);
+        } else {
+            result.push(buf.slice(j, j + 1).pop());
+        }
+        j = j + 1;
+    }
+    ⍝ Recompute checksum: data starts at index 5
+    let dl = enc_data_len(result);
+    let new_cs = a_enc_sum(result, 5, 5 + dl);
+    let fixed = [];
+    let k = 0;
+    while (k < n) {
+        if (k == 4) {
+            fixed.push(new_cs);
+        } else {
+            fixed.push(result.slice(k, k + 1).pop());
+        }
+        k = k + 1;
+    }
+    return fixed;
+}
+
+◯ enc_version⟨buf⟩ {
+    return buf.slice(1, 2).pop();
+}
+
+◯ main⟨⟩ {
+    let data = [10, 20, 30, 40];
+    let buf = enc_make(1, 0, data);
+    print("encode module loaded — type:", enc_type(buf), "valid:", enc_is_valid(buf), "data_len:", enc_data_len(buf));
+}

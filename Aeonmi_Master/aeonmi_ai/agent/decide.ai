@@ -1,0 +1,71 @@
+⍝ decide.ai — Decision engine: scoring, thresholds, confidence
+⍝ Pure logic — no imports, no state mutation
+⍝ Functions: 10 total
+
+◯ dec_choose⟨a, b, score_a, score_b⟩ {
+    ⍝ Return whichever of a/b has higher score
+    if (score_a >= score_b) { return a; }
+    return b;
+}
+
+◯ dec_confidence⟨hits, total⟩ {
+    ⍝ Confidence as integer percentage (0–100), 0 if total=0
+    if (total == 0) { return 0; }
+    return hits * 100 / total;
+}
+
+◯ dec_is_urgent⟨priority, threshold⟩ {
+    ⍝ True if priority exceeds urgency threshold
+    if (priority > threshold) { return true; }
+    return false;
+}
+
+◯ dec_majority⟨yes, no⟩ {
+    ⍝ True if yes votes outnumber no votes
+    if (yes > no) { return true; }
+    return false;
+}
+
+◯ dec_max_score⟨s1, s2, s3⟩ {
+    ⍝ Highest of three scores
+    let m = s1;
+    if (s2 > m) { m = s2; }
+    if (s3 > m) { m = s3; }
+    return m;
+}
+
+◯ dec_normalize⟨val, lo, hi⟩ {
+    ⍝ Map val from [lo,hi] to [0,100] integer
+    if (hi == lo) { return 0; }
+    let range = hi - lo;
+    let offset = val - lo;
+    return offset * 100 / range;
+}
+
+◯ dec_prioritize⟨base_priority, urgency_bonus⟩ {
+    ⍝ Effective priority combining base and urgency bonus
+    return base_priority + urgency_bonus;
+}
+
+◯ dec_should_act⟨pending_count, action_count⟩ {
+    ⍝ Should the agent act: true if there are pending goals and available actions
+    if (pending_count > 0) {
+        if (action_count > 0) { return true; }
+    }
+    return false;
+}
+
+◯ dec_threshold⟨val, thresh⟩ {
+    ⍝ 1 if val >= thresh, 0 otherwise
+    if (val >= thresh) { return 1; }
+    return 0;
+}
+
+◯ dec_weight⟨score, weight⟩ {
+    ⍝ Weighted score
+    return score * weight;
+}
+
+◯ main⟨⟩ {
+    print("decide module loaded — choose confidence is_urgent majority max_score normalize prioritize should_act threshold weight");
+}

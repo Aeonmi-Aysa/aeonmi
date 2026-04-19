@@ -1,0 +1,59 @@
+﻿⍝ encode_test.ai — Tests for store/encode.ai
+import { a_enc_sum, enc_checksum, enc_concat, enc_data_at, enc_data_len, enc_is_valid, enc_make, enc_type, enc_unpack, enc_update, enc_version } from "./encode";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got=", got, "expected=", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ enc_checksum / a_enc_sum
+    let data = [10, 20, 30, 40];
+    p = p + check("checksum=100", enc_checksum(data), 100);
+    p = p + check("sum(0,2)=30", a_enc_sum(data, 0, 2), 30);
+    p = p + check("sum(1,3)=50", a_enc_sum(data, 1, 3), 50);
+
+    ⍝ enc_make
+    let buf = enc_make(1, 3, data);
+    p = p + check("magic=42", buf.slice(0,1).pop(), 42);
+    p = p + check("version=1", enc_version(buf), 1);
+    p = p + check("type=3", enc_type(buf), 3);
+    p = p + check("data_len=4", enc_data_len(buf), 4);
+
+    ⍝ enc_is_valid
+    p = p + check("is_valid=1", enc_is_valid(buf), 1);
+
+    ⍝ enc_data_at
+    p = p + check("data_at(0)=10", enc_data_at(buf, 0), 10);
+    p = p + check("data_at(3)=40", enc_data_at(buf, 3), 40);
+
+    ⍝ enc_unpack
+    let unpacked = enc_unpack(buf);
+    p = p + check("unpack len=4", len(unpacked), 4);
+    p = p + check("unpack[1]=20", unpacked.slice(1, 2).pop(), 20);
+
+    ⍝ enc_update
+    let buf2 = enc_update(buf, 1, 99);
+    p = p + check("update data_at(1)=99", enc_data_at(buf2, 1), 99);
+    p = p + check("update still valid", enc_is_valid(buf2), 1);
+    p = p + check("original unchanged", enc_data_at(buf, 1), 20);
+
+    ⍝ enc_concat
+    let buf3 = enc_make(1, 1, [1, 2]);
+    let stream = enc_concat(buf, buf3);
+    p = p + check("concat len=9+7", len(stream), 16);
+
+    ⍝ different type_id
+    let buf4 = enc_make(2, 5, [100]);
+    p = p + check("type_id=5", enc_type(buf4), 5);
+    p = p + check("version=2", enc_version(buf4), 2);
+    p = p + check("data_len=1", enc_data_len(buf4), 1);
+
+    print("encode tests passed:", p, "/ 20");
+}

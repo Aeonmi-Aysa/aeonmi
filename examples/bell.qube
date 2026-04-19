@@ -1,0 +1,16 @@
+∴ Bell state circuit: creates maximal entanglement between two qubits
+
+state q0 = |0⟩
+state q1 = |0⟩
+
+apply H -> q0
+apply CNOT(q0, q1)
+
+collapse q0 -> r0
+collapse q1 -> r1
+
+∵ Bell state: both qubits always collapse to the same value
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+log(r0)
+log(r1)

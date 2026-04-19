@@ -1,0 +1,40 @@
+⍝ rules_test.ai
+
+import { rule_new, rule_register, rule_total_count, rule_enabled_count, rule_enable, rule_disable, rule_find_cond_name, rule_find_action_name } from "./rules";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let r = rule_new();
+    let p = 0;
+
+    p = p + check("new is empty", rule_total_count(r), 0);
+    p = p + check("enabled count empty", rule_enabled_count(r), 0);
+
+    r = rule_register(r, "on_boot",  "cond_always", "act_log",    10);
+    r = rule_register(r, "on_learn", "cond_learn",  "act_store",  5);
+    r = rule_register(r, "on_decay", "cond_weak",   "act_forget", 1);
+
+    p = p + check("total after 3", rule_total_count(r), 3);
+    p = p + check("enabled after 3", rule_enabled_count(r), 3);
+
+    p = p + check("cond name", rule_find_cond_name(r, "on_boot"), "cond_always");
+    p = p + check("action name", rule_find_action_name(r, "on_boot"), "act_log");
+
+    p = p + check("find missing cond", rule_find_cond_name(r, "nope"), "none");
+
+    r = rule_disable(r, "on_decay");
+    p = p + check("enabled after disable", rule_enabled_count(r), 2);
+
+    r = rule_enable(r, "on_decay");
+    p = p + check("enabled after re-enable", rule_enabled_count(r), 3);
+
+    print("rules tests passed:", p, "/ 9");
+}

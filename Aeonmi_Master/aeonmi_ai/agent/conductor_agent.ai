@@ -1,0 +1,74 @@
+⍝ conductor_agent.ai — Conductor: synthesizes agent hive → final recommendation
+⍝ Input: oracle_sc (0..100), hype_sc (0..100), close_sc (0..100), risk_sc (0..100)
+⍝ Recs: 0=abort  1=hold  2=proceed  3=accelerate
+⍝ Functions: 8 + main = 9, no imports
+
+◯ con_abort⟨risk_sc⟩ {
+    ⍝ Abort if risk dominates
+    if (risk_sc >= 80) { return 1; }
+    return 0;
+}
+
+◯ con_accelerate⟨oracle_sc, hype_sc, close_sc, risk_sc⟩ {
+    ⍝ Accelerate if all green signals and low risk
+    if (oracle_sc >= 70) {
+        if (hype_sc >= 70) {
+            if (close_sc >= 70) {
+                if (risk_sc < 30) { return 1; }
+            }
+        }
+    }
+    return 0;
+}
+
+◯ con_confidence⟨oracle_sc, hype_sc, close_sc, risk_sc⟩ {
+    ⍝ Hive consensus confidence 0..100
+    let signal = oracle_sc * 25 / 100 + hype_sc * 25 / 100 + close_sc * 25 / 100;
+    let risk_pen = risk_sc * 25 / 100;
+    let conf = signal - risk_pen;
+    if (conf < 0) { conf = 0; }
+    return conf;
+}
+
+◯ con_consensus⟨oracle_sc, hype_sc, close_sc⟩ {
+    ⍝ Signal consensus (excluding risk) 0..100
+    return oracle_sc * 33 / 100 + hype_sc * 33 / 100 + close_sc * 34 / 100;
+}
+
+◯ con_hold⟨oracle_sc, hype_sc, close_sc⟩ {
+    ⍝ Hold if consensus is weak
+    let cs = con_consensus(oracle_sc, hype_sc, close_sc);
+    if (cs < 50) { return 1; }
+    return 0;
+}
+
+◯ con_proceed⟨oracle_sc, hype_sc, close_sc, risk_sc⟩ {
+    ⍝ Proceed if consensus >= 50 and risk < 60
+    let cs = con_consensus(oracle_sc, hype_sc, close_sc);
+    if (cs >= 50) {
+        if (risk_sc < 60) { return 1; }
+    }
+    return 0;
+}
+
+◯ con_rec⟨oracle_sc, hype_sc, close_sc, risk_sc⟩ {
+    ⍝ Final recommendation: 0=abort 1=hold 2=proceed 3=accelerate
+    let ab = con_abort(risk_sc);
+    if (ab == 1) { return 0; }
+    let acc = con_accelerate(oracle_sc, hype_sc, close_sc, risk_sc);
+    if (acc == 1) { return 3; }
+    let pr = con_proceed(oracle_sc, hype_sc, close_sc, risk_sc);
+    if (pr == 1) { return 2; }
+    return 1;
+}
+
+◯ con_weighted⟨oracle_sc, hype_sc, close_sc, risk_sc⟩ {
+    ⍝ Weighted composite score
+    return oracle_sc * 30 / 100 + hype_sc * 25 / 100 + close_sc * 25 / 100 + (100 - risk_sc) * 20 / 100;
+}
+
+◯ main⟨⟩ {
+    let rec  = con_rec(75, 80, 72, 20);
+    let conf = con_confidence(75, 80, 72, 20);
+    print("conductor: rec=", rec, "(3=accelerate) conf=", conf);
+}

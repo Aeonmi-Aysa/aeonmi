@@ -1,0 +1,35 @@
+⍝ devil_agent_test.ai
+⍝ Total fns: 9 (devil) + check + main = 11
+import { dev_block, dev_critical, dev_exposure_adj, dev_mitigated_score, dev_risk_level, dev_threshold, dev_unacceptable, dev_veto } from "./devil_agent";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "got=", got, "want=", want);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    p = p + check("risk_level low",      dev_risk_level(20), 0);
+    p = p + check("risk_level medium",   dev_risk_level(45), 1);
+    p = p + check("risk_level high",     dev_risk_level(65), 2);
+    p = p + check("risk_level critical", dev_risk_level(85), 3);
+    p = p + check("critical yes",  dev_critical(90), 1);
+    p = p + check("critical no",   dev_critical(70), 0);
+    p = p + check("block critical",  dev_block(90, 50), 1);
+    p = p + check("block exposure",  dev_block(70, 90), 1);
+    p = p + check("block no",        dev_block(50, 60), 0);
+    p = p + check("exposure_adj 0%",   dev_exposure_adj(80, 0),   80);
+    p = p + check("exposure_adj 50%",  dev_exposure_adj(80, 50),  40);
+    p = p + check("exposure_adj 100%", dev_exposure_adj(80, 100), 0);
+    p = p + check("mitigated 0%",   dev_mitigated_score(80, 0),   80);
+    p = p + check("mitigated 50%",  dev_mitigated_score(80, 50),  40);
+    p = p + check("threshold yes",  dev_threshold(60, 50), 1);
+    p = p + check("threshold no",   dev_threshold(40, 50), 0);
+    p = p + check("veto yes",  dev_veto(85, 70, 10), 1);
+    p = p + check("veto no",   dev_veto(40, 30, 50), 0);
+
+    print("devil_agent tests passed:", p, "/ 18");
+    print("=== PASS ===");
+}

@@ -1,0 +1,20 @@
+// Aeonmi Hybrid Interactive Showcase
+// This sample demonstrates Aeonmi syntax executed by the hybrid host.
+
+log("=== Aeonmi Hybrid Showcase ===");
+let welcome = "Greetings from the Aeonmi language runtime!";
+log(welcome);
+
+let qubits = 3;
+log("Example qubit count:");
+log(qubits);
+
+function double(value) {
+    return value + value;
+}
+
+let doubled = double(qubits);
+log("When we double the qubits we obtain:");
+log(doubled);
+
+log("Thanks for exploring the Aeonmi hybrid pipeline.");

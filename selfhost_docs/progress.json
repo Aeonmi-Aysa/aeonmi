@@ -1,0 +1,126 @@
+{
+  "project": "Aeonmi-aeonmi02-selfhost",
+  "started": "2026-04-05",
+  "last_updated": "2026-04-07",
+  "phase": "Section 1 — HOST: Builtins",
+  "self_hosting_percent": 10,
+
+  "milestones": [
+    {
+      "id": "baseline_build",
+      "name": "Baseline Build",
+      "status": "complete",
+      "date": "2026-04-05",
+      "notes": "All binaries built: Aeonmi.exe, MotherAI.exe, aeonmi_project.exe. 226 warnings, 0 errors."
+    },
+    {
+      "id": "runtime_verification",
+      "name": "Runtime Verification",
+      "status": "complete",
+      "date": "2026-04-05",
+      "notes": "shard/main.ai: 6/6 PASS. hello.ai: runs correctly."
+    },
+    {
+      "id": "selfhost_docs",
+      "name": "selfhost_docs/ scaffold",
+      "status": "complete",
+      "date": "2026-04-05",
+      "notes": "dependency_map.md, host_interface.md, port_decisions.md, SELFHOST_BOUNDARY.md, progress.json created."
+    },
+    {
+      "id": "ai_test_baseline",
+      "name": ".ai Test Suite Baseline",
+      "status": "complete",
+      "date": "2026-04-05",
+      "notes": "74 tests run. 50 PASS, 24 FAIL at baseline. See ai_test_baseline.md."
+    },
+    {
+      "id": "host_fs_builtins",
+      "name": "HOST: File System Builtins",
+      "status": "complete",
+      "date": "2026-04-07",
+      "notes": "list_dir, delete_file, make_dir added. read_file/write_file/file_exists/append_file already existed. All tested 8/8 PASS."
+    },
+    {
+      "id": "host_exec_builtins",
+      "name": "HOST: Exec Builtins",
+      "status": "complete",
+      "date": "2026-04-07",
+      "notes": "shell_exec (returns {stdout,stderr,exit_code}), run_ai (child interpreter), get_env, set_env added. All tested PASS."
+    },
+    {
+      "id": "port_lexer",
+      "name": "Port Lexer to .ai",
+      "status": "pending",
+      "date": null,
+      "notes": "lexer.rs → Aeonmi_Master/aeonmi_ai/compiler/lexer.ai"
+    },
+    {
+      "id": "port_parser",
+      "name": "Port Parser to .ai",
+      "status": "pending",
+      "date": null,
+      "notes": "parser.rs → Aeonmi_Master/aeonmi_ai/compiler/parser.ai"
+    },
+    {
+      "id": "port_compiler",
+      "name": "Port Compiler to .ai",
+      "status": "pending",
+      "date": null,
+      "notes": "compiler.rs → Aeonmi_Master/aeonmi_ai/compiler/main.ai"
+    },
+    {
+      "id": "self_hosting_achieved",
+      "name": "SELF-HOSTING ACHIEVED",
+      "status": "pending",
+      "date": null,
+      "notes": ".ai compiler produces same bytecode as Rust compiler for all test cases"
+    },
+    {
+      "id": "port_mother_loop",
+      "name": "Port Mother Cognitive Loop to .ai",
+      "status": "pending",
+      "date": null,
+      "notes": "embryo_loop.rs + emotional_core.rs + inner_voice.rs → .ai"
+    },
+    {
+      "id": "port_ai_providers",
+      "name": "Port AI Provider Calls to .ai",
+      "status": "pending",
+      "date": null,
+      "notes": "src/ai/*.rs → .ai using HOST:http_post"
+    },
+    {
+      "id": "eliminate_python",
+      "name": "Eliminate Python Runtime",
+      "status": "pending",
+      "date": null,
+      "notes": "Replace dashboard.py with .ai HTTP server"
+    }
+  ],
+
+  "build": {
+    "last_build_date": "2026-04-05",
+    "binaries": {
+      "Aeonmi.exe": { "status": "ok", "size_bytes": 7660544 },
+      "MotherAI.exe": { "status": "ok", "size_bytes": 1555968 },
+      "aeonmi_project.exe": { "status": "ok", "size_bytes": 7660544 }
+    },
+    "warnings": 226,
+    "errors": 0,
+    "cargo_target_dir": "target (relative, force=true)"
+  },
+
+  "runtime_tests": {
+    "last_run": "2026-04-05",
+    "shard_main_ai": { "result": "6/6 PASS" },
+    "hello_ai": { "result": "ok" },
+    "full_suite": { "total": 74, "pass": 50, "fail": 24, "pass_rate": "67.6%" }
+  },
+
+  "boundaries": {
+    "rust_vm_modifications": "HOST: builtins only — no logic changes",
+    "aeonmi01_modifications": "NONE — reference implementation is read-only",
+    "python_new_dependencies": []
+  }
+}

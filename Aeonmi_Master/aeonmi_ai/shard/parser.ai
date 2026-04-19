@@ -1,0 +1,157 @@
+⍝ parser.ai — Aeonmi self-hosted parser v0.2
+⍝ Standalone: no imports. Token stream from lexer.ai.
+⍝ State: [pos, err]  pos=token index into flat tok array, err=0|1
+⍝ All parse fns return [new_state, nodes_array]
+⍝ Tiered prefix naming (alphabetical capture rule):
+⍝   a_* — base helpers (token access, node push)
+⍝   b_* — primary parser (calls a_*)
+⍝   c_* — comparison + expression parsers (calls b_*, a_*)
+⍝   d_* — statement parsers (calls c_*, b_*, a_*)
+⍝   par_* — public API (calls d_*)
+⍝ Grammar:
+⍝   stmts → stmt* EOF
+⍝   stmt  → 'let' IDENT '=' expr ';'  |  'return' expr ';'  |  expr ';'
+⍝   expr  → cmp (('+'|'-') cmp)?
+⍝   cmp   → primary (cmp_op primary)?
+⍝   primary → NUMBER | STRING | IDENT
+⍝ Functions: 12
+
+◯ a_adv⟨st⟩ {
+    let p = st.slice(0, 1).pop();
+    let e = st.slice(1, 2).pop();
+    return [p + 1, e];
+}
+
+◯ a_gs⟨src, tok, pos⟩ {
+    let ts = tok.slice(pos * 3 + 1, pos * 3 + 2).pop();
+    let tl = tok.slice(pos * 3 + 2, pos * 3 + 3).pop();
+    return substr(src, ts, tl);
+}
+
+◯ a_gt⟨tok, pos⟩ {
+    return tok.slice(pos * 3, pos * 3 + 1).pop();
+}
+
+◯ a_nd⟨nd, t, f0, f1, f2⟩ {
+    nd.push(t);
+    nd.push(f0);
+    nd.push(f1);
+    nd.push(f2);
+    return nd;
+}
+
+◯ b_prim⟨src, tok, st, nd⟩ {
+    let pos = st.slice(0, 1).pop();
+    let tt  = a_gt(tok, pos);
+    let nst = [pos + 1, 0];
+    if (tt == 1) {
+        let val = a_gs(src, tok, pos);
+        return [nst, a_nd(nd, 1, val, 0, 0)];
+    }
+    if (tt == 2) {
+        let val = a_gs(src, tok, pos);
+        return [nst, a_nd(nd, 2, val, 0, 0)];
+    }
+    if (tt == 3) {
+        let name = a_gs(src, tok, pos);
+        return [nst, a_nd(nd, 3, name, 0, 0)];
+    }
+    if (tt == 11) { return [nst, a_nd(nd, 1, 1, 0, 0)]; }
+    if (tt == 12) { return [nst, a_nd(nd, 1, 0, 0, 0)]; }
+    return [[pos, 1], a_nd(nd, 1, 0, 0, 0)];
+}
+
+◯ c_cmp⟨src, tok, st, nd⟩ {
+    let lr  = b_prim(src, tok, st, nd);
+    let lst = lr.slice(0, 1).pop();
+    let lnd = lr.slice(1, 2).pop();
+    let lp  = lst.slice(0, 1).pop();
+    let op  = a_gt(tok, lp);
+    let is_cmp = false;
+    if (op == 24) { is_cmp = true; }
+    if (op == 25) { is_cmp = true; }
+    if (op == 26) { is_cmp = true; }
+    if (op == 27) { is_cmp = true; }
+    if (op == 28) { is_cmp = true; }
+    if (op == 29) { is_cmp = true; }
+    if (!is_cmp) { return lr; }
+    let rr  = b_prim(src, tok, [lp + 1, 0], lnd);
+    let rst = rr.slice(0, 1).pop();
+    let rnd = rr.slice(1, 2).pop();
+    let li  = len(lnd) / 4 - 1;
+    let ri  = len(rnd) / 4 - 1;
+    return [rst, a_nd(rnd, 4, op, li, ri)];
+}
+
+◯ c_expr⟨src, tok, st, nd⟩ {
+    let lr  = c_cmp(src, tok, st, nd);
+    let lst = lr.slice(0, 1).pop();
+    let lnd = lr.slice(1, 2).pop();
+    let lp  = lst.slice(0, 1).pop();
+    let op  = a_gt(tok, lp);
+    let is_add = false;
+    if (op == 20) { is_add = true; }
+    if (op == 21) { is_add = true; }
+    if (!is_add) { return lr; }
+    let rr  = c_cmp(src, tok, [lp + 1, 0], lnd);
+    let rst = rr.slice(0, 1).pop();
+    let rnd = rr.slice(1, 2).pop();
+    let li  = len(lnd) / 4 - 1;
+    let ri  = len(rnd) / 4 - 1;
+    return [rst, a_nd(rnd, 4, op, li, ri)];
+}
+
+◯ d_stmt⟨src, tok, st, nd⟩ {
+    let pos = st.slice(0, 1).pop();
+    let tt  = a_gt(tok, pos);
+    if (tt == 8) {
+        let er  = c_expr(src, tok, [pos + 1, 0], nd);
+        let est = er.slice(0, 1).pop();
+        let end = er.slice(1, 2).pop();
+        let ei  = len(end) / 4 - 1;
+        let ep  = est.slice(0, 1).pop();
+        return [[ep + 1, 0], a_nd(end, 10, ei, 0, 0)];
+    }
+    if (tt == 4) {
+        let name = a_gs(src, tok, pos + 1);
+        let er   = c_expr(src, tok, [pos + 3, 0], nd);
+        let est  = er.slice(0, 1).pop();
+        let end  = er.slice(1, 2).pop();
+        let ei   = len(end) / 4 - 1;
+        let ep   = est.slice(0, 1).pop();
+        return [[ep + 1, 0], a_nd(end, 6, name, ei, 0)];
+    }
+    let er  = c_expr(src, tok, st, nd);
+    let est = er.slice(0, 1).pop();
+    let end = er.slice(1, 2).pop();
+    let ep  = est.slice(0, 1).pop();
+    return [[ep + 1, 0], end];
+}
+
+◯ d_stmts⟨src, tok, st, nd⟩ {
+    let cst = st;
+    let cnd = nd;
+    let cp  = cst.slice(0, 1).pop();
+    let tt  = a_gt(tok, cp);
+    while (tt != 99) {
+        let r  = d_stmt(src, tok, cst, cnd);
+        cst    = r.slice(0, 1).pop();
+        cnd    = r.slice(1, 2).pop();
+        cp     = cst.slice(0, 1).pop();
+        tt     = a_gt(tok, cp);
+    }
+    return [cst, cnd];
+}
+
+◯ par_node_f0⟨nd, idx⟩ {
+    return nd.slice(idx * 4 + 1, idx * 4 + 2).pop();
+}
+
+◯ par_node_type⟨nd, idx⟩ {
+    return nd.slice(idx * 4, idx * 4 + 1).pop();
+}
+
+◯ par_parse⟨src, tok⟩ {
+    let r = d_stmts(src, tok, [0, 0], []);
+    return r.slice(1, 2).pop();
+}

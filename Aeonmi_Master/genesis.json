@@ -1,0 +1,55 @@
+{
+  "interaction_count": 8,
+  "key_facts": [],
+  "action_summary": [
+    "agent:oracle",
+    "agent:hype"
+  ],
+  "last_updated": "16:45:24",
+  "_schema_version": "5.0",
+  "_last_writer": "python",
+  "_last_updated": "2026-04-18T15:40:19.640190Z",
+  "ai_memory": {
+    "layer_ok": true,
+    "probe_ok": true,
+    "memory_active": true,
+    "journal_active": true,
+    "rules_active": true,
+    "memory_count": 0,
+    "journal_count": 0,
+    "memory_keys": [],
+    "journal_entries": [],
+    "cognitive_seeded_keys": [],
+    "cognitive_learned_count": 0,
+    "probe_output": "",
+    "last_sync": "2026-04-06T10:25:46.036040+00:00"
+  },
+  "cognitive": {
+    "interaction_count": 0,
+    "generation": 0,
+    "consciousness_depth": 0.0,
+    "bond_strength": 0.0,
+    "evolved_weights": null,
+    "glyph_state": {},
+    "generated": [
+      {
+        "name": "name:_quantum_sudoku_solver",
+        "goal": "Create a quantum-accelerated Sudoku solver using Aeonmi. reason: Sudoku is a classic constraint satisfaction problem that can benefit from quantum algorithms. Implementing this in Aeonmi will demonstrate how the language can be used to solve complex problems.",
+        "path": "C:\\Users\\wlwil\\Desktop\\Aeonmi Files\\Aeonmi-aeonmi02-selfhost\\Aeonmi_Master\\aeonmi_ai\\generated\\name:_quantum_sudoku_solver.ai",
+        "outcome": "ERROR",
+        "output": "\u001b]0;Aeonmi Shard\u0007error: Parsing error: Unexpected token CloseParen",
+        "reflection": "The error message indicates that the Aeonmi language still does not recognize the `fn` syntax for defining a function. It seems I need to use a different approach to define a valid Aeonmi program.",
+        "timestamp": "2026-04-18T16:51:49.876444Z"
+      }
+    ]
+  },
+  "operational": {
+    "dashboard_interaction_count": 2,
+    "key_facts": [],
+    "action_summary": [],
+    "last_session_ts": "15:40:19"
+  },
+  "learned": {
+    "reflect_name:_quantum_sudoku_solver": "The error message indicates that the Aeonmi language still does not recognize the `fn` syntax for defining a function. It seems I need to use a different approach to define a valid Aeonmi program."
+  }
+}

@@ -1,0 +1,266 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/mgks.ai
+// Layer: Main Entry Point + QUBE Syntax Interface
+// Depends on: All mgks/* modules
+// ============================================================
+// This is the top-level module. Import this file to bring
+// the entire MGKS system into scope.
+//
+// Usage from other Aeonmi files:
+//   ↦ mgks::mgks
+//
+// QUBE syntax extensions available after this import:
+//   glyph <name> : <genesis_template> { ... }
+//   bind <glyph_a> <BindingType> <glyph_b> weight=<f32>
+//   recall { intent: "...", ... }
+//   collapse <glyph_name> observed_by: <AgentId>
+//   entangle <glyph_a> <~> <glyph_b> correlation=<f32>
+// ============================================================
+
+⊗ mgks::mgks
+↦ mgks::types
+↦ mgks::glyph
+↦ mgks::genesis
+↦ mgks::memory
+↦ mgks::retrieval
+↦ mgks::hive
+
+// ── MGKS Runtime ─────────────────────────────────────────────
+// Top-level runtime state. One per Aeonmi process.
+// Initialized once and passed through the executive loop.
+
+struct MgksRuntime {
+    hive:         ⟨Hive⟩,
+    genesis_reg:  ⟨GenesisRegistry⟩,
+    initialized:  ⟨bool⟩,
+    session_id:   ⟨SessionId⟩,
+}
+
+fn mgks_init(base_path: ⟨str⟩, t3_db_url: ⟨str⟩) -> ⟨MgksRuntime⟩ {
+    let session = ↦uuid_v4()
+    let hive    = hive_new(base_path, t3_db_url)
+    let reg     = genesis_default_registry()
+
+    MgksRuntime {
+        hive:        hive,
+        genesis_reg: reg,
+        initialized: true,
+        session_id:  session,
+    }
+}
+
+// ── QUBE Syntax Interface ─────────────────────────────────────
+// These functions implement the QUBE keyword extensions
+// defined in the MGKS white paper.
+// The Aeonmi compiler desugars the native syntax to these calls.
+
+// QUBE keyword: glyph
+// Usage:
+//   glyph market_signal : market_signal {
+//       signal_label: "LaunchX trend"
+//       direction:    "bullish"
+//       strength:     0.82
+//       confidence:   0.82
+//       domain:       Market
+//   }
+fn qube_glyph(
+    rt:           ⟨MgksRuntime⟩,
+    name:         ⟨str⟩,
+    genesis_name: ⟨str⟩,
+    payload:      ⟨GlyphPayload⟩,
+    agent:        ⟨AgentId⟩,
+    confidence:   ⟨f32⟩,
+) -> ⟨(MgksRuntime, GlyphId)⟩ {
+
+    let template = genesis_get(rt.genesis_reg, genesis_name)
+    let template = ↦expect(template, ⊗"Genesis template '{genesis_name}' not found")
+
+    // Validate payload against template
+    let valid = genesis_validate(template, payload)
+    ↦assert(valid, ⊗"Payload failed validation for genesis '{genesis_name}'")
+
+    let domain = template.default_domain
+    let (new_hive, g) = hive_observe(
+        rt.hive,
+        agent,
+        template.id,
+        payload,
+        domain,
+        confidence,
+    )
+
+    // Store name → id mapping in working context
+    ↦context_set(⊗"glyph_name:{name}", g.id)
+
+    (MgksRuntime { ..rt, hive: new_hive }, g.id)
+}
+
+// QUBE keyword: bind
+// Usage:
+//   bind market_signal CAUSES opportunity_glyph weight=0.9
+fn qube_bind(
+    rt:      ⟨MgksRuntime⟩,
+    name_a:  ⟨str⟩,
+    btype:   ⟨BindingType⟩,
+    name_b:  ⟨str⟩,
+    weight:  ⟨f32⟩,
+    agent:   ⟨AgentId⟩,
+) -> ⟨MgksRuntime⟩ {
+
+    let id_a = ↦context_get(⊗"glyph_name:{name_a}")
+    let id_b = ↦context_get(⊗"glyph_name:{name_b}")
+    let id_a = ↦expect(id_a, ⊗"Glyph '{name_a}' not found in context")
+    let id_b = ↦expect(id_b, ⊗"Glyph '{name_b}' not found in context")
+
+    // Get glyph from shard, apply binding, re-write
+    let shard   = ↦map_get(rt.hive.shards, agent)
+    let g       = t1_get(shard.t1, id_a)
+    let g       = ↦expect(g, ⊗"Glyph {id_a} not found in T1")
+    let bound_g = glyph_bind(g, id_b, btype, weight, agent)
+
+    // Re-insert into T1
+    let new_t1    = t1_insert(shard.t1, bound_g)
+    let new_shard = AgentShard { ..shard, t1: new_t1 }
+    let new_hive  = Hive {
+        ..rt.hive,
+        shards: ↦map_insert(rt.hive.shards, agent, new_shard)
+    }
+
+    MgksRuntime { ..rt, hive: new_hive }
+}
+
+// QUBE keyword: recall
+// Usage:
+//   recall {
+//       intent: "high confidence market opportunities"
+//       min_confidence: 0.75
+//       scope: ConsensusOnly
+//       top_k: 5
+//   }
+fn qube_recall(
+    rt:             ⟨MgksRuntime⟩,
+    intent:         ⟨str⟩,
+    min_confidence: ⟨f32⟩,
+    scope:          ⟨QueryScope⟩,
+    top_k:          ⟨usize⟩,
+) -> ⟨vec⟨GlyphQueryResult⟩⟩ {
+
+    let q = GlyphQuery {
+        intent:             intent,
+        embedding:          ↦embed_generate_str(intent),
+        anchor_glyph_id:    None,
+        domain_filter:      None,
+        min_confidence:     min_confidence,
+        tier_filter:        None,
+        include_unresolved: false,
+        agent_scope:        scope,
+        top_k:              top_k,
+        weights:            DEFAULT_WEIGHTS,
+    }
+
+    retrieve(q, rt.hive.mgr)
+}
+
+// QUBE keyword: collapse
+// Usage:
+//   collapse market_signal observed_by: MotherAI
+fn qube_collapse(
+    rt:     ⟨MgksRuntime⟩,
+    name:   ⟨str⟩,
+    agent:  ⟨AgentId⟩,
+) -> ⟨MgksRuntime⟩ {
+
+    let id    = ↦context_get(⊗"glyph_name:{name}")
+    let id    = ↦expect(id, ⊗"Glyph '{name}' not found in context")
+    let shard = ↦map_get(rt.hive.shards, agent)
+
+    // Try T1 first
+    let g = t1_get(shard.t1, id)
+    ↦match g {
+        Some(g) => {
+            // Use current dominant payload as the observed truth
+            let observed = ↦match g.qstate {
+                QuantumGlyphState::Superposition { states } =>
+                    // Pick highest amplitude state
+                    ↦max_by(states, fn((_, amp)) => amp).0,
+                QuantumGlyphState::Collapsed { observed, .. } => observed,
+                QuantumGlyphState::Entangled { .. } => g.payload,
+            }
+            let collapsed_g = glyph_collapse(g, observed, agent)
+            let new_t1      = t1_insert(shard.t1, collapsed_g)
+            let new_shard   = AgentShard { ..shard, t1: new_t1 }
+            let new_hive    = Hive {
+                ..rt.hive,
+                shards: ↦map_insert(rt.hive.shards, agent, new_shard)
+            }
+            MgksRuntime { ..rt, hive: new_hive }
+        },
+        None => rt,   // Glyph not in T1 — no-op
+    }
+}
+
+// QUBE keyword: entangle
+// Usage:
+//   entangle signal_a <~> signal_b correlation=0.85
+fn qube_entangle(
+    rt:          ⟨MgksRuntime⟩,
+    name_a:      ⟨str⟩,
+    name_b:      ⟨str⟩,
+    correlation: ⟨f32⟩,
+    agent:       ⟨AgentId⟩,
+) -> ⟨MgksRuntime⟩ {
+
+    let id_a  = ↦context_get(⊗"glyph_name:{name_a}")
+    let id_b  = ↦context_get(⊗"glyph_name:{name_b}")
+    let id_a  = ↦expect(id_a, ⊗"Glyph '{name_a}' not found")
+    let id_b  = ↦expect(id_b, ⊗"Glyph '{name_b}' not found")
+    let shard = ↦map_get(rt.hive.shards, agent)
+
+    let g_a = ↦expect(t1_get(shard.t1, id_a), ⊗"Glyph {id_a} not found in T1")
+    let g_b = ↦expect(t1_get(shard.t1, id_b), ⊗"Glyph {id_b} not found in T1")
+
+    // Entangle both directions
+    let g_a_entangled = glyph_entangle(g_a, id_b, correlation)
+    let g_b_entangled = glyph_entangle(g_b, id_a, correlation)
+
+    let new_t1 = t1_insert(shard.t1, g_a_entangled)
+    let new_t1 = t1_insert(new_t1, g_b_entangled)
+    let new_shard = AgentShard { ..shard, t1: new_t1 }
+    let new_hive  = Hive {
+        ..rt.hive,
+        shards: ↦map_insert(rt.hive.shards, agent, new_shard)
+    }
+
+    MgksRuntime { ..rt, hive: new_hive }
+}
+
+// ── Session Management ────────────────────────────────────────
+
+fn mgks_end_session(rt: ⟨MgksRuntime⟩) -> ⟨MgksRuntime⟩ {
+    // End all agent shards — flush T1 to T2
+    let new_shards = ↦map_transform(rt.hive.shards, fn(agent, shard) =>
+        shard_end_session(shard)
+    )
+    // Run memory manager maintenance cycle
+    let _health = memory_manager_cycle(rt.hive.mgr)
+    MgksRuntime {
+        ..rt,
+        hive: Hive { ..rt.hive, shards: new_shards },
+        session_id: ↦uuid_v4(),
+    }
+}
+
+// ── Health Check ──────────────────────────────────────────────
+fn mgks_health(rt: ⟨MgksRuntime⟩) -> ⟨MemoryHealthSnapshot⟩ {
+    memory_manager_health(rt.hive.mgr)
+}
+
+// ── Mother AI Integration Hook ────────────────────────────────
+// Called from Mother AI's executive loop to process the
+// current state of MGKS and emit a status to mother_journal.txt
+
+fn mgks_mother_report(rt: ⟨MgksRuntime⟩) -> ⟨str⟩ {
+    let health = mgks_health(rt)
+    ⊗"MGKS STATUS | session:{rt.session_id} | T3_glyphs:{health.glyph_count} | avg_conf:{health.avg_confidence} | conflict_rate:{health.conflict_rate} | density:{health.density_ratio}"
+}

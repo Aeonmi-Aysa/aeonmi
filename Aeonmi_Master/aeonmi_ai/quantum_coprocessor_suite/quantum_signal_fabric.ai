@@ -1,0 +1,88 @@
+// quantum_signal_fabric.ai
+// Probes Bell + GHZ + QRNG, fuses into a single score, writes qc_signals.json
+// Run: aeonmi native quantum_signal_fabric.ai
+
+function fn_round3(x) { return floor(x * 1000.0) / 1000.0; }
+
+function fn_extract_count(result_json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(result_json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(result_json) {
+        if char_at(result_json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(result_json) { return 0; }
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+function fn_probe_bell(shots) {
+    let desc = "2 2 " + shots + " 4 0 0 -1 4 1 0 7 0 0 7 1 1";
+    let result = quantum_run(desc);
+    let c00 = fn_extract_count(result, "00");
+    let c11 = fn_extract_count(result, "11");
+    return (c00 + c11) / float(shots);
+}
+
+function fn_probe_ghz(shots) {
+    let desc = "3 3 " + shots + " 6 0 0 -1 4 1 0 4 2 0 7 0 0 7 1 1 7 2 2";
+    let result = quantum_run(desc);
+    let c000 = fn_extract_count(result, "000");
+    let c111 = fn_extract_count(result, "111");
+    return (c000 + c111) / float(shots);
+}
+
+function fn_probe_qrng(shots) {
+    let desc = "1 1 " + shots + " 2 0 0 -1 7 0 0";
+    let result = quantum_run(desc);
+    let c0 = fn_extract_count(result, "0");
+    let c1 = fn_extract_count(result, "1");
+    return abs((c0 - c1) / float(shots));
+}
+
+function main() {
+    print("=== QUANTUM SIGNAL FABRIC ===");
+    let live = quantum_check();
+    if live == 1 { print("LIVE"); } else { print("DRY-RUN"); }
+
+    let bell_coh = fn_probe_bell(512);
+    let ghz_coh = fn_probe_ghz(1024);
+    let qrng_bias = fn_probe_qrng(256);
+    let qrng_quality = 1.0 - qrng_bias;
+    let fused = bell_coh * 0.30 + ghz_coh * 0.50 + qrng_quality * 0.20;
+
+    print("bell_coherence      = " + fn_round3(bell_coh));
+    print("ghz_coherence       = " + fn_round3(ghz_coh));
+    print("qrng_bias           = " + fn_round3(qrng_bias));
+    print("fused_quantum_score = " + fn_round3(fused));
+
+    let json = "{";
+    json = json + "\"timestamp\":\"" + now() + "\",";
+    json = json + "\"qiskit_live\":" + live + ",";
+    json = json + "\"bell_coherence\":" + fn_round3(bell_coh) + ",";
+    json = json + "\"ghz_coherence\":" + fn_round3(ghz_coh) + ",";
+    json = json + "\"qrng_bias\":" + fn_round3(qrng_bias) + ",";
+    json = json + "\"qrng_quality\":" + fn_round3(qrng_quality) + ",";
+    json = json + "\"fused_quantum_score\":" + fn_round3(fused);
+    json = json + "}";
+
+    write_file("qc_signals.json", json);
+    print("Wrote qc_signals.json");
+    print(json);
+    return 0;
+}
+
+main();

@@ -1,0 +1,170 @@
+// shor_factor.ai
+// Aeonmi-compatible Shor factoring demo (teaching + robust runtime-safe)
+//
+// Key idea:
+// Shor reduces integer factoring to order-finding: find the smallest r>0 such that
+//   a^r ≡ 1 (mod N)
+// for a random a that is coprime with N.
+// Once r is known (quantum step in real Shor), the rest is classical:
+//   factors = gcd(a^(r/2) - 1, N) and gcd(a^(r/2) + 1, N)
+//
+// Run:
+//   aeonmi native shor_factor.ai
+
+function fn_round3(x) {
+    return floor(x * 1000.0) / 1000.0;
+}
+
+function fn_gcd(a, b) {
+    let x = abs(a);
+    let y = abs(b);
+    while y != 0 {
+        let t = fmod(x, y);
+        x = y;
+        y = t;
+    }
+    return x;
+}
+
+function fn_mod_pow(base, exp, modulus) {
+    let result = 1;
+    let b = fmod(base, modulus);
+    let e = exp;
+    while e > 0 {
+        if fmod(e, 2) == 1 {
+            result = fmod(result * b, modulus);
+        }
+        b = fmod(b * b, modulus);
+        e = floor(e / 2);
+    }
+    return result;
+}
+
+function fn_print_period_table(a, n, max_x) {
+    print("x -> a^x mod N");
+    let x = 0;
+    while x <= max_x {
+        let fx = fn_mod_pow(a, x, n);
+        print("  " + x + " -> " + fx);
+        x = x + 1;
+    }
+}
+
+function fn_find_order(a, n, max_x) {
+    let r = 0;
+    let x = 1;
+    while x <= max_x {
+        let fx = fn_mod_pow(a, x, n);
+        if fx == 1 {
+            if r == 0 { r = x; }
+        }
+        x = x + 1;
+    }
+    return r;
+}
+
+function fn_extract_count(result_json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(result_json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(result_json) {
+        if char_at(result_json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(result_json) { return 0; }
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+function fn_run_quantum_substrate_demo() {
+    print("");
+    print("=== QUANTUM SUBSTRATE DEMO ===");
+    let live = quantum_check();
+    if live == 1 {
+        print("quantum_check(): LIVE (Qiskit detected)");
+    } else {
+        print("quantum_check(): DRY-RUN (no Qiskit)");
+    }
+    let bell_desc = "2 2 512 4 0 0 -1 4 1 0 7 0 0 7 1 1";
+    let result = quantum_run(bell_desc);
+    print("Bell result: " + result);
+    let c00 = fn_extract_count(result, "00");
+    let c11 = fn_extract_count(result, "11");
+    if live == 1 {
+        let coherence = (c00 + c11) / 512.0;
+        print("Bell coherence (00+11)/512 = " + fn_round3(coherence));
+    } else {
+        print("(dry-run: coherence score not meaningful)");
+    }
+}
+
+function main() {
+    print("=== SHOR FACTORING DEMO ===");
+    print("Teaching version (small N)");
+    print("");
+    let n = 15;
+    let a = 2;
+    print("Target N = " + n);
+    print("Choose a = " + a);
+    let g = fn_gcd(a, n);
+    print("gcd(a, N) = " + g);
+    if g != 1 {
+        print("Non-trivial factor found immediately: " + g);
+        fn_run_quantum_substrate_demo();
+        return 0;
+    }
+    print("");
+    print("Compute f(x) = a^x mod N:");
+    fn_print_period_table(a, n, 12);
+    let r = fn_find_order(a, n, 24);
+    print("");
+    if r == 0 {
+        print("No period found in search window.");
+        fn_run_quantum_substrate_demo();
+        return 0;
+    }
+    print("Observed order (period) r = " + r);
+    if fmod(r, 2) != 0 {
+        print("r is odd; choose another a and retry.");
+        fn_run_quantum_substrate_demo();
+        return 0;
+    }
+    let half_exp = r / 2;
+    let ar2 = fn_mod_pow(a, half_exp, n);
+    print("a^(r/2) mod N = " + ar2);
+    if ar2 == (n - 1) {
+        print("a^(r/2) = N-1; choose another a and retry.");
+        fn_run_quantum_substrate_demo();
+        return 0;
+    }
+    let f1 = fn_gcd(ar2 - 1, n);
+    let f2 = fn_gcd(ar2 + 1, n);
+    print("");
+    print("Candidate factors:");
+    print("  gcd(a^(r/2)-1, N) = " + f1);
+    print("  gcd(a^(r/2)+1, N) = " + f2);
+    if (f1 * f2) == n {
+        print("");
+        print("SUCCESS: " + n + " = " + f1 + " x " + f2);
+    } else {
+        print("NOTE: trivial factors; try a=7 for N=15.");
+    }
+    fn_run_quantum_substrate_demo();
+    print("");
+    print("Full Shor: quantum order-finding (QFT/phase estimation) + classical gcd.");
+    return 0;
+}
+
+main();

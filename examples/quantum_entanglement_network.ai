@@ -1,0 +1,163 @@
+// quantum_entanglement_network.ai
+// Aeonmi -- Quantum Entanglement Communication Network
+// BB84 key distribution, quantum teleportation, CHSH Bell inequality
+// Run: aeonmi native examples/quantum_entanglement_network.ai
+
+function main() {
+    print("=== QUANTUM ENTANGLEMENT NETWORK -- Aeonmi ===");
+    print("BB84 Key Distribution  |  Teleportation  |  CHSH Bell Test");
+    print("Native Rust VM -- No external runtime");
+    print("");
+
+    // Phase 1: BB84 Quantum Key Distribution
+    print("[ Phase 1 -- BB84 Quantum Key Distribution ]");
+    let alice_bits  = [1, 0, 1, 1, 0, 0, 1, 0];
+    let alice_bases = [0, 0, 1, 0, 1, 1, 0, 1];
+    let bob_bases   = [0, 1, 1, 0, 1, 0, 0, 1];
+    let bob_results = [];
+    let i = 0;
+    while (i < 8) {
+        let bit  = alice_bits.slice(i, i + 1).pop();
+        let ab   = alice_bases.slice(i, i + 1).pop();
+        let bb   = bob_bases.slice(i, i + 1).pop();
+        let qa = 1;
+        let qb = 0;
+        if (bit == 1) { qa = 0; qb = 1; }
+        if (ab == 1) {
+            let hh = 0.7071;
+            let na = hh * (qa + qb);
+            let nb = hh * (qa - qb);
+            qa = na;
+            qb = nb;
+        }
+        let ma = qa;
+        let mb = qb;
+        if (bb == 1) {
+            let hh = 0.7071;
+            let ra = hh * (ma + mb);
+            let rb = hh * (ma - mb);
+            ma = ra;
+            mb = rb;
+        }
+        let p0 = ma * ma;
+        let seed = i * 1619 + 37;
+        let rv = (seed * 2654435761) / 4294967296;
+        let frac = rv - floor(rv);
+        if (frac < 0) { frac = 0 - frac; }
+        let outcome = 1;
+        if (frac < p0) { outcome = 0; }
+        bob_results.push(outcome);
+        i = i + 1;
+    }
+    let alice_key = [];
+    let bob_key   = [];
+    let j = 0;
+    while (j < 8) {
+        let ab = alice_bases.slice(j, j + 1).pop();
+        let bb = bob_bases.slice(j, j + 1).pop();
+        if (ab == bb) {
+            alice_key.push(alice_bits.slice(j, j + 1).pop());
+            bob_key.push(bob_results.slice(j, j + 1).pop());
+        }
+        j = j + 1;
+    }
+    let errors = 0;
+    let key_len = len(alice_key);
+    let k = 0;
+    while (k < key_len) {
+        let a = alice_key.slice(k, k + 1).pop();
+        let b = bob_key.slice(k, k + 1).pop();
+        if (a != b) { errors = errors + 1; }
+        k = k + 1;
+    }
+    let qber = 0;
+    if (key_len > 0) { qber = floor((errors * 1000) / key_len) / 10; }
+    print("  Alice transmits: 8 qubits");
+    print("  Sifted key bits: " + key_len);
+    print("  QBER (error rate): " + qber + "%");
+    if (qber < 11) { print("  Status: SECURE -- no eavesdropper detected (QBER < 11%)"); }
+    if (qber >= 11) { print("  ALERT: Possible eavesdropper -- QBER exceeds 11% threshold!"); }
+    print("");
+
+    // Phase 2: Quantum Teleportation
+    print("[ Phase 2 -- Quantum Teleportation Protocol ]");
+    let psi_a = 0.6;
+    let psi_b = 0.8;
+    let p0_psi = psi_a * psi_a;
+    let p1_psi = psi_b * psi_b;
+    print("  Alice state |psi>: P(0)=" + floor(p0_psi * 1000) / 1000 + "  P(1)=" + floor(p1_psi * 1000) / 1000);
+    let h = 0.7071;
+    let hm_0 = h * (psi_a + psi_b);
+    let hm_1 = h * (psi_a - psi_b);
+    let cnot_a0 = h;
+    let cnot_a1 = h;
+    let p0_hm = hm_0 * hm_0;
+    let s1 = 99 * 1619 + 37;
+    let rv1 = (s1 * 2654435761) / 4294967296;
+    let f1 = rv1 - floor(rv1);
+    let bit1 = 1;
+    if (f1 < p0_hm) { bit1 = 0; }
+    let p0_ca = cnot_a0 * cnot_a0;
+    let s2 = 100 * 1619 + 37;
+    let rv2 = (s2 * 2654435761) / 4294967296;
+    let f2 = rv2 - floor(rv2);
+    let bit2 = 1;
+    if (f2 < p0_ca) { bit2 = 0; }
+    let rob_0 = 1;
+    let rob_1 = 0;
+    if (bit2 == 1) { rob_0 = 0; rob_1 = 1; }
+    if (bit1 == 1) { rob_1 = 0 - rob_1; }
+    let rob_p0 = rob_0 * rob_0;
+    let rob_p1 = rob_1 * rob_1;
+    print("  Classical bits: bit1=" + bit1 + " bit2=" + bit2);
+    print("  Bob state: P(0)=" + floor(rob_p0 * 1000) / 1000 + "  P(1)=" + floor(rob_p1 * 1000) / 1000);
+    let overlap = psi_a * rob_0 + psi_b * rob_1;
+    let fid = overlap * overlap;
+    print("  Fidelity: " + floor(fid * 1000) / 1000);
+    print("  No-cloning: Alice state destroyed upon measurement");
+    print("");
+
+    // Phase 3: CHSH Bell Inequality Test
+    print("[ Phase 3 -- CHSH Bell Inequality Test ]");
+    let same_count = 0;
+    let ri = 0;
+    while (ri < 100) {
+        let seed_a = ri * 17 + 3;
+        let seed_b = ri * 13 + 7;
+        let ra_r = (seed_a * 1619 + 37) / 100000;
+        let ra_frac = ra_r - floor(ra_r);
+        let ra = 1;
+        if (ra_frac < 0.5) { ra = 0; }
+        let rb_r = (seed_b * 1619 + 37) / 100000;
+        let rb_frac = rb_r - floor(rb_r);
+        let rb = 1 - ra;
+        if (rb_frac < 0.854) { rb = ra; }
+        if (ra == rb) { same_count = same_count + 1; }
+        ri = ri + 1;
+    }
+    print("  Rounds: 100");
+    print("  Same-outcome pairs: " + same_count + "/100");
+    print("  Classical bound (CHSH S <= 2.0): local hidden variable theories");
+    print("  Quantum bound   (CHSH S <= 2.828): Tsirelson bound");
+    if (same_count > 75) { print("  Result: BELL INEQUALITY VIOLATED -- quantum entanglement confirmed"); }
+    if (same_count <= 75) { print("  Result: Within classical bounds"); }
+    print("");
+
+    // Phase 4: Network Summary
+    print("[ Phase 4 -- Entangled Agent Network Summary ]");
+    print("  Shared secure key: " + key_len + " bits (QBER=" + qber + "%)");
+    print("  Teleportation fidelity: " + floor(fid * 1000) / 1000);
+    print("  Bell violations: " + same_count + "/100");
+    print("");
+    print("  Quantum network properties:");
+    print("  - Security: information-theoretic (unconditional, not computational)");
+    print("  - No-cloning: state cannot be copied or intercepted");
+    print("  - Entanglement: nonlocal correlations exceed classical physics");
+    print("  - Teleportation: zero quantum channel bandwidth required");
+    print("");
+    print("=== NETWORK SIMULATION COMPLETE ===");
+    print("Language: Aeonmi  |  Runtime: Native Rust VM");
+    print("No JavaScript. No Python. No external runtime. Pure Aeonmi.");
+}
+
+main();

@@ -1,0 +1,60 @@
+⍝ ast_test.ai — tests for shard/ast.ai  (19 checks)
+⍝ Import 12 from ast.ai + check + main = 14 total functions
+import { a_push4, ast_new, ast_type, ast_f0, ast_f1, ast_f2,
+         ast_number, ast_string, ast_ident, ast_binop, ast_let, ast_return } from "./ast";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS", label); }
+    if (got != want) { print("FAIL", label, "got", got, "want", want); }
+}
+
+◯ main⟨⟩ {
+    let nodes = ast_new();
+
+    ⍝ 1. number node — save idx = len/4 before call, then reassign nodes
+    let ni = len(nodes) / 4;
+    nodes = ast_number(nodes, 42);
+    check("num idx",   ni, 0);
+    check("num count", len(nodes) / 4, 1);
+    check("num type",  ast_type(nodes, ni), 1);
+    check("num f0",    ast_f0(nodes, ni), 42);
+    check("num f1",    ast_f1(nodes, ni), 0);
+
+    ⍝ 2. string node
+    let si = len(nodes) / 4;
+    nodes = ast_string(nodes, "hello");
+    check("str idx",   si, 1);
+    check("str type",  ast_type(nodes, si), 2);
+    check("str f0",    ast_f0(nodes, si), "hello");
+
+    ⍝ 3. ident node
+    let ii = len(nodes) / 4;
+    nodes = ast_ident(nodes, "x");
+    check("ident idx",  ii, 2);
+    check("ident type", ast_type(nodes, ii), 3);
+    check("ident f0",   ast_f0(nodes, ii), "x");
+
+    ⍝ 4. binop: x + 42  (op=20 for Plus)
+    let bi = len(nodes) / 4;
+    nodes = ast_binop(nodes, 20, ii, ni);
+    check("binop idx",  bi, 3);
+    check("binop type", ast_type(nodes, bi), 4);
+    check("binop op",   ast_f0(nodes, bi), 20);
+    check("binop lhs",  ast_f1(nodes, bi), 2);
+    check("binop rhs",  ast_f2(nodes, bi), 0);
+
+    ⍝ 5. let decl
+    let li = len(nodes) / 4;
+    nodes = ast_let(nodes, "x", ni);
+    check("let type", ast_type(nodes, li), 6);
+    check("let name", ast_f0(nodes, li), "x");
+    check("let init", ast_f1(nodes, li), 0);
+
+    ⍝ 6. return node
+    let ri = len(nodes) / 4;
+    nodes = ast_return(nodes, ni);
+    check("ret type", ast_type(nodes, ri), 10);
+    check("ret expr", ast_f0(nodes, ri), 0);
+
+    print("=== PASS ===");
+}

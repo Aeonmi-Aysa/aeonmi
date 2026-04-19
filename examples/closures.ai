@@ -1,0 +1,18 @@
+// Test: Closure syntax
+// Expected output:
+//   closure called
+//   result: 15
+
+function apply(callback, value) {
+    return callback(value);
+}
+
+let double = |x| -> {
+    return x * 2;
+};
+
+// Use closure as callback
+let result = apply(|x| -> { return x + 10; }, 5);
+log("closure called");
+log("result:");
+log(result);

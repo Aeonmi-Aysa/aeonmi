@@ -1,0 +1,165 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/types.ai
+// Layer: Type Definitions — All Core Types
+// Part of: Aeonmi Language Project
+// Integrates with: QUBE quantum layer, Hive Agent System
+// ============================================================
+
+⊗ mgks::types
+
+// ── Identity Types ───────────────────────────────────────────
+type GlyphId     = ⟨uuid_v7⟩          // Time-ordered, sortable
+type GenesisId   = ⟨uuid_v4⟩          // Template identity
+type AgentId     = ⟨symbol⟩           // Named agent reference
+type SessionId   = ⟨uuid_v4⟩
+type Timestamp   = ⟨i64⟩              // Unix epoch ms
+type SemVer      = ⟨str⟩              // "major.minor.patch"
+
+// ── Memory Tier Enum ─────────────────────────────────────────
+// T1 = Working (in-process, session-scoped)
+// T2 = Episodic (persisted, 7-day default decay)
+// T3 = Semantic (long-term, consensus graph)
+// Archive = Decayed below threshold, preserved for provenance
+
+enum MemoryTier {
+    T1_Working,
+    T2_Episodic,
+    T3_Semantic,
+    Archive,
+}
+
+// ── Semantic Domain Classification ───────────────────────────
+enum SemanticDomain {
+    Market,
+    Technical,
+    Behavioral,
+    Strategic,
+    Temporal,
+    Relational,
+    Quantum,
+    Unclassified,
+}
+
+// ── Confidence Score ─────────────────────────────────────────
+// f32 clamped to [0.0, 1.0]
+// 0.0 = unknown / fully uncertain
+// 1.0 = verified / fully collapsed truth
+type ConfidenceScore = ⟨f32⟩
+
+// ── Quantum Glyph State (QUBE-native) ────────────────────────
+// Direct mapping from QUBE quantum semantics to knowledge state.
+// Superposition  = multiple truths coexist with probability amplitudes
+// Collapsed      = single observed truth after measurement
+// Entangled      = truth is correlated with a partner glyph
+enum QuantumGlyphState {
+
+    // |ψ⟩ = Σ αᵢ|stateᵢ⟩
+    // Each (payload, amplitude) pair is one possible truth.
+    // Amplitude is probability weight — must sum to 1.0.
+    Superposition {
+        states: ⟨vec⟨(GlyphPayload, f32)⟩⟩,
+    },
+
+    // M|ψ⟩ → single observed truth
+    // Triggered when confidence gap exceeds COLLAPSE_THRESHOLD
+    // or when Mother AI explicitly measures the glyph.
+    Collapsed {
+        observed:     ⟨GlyphPayload⟩,
+        collapsed_by: ⟨AgentId⟩,
+        collapsed_at: ⟨Timestamp⟩,
+    },
+
+    // Bell state correlation between two glyphs.
+    // correlation: +1.0 = identical truth, -1.0 = opposite truth
+    Entangled {
+        partner_id:  ⟨GlyphId⟩,
+        correlation: ⟨f32⟩,
+    },
+}
+
+// ── Glyph Payload ─────────────────────────────────────────────
+// The actual knowledge content inside a glyph.
+// Flexible enough to hold any structured meaning.
+type GlyphPayload = ⟨map⟨str, AeonValue⟩⟩
+
+// ── Binding Type Enum ─────────────────────────────────────────
+// Typed graph edges between glyphs.
+// Replaces rigid foreign keys with semantic relationships.
+enum BindingType {
+    Causes,        // A is a causal antecedent of B
+    Contradicts,   // A and B hold conflicting truths
+    Supersedes,    // B replaces A — marks A as stale
+    Supports,      // A provides evidence for B
+    DerivedFrom,   // B was computed or inferred from A
+    Entangles,     // Quantum correlation between A and B
+    AgentRef,      // An agent wrote or referenced this glyph
+}
+
+// ── Glyph Binding ─────────────────────────────────────────────
+struct GlyphBinding {
+    target_id:   ⟨GlyphId⟩,
+    binding_type: ⟨BindingType⟩,
+    weight:      ⟨f32⟩,           // Edge weight [0.0, 1.0]
+    confidence:  ⟨ConfidenceScore⟩,
+    created_at:  ⟨Timestamp⟩,
+    created_by:  ⟨AgentId⟩,
+}
+
+// ── Provenance ────────────────────────────────────────────────
+// Full audit trail for every glyph.
+// Who created it, from what session, what transformations occurred.
+struct Provenance {
+    agent_id:      ⟨AgentId⟩,
+    session_id:    ⟨SessionId⟩,
+    source_label:  ⟨str⟩,         // Human-readable origin tag
+    transform_log: ⟨vec⟨str⟩⟩,   // Ordered list of transforms applied
+    trust_score:   ⟨f32⟩,         // Agent's historical accuracy [0.0, 1.0]
+}
+
+// ── Media Reference ───────────────────────────────────────────
+// Optional multimodal anchoring — glyphs can reference external media.
+enum MediaRef {
+    Image   { uri: ⟨str⟩, alt: ⟨str⟩ },
+    Audio   { uri: ⟨str⟩, duration_ms: ⟨i64⟩ },
+    Video   { uri: ⟨str⟩, duration_ms: ⟨i64⟩ },
+    Embedding { vector: ⟨vec⟨f32⟩⟩, model: ⟨str⟩ },
+}
+
+// ── Query Scope ───────────────────────────────────────────────
+enum QueryScope {
+    OwnShard,       // Agent queries its own T1/T2 shard only
+    AllShards,      // Mother AI queries across all agent shards
+    ConsensusOnly,  // Query T3 semantic memory only
+}
+
+// ── Memory Health Metrics ─────────────────────────────────────
+struct MemoryHealthSnapshot {
+    tier:             ⟨MemoryTier⟩,
+    glyph_count:      ⟨u64⟩,
+    density_ratio:    ⟨f32⟩,         // active / capacity
+    conflict_rate:    ⟨f32⟩,         // % in Superposition
+    avg_confidence:   ⟨f32⟩,
+    retrieval_hit_rate: ⟨f32⟩,
+    promotion_rate_day: ⟨u32⟩,
+    archive_rate_day:   ⟨u32⟩,
+    snapshot_at:      ⟨Timestamp⟩,
+}
+
+// ── Agent Identity Constants ──────────────────────────────────
+// The five hive agents + Mother AI
+const AGENT_ORACLE:     AgentId = ⊗"oracle"
+const AGENT_HYPE:       AgentId = ⊗"hype_machine"
+const AGENT_CLOSER:     AgentId = ⊗"closer"
+const AGENT_DEVIL:      AgentId = ⊗"devils_advocate"
+const AGENT_CONDUCTOR:  AgentId = ⊗"conductor"
+const AGENT_MOTHER:     AgentId = ⊗"mother_ai"
+
+// ── System Constants ──────────────────────────────────────────
+const COLLAPSE_THRESHOLD:    f32 = 0.35   // Min confidence gap to auto-collapse
+const T1_MAX_GLYPHS:        u32 = 512     // Working memory cap
+const T2_DEFAULT_HALF_LIFE_DAYS: f32 = 7.0
+const T3_DEFAULT_HALF_LIFE_DAYS: f32 = 90.0
+const ARCHIVE_THRESHOLD:    f32 = 0.10   // Decay below this → archive
+const PROMOTE_ACCESS_COUNT: u32 = 5       // T2 → T3 promotion threshold
+const PROMOTE_WINDOW_DAYS:  f32 = 7.0

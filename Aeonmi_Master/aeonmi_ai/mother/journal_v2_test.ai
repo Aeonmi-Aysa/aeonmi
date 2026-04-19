@@ -1,0 +1,44 @@
+⍝ journal_v2_test.ai — tests journal_recent (new API)
+⍝ imports journal.ai (10 funcs) + 2 test funcs = 12 total → T(12) ≈ 4096 ops, fast
+
+import { journal_new, journal_append, journal_count, journal_recent } from "./journal";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let j = journal_new();
+    j = journal_append(j, "boot",  "sys_start");
+    j = journal_append(j, "learn", "key_a");
+    j = journal_append(j, "learn", "key_b");
+    j = journal_append(j, "maint", "decay_pass");
+
+    ⍝ recent(4, 2) → last 2 entries: learn/key_b, maint/decay_pass
+    let r2 = journal_recent(j, 2);
+    p = p + check("recent 2: length", len(r2) / 3, 2);
+    p = p + check("recent 2: first tag",    r2.slice(0, 1).pop(), "learn");
+    p = p + check("recent 2: first payload",r2.slice(1, 2).pop(), "key_b");
+    p = p + check("recent 2: second tag",   r2.slice(3, 4).pop(), "maint");
+
+    ⍝ recent(4, 0) → empty
+    let r0 = journal_recent(j, 0);
+    p = p + check("recent 0: empty", len(r0), 0);
+
+    ⍝ recent(4, 10) → clamps to all 4
+    let rall = journal_recent(j, 10);
+    p = p + check("recent 10 clamps to count", len(rall) / 3, 4);
+    p = p + check("recent 10 first tag", rall.slice(0, 1).pop(), "boot");
+
+    ⍝ recent(4, 4) → exact count
+    let rex = journal_recent(j, 4);
+    p = p + check("recent exact: length", len(rex) / 3, 4);
+
+    print("journal_v2 tests passed:", p, "/ 8");
+}

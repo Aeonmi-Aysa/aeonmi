@@ -1,0 +1,68 @@
+⍝ devil_agent.ai — Devil's Advocate: risk analyzer
+⍝ Input: risk_score (0..100), exposure (0..100), mitigation (0..100)
+⍝ Risk levels: 0=low  1=medium  2=high  3=critical
+⍝ Alphabetical env capture: dev_b* must not call dev_r* (r > b). Inline critical check.
+⍝ Functions: 8 + main = 9, no imports
+
+◯ dev_block⟨risk_score, exposure⟩ {
+    ⍝ Block if critical risk (>=80) or extreme exposure (>=90)
+    ⍝ Inlined: risk_level=3 ↔ risk_score>=80
+    if (risk_score >= 80) { return 1; }
+    if (exposure >= 90)   { return 1; }
+    return 0;
+}
+
+◯ dev_critical⟨risk_score⟩ {
+    if (risk_score >= 80) { return 1; }
+    return 0;
+}
+
+◯ dev_exposure_adj⟨exposure, mitigation⟩ {
+    ⍝ Adjusted exposure after mitigation
+    let reduced = exposure - exposure * mitigation / 100;
+    if (reduced < 0) { reduced = 0; }
+    return reduced;
+}
+
+◯ dev_mitigated_score⟨risk_score, mitigation⟩ {
+    ⍝ Risk score reduced by mitigation effectiveness
+    let reduced = risk_score - risk_score * mitigation / 100;
+    if (reduced < 0) { reduced = 0; }
+    return reduced;
+}
+
+◯ dev_risk_level⟨risk_score⟩ {
+    if (risk_score >= 80) { return 3; }
+    if (risk_score >= 60) { return 2; }
+    if (risk_score >= 30) { return 1; }
+    return 0;
+}
+
+◯ dev_threshold⟨val, thresh⟩ {
+    if (val >= thresh) { return 1; }
+    return 0;
+}
+
+◯ dev_unacceptable⟨risk_score, exposure, mitigation⟩ {
+    let adj = dev_exposure_adj(exposure, mitigation);
+    let ms  = dev_mitigated_score(risk_score, mitigation);
+    if (ms >= 70) {
+        if (adj >= 50) { return 1; }
+    }
+    return 0;
+}
+
+◯ dev_veto⟨risk_score, exposure, mitigation⟩ {
+    ⍝ 1 = veto recommended,  0 = proceed with caution
+    let blk = dev_block(risk_score, exposure);
+    if (blk == 1) { return 1; }
+    let unac = dev_unacceptable(risk_score, exposure, mitigation);
+    if (unac == 1) { return 1; }
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let ms   = dev_mitigated_score(85, 30);
+    let veto = dev_veto(85, 70, 30);
+    print("devil: mitigated_score=", ms, "veto=", veto);
+}

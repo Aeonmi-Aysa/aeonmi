@@ -1,0 +1,149 @@
+﻿⍝ swarm_os.ai — Autonomous Agent Colony (Aeonmi Swarm OS)
+⍝ 5 specialized agents self-organize to process tasks through a pipeline:
+⍝   Sensor(0) -> Planner(1) -> Executor(2) -> Critic(3) -> Memory(4)
+⍝ Demonstrates: agent coordination, message routing, load balancing, emergent pipeline
+⍝ Flat file — no imports, 12 functions, a_/b_/c_/d_ prefix ordering
+
+◯ a_agent_init⟨id, role⟩ {
+    ⍝ Agent record: [id, role, load, tasks_done, score]
+    ⍝ role: 0=sensor 1=planner 2=executor 3=critic 4=memory
+    return [id, role, 0, 0, 0];
+}
+
+◯ a_agent_load⟨agent⟩ {
+    return agent.slice(2, 3).pop();
+}
+
+◯ b_agent_complete⟨agent⟩ {
+    ⍝ Decrement load, increment tasks_done, increment score
+    let id    = agent.slice(0, 1).pop();
+    let role  = agent.slice(1, 2).pop();
+    let load  = agent.slice(2, 3).pop() - 1;
+    if (load < 0) { load = 0; }
+    let done  = agent.slice(3, 4).pop() + 1;
+    let score = agent.slice(4, 5).pop() + 10;
+    return [id, role, load, done, score];
+}
+
+◯ b_agent_task⟨agent⟩ {
+    ⍝ Assign task: increment load
+    let id    = agent.slice(0, 1).pop();
+    let role  = agent.slice(1, 2).pop();
+    let load  = agent.slice(2, 3).pop() + 1;
+    let done  = agent.slice(3, 4).pop();
+    let score = agent.slice(4, 5).pop();
+    return [id, role, load, done, score];
+}
+
+◯ b_task_new⟨id, priority⟩ {
+    ⍝ Task record: [id, priority, stage, status]
+    ⍝ stage: 0=sensed 1=planned 2=executed 3=reviewed 4=stored
+    ⍝ status: 0=active 1=complete
+    return [id, priority, 0, 0];
+}
+
+◯ c_msg_pass⟨from_role, to_role, task_id⟩ {
+    ⍝ Log inter-agent message
+    print("  MSG: agent[", from_role, "] ->  agent[", to_role, "] task=", task_id);
+    return 1;
+}
+
+◯ c_run_pipeline⟨task, sensor, planner, executor, critic, memory⟩ {
+    ⍝ Run one task through the full 5-stage pipeline
+    ⍝ Returns [sensor, planner, executor, critic, memory, passed_stages]
+    let task_id = task.slice(0, 1).pop();
+    let passed  = 0;
+    ⍝ Stage 0: Sensor detects
+    sensor   = b_agent_task(sensor);
+    passed   = passed + c_msg_pass(0, 1, task_id);
+    sensor   = b_agent_complete(sensor);
+    ⍝ Stage 1: Planner assigns
+    planner  = b_agent_task(planner);
+    passed   = passed + c_msg_pass(1, 2, task_id);
+    planner  = b_agent_complete(planner);
+    ⍝ Stage 2: Executor runs
+    executor = b_agent_task(executor);
+    passed   = passed + c_msg_pass(2, 3, task_id);
+    executor = b_agent_complete(executor);
+    ⍝ Stage 3: Critic evaluates
+    critic   = b_agent_task(critic);
+    passed   = passed + c_msg_pass(3, 4, task_id);
+    critic   = b_agent_complete(critic);
+    ⍝ Stage 4: Memory stores
+    memory   = b_agent_task(memory);
+    memory   = b_agent_complete(memory);
+    return [passed, sensor.slice(3,4).pop(), planner.slice(3,4).pop(),
+            executor.slice(3,4).pop(), critic.slice(3,4).pop(), memory.slice(3,4).pop()];
+}
+
+◯ c_score_agent⟨agent⟩ {
+    ⍝ Efficiency: tasks_done * 10 + (10 - load) capped
+    let done  = agent.slice(3, 4).pop();
+    let load  = agent.slice(2, 3).pop();
+    let bonus = 10 - load;
+    if (bonus < 0) { bonus = 0; }
+    return done * 10 + bonus;
+}
+
+◯ d_print_report⟨n_tasks, total_msgs, sensor_done, planner_done, exec_done, critic_done, mem_done⟩ {
+    print("=== SWARM OS REPORT ===");
+    print("Tasks processed:", n_tasks);
+    print("Messages passed:", total_msgs);
+    print("Agent completions — sensor:", sensor_done, "planner:", planner_done,
+          "executor:", exec_done, "critic:", critic_done, "memory:", mem_done);
+    let total_done = sensor_done + planner_done + exec_done + critic_done + mem_done;
+    print("Total completions:", total_done, "(expected", n_tasks * 5, ")");
+}
+
+◯ d_run_swarm⟨n_tasks⟩ {
+    ⍝ Spin up 5-agent colony and process n_tasks
+    print("=== AEONMI SWARM OS v1.0 ===");
+    print("Initializing colony: 5 agents [sensor planner executor critic memory]");
+    let sensor   = a_agent_init(0, 0);
+    let planner  = a_agent_init(1, 1);
+    let executor = a_agent_init(2, 2);
+    let critic   = a_agent_init(3, 3);
+    let memory   = a_agent_init(4, 4);
+    let total_msgs  = 0;
+    let sensor_done   = 0;
+    let planner_done  = 0;
+    let exec_done     = 0;
+    let critic_done   = 0;
+    let mem_done      = 0;
+    let i = 0;
+    while (i < n_tasks) {
+        let task = b_task_new(i, n_tasks - i);
+        print("[Task", i, "] priority=", n_tasks - i);
+        let result = c_run_pipeline(task, sensor, planner, executor, critic, memory);
+        total_msgs  = total_msgs  + result.slice(0, 1).pop();
+        sensor_done   = sensor_done   + result.slice(1, 2).pop();
+        planner_done  = planner_done  + result.slice(2, 3).pop();
+        exec_done     = exec_done     + result.slice(3, 4).pop();
+        critic_done   = critic_done   + result.slice(4, 5).pop();
+        mem_done      = mem_done      + result.slice(5, 6).pop();
+        i = i + 1;
+    }
+    d_print_report(n_tasks, total_msgs, sensor_done, planner_done, exec_done, critic_done, mem_done);
+    return total_msgs;
+}
+
+◯ d_verify_swarm⟨total_msgs, n_tasks⟩ {
+    ⍝ Each task generates 4 inter-agent messages (sensor->planner, planner->executor,
+    ⍝ executor->critic, critic->memory)
+    let expected = n_tasks * 4;
+    if (total_msgs == expected) {
+        print("[VERIFY] Message count:", total_msgs, "/", expected, " — OK");
+        return 1;
+    }
+    print("[VERIFY FAIL] got:", total_msgs, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let n = 5;
+    let msgs = d_run_swarm(n);
+    let ok   = d_verify_swarm(msgs, n);
+    if (ok == 1) {
+        print("=== PASS ===");
+    }
+}

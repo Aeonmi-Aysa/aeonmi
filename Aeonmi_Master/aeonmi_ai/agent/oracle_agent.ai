@@ -1,0 +1,10 @@
+⍝ Oracle Agent
+⍝ Provides insight and recommendations based on knowledge graph
+fn ora_verdict(query: String) -> String {
+  ⍝ Implement logic to generate verdict based on knowledge graph
+  return "This is a test verdict."
+}
+
+fn main(query: String) -> String {
+  return ora_verdict(query)
+}

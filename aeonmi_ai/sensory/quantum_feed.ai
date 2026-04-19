@@ -1,0 +1,136 @@
+⍝ quantum_feed.ai — Phase 2: Sensory Input
+⍝ Receives quantum hive signal → journals event → updates Mother memory
+⍝ Inlines Mother primitives (journal_min + memory_min subset) to stay within budget.
+⍝ Standalone. 8 fns + main = 9 total (budget ≤ 13).
+⍝
+⍝ Journal layout : flat [tag0, payload0, ts0,  tag1, payload1, ts1, ...]  3 fields/entry
+⍝ Memory layout  : flat [key0, val0, str0,  key1, val1, str1, ...]        3 fields/entry
+
+◯ a_int_str⟨n⟩ {
+    ⍝ special-case values > 30 that appear in this module
+    if (n == 100) { return "100"; }
+    if (n == 50)  { return "50"; }
+    let lut = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30"];
+    return lut.slice(n, n + 1).pop();
+}
+
+◯ b_j_append⟨j, tag, payload⟩ {
+    ⍝ append [tag, payload, ts=0] — returns updated journal (arrays copy on call)
+    j.push(tag);
+    j.push(payload);
+    j.push(0);
+    return j;
+}
+
+◯ b_j_count⟨j⟩ {
+    return len(j) / 3;
+}
+
+◯ b_m_count⟨m⟩ {
+    return len(m) / 3;
+}
+
+◯ b_m_recall⟨m, key⟩ {
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { return m.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return "";
+}
+
+◯ b_m_store⟨m, key, val⟩ {
+    ⍝ upsert: update if key exists, else append
+    let total = len(m) / 3;
+    let found = -1;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    let result = [];
+    let j = 0;
+    while (j < total) {
+        let b = j * 3;
+        let ek = m.slice(b, b + 1).pop();
+        let ev = m.slice(b + 1, b + 2).pop();
+        let es = m.slice(b + 2, b + 3).pop();
+        if (j == found) {
+            result.push(ek);
+            result.push(val);
+            result.push(1);
+        } else {
+            result.push(ek);
+            result.push(ev);
+            result.push(es);
+        }
+        j = j + 1;
+    }
+    return result;
+}
+
+◯ c_verdict_str⟨v⟩ {
+    if (v == 0) { return "ABORT"; }
+    if (v == 1) { return "HOLD"; }
+    if (v == 2) { return "PROCEED"; }
+    return "ACCELERATE";
+}
+
+◯ d_print_state⟨j, m, verdict, conf, ent⟩ {
+    let jc  = b_j_count(j);
+    let mc  = b_m_count(m);
+    let vstr = c_verdict_str(verdict);
+    let lv  = b_m_recall(m, "last_verdict");
+    let lc  = b_m_recall(m, "last_conf");
+    let le  = b_m_recall(m, "entanglement");
+    print("=== MOTHER SENSORY STATE ===");
+    print("Signal in    : verdict=" + vstr + "  conf=" + a_int_str(conf) + "  ent=" + a_int_str(ent));
+    print("Journal      : " + a_int_str(jc) + " entries");
+    print("Memory       : " + a_int_str(mc) + " keys");
+    print("  last_verdict  = " + lv);
+    print("  last_conf     = " + lc);
+    print("  entanglement  = " + le);
+    print("=== END STATE ===");
+}
+
+◯ main⟨⟩ {
+    ⍝ ── Quantum hive signal (from Phase 5 demo output) ─────────────────
+    let verdict = 2;    ⍝ PROCEED
+    let conf    = 16;   ⍝ oracle confidence
+    let ent     = 100;  ⍝ entanglement %
+
+    ⍝ ── Init Mother state ──────────────────────────────────────────────
+    let j = [];
+    let m = [];
+
+    ⍝ ── Journal: record the quantum event ──────────────────────────────
+    let vtag = c_verdict_str(verdict);
+    j = b_j_append(j, "quantum_signal", vtag);
+    j = b_j_append(j, "entanglement",   "confirmed");
+
+    ⍝ ── Memory: store signal data ───────────────────────────────────────
+    m = b_m_store(m, "last_verdict",  verdict);
+    m = b_m_store(m, "last_conf",     conf);
+    m = b_m_store(m, "entanglement",  ent);
+
+    ⍝ ── Rule: if PROCEED → reinforce confidence memory ──────────────────
+    let is_proceed = 0; if (verdict == 2) { is_proceed = 1; }
+    if (is_proceed == 1) {
+        m = b_m_store(m, "proceed_count", 1);
+        j = b_j_append(j, "rule_fired", "reinforce_on_proceed");
+    }
+
+    ⍝ ── Print Mother state ──────────────────────────────────────────────
+    d_print_state(j, m, verdict, conf, ent);
+}

@@ -1,0 +1,32 @@
+⍝ pattern_test.ai — 6 total functions (4 imported + check + main)
+
+import { pat_add, pat_count, pat_new, pat_top } from "./pattern";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("pass:", label);
+        return 1;
+    }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let pat = pat_new();
+
+    p = p + check("empty count",  pat_count(pat, "foo"), 0);
+    p = p + check("empty top",    pat_top(pat),          "");
+
+    let p1 = pat_add(pat, "foo");
+    p = p + check("count 1",      pat_count(p1, "foo"),  1);
+
+    let p2 = pat_add(p1, "foo");
+    let p3 = pat_add(p2, "bar");
+
+    p = p + check("foo count 2",  pat_count(p3, "foo"),  2);
+    p = p + check("bar count 1",  pat_count(p3, "bar"),  1);
+    p = p + check("top is foo",   pat_top(p3),           "foo");
+
+    print("pattern tests passed:", p, "/ 6");
+}

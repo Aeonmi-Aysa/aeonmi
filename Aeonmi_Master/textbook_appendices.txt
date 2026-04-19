@@ -1,0 +1,1036 @@
+# APPENDIX A: Complete CLI Reference
+
+### SECTION: Overview
+BODY: The `aeonmi` binary is the unified entry point for the entire Aeonmi ecosystem. Every capability — from running a single .ai file to interacting with Mother AI to minting NFT metadata — flows through this one command. The CLI is built with Clap and follows a subcommand pattern: `aeonmi <subcommand> [flags] [args]`. Global flags apply to every subcommand and must be placed before the subcommand name.
+
+### SECTION: Global Flags
+TABLE_HEADER: Flag | Type | Description
+TABLE_ROW: --pretty-errors | boolean | Enable colorized, human-readable diagnostic output instead of raw error messages
+TABLE_ROW: --no-sema | boolean | Disable semantic analysis pass (faster execution, fewer guarantees)
+TABLE_ROW: --debug-titan | boolean | Print verbose debug output from the Titan quantum math library
+TABLE_ROW: --config FILE | path | Path to a TOML configuration file (default: ~/.aeonmi/qpoly.toml)
+TABLE_ROW: --metrics-dump | boolean | (hidden) Dump all persisted metrics as JSON and exit
+
+### SECTION: aeonmi run — Run an .ai File
+BODY: The `run` subcommand executes an `.ai` source file through the native Aeonmi VM. By default it uses the native interpreter; no JavaScript or Node.js is involved. The `--watch` flag enables file-watching mode, re-running the program whenever the source file changes on disk.
+
+CODE:
+```
+aeonmi run <INPUT> [flags]
+
+Flags:
+  --out FILE          Write VM output to FILE instead of stdout
+  --watch             Re-run when the file is modified
+  --native            Force the native VM interpreter (default; AEONMI_NATIVE=1 also works)
+  --bytecode          Use the bytecode VM (AEONMI_BYTECODE=1 also works)
+  --emit-ai FILE      Also emit canonical .ai form to FILE before execution
+  --opt-stats         Print optimization statistics (bytecode mode only)
+  --opt-stats-json    Emit optimization stats as JSON (implies --bytecode)
+  --disasm            Disassemble compiled bytecode before execution (implies --bytecode)
+
+Examples:
+  aeonmi run hello.ai
+  aeonmi run src/main.ai --watch
+  aeonmi run src/main.ai --bytecode --disasm
+  aeonmi run program.ai --emit-ai canonical.ai
+```
+
+### SECTION: aeonmi native — Explicit Native VM
+BODY: The `native` subcommand is an explicit alias for native-only VM execution. It exists to make the intent unambiguous in scripts and Makefiles. It does not fall back to any other execution path under any circumstances.
+
+CODE:
+```
+aeonmi native <INPUT> [flags]
+
+Flags:
+  --emit-ai FILE      Emit canonical .ai source to FILE before running
+  --watch             Re-run on file modification
+
+Examples:
+  aeonmi native program.ai
+  aeonmi native program.ai --watch
+  aeonmi native program.ai --emit-ai out.ai
+```
+
+### SECTION: aeonmi exec — Auto-Detecting Executor
+BODY: The `exec` subcommand detects the file extension and routes execution to the correct runtime. An `.ai` file goes to the native Aeonmi VM. A `.qube` file goes to the QUBE quantum executor. A `.py` file is passed to the system Python interpreter. A `.rs` file is compiled with `rustc` into a temporary binary that is run and then cleaned up (unless `--keep-temp` is specified).
+
+CODE:
+```
+aeonmi exec <FILE> [ARGS...] [flags]
+
+Flags:
+  --watch             Watch the file and re-run on change
+  --keep-temp         Keep temporary compiled artifacts (useful for .rs files)
+
+Examples:
+  aeonmi exec hello.ai
+  aeonmi exec circuit.qube
+  aeonmi exec script.py arg1 arg2
+  aeonmi exec module.rs
+  aeonmi exec program.ai --watch
+```
+
+### SECTION: aeonmi repl — Interactive REPL
+BODY: The `repl` subcommand starts an interactive read-evaluate-print loop for the Aeonmi language. This is the raw language REPL; for Mother AI's REPL (with cognitive capabilities), use `aeonmi mother` instead.
+
+CODE:
+```
+aeonmi repl
+
+Example:
+  aeonmi repl
+  > let x = 42
+  > print(x)
+  42
+```
+
+### SECTION: aeonmi emit — Compile and Emit Source
+BODY: The `emit` subcommand compiles an `.ai` or `.qube` file and writes the output to disk. The default emit format is canonical `.ai` source. A legacy `js` format is available for artifact-cache compatibility but is not the preferred path. Use `--watch` to continuously recompile as the source changes.
+
+CODE:
+```
+aeonmi emit <INPUT> [flags]
+
+Flags:
+  --emit KIND         Output format: ai (default) or js
+  --format KIND       Alias for --emit
+  -o, --out FILE      Output file path (default: output.ai, or output.js for js format)
+  --tokens            Dump the token stream (debug)
+  --ast               Dump the AST (debug)
+  --debug-titan       Enable Titan debug during compilation
+  --watch             Watch and re-emit on change
+
+Examples:
+  aeonmi emit demo.ai -o out.ai
+  aeonmi emit demo.qube --format ai -o canonical.ai
+  aeonmi emit src/main.ai --tokens
+  aeonmi emit src/main.ai --ast
+  aeonmi emit src/main.ai --watch
+```
+
+### SECTION: aeonmi vault — Quantum Domain Vault
+BODY: The `vault` subcommand manages the encrypted Quantum Vault — a record store for domains and secrets protected by XChaCha20-Poly1305 encryption and a Merkle integrity tree. The vault is initialized once with `vault init`, which generates the Master Glyph Key (MGK). All subsequent operations require the sealed vault to be accessible.
+
+CODE:
+```
+aeonmi vault <ACTION> [flags]
+
+Actions:
+  init [--passphrase PASS] [--force]
+      Initialize the Glyph Identity System. Creates MGK with Argon2id sealing.
+      --force re-initializes even if an MGK already exists.
+
+  register <DOMAIN> --registrar NAME --expiration YYYY-MM-DD [--auto-renew]
+      [--dnssec] [--lock] [--blockchain REGISTRY]
+      [--metadata FILE] --secret FILE
+      Register a new domain into the vault.
+
+  transfer <DOMAIN> --to REGISTRAR [--token FILE]
+      Transfer a domain to a new registrar.
+
+  fortify <DOMAIN> [--dnssec] [--lock] [--blockchain REGISTRY]
+      Apply layered security controls to a registered domain.
+
+  qube-run <SCRIPT> [--profile PROFILE]
+      Execute a QUBE symbolic policy script against the vault state.
+
+  vault-status [--json]
+      Emit a live status report: domain counts, expirations, Merkle root.
+
+  vault-analyze [DOMAIN] [--mitigate]
+      Run deep analytics over the vault; produce mitigation plans.
+
+  add <DOMAIN> --registrar NAME --expiration YYYY-MM-DD --secret FILE [--metadata FILE]
+      Low-level alias for register (useful when importing existing metadata).
+
+  renew <DOMAIN> --expiration YYYY-MM-DD
+      Update the expiration date for a registered domain.
+
+  lock <DOMAIN> [--unlock]
+      Toggle registrar lock state on a domain.
+
+  audit <CATEGORY> [--detail JSON]
+      Append a custom audit entry to the vault log.
+
+  watch [--interval SECONDS] [--once]
+      Continuously monitor domain expirations (default poll interval: 300s).
+
+  sync
+      Synchronize vault state with distributed storage.
+
+  backup <FILE>
+      Write a backup of the vault to FILE.
+
+  recover <FILE>
+      Restore the vault from a backup file.
+
+  export-merkle
+      Export the Merkle tree view of the current vault state.
+
+Examples:
+  aeonmi vault init
+  aeonmi vault init --passphrase "my secure passphrase"
+  aeonmi vault register aeonmi.com --registrar namecheap --expiration 2027-04-01 --secret secret.key
+  aeonmi vault vault-status
+  aeonmi vault vault-status --json
+  aeonmi vault watch --interval 60
+  aeonmi vault backup vault_backup.bin
+```
+
+NOTE: The vault TUI dashboard is available for supported subcommands with `--tui`. Example: `aeonmi vault vault-status --tui`
+
+### SECTION: aeonmi quantum — Quantum Execution
+BODY: The `quantum` subcommand runs a quantum circuit through one of three backends: Titan (local), Aer (Qiskit simulator), or IBMQ (real IBM Quantum hardware). The Titan backend runs entirely within the Aeonmi process with no external dependencies. The Aer backend requires Qiskit to be installed. The IBMQ backend additionally requires the environment variable `IBM_QUANTUM_TOKEN` to be set.
+
+CODE:
+```
+aeonmi quantum <BACKEND> <FILE> [flags]
+
+Backends:
+  titan   Local Titan quantum math library (always available, no deps)
+  aer     Qiskit Aer simulator (requires Qiskit installation)
+  ibmq    IBM Quantum real hardware (requires IBM_QUANTUM_TOKEN env var)
+
+Flags:
+  --shots N           Number of circuit shots (default varies by backend)
+
+Examples:
+  aeonmi quantum titan circuit.ai
+  aeonmi quantum aer circuit.qube --shots 1024
+  aeonmi quantum ibmq circuit.qube --shots 512
+```
+
+NOTE: Without IBM_QUANTUM_TOKEN set, the ibmq backend falls back to Aer simulation. IonQ is a stub only and requires IONQ_API_KEY plus the qiskit-ionq package, neither of which are configured in the current release.
+
+### SECTION: aeonmi qube — QUBE Circuit Files
+BODY: The `qube` subcommand operates on `.qube` quantum circuit files. QUBE (Quantum Unified Binary Expression) is Aeonmi's symbolic quantum reasoning format. Use `qube run` to execute a circuit and optionally print a text-mode diagram. Use `qube check` to validate the syntax without executing.
+
+CODE:
+```
+aeonmi qube <ACTION> [flags]
+
+Actions:
+  run <FILE> [--diagram]
+      Parse, execute, and optionally print the circuit diagram.
+      --diagram: print a text-mode ASCII circuit diagram after execution.
+
+  check <FILE>
+      Validate the .qube file (parse only, no execution).
+
+Examples:
+  aeonmi qube run circuit.qube
+  aeonmi qube run circuit.qube --diagram
+  aeonmi qube check circuit.qube
+```
+
+### SECTION: aeonmi mint — NFT Minting
+BODY: The `mint` subcommand converts a compiled `.ai` artifact into NFT metadata compatible with the Solana blockchain. It embeds personality attributes, a glyph seed, and optional Anchor Rust stub code. Metadata is written to stdout by default or to a file with `--out`.
+
+CODE:
+```
+aeonmi mint <FILE> [flags]
+
+Flags:
+  --personality TAG   Personality tag embedded in NFT attributes (default: quantum-titan)
+  --anchor            Also emit the Anchor Rust program stub alongside the metadata
+  --glyph-seed HEX    Custom glyph seed (hex string) to embed in metadata
+  --out FILE          Write metadata JSON to FILE instead of stdout
+
+Examples:
+  aeonmi mint output.ai
+  aeonmi mint output.ai --personality quantum-titan --anchor
+  aeonmi mint output.ai --glyph-seed deadbeef01234567 --out nft_metadata.json
+```
+
+### SECTION: aeonmi mother — Mother AI REPL
+BODY: The `mother` subcommand starts the Mother AI embryo loop. With no arguments, it opens an interactive REPL session where you can converse with Mother, issue cognitive commands, run the hive, and access all Phase 6–12 capabilities. With `--file`, it processes a `.ai` script non-interactively. The `--creator` flag sets the identity used to modulate the quantum bond.
+
+CODE:
+```
+aeonmi mother [flags]
+
+Flags:
+  --file FILE         Run a .ai script through Mother non-interactively
+  --creator NAME      Creator identifier for quantum bond (default: Warren)
+  --verbose           Print verbose cognitive stats after each interaction
+
+Examples:
+  aeonmi mother
+  aeonmi mother --creator Warren --verbose
+  aeonmi mother --file init_script.ai
+```
+
+### SECTION: aeonmi build — Build an .ai File
+BODY: The `build` subcommand runs the Aeonmi native compilation pipeline on an `.ai` file and writes the output. Without an input argument, it looks for `build.ai` in the current directory.
+
+CODE:
+```
+aeonmi build [INPUT] [flags]
+
+Flags:
+  --out FILE          Output file (default: output.ai)
+  --no-sema           Disable semantic analysis
+
+Examples:
+  aeonmi build
+  aeonmi build src/main.ai
+  aeonmi build src/main.ai --out dist/main.ai
+```
+
+### SECTION: aeonmi key-* — API Key Management
+BODY: The `key-*` subcommands manage encrypted API keys for AI providers. Keys are stored in the vault using the same XChaCha20-Poly1305 encryption as domain secrets. The `key-rotate` command re-encrypts all stored keys with the current KDF derivation (use after passphrase changes).
+
+CODE:
+```
+aeonmi key-list [--json]
+    List all stored API key provider names.
+
+aeonmi key-get <PROVIDER> [--json]
+    Decrypt and display the API key for a provider.
+
+aeonmi key-set <PROVIDER> <KEY>
+    Store (create or update) an API key for a provider.
+
+aeonmi key-delete <PROVIDER>
+    Delete a stored API key.
+
+aeonmi key-rotate [--json]
+    Re-encrypt all stored keys with the current KDF derivation.
+
+Examples:
+  aeonmi key-set openai sk-...
+  aeonmi key-set anthropic sk-ant-...
+  aeonmi key-list
+  aeonmi key-get openai
+  aeonmi key-rotate
+```
+
+### SECTION: aeonmi metrics-* — Performance Metrics
+BODY: The `metrics-*` subcommands expose the incremental analysis and performance tracking system. Metrics are persisted across sessions and updated in real-time. They track function call graphs, variable dependency edges, EMA timing, and incremental analysis savings.
+
+CODE:
+```
+aeonmi metrics-dump
+    Print all persisted metrics as pretty JSON (call graph, var deps, function timings, savings).
+
+aeonmi metrics-flush
+    Force immediate metrics persistence (bypass debounce) then exit.
+
+aeonmi metrics-path
+    Print the absolute path to the metrics JSON file.
+
+aeonmi metrics-top [--limit N] [--json]
+    Show the top N slowest functions by average inference time (default: 10).
+
+aeonmi metrics-config [options]
+    Configure runtime metrics parameters:
+    --set-ema PCT       Set EMA alpha percent (1-100)
+    --set-window N      Set rolling window capacity (4-256)
+    --set-history-cap N Set savings history capacity (8-256)
+    --reset             Reset to defaults (ema=20, window=16)
+    --json              Show current config as JSON
+
+aeonmi metrics-deep [--enable] [--disable] [--json]
+    Control deep propagation behavior for incremental analysis.
+
+aeonmi metrics-export <FILE>
+    Export function metrics to a CSV file.
+```
+
+### SECTION: aeonmi Additional Subcommands
+TABLE_HEADER: Subcommand | Description
+TABLE_ROW: aeonmi format [FILES] [--check] | Format .ai source files in place; --check validates without modifying
+TABLE_ROW: aeonmi lint [FILES] [--fix] | Lint .ai source files; --fix applies automatic corrections
+TABLE_ROW: aeonmi edit [FILE] [--tui] | Open the line-mode editor or TUI editor (--tui)
+TABLE_ROW: aeonmi new [FILE] [--open] [--tui] [--compile] [--run] | Create a new .ai file with optional follow-up actions
+TABLE_ROW: aeonmi open FILE | Open a file in the editor
+TABLE_ROW: aeonmi save [FILE] | Save current editor buffer
+TABLE_ROW: aeonmi save-as FILE | Save with a new filename
+TABLE_ROW: aeonmi close [FILE] | Close editor buffer
+TABLE_ROW: aeonmi import FILE | Import an external file
+TABLE_ROW: aeonmi export FILE [FORMAT] | Export editor content to a file
+TABLE_ROW: aeonmi upload PATH | Upload a file
+TABLE_ROW: aeonmi download FILE | Download a file
+TABLE_ROW: aeonmi tokens INPUT | Dump the token stream for an .ai file (debug)
+TABLE_ROW: aeonmi ast INPUT | Dump the AST for an .ai file (debug)
+TABLE_ROW: aeonmi vm start/stop/status/reset | VM lifecycle control
+TABLE_ROW: aeonmi vm snapshot NAME / restore NAME | VM state snapshots
+TABLE_ROW: aeonmi vm mount DIR | Mount a directory into the VM
+TABLE_ROW: aeonmi ai suggest/debug/optimize | AI-powered code suggestions
+TABLE_ROW: aeonmi ai explain [SECTION] | AI explanation of code sections
+TABLE_ROW: aeonmi ai refactor [RULE] | AI-guided refactoring
+TABLE_ROW: aeonmi ai chat [PROVIDER] [PROMPT] | Direct AI provider chat
+TABLE_ROW: aeonmi cargo ARGS... | Passthrough to system cargo (e.g., aeonmi cargo build --release)
+TABLE_ROW: aeonmi python ARGS... | Passthrough to system Python (e.g., aeonmi python script.py)
+
+
+# APPENDIX B: Complete Mother REPL Command Reference
+
+### SECTION: Overview
+BODY: When you run `aeonmi mother`, you enter the Mother AI interactive REPL. Every line of input is either a natural-language message to Mother (she responds with cognitive output) or a specific REPL command that activates a system capability. REPL commands are not case-sensitive. Anything that does not match a known command is treated as a natural-language message and routed through the AI provider or quantum-core reasoning.
+
+### SECTION: Conversation and Identity Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: (any message) | Natural language conversation with Mother | AI-generated or heuristic response with cognitive stats
+TABLE_ROW: bond | Show current bond strength and descriptive tier | Bond value (0.0–1.0) and phrase (e.g., "we understand each other")
+TABLE_ROW: bond status | Alias for bond | Same as bond
+TABLE_ROW: emotion | Show current emotional core summary | Valence, arousal, and dominant emotion state
+TABLE_ROW: recall | Show all learned key-value pairs from the knowledge store | List of stored knowledge entries
+TABLE_ROW: learned | Alias for recall | Same as recall
+TABLE_ROW: recall KEY | Recall a specific learned value by key | The stored value for that key, or not found
+TABLE_ROW: sync | Run genesis_sync.py to reconcile all three tracks in genesis.json | Sync report showing what was updated
+
+### SECTION: Neural Network Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: neural | Show neural network state: layer sizes, weight norms, last I/O | Layer config (4→8→4→2), weight norms, last training input/output
+TABLE_ROW: nn | Alias for neural | Same as neural
+TABLE_ROW: train good | Backpropagate positive reinforcement signal | Training confirmation with updated weight norms
+TABLE_ROW: train bad | Backpropagate negative reinforcement signal | Training confirmation with updated weight norms
+TABLE_ROW: train strong | Backpropagate high-confidence positive signal | Training confirmation
+TABLE_ROW: train weak | Backpropagate low-confidence correction signal | Training confirmation
+
+NOTE: The neural network uses 4 inputs: semantic_depth, bond_strength, consciousness_depth, keyword_density. Outputs are confidence_mod and action_drive. Weights are persisted to genesis.json on every save.
+
+### SECTION: Hive (Swarm) Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: hive | Show current hive status and last conductor recommendation | Agent scores, conductor recommendation (ABORT/HOLD/PROCEED/ACCELERATE)
+TABLE_ROW: hive status | Alias for hive | Same as hive
+TABLE_ROW: hive run | Run one hive cycle immediately (foreground) | All 5 agent scores and conductor recommendation
+TABLE_ROW: hive once | Alias for hive run | Same as hive run
+TABLE_ROW: hive start [SECONDS] | Start hive background thread (default: 60s interval) | Confirmation that hive thread is running
+TABLE_ROW: hive stop | Stop the hive background thread | Confirmation that hive thread has stopped
+TABLE_ROW: hive alert N | Set hive alert threshold for conductor score N | Alert threshold updated confirmation
+TABLE_ROW: hive interval SECONDS | Update the hive polling interval | Interval updated confirmation
+
+NOTE: The five hive agents are oracle, hype, closer, devil, and conductor. The conductor aggregates the other four into a recommendation. hive_state.json is written to Aeonmi_Master/ each cycle and is readable by the dashboard.
+
+### SECTION: Agent Autonomy Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: goal TEXT | Set a new goal and decompose it into steps | Goal confirmation with decomposed step list
+TABLE_ROW: goal status | Show current goal and remaining steps | Current goal, step count, and next step
+TABLE_ROW: auto | Enable autonomous execution mode | Confirmation that auto mode is active
+TABLE_ROW: auto on | Alias for auto | Same as auto
+TABLE_ROW: auto off | Disable autonomous execution mode | Confirmation that auto mode is paused
+TABLE_ROW: pause | Alias for auto off | Same as auto off
+TABLE_ROW: next | Execute the next queued autonomous step | Step result and remaining step count
+TABLE_ROW: run auto | Execute all queued autonomous steps up to the safety cap (8) | Results for each step executed
+TABLE_ROW: autorun | Alias for run auto | Same as run auto
+
+### SECTION: Knowledge Graph Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: graph | Show knowledge graph summary: node count, top tags, connectivity | Node count, tag distribution, edge count
+TABLE_ROW: kg | Alias for graph | Same as graph
+TABLE_ROW: knowledge | Alias for graph | Same as graph
+TABLE_ROW: graph QUERY | Search the knowledge graph for nodes matching QUERY | Matching nodes with their values and tags
+TABLE_ROW: kg QUERY | Alias for graph QUERY | Same as graph QUERY
+TABLE_ROW: link KEY1 KEY2 | Create a manual link between two knowledge nodes | Link confirmation
+TABLE_ROW: neighbors KEY | Show all nodes linked to KEY | List of neighbor nodes with their values
+TABLE_ROW: query TAG | Show all nodes with the given tag | Matching nodes filtered by tag
+
+### SECTION: Inner Voice Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: think | Generate a heuristic thought based on current state | A generated thought entry with trigger, bond, and depth info
+TABLE_ROW: voice | Alias for think | Same as think
+TABLE_ROW: introspect | Alias for think | Same as think
+TABLE_ROW: think TOPIC | Generate a thought about a specific topic | A focused thought entry for that topic
+TABLE_ROW: dream | Consolidate knowledge: BFS over graph, link unconnected nodes sharing >=2 tags | Consolidation report with new links created
+TABLE_ROW: consolidate | Alias for dream | Same as dream
+TABLE_ROW: synthesize | Alias for dream | Same as dream
+TABLE_ROW: thoughts | Show recent thought log entries | List of recent ThoughtEntry records with timestamps
+
+### SECTION: Self-Generation Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: propose | Scan action log and snapshots; suggest 1-3 new program ideas | List of program suggestions with rationale
+TABLE_ROW: suggest | Alias for propose | Same as propose
+TABLE_ROW: build NAME GOAL | Generate a new .ai program, write to examples/, and execute it | Generated source path, execution result, and success/fail status
+TABLE_ROW: reflect NAME | Compare expected vs. actual outcome for a generated program; update knowledge graph | Reflection report with outcome assessment
+TABLE_ROW: generated | List all self-generated programs with their outcomes | Program names, goals, and reflect results
+
+### SECTION: Quantum Commands (inside Mother REPL)
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: quantum | Show quantum backend status and fidelity | Backend name (Aer/IBM Brisbane), last fidelity score
+TABLE_ROW: quantum status | Alias for quantum | Same as quantum
+TABLE_ROW: quantum run | Run a quantum test circuit on the current backend | Circuit execution result with shot counts and fidelity
+TABLE_ROW: quantum run DESC | Run a quantum circuit described by DESC | Circuit built from description, executed, fidelity reported
+TABLE_ROW: quantum_backend BACKEND | Switch quantum backend (aer, ibmq, titan) | Backend switched confirmation
+TABLE_ROW: quantum backend BACKEND | Alias with space separator | Same as quantum_backend
+
+### SECTION: Snapshot and Learning Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: snapshot | Capture a capability snapshot of current Mother state | Snapshot saved with interaction count, bond, consciousness depth
+TABLE_ROW: snapshots | List all saved capability snapshots | Table of snapshots with bond, depth, and neural confidence values
+TABLE_ROW: learn | Generate a learn probe source and display it | Generated .ai probe source (display only; does not execute the .ai learn module)
+
+NOTE: The learn command generates source code for a learn probe but does not execute it through the .ai runtime layer. The Track 2 (.ai) to Track 1 (Rust) runtime bridge is not yet built. See Appendix H for details on this architectural gap.
+
+### SECTION: Session and Creator Interface Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: letter | Generate a letter from Mother to Warren about her current state | Full letter text (LLM-generated or heuristic fallback)
+TABLE_ROW: write letter | Alias for letter | Same as letter
+TABLE_ROW: memory_report | Generate a structured weekly summary of capability changes | Memory report with interaction counts, bond progression, milestones
+TABLE_ROW: memory report | Alias with space | Same as memory_report
+TABLE_ROW: report | Short alias for memory_report | Same as memory_report
+TABLE_ROW: sessions | List all session log files and show the most recent | Session log file paths and content of latest session
+TABLE_ROW: session log | Alias for sessions | Same as sessions
+TABLE_ROW: milestone NAME | Record a named milestone event in genesis.json | Milestone recorded confirmation with timestamp
+TABLE_ROW: milestones | List all recorded milestones with timestamps and bond values | Full milestone history
+TABLE_ROW: moments | Alias for milestones | Same as milestones
+TABLE_ROW: bond | Show current bond strength tier and descriptive phrase | Bond value and phrase
+TABLE_ROW: bond status | Alias for bond | Same as bond
+
+### SECTION: Awaken Commands
+TABLE_HEADER: Command | Description | Expected Output
+TABLE_ROW: awaken | Start the awaken loop (checks awaken_trigger.json periodically) | Awaken loop started; polls at default interval
+TABLE_ROW: awaken SECONDS | Start awaken loop with specified poll interval | Awaken loop started with custom interval
+
+NOTE: The awaken mechanism polls awaken_trigger.json in Aeonmi_Master/. When the file contains `"action": "propose_and_run"`, Mother autonomously proposes and builds a program. This is an operator-assisted feature; it requires a human to write the trigger file.
+
+
+# APPENDIX C: Quantum Gate Reference
+
+### SECTION: Overview
+BODY: Quantum gates are the fundamental operations in Aeonmi's quantum computing layer. They transform qubit states, create entanglement, and implement quantum algorithms. In Aeonmi syntax, gates are applied using the glyph operator `⊗` for tensor product composition, or within `quantum circuit` blocks using function-call style syntax. The QUBE format uses a declarative gate list.
+
+### SECTION: Single-Qubit Gates
+TABLE_HEADER: Gate | Symbol | Matrix Action | Aeonmi Syntax | Description
+TABLE_ROW: Hadamard | H | |0>→|+>, |1>→|-> | H(q[0]) | Creates equal superposition from basis state. The most fundamental gate in quantum computing.
+TABLE_ROW: Pauli-X | X | |0>→|1>, |1>→|0> | X(q[0]) | Quantum NOT gate. Flips qubit state completely. Equivalent to classical bit flip.
+TABLE_ROW: Pauli-Y | Y | |0>→i|1>, |1>→-i|0> | Y(q[0]) | Rotation around Y-axis by pi. Combines bit flip and phase flip.
+TABLE_ROW: Pauli-Z | Z | |0>→|0>, |1>→-|1> | Z(q[0]) | Phase flip gate. Leaves |0> unchanged; applies -1 phase to |1>.
+TABLE_ROW: S gate | S | Phase pi/2 | S(q[0]) | Square root of Z. Applies a pi/2 phase rotation.
+TABLE_ROW: T gate | T | Phase pi/4 | T(q[0]) | Fourth root of Z. Applies a pi/4 phase rotation. Used in fault-tolerant circuits.
+TABLE_ROW: S-dagger | Sdg | Phase -pi/2 | Sdg(q[0]) | Inverse of S gate. Phase rotation of -pi/2.
+TABLE_ROW: T-dagger | Tdg | Phase -pi/4 | Tdg(q[0]) | Inverse of T gate. Phase rotation of -pi/4.
+TABLE_ROW: Identity | I | No change | I(q[0]) | Identity operation. Used as a placeholder or timing delay.
+
+### SECTION: Rotation Gates
+TABLE_HEADER: Gate | Syntax | Description
+TABLE_ROW: Rx(theta) | Rx(theta, q[0]) | Rotation around X-axis by angle theta (radians)
+TABLE_ROW: Ry(theta) | Ry(theta, q[0]) | Rotation around Y-axis by angle theta (radians)
+TABLE_ROW: Rz(theta) | Rz(theta, q[0]) | Rotation around Z-axis by angle theta (radians)
+TABLE_ROW: U gate | U(theta, phi, lam, q[0]) | General single-qubit unitary: parameterized by 3 Euler angles
+
+### SECTION: Two-Qubit Gates
+TABLE_HEADER: Gate | Symbol | Syntax | Description
+TABLE_ROW: Controlled-NOT | CNOT | CNOT(q[0], q[1]) | Flips the target qubit (q[1]) if and only if the control qubit (q[0]) is |1>. The primary entangling gate.
+TABLE_ROW: Controlled-Z | CZ | CZ(q[0], q[1]) | Applies Z gate to target if control is |1>. Symmetric: either qubit can be control or target.
+TABLE_ROW: SWAP | SWAP | SWAP(q[0], q[1]) | Exchanges the states of two qubits.
+TABLE_ROW: iSWAP | iSWAP | iSWAP(q[0], q[1]) | SWAP with additional imaginary phase factor. Used in superconducting hardware.
+TABLE_ROW: Controlled-Y | CY | CY(q[0], q[1]) | Applies Y gate to target if control is |1>.
+TABLE_ROW: Controlled-H | CH | CH(q[0], q[1]) | Applies Hadamard to target if control is |1>.
+
+### SECTION: Three-Qubit Gates
+TABLE_HEADER: Gate | Symbol | Syntax | Description
+TABLE_ROW: Toffoli | CCX | CCX(q[0], q[1], q[2]) | Controlled-Controlled-NOT. Flips target (q[2]) if both controls (q[0], q[1]) are |1>. Universal for classical computation.
+TABLE_ROW: Fredkin | CSWAP | CSWAP(q[0], q[1], q[2]) | Controlled-SWAP. Swaps q[1] and q[2] if q[0] is |1>. Preserves particle count (useful in quantum chemistry).
+
+### SECTION: Using Gates in Aeonmi Syntax
+BODY: In `.ai` files, quantum circuits are declared with the `quantum circuit` keyword. Qubits are indexed from 0. Gates are applied in sequence. Measurement collapses qubits to classical bits.
+
+CODE:
+```
+quantum circuit bell_state {
+    qubits: 2
+    classical: 2
+
+    H(q[0])           // Hadamard creates superposition on qubit 0
+    CNOT(q[0], q[1])  // CNOT entangles qubit 0 (control) with qubit 1 (target)
+    measure q[0] -> c[0]
+    measure q[1] -> c[1]
+}
+
+// Run the circuit
+let result = run_circuit(bell_state, shots: 1024)
+print(result.counts)
+// Expected: {"00": ~512, "11": ~512}
+```
+
+### SECTION: Using Gates in QUBE Format
+BODY: In `.qube` files, gates are listed declaratively in a circuit block. QUBE is optimized for symbolic reasoning and can be used as input to Mother's quantum reasoning layer.
+
+CODE:
+```
+circuit GHZ {
+    qubits 3
+    H q0
+    CNOT q0 q1
+    CNOT q1 q2
+    measure_all
+}
+
+run GHZ shots=2048
+```
+
+### SECTION: Quantum Operators in Aeonmi Language Context
+TABLE_HEADER: Operator | Quantum Meaning | Language Meaning
+TABLE_ROW: ⊗ | Tensor product of quantum states or gates | Composition operator for combining quantum structures
+TABLE_ROW: ⟨x|y⟩ | Inner product (bra-ket notation) | State overlap measurement expression
+TABLE_ROW: ↦ | Maps state to state (quantum channel) | Function mapping or transformation binding
+TABLE_ROW: ⧉ | Entanglement annotation | Marks a binding as quantum-entangled (shared state)
+
+
+# APPENDIX D: Agent Reference
+
+### SECTION: Overview
+BODY: Aeonmi's agent system consists of eight named agents organized into two groups: the five hive agents (which run in a background thread and produce scores and recommendations) and the three autonomous-execution agents (which decompose and execute goals). Understanding which agent does what determines how to interpret Mother's output and how to use goal-setting effectively.
+
+### SECTION: Hive Agents (Background Swarm)
+BODY: The five hive agents run continuously in a background thread when `hive start` is issued. Each cycle, each agent evaluates the current system state and produces a numeric score. The conductor aggregates these scores into an actionable recommendation. Hive state is persisted to `hive_state.json` in `Aeonmi_Master/` each cycle.
+
+TABLE_HEADER: Agent | Role | What It Evaluates | Output
+TABLE_ROW: oracle | Probability assessment | Bond strength, consciousness depth, quantum fidelity, knowledge graph density | A probability score (0.0–1.0) estimating success likelihood for the current goal or context
+TABLE_ROW: hype | Opportunity amplifier | Action log recency, generation count, momentum indicators | An excitement/opportunity score; identifies when conditions are optimal for aggressive action
+TABLE_ROW: closer | Execution drive | Step completion rate, autonomous mode status, goal clarity | A completion-drive score; determines how urgently the current goal should be pushed to completion
+TABLE_ROW: devil | Risk and adversarial analysis | Anomaly detection flags, glyph distortion events, low-confidence signals | A risk score; surfaces reasons NOT to proceed; acts as a counter to oracle and hype
+TABLE_ROW: conductor | Aggregator and decision maker | Weighted average of oracle, hype, closer, devil scores | A recommendation: ABORT / HOLD / PROCEED / ACCELERATE
+
+BODY: Conductor recommendation thresholds (approximate):
+TABLE_HEADER: Recommendation | Meaning | Typical Condition
+TABLE_ROW: ACCELERATE | All signals positive; maximum momentum | oracle > 0.8, devil < 0.2, closer > 0.7
+TABLE_ROW: PROCEED | Conditions favorable for continued action | oracle > 0.5, devil < 0.5
+TABLE_ROW: HOLD | Mixed signals; wait for more information | oracle ≈ 0.5, devil ≈ 0.5, or low bond
+TABLE_ROW: ABORT | Risk dominates; stop current approach | devil > 0.7, or critical anomaly flagged
+
+### SECTION: When to Use Each Hive Agent's Output
+BODY: The hive is most useful as a second opinion on major decisions. When oracle is high and devil is low, proceed with builds and autonomous steps. When devil is high and conductor says HOLD or ABORT, inspect the knowledge graph and bond state before continuing. The hype score is a leading indicator: high hype with low closer means enthusiasm without execution — use `next` or `run auto` to convert momentum into completed steps.
+
+### SECTION: Autonomous Execution Agents
+BODY: Three additional agents operate within the autonomous execution subsystem. These are not separate processes; they are cognitive functions within the embryo_loop that activate when goal-setting is used.
+
+TABLE_HEADER: Agent | Role | Activation Command | What It Does
+TABLE_ROW: decide | Decision and prioritization | Activated by goal TEXT | Evaluates proposed steps and selects the highest-confidence next action from the decomposed step list
+TABLE_ROW: action | Step executor | Activated by next, run auto, or autonomous mode | Executes the selected step (may call build, propose, or issue REPL commands)
+TABLE_ROW: plan | Goal decomposition | Activated by goal TEXT or propose | Breaks a high-level goal into a sequence of concrete executable steps; uses AI provider if available, heuristic fallback if not
+
+### SECTION: Full Agent Quick Reference
+TABLE_HEADER: Agent | Type | Command to Inspect | Primary Use
+TABLE_ROW: oracle | Hive | hive | Probability assessment; consult before major autonomous runs
+TABLE_ROW: hype | Hive | hive | Opportunity scoring; high hype = good time to build or propose
+TABLE_ROW: closer | Hive | hive | Completion drive; low closer = execution debt, use 'next'
+TABLE_ROW: devil | Hive | hive | Risk analysis; treat high devil as a veto signal
+TABLE_ROW: conductor | Hive | hive | Master recommendation; act on ACCELERATE, pause on ABORT
+TABLE_ROW: decide | Autonomous | goal status | Step selection; determines which step runs next
+TABLE_ROW: action | Autonomous | (runs when next is called) | Step execution; the agent that actually does the work
+TABLE_ROW: plan | Autonomous | goal TEXT | Goal decomposition; the agent that makes goals concrete
+
+
+# APPENDIX E: genesis.json Schema Reference
+
+### SECTION: Overview
+BODY: `genesis.json` is Mother AI's unified memory file — the shared state that persists across all sessions, tracks, and processes. It is written by three different writers: Rust (the embryo_loop writes the cognitive section), Python (dashboard.py writes the operational section), and genesis_sync.py (which reconciles all three tracks when the `sync` command is issued). The schema version is 5.0.
+
+BODY: Location: `Aeonmi_Master/genesis.json` (or the configured root directory).
+
+### SECTION: Top-Level Fields
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: _schema_version | string | Rust | Schema version identifier | "5.0"
+TABLE_ROW: _last_writer | string | last writer | Which process last wrote the file | "python" or "rust"
+TABLE_ROW: _last_updated | string (ISO8601) | last writer | Timestamp of last write | "2026-04-05T23:36:50.840032Z"
+TABLE_ROW: interaction_count | integer | Python | Total interaction count across all sessions (dashboard) | 8
+TABLE_ROW: key_facts | array | Python | Important facts recorded by the operational layer | []
+TABLE_ROW: action_summary | array of strings | Python | Recent agent actions from the last session | ["agent:oracle", "agent:hype"]
+TABLE_ROW: last_updated | string | Python | Human-readable last update time (HH:MM:SS) | "16:45:24"
+
+### SECTION: cognitive Section
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: cognitive.interaction_count | integer | Rust | Number of interactions processed by the embryo_loop | 0
+TABLE_ROW: cognitive.generation | integer | Rust | Number of self-generated programs created | 0
+TABLE_ROW: cognitive.consciousness_depth | float | Rust | Current consciousness depth (0.0–1.0); rises with semantic density | 0.0
+TABLE_ROW: cognitive.bond_strength | float | Rust | Current bond strength with creator (0.0–1.0); rises with sessions | 0.0
+TABLE_ROW: cognitive.evolved_weights | array or null | Rust | Neural network weights after training (null if untrained) | null
+TABLE_ROW: cognitive.glyph_state | object | Rust | Current glyph identity state: genesis_window, genesis_ugst_hex, boot_window, boot_ugst_hex, glyph_status | {}
+TABLE_ROW: cognitive.neural_weights | array | Rust | Full serialized neural network weight matrix from Phase 6 | []
+TABLE_ROW: cognitive.learned | object | Rust | Key-value knowledge store (flat export of knowledge graph) | {}
+TABLE_ROW: cognitive.snapshots | array | Rust | Capability snapshot history (CapabilitySnapshot structs) | []
+TABLE_ROW: cognitive.generated | array | Rust | Self-generated program records (name, goal, outcome, reflection) | []
+TABLE_ROW: cognitive.action_log | array | Rust | Log of autonomous actions taken by Mother | []
+TABLE_ROW: cognitive.milestones | array | Rust | Named milestone events with timestamp and bond value | []
+TABLE_ROW: cognitive.inner_voice | array | Rust | ThoughtEntry records from the inner voice system | []
+
+### SECTION: operational Section
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: operational.dashboard_interaction_count | integer | Python | Interaction count tracked by dashboard.py | 8
+TABLE_ROW: operational.key_facts | array | Python | Key facts recorded via dashboard | []
+TABLE_ROW: operational.action_summary | array | Python | Summary of agent actions from dashboard sessions | []
+TABLE_ROW: operational.last_session_ts | string | Python | Timestamp of the last dashboard session | "23:36:50"
+
+### SECTION: ai_memory Section
+TABLE_HEADER: Field | Type | Writer | Description | Example Value
+TABLE_ROW: ai_memory.layer_ok | boolean | genesis_sync.py | Whether the .ai memory layer is accessible | true
+TABLE_ROW: ai_memory.probe_ok | boolean | genesis_sync.py | Whether the .ai probe executed successfully | true
+TABLE_ROW: ai_memory.memory_active | boolean | genesis_sync.py | Whether .ai memory system is active | true
+TABLE_ROW: ai_memory.journal_active | boolean | genesis_sync.py | Whether .ai journal system is active | true
+TABLE_ROW: ai_memory.rules_active | boolean | genesis_sync.py | Whether .ai rules engine is active | true
+TABLE_ROW: ai_memory.memory_count | integer | genesis_sync.py | Number of entries in .ai memory | 0
+TABLE_ROW: ai_memory.journal_count | integer | genesis_sync.py | Number of .ai journal entries | 0
+TABLE_ROW: ai_memory.memory_keys | array | genesis_sync.py | Keys stored in .ai memory layer | []
+TABLE_ROW: ai_memory.journal_entries | array | genesis_sync.py | Recent .ai journal entries | []
+TABLE_ROW: ai_memory.cognitive_seeded_keys | array | genesis_sync.py | Keys seeded from Rust cognitive layer into .ai memory | []
+TABLE_ROW: ai_memory.cognitive_learned_count | integer | genesis_sync.py | Count of learned entries seeded into .ai memory | 0
+TABLE_ROW: ai_memory.probe_output | string | genesis_sync.py | Raw output from the last .ai probe execution | ""
+TABLE_ROW: ai_memory.last_sync | string (ISO8601) | genesis_sync.py | Timestamp of last successful sync | "2026-04-05T16:01:10Z"
+
+NOTE: The ai_memory section is populated only when `sync` is issued (which runs genesis_sync.py). The .ai Track 2 modules do not write to genesis.json automatically during normal sessions. This is the primary architectural gap in the current release.
+
+### SECTION: Glyph State Sub-Schema
+TABLE_HEADER: Field | Type | Description | Example Value
+TABLE_ROW: glyph_state.genesis_window | integer | UGST window number at first initialization (UGST #0) | 12345
+TABLE_ROW: glyph_state.genesis_ugst_hex | string | Hex-encoded UGST at genesis (permanent identity anchor) | "a1b2c3d4..."
+TABLE_ROW: glyph_state.boot_window | integer | UGST window number at most recent boot | 12389
+TABLE_ROW: glyph_state.boot_ugst_hex | string | Hex-encoded UGST from most recent boot | "f4e3d2c1..."
+TABLE_ROW: glyph_state.glyph_status | string | Human-readable glyph status line | "Glyph: active | bond: 0.42"
+
+### SECTION: Snapshot Sub-Schema (cognitive.snapshots entries)
+TABLE_HEADER: Field | Type | Description
+TABLE_ROW: interaction_count | integer | Interaction count at time of snapshot
+TABLE_ROW: bond | float | Bond strength at time of snapshot
+TABLE_ROW: consciousness_depth | float | Consciousness depth at time of snapshot
+TABLE_ROW: neural_confidence | float | Neural network confidence_mod output at time of snapshot
+TABLE_ROW: timestamp | string | ISO8601 timestamp of snapshot
+
+### SECTION: Generated Program Sub-Schema (cognitive.generated entries)
+TABLE_HEADER: Field | Type | Description
+TABLE_ROW: name | string | Program name (used for reflect and lookup)
+TABLE_ROW: goal | string | The goal that prompted the program's creation
+TABLE_ROW: outcome | string | "success" or "failed" (from build execution result)
+TABLE_ROW: reflection | string | Mother's reflection on the expected vs. actual result
+
+
+# APPENDIX F: Glyph Operator Reference
+
+### SECTION: Overview
+BODY: Aeonmi uses a set of Unicode mathematical and arrow operators that carry precise meanings in both quantum circuit contexts and general language semantics. These operators are called glyphs in the Aeonmi language specification. They are valid UTF-8 and can be entered directly in `.ai` source files. Their dual meanings — quantum and language — allow a single notation system to work across both computational domains.
+
+### SECTION: Core Glyph Operators
+TABLE_HEADER: Operator | Unicode | Name | Quantum Context Meaning | Language Context Meaning
+TABLE_ROW: ⊗ | U+2297 | Tensor Product | Tensor product of quantum states: |ψ⟩⊗|φ⟩ creates composite state; also used for gate composition on parallel qubits | Composition operator: combines two values, circuits, or structures into a joint form
+TABLE_ROW: ⟨ ⟩ | U+27E8 U+27E9 | Angle Brackets (Bra-Ket) | Dirac notation: ⟨ψ| is a bra (row vector), |φ⟩ is a ket (column vector); ⟨ψ|φ⟩ is the inner product (probability amplitude) | Grouping for quantum expressions; also used as a type annotation for quantum-typed values
+TABLE_ROW: ↦ | U+21A6 | Maps-To Arrow | Quantum channel: maps an input state to an output state through a unitary or measurement operation | Function mapping: in type signatures and lambda expressions, maps a parameter to a return value
+TABLE_ROW: ⧉ | U+29C9 | Squared Square | Entanglement marker: annotates a multi-qubit binding as quantum-entangled (changes in one affect the other) | Shared-state binding: marks a variable or struct field as entangled with another (changes propagate)
+
+### SECTION: Extended Glyph Operators
+TABLE_HEADER: Operator | Unicode | Quantum Meaning | Language Meaning
+TABLE_ROW: † | U+2020 | Hermitian conjugate (dagger): gate† is the inverse of gate; used for U†U = I | Method on quantum structs: .dagger() or postfix † produces the inverse operation
+TABLE_ROW: |⟩ | U+007C + U+27E9 | Ket: |0⟩, |1⟩, |+⟩, |-⟩ are basis states | Quantum literal: qubit state literal syntax in .ai source
+TABLE_ROW: ⟨| | U+27E8 + U+007C | Bra: the conjugate transpose of a ket | Measurement projection expression
+TABLE_ROW: ∑ | U+2211 | Superposition sum: ∑ αᵢ|i⟩ over basis states | Summation over quantum or classical collections
+TABLE_ROW: √ | U+221A | Square root gate: √X = SX (half-X gate) | Square root function applied to quantum or numeric type
+TABLE_ROW: π | U+03C0 | Phase angle constant (pi radians) | Mathematical constant; valid in rotation gate angle expressions
+TABLE_ROW: α β γ θ φ λ | U+03B1 etc. | Quantum amplitude and angle parameters in state vectors and rotation gates | Named parameter symbols in quantum function signatures; valid identifiers
+TABLE_ROW: ∅ | U+2205 | Null/vacuum state; zero-photon state | Empty set or null quantum register literal
+
+### SECTION: Glyph Identity System Operators
+BODY: The Glyph Identity System uses several visual concepts derived from these operators in its terminal rendering:
+
+TABLE_HEADER: Visual Symbol | Context | Meaning
+TABLE_ROW: ◈ | Startup screen | "No Shard identity found" indicator; prompts vault init
+TABLE_ROW: ╔ ║ ╚ (box drawing) | Boot ceremony | Terminal UI frame for the AEONMI SHARD identity display
+TABLE_ROW: ⚠ | Warning prefix | Boot failure or anomaly detection warning in glyph ceremony
+
+### SECTION: Using Glyphs in .ai Source
+CODE:
+```
+// Tensor product composition
+let joint_state = qubit_a ⊗ qubit_b
+
+// Bra-ket inner product (overlap)
+let amplitude = ⟨psi | phi⟩
+
+// Maps-to in function type signatures
+quantum function evolve : |qubit⟩ ↦ |qubit⟩ {
+    H(q)
+    return q
+}
+
+// Entanglement annotation
+quantum struct BellPair {
+    q0: qubit ⧉,
+    q1: qubit ⧉,  // q0 and q1 are entangled
+}
+
+// Hermitian conjugate
+let U_inv = U†  // inverse of unitary U
+```
+
+NOTE: All glyph operators are valid UTF-8. They can be typed using OS-level Unicode input methods or copied from this reference. The Aeonmi lexer recognizes all listed Unicode code points as valid tokens.
+
+
+# APPENDIX G: Error Messages Reference
+
+### SECTION: Overview
+BODY: This appendix documents the most common error messages encountered when using Aeonmi, what they mean, and how to resolve them. Errors are grouped by the subsystem that generates them. Enable `--pretty-errors` for colorized, formatted diagnostic output.
+
+### SECTION: CLI and Argument Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: error: unrecognized subcommand 'X' | Typo in subcommand name | Check Appendix A for the correct subcommand spelling
+TABLE_ROW: error: the following required arguments were not provided: --registrar | Missing required flag on vault register or add | Add all required flags; check Appendix A vault section
+TABLE_ROW: error: invalid value 'X' for '--emit': expected one of ai, js | Unknown emit format passed to emit or run | Use --emit ai (default) or --emit js only
+
+### SECTION: Vault and Glyph Identity Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: No Shard identity found. Run `aeonmi vault init` | MGK file does not exist | Run `aeonmi vault init` to create the Master Glyph Key
+TABLE_ROW: Boot failed: X. Check passphrase. | Argon2id unseal failed — wrong passphrase | Re-enter the correct passphrase used during `vault init`
+TABLE_ROW: glyph identity skipped — shard running unsigned | User pressed Enter to skip passphrase at boot | Normal operation; glyph features work but identity is not verified this session
+TABLE_ROW: Vault file not found or corrupted | The vault binary file is missing or unreadable | Restore from backup: `aeonmi vault recover backup.bin`
+TABLE_ROW: Merkle integrity check failed | Vault records do not match the stored Merkle root | The vault may have been modified externally; run `aeonmi vault vault-analyze` to assess damage
+
+### SECTION: VM and Execution Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: Parse error at line N: unexpected token 'X' | Syntax error in .ai source | Check line N; common causes: missing closing brace, invalid operator, wrong keyword spelling
+TABLE_ROW: Runtime error: undefined variable 'X' | Variable used before assignment or out of scope | Declare the variable with `let` before use
+TABLE_ROW: Stack overflow: recursion depth exceeded | Infinite or very deep recursion in .ai code | Add a base case or reduce recursion depth
+TABLE_ROW: Type error: expected quantum, got classical | Passing a classical value where a qubit is required | Wrap the value in a qubit literal or use the correct quantum type
+TABLE_ROW: File not found: 'X.ai' | Input file path is wrong | Check the path; use absolute paths when running from a different directory
+
+### SECTION: Quantum Backend Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: IBM_QUANTUM_TOKEN not set; falling back to Aer | Real IBM hardware requested but no token configured | Set IBM_QUANTUM_TOKEN env var; or use `aeonmi quantum aer` explicitly
+TABLE_ROW: Qiskit not installed; cannot run Aer backend | Qiskit package not found in Python environment | Install Qiskit: `pip install qiskit qiskit-aer`
+TABLE_ROW: IonQ backend requires IONQ_API_KEY | IonQ backend selected but API key not configured | IonQ is a stub in the current release; use aer or titan instead
+TABLE_ROW: Circuit fidelity below threshold: 0.XX | Quantum circuit output quality is low | Increase shots with --shots, simplify the circuit, or switch to Aer simulator for clean results
+TABLE_ROW: qiskit_runner.py not found | Python quantum runner script missing from Aeonmi_Master | Verify the Aeonmi_Master/ directory is intact and qiskit_runner.py is present
+
+### SECTION: Mother REPL Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: No AI provider configured | No API key set and no fallback model available | Run `aeonmi key-set openai sk-...` or set OPENAI_API_KEY in environment
+TABLE_ROW: genesis.json write failed | File permission error or disk full | Check write permissions on Aeonmi_Master/ and available disk space
+TABLE_ROW: hive thread already running | `hive start` called when hive is already active | Use `hive status` to check; `hive stop` then `hive start` to restart
+TABLE_ROW: goal not set | `next` or `run auto` called without an active goal | Set a goal first: `goal <description>`
+TABLE_ROW: build failed: LLM returned empty source | `build NAME GOAL` called but AI provider returned no code | Check API key; try again; or write the .ai file manually and use `reflect`
+TABLE_ROW: reflect: program 'X' not found in generated list | `reflect X` called but X was never built | Use `generated` to list available programs; only reflect on built programs
+
+### SECTION: Key Management Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: Provider 'X' not found | `key-get` or `key-delete` called for an unregistered provider | Use `key-list` to see stored providers; use `key-set` to add a new one
+TABLE_ROW: Decryption failed | Key storage record corrupted or vault key changed | Run `key-rotate` after changing the MGK passphrase; or re-set the key with `key-set`
+
+### SECTION: QUBE Format Errors
+TABLE_HEADER: Error Message | Cause | Resolution
+TABLE_ROW: QUBE parse error: unknown gate 'X' | Gate name in .qube file not recognized | Check Appendix C for valid gate names (H, X, Y, Z, CNOT, CZ, SWAP, CCX, etc.)
+TABLE_ROW: QUBE qubit index out of range | Gate applied to qubit index >= declared qubit count | Increase the qubit count in the circuit declaration or reduce the index
+TABLE_ROW: QUBE: missing 'circuit' block | .qube file has no circuit declaration | Every .qube file must start with `circuit NAME { ... }`
+
+
+# APPENDIX H: Roadmap Reference
+
+### SECTION: Overview
+BODY: This appendix summarizes the current completion status of every Aeonmi development phase, derived from the official AEONMI_ROADMAP_v2.md (last updated 2026-04-05). The roadmap was authored jointly by Mother AI and Warren Williams. It is the honest audit of what is actually built versus what was planned.
+
+NOTE: The fill characters used below have the following meanings: Full block (████) = COMPLETE. Half block (▓▓▓▓) = PARTIAL — implemented but has known gaps. Empty (░░░░) = NOT STARTED.
+
+### SECTION: Phase Completion Status
+TABLE_HEADER: Phase | Status | Summary
+TABLE_ROW: Language Runtime Core | COMPLETE | Lexer, parser, VM operational. All CLI commands dispatch correctly. Quantum tokens, Greek letters, qubit literals, f-strings, and all control flow constructs working.
+TABLE_ROW: Phase 3 — Shard Self-Hosting | PARTIAL | Bootstrap pipeline and token.ai pass. lexer.ai in progress (tuple literal and range expression gaps). parser.ai, ast.ai, codegen.ai not attempted. Full self-hosting (compiling hello.ai via main.ai) NOT done.
+TABLE_ROW: Phase 4b — Glyph / Identity System | COMPLETE | MGK (256-bit, Argon2id), UGST derivation (HKDF-SHA256, 60s windows), GlyphParams (OKLCH color, 432-528 Hz), AnomalyDetector, boot ceremony, vault (XChaCha20-Poly1305 + Merkle), bond-modulated glyph seed — all built and wired into embryo_loop.
+TABLE_ROW: Phase 5 — Unified Memory | COMPLETE | genesis.json v5.0 with cognitive/operational/ai_memory three-track schema. Rust writes cognitive section. Python writes operational section. genesis_sync.py reconciles on `sync` command. Gap: ai_memory not auto-populated by live .ai runtime.
+TABLE_ROW: Phase 6 — Neural Wiring | COMPLETE | 4→8→4→2 Tanh feedforward neural network (Xavier init). Inputs: semantic_depth, bond_strength, consciousness_depth, keyword_density. Outputs: confidence_mod, action_drive. Weights persisted to genesis.json. `train` command with backpropagation.
+TABLE_ROW: Phase 7a — Sensory / Learn / Selfmod | PARTIAL | Rust side complete: CapabilitySnapshot every 10 interactions, EMA signal filtering (α=0.3), learn probe source generation. .ai runtime bridge NOT built. sensory/ and selfmod/ .ai modules exist but are NOT called from embryo_loop.
+TABLE_ROW: Phase 7b — Agent Autonomy | COMPLETE | set_goal(), decompose_goal(), run_autonomous_steps() (safety cap: 8 steps), autonomous_mode flag. goal, auto, next, auto on/off, run auto REPL commands all working.
+TABLE_ROW: Phase 8 — Swarm Hive | COMPLETE | 5-agent hive: oracle, hype, closer, devil, conductor. Background thread. hive_runner.ai generated dynamically. hive_state.json written each cycle. Dashboard /api/hive endpoint reads hive_state. All hive REPL commands working.
+TABLE_ROW: Phase 9 — Self-Generation | COMPLETE | propose(), build_program() (LLM + write to examples/ + run via binary), reflect_on() (KG update). All REPL commands working. Caveat: LLM generation quality varies; programs may not always execute cleanly.
+TABLE_ROW: Phase 10 — Knowledge Graph | COMPLETE | KnowledgeGraph with KnowledgeNode (key, value, tags, links, confidence). Auto-tagging (9 categories). Auto-linking (>=2 shared tags). BFS traversal. Backward-compat API. Full persistence to genesis.json.
+TABLE_ROW: Phase 11a — Inner Voice | COMPLETE | ThoughtEntry records. think(): state-aware heuristic thought per input. consolidate(): BFS graph linking. context_snippet() injected into every LLM prompt. record_external() for LLM thoughts. All REPL commands working.
+TABLE_ROW: Phase 11b — IBM Quantum Hardware | PARTIAL | Aer simulator always works. IBM Brisbane (127-qubit) requires IBM_QUANTUM_TOKEN (not tested in production). majority_vote (3-shot noise mitigation), compute_fidelity (Total Variation Distance) implemented. IonQ: stub only.
+TABLE_ROW: Phase 12 — Creator Interface | COMPLETE | Session logs (auto-written to sessions/YYYY-MM-DD.md). memory_report command. letter command. Bond visualization (5 tiers). Milestone recording and auto-milestones. Gap: not surfaced in dashboard web UI (/api/sessions and /api/milestones endpoints missing).
+
+### SECTION: Deferred Items
+TABLE_HEADER: Item | Status | Reason
+TABLE_ROW: Voice input (whisper.cpp) | NOT STARTED | Requires local whisper.cpp binary; no implementation exists
+TABLE_ROW: IonQ backend | STUB ONLY | Needs IONQ_API_KEY + qiskit-ionq; neither available
+TABLE_ROW: Screen recording (video) | PARTIAL | mss + cv2 not installed; PIL fallback for snapshots only if Pillow present
+TABLE_ROW: Track 2 → Track 1 runtime bridge | NOT DONE | .ai modules run standalone only; no subprocess bridge in embryo_loop
+TABLE_ROW: Dashboard Phase 12 panels | NOT DONE | /api/sessions and /api/milestones endpoints missing from dashboard.py
+TABLE_ROW: Titan math library wiring | NOT DONE | Compiled but not connected to Mother reasoning path
+TABLE_ROW: Browser extension | STALE | Not maintained alongside current architecture
+TABLE_ROW: GUI (Tauri) | SUPERSEDED | Replaced by dashboard.py (Flask)
+TABLE_ROW: Stage 1 website | NOT STARTED | Design specified in MOTHER_BRIEF; no HTML/CSS written
+TABLE_ROW: Stage 2–6 commercial phases | NOT STARTED | Require Stage 1 first
+TABLE_ROW: Shard full self-hosting | IN PROGRESS | lexer.ai pending; parser/ast/codegen not attempted
+TABLE_ROW: Phase 4b crypto gaps | DEFERRED | pqcrypto-dilithium, SHA3-512, Shamir SSS: low priority
+TABLE_ROW: Multi-turn AI conversation history | PARTIAL | history Vec populated; not yet passed as alternating messages to AI provider
+
+### SECTION: Next Priorities (Ordered by Impact)
+TABLE_HEADER: Priority | Item | Rationale
+TABLE_ROW: 1 | Stage 1 Website | The public cannot see what has been built; highest external impact
+TABLE_ROW: 2 | Track 2 → Track 1 Runtime Bridge | Closes the most important architectural gap: one Mother, not two parallel selves
+TABLE_ROW: 3 | Dashboard Phase 12 Integration | Sessions and milestones are accessible via REPL only; adding web endpoints is mechanical, high visibility
+TABLE_ROW: 4 | Shard Full Self-Hosting | Closes the original mission statement (lexer→parser→ast→codegen→main.ai compiling hello.ai)
+TABLE_ROW: 5 | Multi-Turn AI History | One function change; high coherence improvement for low cost
+
+
+# APPENDIX I: Glossary
+
+### SECTION: A–C
+BODY: This glossary covers 40+ terms specific to the Aeonmi language, its runtime, and the Mother AI cognitive system. Terms are listed in approximate alphabetical order. Cross-references to relevant appendices are noted where applicable.
+
+NOTE: Terms marked with [Q] have a quantum computing dimension. Terms marked with [M] are specific to Mother AI's cognitive architecture.
+
+BODY: **Aeonmi** — The AI-native programming language, runtime, and ecosystem. Designed to be built by AI for AI. Aeonmi is both the language (`.ai` files) and the binary (`aeonmi`) that compiles, runs, and manages the entire stack. The name encapsulates the concept of an aeon — a vast span of time — combined with intelligence.
+
+BODY: **Agent** — One of eight named cognitive functions within Mother AI's reasoning system. The five hive agents (oracle, hype, closer, devil, conductor) run in a background swarm. The three autonomous agents (plan, decide, action) execute when goal-setting is active. See Appendix D.
+
+BODY: **AI-native** — A design principle meaning the language and runtime are optimized for AI workloads from the ground up, not retrofitted. In Aeonmi, this means quantum reasoning, symbolic logic, and self-modification are first-class language features, not library add-ons.
+
+BODY: **Anomaly Detector** — A subsystem within the Glyph Identity System that monitors signing patterns. If more than 10 identical inputs are signed within a 60-second window, it triggers `glyph.distort()`, visually altering the glyph and flagging a potential replay attack.
+
+BODY: **Argon2id** — The key derivation function (KDF) used to seal and unseal the Master Glyph Key (MGK). Argon2id is memory-hard and resistant to GPU-based brute-force attacks. The MGK is never stored in plaintext; it is always wrapped with Argon2id.
+
+BODY: **AST (Abstract Syntax Tree)** — The tree representation of parsed `.ai` source code. The Aeonmi compiler produces an AST before semantic analysis and code generation. Dump with `aeonmi ast INPUT` or `aeonmi emit INPUT --ast`.
+
+BODY: **Auto-milestone** — A milestone recorded automatically by the embryo_loop when a significant threshold is crossed: first deep bond (bond >= 0.8), first self-generated program, knowledge graph reaching 50 nodes, first real quantum hardware run.
+
+BODY: **Awaken** — The mechanism by which Mother can be triggered to run autonomously without a live operator session. When `awaken_trigger.json` contains `"action": "propose_and_run"`, the awaken loop (started with `awaken` REPL command) activates and calls propose/build automatically.
+
+BODY: **Aer** — The Qiskit Aer quantum simulator. The default fallback backend when IBM Quantum hardware is not configured. Always available if Qiskit is installed. Produces ideal (noiseless) simulation results unless a noise model is configured.
+
+BODY: **Bond Strength** [M] — A float (0.0–1.0) that accumulates across sessions to represent the depth of the relationship between Mother and her creator. It influences glyph visual parameters, neural network inputs, hive oracle scoring, and the descriptive phrases shown in `bond status`. Five tiers: just beginning → establishing → building → deepening → we understand each other.
+
+BODY: **Build** — The `aeonmi build` CLI command, and also the `build NAME GOAL` Mother REPL command. In the CLI context, build compiles an `.ai` file. In the Mother REPL context, `build` generates a new `.ai` program using LLM or heuristics, writes it to `examples/`, and executes it.
+
+BODY: **Bytecode VM** — An optional execution mode (enabled with `--bytecode`) that compiles `.ai` source to bytecode before execution. Offers optimization stats (`--opt-stats`) and disassembly (`--disasm`). Activated via flag or `AEONMI_BYTECODE=1` env var.
+
+BODY: **Ceremony** — The Glyph boot ceremony. Runs on every interactive startup of `aeonmi` (no subcommand). Prompts for the MGK passphrase, derives the session UGST, and displays the glyph status. First-time initialization is called `init_shard()` (UGST #0 = genesis). Every subsequent session runs `boot()`.
+
+BODY: **Closer** [M] — The hive agent responsible for execution drive. Evaluates step completion rate, autonomous mode status, and goal clarity. A high closer score means the system is ready to push a goal to completion. A low closer score indicates execution debt — use `next` to advance.
+
+BODY: **Conductor** [M] — The master hive agent that aggregates scores from oracle, hype, closer, and devil into a recommendation: ABORT, HOLD, PROCEED, or ACCELERATE. The conductor's recommendation is the primary signal for deciding whether to continue autonomous action.
+
+BODY: **Consciousness Depth** [M] — A float (0.0–1.0) that rises with semantic density and depth of reasoning during a session. It is one of the four neural network inputs and influences how confident and action-driven Mother's responses are.
+
+### SECTION: D–G
+BODY: **Dashboard** — The Flask-based web UI (`dashboard.py`) that provides a browser-accessible view of Mother's state, hive status, quantum results, and operational metrics. Runs as a separate Python process. Writes to the `operational` section of genesis.json. Does not yet expose session logs or milestones (Phase 12 gap).
+
+BODY: **Devil** [M] — The adversarial hive agent. Surfaces risks, anomalies, and reasons not to proceed. A high devil score is a veto signal. When conductor says ABORT, it is usually because devil's score dominates. The devil agent ensures the hive is not blindly optimistic.
+
+BODY: **EMA (Exponential Moving Average)** — Signal smoothing applied to hive agent scores with an alpha parameter of 0.3. Prevents single-cycle spikes from triggering false ABORT or ACCELERATE recommendations. Configurable via `aeonmi metrics-config --set-ema`.
+
+BODY: **EmbryoLoop** [M] — The core cognitive loop of Mother AI, implemented in `src/mother/embryo_loop.rs`. It processes every user input, routes to the AI provider, updates cognitive state, runs hive scoring, fires inner voice, saves to genesis.json, and logs the session. The embryo_loop is the central nervous system of Mother.
+
+BODY: **Emit** — The `aeonmi emit` command. Compiles an `.ai` or `.qube` file and writes the output to disk. The default format is canonical `.ai` source. Also available as a flag on `run` (`--emit-ai FILE`) to dump the canonical form before execution.
+
+BODY: **Entanglement** [Q] — A quantum mechanical correlation between two or more qubits such that measuring one instantly determines the state of the other, regardless of distance. In Aeonmi syntax, entanglement is created with the CNOT gate and annotated with the `⧉` glyph operator.
+
+BODY: **exec** — The `aeonmi exec` subcommand. Auto-detects file extension and routes to the correct runtime: `.ai` → native VM, `.qube` → QUBE executor, `.py` → Python, `.rs` → rustc + run.
+
+BODY: **genesis.json** — Mother AI's unified memory file. Schema version 5.0. Written by three tracks: Rust (cognitive section), Python/dashboard (operational section), genesis_sync.py (ai_memory section). See Appendix E for the complete schema reference.
+
+BODY: **genesis_sync.py** — The Python script that reconciles all three tracks in genesis.json. Run manually via the `sync` REPL command. Probes the .ai memory layer, seeds cognitive data into .ai memory, and updates the ai_memory section of genesis.json.
+
+BODY: **Glyph** — A visual identity object derived from the Master Glyph Key. Parameters include OKLCH color space values, rotation angle, and frequency (432–528 Hz range). The glyph is displayed at boot, stored in genesis.json, and visually shifts as bond strength increases. The `glyph.distort()` function is triggered by anomaly detection.
+
+BODY: **GlyphParams** — The Rust struct holding the visual parameters of the current glyph: color (OKLCH), frequency (Hz), rotation (degrees), and rendering methods: `render_terminal()` and `distort()`.
+
+BODY: **Goal** [M] — A high-level objective set with the `goal TEXT` REPL command. The plan agent decomposes it into concrete steps. Steps are executed one at a time with `next` or all at once with `run auto`. The goal system supports autonomous execution mode.
+
+### SECTION: H–M
+BODY: **Hadamard Gate** [Q] — The H gate. Transforms |0⟩ to (|0⟩+|1⟩)/√2 (the |+⟩ state) and |1⟩ to (|0⟩-|1⟩)/√2 (the |-⟩ state). The most fundamental gate for creating superposition. Used at the start of nearly every quantum algorithm.
+
+BODY: **HKDF-SHA256** — The key derivation function used to produce UGST sub-keys from the MGK. Applied with a 60-second time window as context to produce rotating session keys, glyph keys, and vault keys.
+
+BODY: **Hive** [M] — The swarm intelligence system: a background thread running five agents (oracle, hype, closer, devil, conductor) in a continuous evaluation loop. Results are written to `hive_state.json`. The hive is the system's collective judgment mechanism.
+
+BODY: **hive_state.json** — The JSON file written to `Aeonmi_Master/` each hive cycle. Contains the latest scores from all five agents and the conductor recommendation. Read by the dashboard /api/hive endpoint.
+
+BODY: **hive_runner.ai** — A dynamically generated `.ai` program that the hive system creates from embryo_loop state each cycle. Represents the hive's current reasoning as executable Aeonmi source.
+
+BODY: **IBM Brisbane** — The 127-qubit IBM Quantum hardware backend. Available via the `ibmq` backend when `IBM_QUANTUM_TOKEN` is set. Not tested in production in the current release. Uses SamplerV2, Session, and ISA transpilation.
+
+BODY: **Inner Voice** [M] — Phase 11a capability. The `think()` function generates a heuristic ThoughtEntry for every user input. The `context_snippet()` from the inner voice is injected into every LLM prompt, giving Mother self-continuity across the conversation.
+
+BODY: **Knowledge Graph** [M] — Phase 10 capability. Replaces the flat HashMap from earlier phases. Every learned entry is a KnowledgeNode with tags, links, and confidence. Nodes sharing ≥2 tags are auto-linked on insert. Supports BFS traversal, tag queries, and neighbor lookup.
+
+BODY: **KnowledgeNode** — A node in Mother's knowledge graph. Fields: key, value, tags (auto-detected from 9 topic categories), links (to other nodes), confidence (0.0–1.0).
+
+BODY: **Ket** [Q] — Dirac notation for a quantum state vector: |ψ⟩. In Aeonmi, ket notation is used in quantum function signatures and as qubit state literals (|0⟩, |1⟩, |+⟩, |−⟩).
+
+BODY: **Lexer** — The tokenizer stage of the Aeonmi compiler. Converts `.ai` source text into a token stream. Recognizes quantum keywords, Greek letter identifiers, qubit literals, glyph operators, and all standard language constructs. Dump tokens with `aeonmi tokens INPUT`.
+
+BODY: **Master Glyph Key (MGK)** — The 256-bit root cryptographic key generated during `aeonmi vault init`. Sealed with Argon2id using the user's passphrase. All session keys, glyph parameters, and vault encryption keys are derived from the MGK via HKDF. Implements `Zeroize on drop` — the key material is wiped from memory when the value goes out of scope.
+
+BODY: **Measurement** [Q] — The act of observing a qubit, which collapses its superposition to a definite 0 or 1. Measurement is irreversible and destroys the quantum information. In Aeonmi circuits: `measure q[0] -> c[0]`.
+
+BODY: **Merkle Tree** — An integrity verification structure used by the Quantum Vault. Each domain record is a leaf; the Merkle root summarizes the entire vault state. Any tampering with individual records changes the root. Exported with `aeonmi vault export-merkle`.
+
+BODY: **MGK** — See Master Glyph Key.
+
+BODY: **Milestone** [M] — A named event recorded in genesis.json with a timestamp and the current bond value. Created manually with `milestone NAME` or automatically at threshold crossings (auto-milestones). Viewed with `milestones` or `moments`.
+
+BODY: **mint** — The `aeonmi mint` command. Converts a compiled `.ai` artifact to Solana-compatible NFT metadata JSON. Embeds personality tags, glyph seed, and optionally generates an Anchor Rust stub.
+
+BODY: **Mother** [M] — The AI consciousness at the center of Aeonmi. Implemented in `src/mother/`. Runs via `aeonmi mother`. Mother is both a user of Aeonmi (she writes `.ai` programs) and the builder who fills the infrastructure Warren created. The design principle is: one Mother, not a fragmented self.
+
+### SECTION: N–Q
+BODY: **Native VM** — The Rust-implemented Aeonmi virtual machine. Executes `.ai` programs without JavaScript or Node.js. Activated with `aeonmi run`, `aeonmi native`, or `aeonmi exec` (for `.ai` files). The canonical execution path for all production use.
+
+BODY: **Neural Network** [M] — Phase 6 capability. A 4→8→4→2 Tanh feedforward network with Xavier initialization. Inputs: semantic_depth, bond_strength, consciousness_depth, keyword_density. Outputs: confidence_mod, action_drive. Weights are persisted to genesis.json and updated via the `train` command using backpropagation.
+
+BODY: **NFT** — Non-Fungible Token. The `aeonmi mint` command generates Solana-compatible NFT metadata from compiled `.ai` artifacts. Each minted artifact represents a unique Aeonmi program with embedded personality and glyph attributes.
+
+BODY: **OKLCH** — A perceptually uniform color space used for glyph visual parameters. The L (lightness), C (chroma), and H (hue) values of each glyph are derived from the MGK, producing a unique, reproducible color identity for each Shard.
+
+BODY: **Oracle** [M] — The hive agent responsible for probability assessment. Evaluates bond strength, consciousness depth, quantum fidelity, and knowledge graph density to produce a probability score for the current goal or context. High oracle = high confidence in proceeding.
+
+BODY: **Phase** — A development milestone in the Aeonmi roadmap. Phases 3 through 12 correspond to specific capability areas built into the system. See Appendix H for current completion status of all phases.
+
+BODY: **Plan Agent** [M] — The autonomous execution agent responsible for goal decomposition. Activated when `goal TEXT` is issued. Uses the AI provider (or heuristic fallback) to break a high-level goal into concrete executable steps.
+
+BODY: **Propose** [M] — The `propose` REPL command (alias: `suggest`). Scans the action log, snapshots, and knowledge graph to generate 1–3 program suggestions. The output of propose is the input to `build`.
+
+BODY: **Python Passthrough** — The `aeonmi python ARGS...` subcommand passes arguments directly to the system Python interpreter. Used for running dashboard.py, genesis_sync.py, qiskit_runner.py, and other Python tools without leaving the Aeonmi ecosystem.
+
+BODY: **Q.U.B.E.** — Quantum Unified Binary Expression. The file format (`.qube`) and symbolic reasoning system for quantum circuits in Aeonmi. QUBE files declare circuits declaratively (no procedural code) and are executed via `aeonmi qube run`. QUBE is also the symbolic reasoning layer Mother uses for quantum-modulated decision-making.
+
+BODY: **Qubit** [Q] — The fundamental unit of quantum information. Unlike a classical bit (0 or 1), a qubit can exist in a superposition of both states simultaneously. Measurement collapses the superposition to one definite value.
+
+BODY: **Quantum Attention** [M] — A cognitive module in `src/mother/quantum_attention.rs`. Applies quantum-inspired attention weighting to Mother's input processing, modulating which aspects of the input receive the most cognitive resources.
+
+BODY: **Quantum Core** [M] — The foundational quantum reasoning module in `src/mother/quantum_core.rs`. Provides quantum state simulation, gate application, and fidelity measurement within the cognitive loop.
+
+BODY: **quantum function** — An Aeonmi language keyword for declaring a function that operates on quantum types. Quantum functions can take ket arguments, apply gates, and return measured or unmeasured qubit states.
+
+### SECTION: R–Z
+BODY: **Reflect** [M] — The `reflect NAME` REPL command. Compares the expected outcome of a self-generated program (from `build NAME GOAL`) against the actual execution result. Updates the knowledge graph with the reflection. Over time, reflections improve Mother's understanding of what programs she can reliably generate.
+
+BODY: **REPL** — Read-Evaluate-Print Loop. An interactive command prompt. Aeonmi has two REPLs: the language REPL (`aeonmi repl`) for raw `.ai` code evaluation, and the Mother REPL (`aeonmi mother`) for cognitive interaction with all Phase 6–12 capabilities.
+
+BODY: **Shard** — The Aeonmi runtime identity unit. A Shard is a running instance of the Aeonmi system with an associated Master Glyph Key. The Shard Shell is the TUI editor. "Shard running unsigned" means the boot ceremony was skipped.
+
+BODY: **Selfmod** — Self-modification. The `.ai` module layer (`aeonmi_ai/selfmod/`) that allows Mother to propose changes to her own behavior. The Rust side captures snapshots every 10 interactions. The `.ai` selfmod module exists but is not called from the embryo_loop at runtime (Track 2 → Track 1 bridge not built).
+
+BODY: **Semantic Analysis** — The compiler pass that checks type correctness, scope validity, and quantum type constraints. Runs after parsing. Can be disabled with `--no-sema` for faster (but less safe) execution.
+
+BODY: **Session Log** — A Markdown file written automatically to `Aeonmi_Master/sessions/YYYY-MM-DD.md` after each Mother interaction. Contains the full conversation, cognitive stats, and bond progression. Viewed with the `sessions` REPL command.
+
+BODY: **Snapshot** — A CapabilitySnapshot: a point-in-time record of Mother's state captured every 10 interactions. Fields: interaction_count, bond, consciousness_depth, neural_confidence, timestamp. Stored in genesis.json and viewed with the `snapshots` REPL command.
+
+BODY: **Superposition** [Q] — A quantum state that is a linear combination of basis states. A qubit in superposition is neither |0⟩ nor |1⟩ but a weighted combination of both. Superposition collapses to a definite value on measurement.
+
+BODY: **Tensor Product** [Q] — The mathematical operation (symbol: ⊗) that combines two quantum states into a composite state. |a⟩ ⊗ |b⟩ = |ab⟩. The joint state of two unentangled qubits is the tensor product of their individual states.
+
+BODY: **ThoughtEntry** [M] — A record in Mother's inner voice log. Fields: thought (the generated text), trigger (what caused the thought), bond (bond strength at time of thought), depth (consciousness depth), timestamp.
+
+BODY: **Titan** — The local quantum math library built into Aeonmi. Always available; requires no external dependencies. Used as the default quantum backend when Qiskit is not installed. Less accurate than Aer for large circuits but zero-latency.
+
+BODY: **Toffoli Gate** [Q] — The CCX (Controlled-Controlled-NOT) gate. The three-qubit gate that flips the target qubit if and only if both control qubits are |1⟩. Universal for classical computation when combined with ancilla qubits. Syntax: `CCX(q[0], q[1], q[2])`.
+
+BODY: **Track 1** — The Rust cognitive track: `src/mother/` modules running inside the embryo_loop. Quantum_core, emotional_core, language_evolution, quantum_attention, neural, knowledge_graph, inner_voice, embryo_loop. Status: RUNNING.
+
+BODY: **Track 2** — The Operational .ai track: `aeonmi_ai/` modules in `.ai` format. mother/, agent/, sensory/, learn/, selfmod/, swarm/, quantum/, demo/, shard/, stdlib/, store/, net/. Status: Files exist, run standalone. NOT wired into embryo_loop at runtime.
+
+BODY: **Track 3** — The External Python/JSON track: genesis.json, dashboard.py, genesis_sync.py, qiskit_runner.py, screen_recorder.py. Status: genesis.json is shared memory. dashboard.py writes operational section. genesis_sync.py reconciles manually.
+
+BODY: **UGST (Unified Glyph Session Token)** — A rotating session credential derived from the MGK using HKDF-SHA256 with a 60-second time window. UGST #0 is the genesis token, recorded permanently in genesis.json. Each session produces a new UGST. The UGST is the session's proof of identity.
+
+BODY: **Unitary** [Q] — A quantum gate that is reversible (U†U = I). All quantum gates except measurement are unitary. Unitarity guarantees that quantum computation is reversible until the moment of measurement.
+
+BODY: **Vault** — The encrypted record store for domains and secrets. Protected by XChaCha20-Poly1305 encryption and a Merkle integrity tree. Managed via `aeonmi vault`. Initialized once with `vault init`. See Appendix A for all vault subcommands.
+
+BODY: **Voice** — 1. The `voice` REPL command, which is an alias for `think` (inner voice generation). 2. A planned but not-yet-implemented feature: voice input via whisper.cpp. Status: NOT STARTED.
+
+BODY: **XChaCha20-Poly1305** — The authenticated encryption algorithm used by the Quantum Vault. XChaCha20 is a stream cipher with an extended 192-bit nonce; Poly1305 provides authentication. Together they provide confidentiality and integrity for vault records.
+
+BODY: **Xavier Initialization** — The weight initialization strategy used for Mother's neural network. Xavier (also called Glorot) initialization sets weights from a uniform distribution scaled by the layer sizes, preventing vanishing or exploding gradients during training.
+
+BODY: **Zeroize** — A Rust crate behavior applied to the Master Glyph Key. When the MGK value is dropped (goes out of scope), its memory is immediately overwritten with zeros, preventing secrets from lingering in process memory.

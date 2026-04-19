@@ -1,0 +1,42 @@
+// HOST: builtins smoke test
+// Tests list_dir, delete_file, make_dir, shell_exec, get_env, set_env
+
+// ── make_dir ──────────────────────────────────────────────────────────────────
+let ok = make_dir("__host_test_tmp__");
+if (ok) { print("PASS: make_dir"); } else { print("FAIL: make_dir"); }
+
+// ── write_file + file_exists ──────────────────────────────────────────────────
+write_file("__host_test_tmp__/hello.txt", "host builtins work");
+if (file_exists("__host_test_tmp__/hello.txt")) {
+    print("PASS: write_file + file_exists");
+} else { print("FAIL: write_file + file_exists"); }
+
+// ── list_dir ──────────────────────────────────────────────────────────────────
+let files = list_dir("__host_test_tmp__");
+if (len(files) == 1) { print("PASS: list_dir count"); } else { print("FAIL: list_dir count=" + len(files)); }
+
+// ── read_file ─────────────────────────────────────────────────────────────────
+let content = read_file("__host_test_tmp__/hello.txt");
+if (content == "host builtins work") {
+    print("PASS: read_file");
+} else { print("FAIL: read_file got=" + content); }
+
+// ── delete_file (cleanup) ─────────────────────────────────────────────────────
+delete_file("__host_test_tmp__");
+if (!file_exists("__host_test_tmp__")) { print("PASS: delete_file"); } else { print("FAIL: delete_file"); }
+
+// ── shell_exec ────────────────────────────────────────────────────────────────
+let r = shell_exec("echo hello_from_shell");
+let out = r["stdout"];
+if (contains(out, "hello_from_shell")) {
+    print("PASS: shell_exec stdout");
+} else { print("FAIL: shell_exec stdout=" + out); }
+
+if (r["exit_code"] == 0) { print("PASS: shell_exec exit_code=0"); } else { print("FAIL: shell_exec exit_code=" + r["exit_code"]); }
+
+// ── get_env / set_env ─────────────────────────────────────────────────────────
+set_env("AEONMI_HOST_TEST", "42");
+let v = get_env("AEONMI_HOST_TEST");
+if (v == "42") { print("PASS: set_env + get_env"); } else { print("FAIL: get_env got=" + v); }
+
+print("HOST: builtins test complete.");

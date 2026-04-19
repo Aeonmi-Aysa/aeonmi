@@ -1,0 +1,91 @@
+⍝ memory_min.ai — minimal memory module for maintenance/core chains
+⍝ flat: [key0, val0, str0, key1, val1, str1, ...] — 3 fields/entry
+⍝ helpers inlined to keep function count ≤ 6 (avoids exponential env-clone blowup)
+
+◯ m_active⟨m, threshold⟩ {
+    let total = len(m) / 3;
+    let count = 0;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3 + 2;
+        let s = m.slice(base, base + 1).pop();
+        if (s >= threshold) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ m_count⟨m⟩ {
+    return len(m) / 3;
+}
+
+◯ m_decay⟨m, rate⟩ {
+    let result = [];
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        let v = m.slice(base + 1, base + 2).pop();
+        let s = m.slice(base + 2, base + 3).pop();
+        let ns = s * rate;
+        result.push(k);
+        result.push(v);
+        result.push(ns);
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ m_new⟨⟩ {
+    return [];
+}
+
+◯ m_recall⟨m, key⟩ {
+    let total = len(m) / 3;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { return m.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return "";
+}
+
+◯ m_store⟨m, key, val⟩ {
+    let total = len(m) / 3;
+    let found = -1;
+    let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        m.push(key);
+        m.push(val);
+        m.push(1);
+        return m;
+    }
+    let result = [];
+    let j = 0;
+    while (j < total) {
+        let b = j * 3;
+        let ek = m.slice(b, b + 1).pop();
+        let ev = m.slice(b + 1, b + 2).pop();
+        let es = m.slice(b + 2, b + 3).pop();
+        if (j == found) {
+            result.push(ek);
+            result.push(val);
+            result.push(1);
+        } else {
+            result.push(ek);
+            result.push(ev);
+            result.push(es);
+        }
+        j = j + 1;
+    }
+    return result;
+}

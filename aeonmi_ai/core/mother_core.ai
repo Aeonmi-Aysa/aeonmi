@@ -1,0 +1,179 @@
+⍝ mother_core.ai — Phase 5: Unified Mother Pipeline
+⍝ One pass: quantum signal → journal → learn → self-assess → full state report
+⍝ Standalone. 11 fns + main = 12 total (budget ≤ 13).
+⍝
+⍝ State:
+⍝   j  — journal  flat [tag, payload, ts, ...]    3 fields/entry
+⍝   m  — memory   flat [key, val, strength, ...]  3 fields/entry  (learning + last signal)
+⍝   s  — selfmod  flat [key, val, strength, ...]  3 fields/entry  (predictions/accuracy)
+⍝
+⍝ Each cycle in main: j_append → c_learn → m_store signal → c_observe
+
+◯ a_abs⟨n⟩ {
+    if (n < 0) { return 0 - n; }
+    return n;
+}
+
+◯ a_clamp⟨v, lo, hi⟩ {
+    if (v < lo) { return lo; }
+    if (v > hi) { return hi; }
+    return v;
+}
+
+◯ b_j_append⟨j, tag, payload⟩ {
+    j.push(tag); j.push(payload); j.push(0);
+    return j;
+}
+
+◯ b_m_recall⟨m, key⟩ {
+    let total = len(m) / 3; let i = 0;
+    while (i < total) {
+        let base = i * 3;
+        let k = m.slice(base, base + 1).pop();
+        if (k == key) { return m.slice(base + 1, base + 2).pop(); }
+        i = i + 1;
+    }
+    return 0;
+}
+
+◯ b_m_store⟨m, key, val⟩ {
+    let total = len(m) / 3; let found = -1; let i = 0;
+    while (i < total) {
+        let k = m.slice(i * 3, i * 3 + 1).pop();
+        if (k == key) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) { m.push(key); m.push(val); m.push(1); return m; }
+    let result = []; let j = 0;
+    while (j < total) {
+        let b = j * 3;
+        let ek = m.slice(b, b + 1).pop();
+        let ev = m.slice(b + 1, b + 2).pop();
+        let es = m.slice(b + 2, b + 3).pop();
+        if (j == found) { result.push(ek); result.push(val);  result.push(1);  }
+        else            { result.push(ek); result.push(ev);   result.push(es); }
+        j = j + 1;
+    }
+    return result;
+}
+
+◯ c_learn⟨m, verdict⟩ {
+    ⍝ decay strengths × 0.9 then bump proceed_count or abort_count
+    let total = len(m) / 3; let d = []; let i = 0;
+    while (i < total) {
+        let b = i * 3;
+        d.push(m.slice(b, b+1).pop());
+        d.push(m.slice(b+1, b+2).pop());
+        d.push(m.slice(b+2, b+3).pop() * 9 / 10);
+        i = i + 1;
+    }
+    let is_pos = 0; if (verdict == 2) { is_pos = 1; } if (verdict == 3) { is_pos = 1; }
+    if (is_pos == 1) {
+        let pc = b_m_recall(d, "proceed_count");
+        d = b_m_store(d, "proceed_count", pc + 1);
+    } else {
+        let ac = b_m_recall(d, "abort_count");
+        d = b_m_store(d, "abort_count", ac + 1);
+    }
+    return d;
+}
+
+◯ c_observe⟨s, pred, outcome, conf⟩ {
+    let preds = b_m_recall(s, "predictions");
+    let corr  = b_m_recall(s, "correct");
+    let csum  = b_m_recall(s, "conf_sum");
+    let drift = b_m_recall(s, "drift");
+    s = b_m_store(s, "predictions", preds + 1);
+    s = b_m_store(s, "last_pred",   pred);
+    s = b_m_store(s, "last_out",    outcome);
+    let hit = 0; if (pred == outcome) { hit = 1; }
+    if (hit == 1) {
+        s = b_m_store(s, "correct",  corr + 1);
+        s = b_m_store(s, "conf_sum", csum + conf);
+    }
+    s = b_m_store(s, "drift", drift + a_abs(pred - outcome));
+    return s;
+}
+
+◯ c_verdict_str⟨v⟩ {
+    if (v == 0) { return "ABORT"; }
+    if (v == 1) { return "HOLD"; }
+    if (v == 2) { return "PROCEED"; }
+    return "ACCELERATE";
+}
+
+◯ d_accuracy⟨s⟩ {
+    let preds = b_m_recall(s, "predictions");
+    let corr  = b_m_recall(s, "correct");
+    if (preds == 0) { return 0; }
+    return a_clamp(corr * 100 / preds, 0, 100);
+}
+
+◯ d_bias⟨m⟩ {
+    let pc = b_m_recall(m, "proceed_count");
+    let ac = b_m_recall(m, "abort_count");
+    let tot = pc + ac;
+    if (tot == 0) { return 50; }
+    return a_clamp(pc * 100 / tot, 0, 100);
+}
+
+◯ main⟨⟩ {
+    let j = []; let m = []; let s = [];
+
+    ⍝ cycle 1 — verdict=PROCEED conf=16 pred=PROCEED
+    j = b_j_append(j, "signal", "PROCEED");
+    m = c_learn(m, 2);
+    m = b_m_store(m, "last_verdict", 2); m = b_m_store(m, "last_conf", 16);
+    s = c_observe(s, 2, 2, 16);
+
+    ⍝ cycle 2 — verdict=PROCEED conf=18 pred=PROCEED
+    j = b_j_append(j, "signal", "PROCEED");
+    m = c_learn(m, 2);
+    m = b_m_store(m, "last_verdict", 2); m = b_m_store(m, "last_conf", 18);
+    s = c_observe(s, 2, 2, 18);
+
+    ⍝ cycle 3 — verdict=HOLD conf=5 pred=PROCEED (miss)
+    j = b_j_append(j, "signal", "HOLD");
+    m = c_learn(m, 1);
+    m = b_m_store(m, "last_verdict", 1); m = b_m_store(m, "last_conf", 5);
+    s = c_observe(s, 2, 1, 5);
+
+    ⍝ cycle 4 — verdict=ACCELERATE conf=20 pred=ACCELERATE
+    j = b_j_append(j, "signal", "ACCELERATE");
+    m = c_learn(m, 3);
+    m = b_m_store(m, "last_verdict", 3); m = b_m_store(m, "last_conf", 20);
+    s = c_observe(s, 3, 3, 20);
+
+    ⍝ cycle 5 — verdict=PROCEED conf=14 pred=PROCEED
+    j = b_j_append(j, "signal", "PROCEED");
+    m = c_learn(m, 2);
+    m = b_m_store(m, "last_verdict", 2); m = b_m_store(m, "last_conf", 14);
+    s = c_observe(s, 2, 2, 14);
+
+    ⍝ cycle 6 — verdict=PROCEED conf=12 pred=PROCEED
+    j = b_j_append(j, "signal", "PROCEED");
+    m = c_learn(m, 2);
+    m = b_m_store(m, "last_verdict", 2); m = b_m_store(m, "last_conf", 12);
+    s = c_observe(s, 2, 2, 12);
+
+    ⍝ ── Read unified state ──────────────────────────────────────────────
+    let jc    = len(j) / 3;
+    let mc    = len(m) / 3;
+    let bias  = d_bias(m);
+    let acc   = d_accuracy(s);
+    let preds = b_m_recall(s, "predictions");
+    let corr  = b_m_recall(s, "correct");
+    let drift = b_m_recall(s, "drift");
+    let lv    = b_m_recall(m, "last_verdict");
+    let lc    = b_m_recall(m, "last_conf");
+
+    print("=== MOTHER CORE — UNIFIED STATE ===");
+    print("Cycles run   : 6");
+    print("Journal      : " + jc + " entries");
+    print("Memory keys  : " + mc);
+    print("Learned bias : " + bias + "%  (toward PROCEED)");
+    print("Predictions  : " + preds + "  correct=" + corr + "  drift=" + drift);
+    print("Accuracy     : " + acc + "%");
+    print("Last signal  : " + c_verdict_str(lv) + "  conf=" + lc);
+    print("=== MOTHER ONLINE ===");
+}

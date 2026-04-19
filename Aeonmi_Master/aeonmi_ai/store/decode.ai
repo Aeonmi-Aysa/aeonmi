@@ -1,0 +1,103 @@
+﻿⍝ decode.ai — Read multi-buffer streams of encoded data
+⍝ Stream = flat concatenation of encoded buffers (from encode.ai)
+⍝ Each buffer: [42, version, type_id, data_len, checksum, d0..dN]
+⍝ buf_size = 5 + data_len
+⍝ Functions: 11 total, no imports
+⍝ a_dec_buf_pos is helper prefix (alphabetically first)
+
+◯ a_dec_buf_pos⟨stream, buf_i⟩ {
+    ⍝ Returns byte offset in stream where buffer buf_i starts
+    let pos = 0;
+    let i = 0;
+    let n = len(stream);
+    while (i < buf_i && pos < n) {
+        let dl = stream.slice(pos + 3, pos + 4).pop();
+        pos = pos + 5 + dl;
+        i = i + 1;
+    }
+    return pos;
+}
+
+◯ dec_buf_count⟨stream⟩ {
+    ⍝ Number of encoded buffers in stream
+    let n = len(stream);
+    let count = 0;
+    let pos = 0;
+    while (pos < n) {
+        let dl = stream.slice(pos + 3, pos + 4).pop();
+        pos = pos + 5 + dl;
+        count = count + 1;
+    }
+    return count;
+}
+
+◯ dec_buf_data_at⟨stream, buf_i, elem_i⟩ {
+    ⍝ Get data element elem_i from buffer buf_i
+    let pos = a_dec_buf_pos(stream, buf_i);
+    return stream.slice(pos + 5 + elem_i, pos + 6 + elem_i).pop();
+}
+
+◯ dec_buf_data_len⟨stream, buf_i⟩ {
+    ⍝ Data length field of buffer buf_i
+    let pos = a_dec_buf_pos(stream, buf_i);
+    return stream.slice(pos + 3, pos + 4).pop();
+}
+
+◯ dec_buf_extract⟨stream, buf_i⟩ {
+    ⍝ Return buffer buf_i as a standalone flat array
+    let pos = a_dec_buf_pos(stream, buf_i);
+    let dl = stream.slice(pos + 3, pos + 4).pop();
+    let total = 5 + dl;
+    let result = [];
+    let i = 0;
+    while (i < total) {
+        result.push(stream.slice(pos + i, pos + i + 1).pop());
+        i = i + 1;
+    }
+    return result;
+}
+
+◯ dec_buf_magic⟨stream, buf_i⟩ {
+    ⍝ Magic byte of buffer buf_i (should be 42)
+    let pos = a_dec_buf_pos(stream, buf_i);
+    return stream.slice(pos, pos + 1).pop();
+}
+
+◯ dec_buf_type⟨stream, buf_i⟩ {
+    ⍝ type_id field of buffer buf_i
+    let pos = a_dec_buf_pos(stream, buf_i);
+    return stream.slice(pos + 2, pos + 3).pop();
+}
+
+◯ dec_buf_version⟨stream, buf_i⟩ {
+    ⍝ version field of buffer buf_i
+    let pos = a_dec_buf_pos(stream, buf_i);
+    return stream.slice(pos + 1, pos + 2).pop();
+}
+
+◯ dec_is_empty⟨stream⟩ {
+    if (len(stream) == 0) { return 1; }
+    return 0;
+}
+
+◯ dec_new⟨⟩ {
+    return [];
+}
+
+◯ dec_total_data⟨stream⟩ {
+    ⍝ Sum of all data_len values across all buffers in stream
+    let n = len(stream);
+    let total = 0;
+    let pos = 0;
+    while (pos < n) {
+        let dl = stream.slice(pos + 3, pos + 4).pop();
+        total = total + dl;
+        pos = pos + 5 + dl;
+    }
+    return total;
+}
+
+◯ main⟨⟩ {
+    let s = dec_new();
+    print("decode module loaded — empty:", dec_is_empty(s), "count:", dec_buf_count(s));
+}

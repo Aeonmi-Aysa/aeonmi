@@ -1,0 +1,83 @@
+// quantum_bus_probe.ai
+// Bell + GHZ + QRNG diagnostics — confirm quantum bridge is alive
+// Run: aeonmi native quantum_bus_probe.ai
+
+function fn_round3(x) { return floor(x * 1000.0) / 1000.0; }
+
+function fn_extract_count(result_json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(result_json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(result_json) {
+        if char_at(result_json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(result_json) { return 0; }
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+function fn_probe_bell(shots) {
+    let desc = "2 2 " + shots + " 4 0 0 -1 4 1 0 7 0 0 7 1 1";
+    let result = quantum_run(desc);
+    let c00 = fn_extract_count(result, "00");
+    let c11 = fn_extract_count(result, "11");
+    let coherence = (c00 + c11) / float(shots);
+    print("Bell result: " + result);
+    print("Bell coherence(00+11)/" + shots + " = " + fn_round3(coherence));
+    return coherence;
+}
+
+function fn_probe_ghz(shots) {
+    let desc = "3 3 " + shots + " 6 0 0 -1 4 1 0 4 2 0 7 0 0 7 1 1 7 2 2";
+    let result = quantum_run(desc);
+    let c000 = fn_extract_count(result, "000");
+    let c111 = fn_extract_count(result, "111");
+    let coherence = (c000 + c111) / float(shots);
+    print("GHZ result: " + result);
+    print("GHZ coherence(000+111)/" + shots + " = " + fn_round3(coherence));
+    return coherence;
+}
+
+function fn_probe_qrng(shots) {
+    let desc = "1 1 " + shots + " 2 0 0 -1 7 0 0";
+    let result = quantum_run(desc);
+    let c0 = fn_extract_count(result, "0");
+    let c1 = fn_extract_count(result, "1");
+    let bias = abs((c0 - c1) / float(shots));
+    print("QRNG result: " + result);
+    print("QRNG bias = " + fn_round3(bias));
+    return bias;
+}
+
+function main() {
+    print("=== QUANTUM BUS PROBE ===");
+    let live = quantum_check();
+    if live == 1 { print("quantum_check(): LIVE"); } else { print("quantum_check(): DRY-RUN"); }
+    print("");
+    let bell = fn_probe_bell(512);
+    print("");
+    let ghz = fn_probe_ghz(1024);
+    print("");
+    let bias = fn_probe_qrng(256);
+    print("");
+    print("=== SUMMARY ===");
+    print("Bell coherence: " + fn_round3(bell));
+    print("GHZ coherence:  " + fn_round3(ghz));
+    print("QRNG bias:      " + fn_round3(bias));
+    return 0;
+}
+
+main();

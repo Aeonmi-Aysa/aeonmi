@@ -1,0 +1,69 @@
+⍝ rules_min.ai — minimal rules module for core chain
+⍝ flat: [name0, cond0, action0, pri0, enabled0, ...] — 5 fields/rule
+⍝ helper inlined to keep function count ≤ 4
+
+◯ r_count⟨r⟩ {
+    return len(r) / 5;
+}
+
+◯ r_enabled⟨r⟩ {
+    let total = len(r) / 5;
+    let count = 0;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5 + 4;
+        let e = r.slice(base, base + 1).pop();
+        if (e == 1) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+◯ r_new⟨⟩ {
+    return [];
+}
+
+◯ r_register⟨r, name, cond_name, action_name, pri⟩ {
+    let total = len(r) / 5;
+    let found = -1;
+    let i = 0;
+    while (i < total) {
+        let base = i * 5;
+        let n = r.slice(base, base + 1).pop();
+        if (n == name) { found = i; }
+        i = i + 1;
+    }
+    if (found == -1) {
+        r.push(name);
+        r.push(cond_name);
+        r.push(action_name);
+        r.push(pri);
+        r.push(1);
+        return r;
+    }
+    let result = [];
+    let j = 0;
+    while (j < total) {
+        let b = j * 5;
+        let rn = r.slice(b, b + 1).pop();
+        let rc = r.slice(b + 1, b + 2).pop();
+        let ra = r.slice(b + 2, b + 3).pop();
+        let rp = r.slice(b + 3, b + 4).pop();
+        let re = r.slice(b + 4, b + 5).pop();
+        if (j == found) {
+            result.push(name);
+            result.push(cond_name);
+            result.push(action_name);
+            result.push(pri);
+            result.push(1);
+        } else {
+            result.push(rn);
+            result.push(rc);
+            result.push(ra);
+            result.push(rp);
+            result.push(re);
+        }
+        j = j + 1;
+    }
+    return result;
+}

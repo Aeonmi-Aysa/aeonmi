@@ -1,0 +1,45 @@
+⍝ snapshot_test.ai — 6 total functions (4 imported + check + main)
+
+import { snap_mem_count, snap_pat_count, snap_pat_top, snap_strength_sum } from "./snapshot";
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) { print("pass:", label); return 1; }
+    print("FAIL:", label, "got:", got, "expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ build empty learn state
+    let pat0 = [];
+    let mem0 = [];
+    let ls0 = [];
+    ls0.push(pat0);
+    ls0.push(mem0);
+
+    p = p + check("empty mem_count",    snap_mem_count(ls0),    0);
+    p = p + check("empty pat_count",    snap_pat_count(ls0),    0);
+    p = p + check("empty pat_top",      snap_pat_top(ls0),      "");
+    p = p + check("empty strength_sum", snap_strength_sum(ls0), 0);
+
+    ⍝ build learn state with data
+    let pat2 = [];
+    pat2.push("x"); pat2.push(3);
+    pat2.push("y"); pat2.push(1);
+
+    let mem2 = [];
+    mem2.push("x"); mem2.push("observed"); mem2.push(3);
+    mem2.push("y"); mem2.push("observed"); mem2.push(1);
+
+    let ls2 = [];
+    ls2.push(pat2);
+    ls2.push(mem2);
+
+    p = p + check("mem_count 2",    snap_mem_count(ls2),    2);
+    p = p + check("pat_count 2",    snap_pat_count(ls2),    2);
+    p = p + check("pat_top x",      snap_pat_top(ls2),      "x");
+    p = p + check("strength_sum 4", snap_strength_sum(ls2), 4);
+
+    print("snapshot tests passed:", p, "/ 8");
+}

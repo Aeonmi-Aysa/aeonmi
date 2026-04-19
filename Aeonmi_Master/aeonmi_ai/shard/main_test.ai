@@ -1,0 +1,77 @@
+⍝ main_test.ai — end-to-end pipeline verification v0.1
+⍝ Import 8 fns from codegen.ai + check + main = 10 total (under 14 limit).
+⍝
+⍝ Tests gen_emit on realistic multi-statement ASTs — the final link that
+⍝ proves lex→parse→emit works (lexer/parser/codegen each already verified).
+⍝
+⍝ AST layout: [type, f0, f1, f2] × N
+⍝   1=Num  3=Ident  4=BinOp  6=Let(f0=name,f1=val_idx)  10=Return(f0=val_idx)
+
+import { gen_emit } from "./codegen";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { return 0; }
+    print(label);
+    print(got);
+    print(want);
+    return 1;
+}
+
+◯ main⟨⟩ {
+    ⍝ ── TEST 1: let x = 1; return x; ─────────────────────────────────────
+    ⍝ Represents the demo input in main.ai's shard_compile call.
+    ⍝ nd: [ Num("1"), Let("x",0), Ident("x"), Return(2) ]
+    let nd1 = [1, "1", 0, 0,  6, "x", 0, 0,  3, "x", 0, 0,  10, 2, 0, 0];
+    let out1 = gen_emit(nd1);
+    check("pipeline-demo",   out1, "let x = 1;\nreturn x;\n");
+
+    ⍝ ── TEST 2: let a = 0; let b = 1; return a == b; ─────────────────────
+    ⍝ nd: [ Num("0"), Let("a",0), Num("1"), Let("b",2),
+    ⍝       Ident("a"), Ident("b"), BinOp(==,4,5), Return(6) ]
+    let nd2 = [
+        1, "0", 0, 0,
+        6, "a", 0, 0,
+        1, "1", 0, 0,
+        6, "b", 2, 0,
+        3, "a", 0, 0,
+        3, "b", 0, 0,
+        4, 24, 4, 5,
+        10, 6, 0, 0
+    ];
+    let out2 = gen_emit(nd2);
+    check("pipeline-cmp",    out2, "let a = 0;\nlet b = 1;\nreturn a == b;\n");
+
+    ⍝ ── TEST 3: let y = x + 1; return y; ─────────────────────────────────
+    ⍝ nd: [ Ident("x"), Num("1"), BinOp(+,0,1), Let("y",2), Ident("y"), Return(4) ]
+    let nd3 = [
+        3, "x", 0, 0,
+        1, "1", 0, 0,
+        4, 20, 0, 1,
+        6, "y", 2, 0,
+        3, "y", 0, 0,
+        10, 4, 0, 0
+    ];
+    let out3 = gen_emit(nd3);
+    check("pipeline-add",    out3, "let y = x + 1;\nreturn y;\n");
+
+    ⍝ ── TEST 4: single return of string literal ───────────────────────────
+    ⍝ nd: [ String("ok"), Return(0) ]
+    let nd4 = [2, "ok", 0, 0,  10, 0, 0, 0];
+    let out4 = gen_emit(nd4);
+    check("pipeline-str",    out4, "return \"ok\";\n");
+
+    ⍝ ── TEST 5: three lets ────────────────────────────────────────────────
+    ⍝ nd: [ Num("1"), Let("a",0), Num("2"), Let("b",2), Num("3"), Let("c",4) ]
+    let nd5 = [
+        1, "1", 0, 0,
+        6, "a", 0, 0,
+        1, "2", 0, 0,
+        6, "b", 2, 0,
+        1, "3", 0, 0,
+        6, "c", 4, 0
+    ];
+    let out5 = gen_emit(nd5);
+    check("pipeline-3lets",  out5, "let a = 1;\nlet b = 2;\nlet c = 3;\n");
+
+    print("=== PASS ===");
+}

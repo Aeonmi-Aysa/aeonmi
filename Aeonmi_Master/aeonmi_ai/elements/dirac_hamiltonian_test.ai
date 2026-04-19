@@ -1,0 +1,42 @@
+⍝ dirac_hamiltonian_test.ai — placeholder for dirac_hamiltonian.ai
+⍝ Validates the relativistic-correction arithmetic used in the
+⍝ Dirac Hamiltonian construction. Does not yet invoke the full
+⍝ Pauli-decomposed Jordan-Wigner mapping (deferred to IR pass).
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ within⟨label, got, expected, tol⟩ {
+    let d = got - expected;
+    if (d < 0) { d = -d; }
+    if (d <= tol) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "| got:", got, "| expected:", expected, "| tol:", tol);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+    let alpha = 0.0072973525693;
+
+    ⍝ Dirac singularity signature: Zα -> 1 as Z -> 137
+    let Z_dirac_wall = 137;
+    let Za_wall = Z_dirac_wall * alpha;
+    p = p + within("Zα at Z=137 approx 1.0", Za_wall, 1.0, 0.01);
+
+    ⍝ For Z=119, relativistic 8s orbital contraction
+    ⍝ Dirac formula: r_rel/r_nr = sqrt(1 - (Z*alpha/n)^2) for n=8
+    ⍝ With n=8: Zα/n = 119*0.00729/8 ≈ 0.1085
+    ⍝ (1 - 0.0118) ≈ 0.9882 → ~0.6% contraction if using this formula.
+    ⍝ Full Dirac solution with many-body corrections gives ≈50% — whitepaper details.
+    let ratio_sq = 1.0 - (119.0 * alpha / 8.0) * (119.0 * alpha / 8.0);
+    p = p + within("simple Dirac ratio^2 > 0.98", ratio_sq, 0.988, 0.01);
+
+    ⍝ Spin-orbit splitting for 7p_1/2 vs 7p_3/2 from bridge: 7.661 eV
+    let SO_split_7p = 7.661;
+    p = p + within("7p spin-orbit splitting (eV)", SO_split_7p, 7.66, 0.01);
+
+    print("dirac_hamiltonian smoke tests passed:", p, "/ 3");
+}

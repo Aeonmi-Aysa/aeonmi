@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantumForge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>QuantumForge</h1>
+      <div class="status-indicator" id="status-indicator"></div>
+    </header>
+    
+    <div class="main-content">
+      <div class="card">
+        <h2>Quick Actions</h2>
+        <button id="analyze-btn" class="btn primary">Analyze Page Content</button>
+        <button id="summarize-btn" class="btn secondary">Summarize with AI</button>
+      </div>
+
+      <div class="card">
+        <h2>Quantum Status</h2>
+        <div class="stat-row">
+          <span>Backend:</span>
+          <span id="backend-status" class="status-text">Checking...</span>
+        </div>
+        <div class="stat-row">
+          <span>Qubits:</span>
+          <span id="qubit-count">127</span>
+        </div>
+      </div>
+
+      <div id="result-area" class="result-area hidden">
+        <h3>Analysis Result</h3>
+        <p id="result-text"></p>
+      </div>
+    </div>
+
+    <footer>
+      <p>Powered by Aeonmi QW</p>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

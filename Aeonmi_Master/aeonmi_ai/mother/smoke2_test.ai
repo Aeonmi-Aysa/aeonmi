@@ -1,0 +1,20 @@
+⍝ smoke2_test.ai — test maintenance chain
+
+import { m_new, m_store, m_count } from "./memory_min";
+import { j_new, j_count } from "./journal_min";
+import { maint_health_score, maint_decay_pass, maint_report } from "./maintenance";
+
+◯ main⟨⟩ {
+    print("step1: imports ok");
+    let m = m_new();
+    m = m_store(m, "x", "val");
+    print("step2: memory stored, count =", m_count(m));
+    let j = j_new();
+    let h = maint_health_score(m, 0.5);
+    print("step3: health =", h);
+    let pair = maint_decay_pass(m, j, 0.4);
+    print("step4: decay done");
+    let report = maint_report(m, j, 0.5);
+    print("step5: report[0] =", report.slice(0, 1).pop());
+    print("PASS");
+}

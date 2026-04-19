@@ -1,0 +1,323 @@
+// ============================================================
+//  AEONMI — Nuclear Stability Scanner
+//  Uses Grover search over (Z, N) space to locate the 
+//  Period 8 Island of Stability candidates.
+//
+//  Binding energy model: Liquid Drop + Shell Correction
+//  (Bethe-Weizsäcker + Strutinsky shell correction)
+//
+//  Target: Find all (Z,N) where:
+//    - B/A > STABILITY_THRESHOLD
+//    - Z or N near magic numbers
+//    - Half-life predicted > 1 second
+// ============================================================
+
+import titan::grover
+import titan::qft
+import aeonmic::math
+import aeonmic::log
+
+// ─────────────────────────────────────────
+//  STABILITY THRESHOLD
+// ─────────────────────────────────────────
+const STABILITY_THRESHOLD_MEV : Float = 7.60   // MeV/nucleon (Fe-56 = 8.79)
+const HALF_LIFE_MIN_SECONDS   : Float = 1.0    // seconds
+const Z_SEARCH_MIN            : Int   = 114    // Start from confirmed flerovium
+const Z_SEARCH_MAX            : Int   = 172    // Theoretical QED limit
+const N_SEARCH_MIN            : Int   = 170    // Neutron floor
+const N_SEARCH_MAX            : Int   = 320    // Neutron ceiling
+
+// Known nuclear magic numbers (protons and neutrons)
+const MAGIC_PROTONS  : Vec<Int> = [2, 8, 20, 28, 50, 82, 114, 126, 164]
+const MAGIC_NEUTRONS : Vec<Int> = [2, 8, 20, 28, 50, 82, 126, 184, 228, 308]
+
+
+// ─────────────────────────────────────────
+//  BETHE-WEIZSÄCKER LIQUID DROP MODEL
+// ─────────────────────────────────────────
+//
+//  B(Z,N) = aᵥA - aₛA^{2/3} - aᶜZ²A^{-1/3}
+//          - aₐ(N-Z)²/A + δ(A,Z)
+//
+//  where A = Z + N
+
+fn liquid_drop_binding(Z: Int, N: Int) -> Float {
+    let A     = (Z + N).to_float()
+    let Z_f   = Z.to_float()
+    let N_f   = N.to_float()
+
+    // Empirical coefficients (MeV)
+    let a_vol  : Float = 15.835   // volume
+    let a_surf : Float = 18.330   // surface
+    let a_coul : Float = 0.714    // Coulomb
+    let a_asym : Float = 23.200   // asymmetry
+    let a_pair : Float = 11.200   // pairing
+
+    // Volume term
+    let e_vol  = a_vol * A
+
+    // Surface term
+    let e_surf = -a_surf * aeonmic::math::pow(A, 2.0/3.0)
+
+    // Coulomb term
+    let e_coul = -a_coul * Z_f * Z_f / aeonmic::math::pow(A, 1.0/3.0)
+
+    // Asymmetry term
+    let e_asym = -a_asym * (N_f - Z_f) * (N_f - Z_f) / A
+
+    // Pairing term δ(Z,N)
+    let e_pair = if Z % 2 == 0 && N % 2 == 0 {
+        a_pair / aeonmic::math::sqrt(A)   // even-even: +δ
+    } else if Z % 2 == 1 && N % 2 == 1 {
+        -a_pair / aeonmic::math::sqrt(A)  // odd-odd: -δ
+    } else {
+        0.0                               // odd-even: 0
+    }
+
+    return e_vol + e_surf + e_coul + e_asym + e_pair
+}
+
+
+// ─────────────────────────────────────────
+//  SHELL CORRECTION (STRUTINSKY METHOD)
+// ─────────────────────────────────────────
+//
+//  Shell correction adds stability near magic numbers.
+//  ΔE_shell = -S × exp(-∑ᵢ [(Nᵢ - Nᵢ_magic)² / σ²])
+
+fn shell_correction(Z: Int, N: Int) -> Float {
+    let S : Float  = 8.5      // shell correction strength (MeV)
+    let sigma : Float = 6.0   // shell width (nucleon number units)
+
+    // Find distance to nearest magic proton number
+    let mut min_dist_Z : Float = 999.0
+    for magic_Z in MAGIC_PROTONS {
+        let dist = (Z - magic_Z).to_float().abs()
+        if dist < min_dist_Z {
+            min_dist_Z = dist
+        }
+    }
+
+    // Find distance to nearest magic neutron number
+    let mut min_dist_N : Float = 999.0
+    for magic_N in MAGIC_NEUTRONS {
+        let dist = (N - magic_N).to_float().abs()
+        if dist < min_dist_N {
+            min_dist_N = dist
+        }
+    }
+
+    // Shell correction: positive near doubly-magic nuclei
+    let shell_Z = S * aeonmic::math::exp(-(min_dist_Z * min_dist_Z) / (sigma * sigma))
+    let shell_N = S * aeonmic::math::exp(-(min_dist_N * min_dist_N) / (sigma * sigma))
+
+    // Doubly magic bonus (both Z and N near magic)
+    let doubly_magic_bonus = if min_dist_Z < 3.0 && min_dist_N < 3.0 {
+        shell_Z * shell_N / S   // constructive interference
+    } else {
+        0.0
+    }
+
+    return shell_Z + shell_N + doubly_magic_bonus
+}
+
+
+// ─────────────────────────────────────────
+//  TOTAL BINDING ENERGY PER NUCLEON
+// ─────────────────────────────────────────
+
+fn binding_energy_per_nucleon(Z: Int, N: Int) -> Float {
+    let A   = (Z + N).to_float()
+    let B   = liquid_drop_binding(Z, N) + shell_correction(Z, N)
+    return B / A
+}
+
+
+// ─────────────────────────────────────────
+//  ALPHA DECAY Q-VALUE (stability proxy)
+// ─────────────────────────────────────────
+//
+//  Q_α = B(Z-2, N-2) + B(2,2) - B(Z,N)
+//  If Q_α < 0: alpha decay energetically forbidden → very stable
+//  If Q_α small (< 4 MeV): slow decay, longer half-life
+
+fn alpha_decay_q(Z: Int, N: Int) -> Float {
+    let B_parent   = liquid_drop_binding(Z, N) + shell_correction(Z, N)
+    let B_daughter = liquid_drop_binding(Z-2, N-2) + shell_correction(Z-2, N-2)
+    let B_alpha    = 28.295  // binding energy of He-4 (experimental, MeV)
+    return B_parent - B_daughter - B_alpha
+}
+
+
+// ─────────────────────────────────────────
+//  HALF-LIFE ESTIMATOR (Geiger-Nuttall)
+// ─────────────────────────────────────────
+//
+//  log₁₀(T½) = a × Z / √Q_α + b
+//  Empirical Geiger-Nuttall law for α decay
+
+fn estimated_halflife_log10(Z: Int, Q_alpha: Float) -> Float {
+    if Q_alpha <= 0.0 {
+        return 99.0   // effectively stable (> 10^99 seconds)
+    }
+    // Geiger-Nuttall parameters (Viola-Seaborg formula)
+    let a : Float = 1.66175
+    let b : Float = -8.5166
+    let c : Float = -0.20228
+    return a * Z.to_float() / aeonmic::math::sqrt(Q_alpha) + b + c * Z.to_float().log10()
+}
+
+
+// ─────────────────────────────────────────
+//  GROVER ORACLE — STABILITY PREDICATE
+// ─────────────────────────────────────────
+
+struct Nucleus {
+    Z          : Int,
+    N          : Int,
+    A          : Int,
+    binding_pa : Float,     // binding energy per nucleon (MeV)
+    q_alpha    : Float,     // alpha decay Q-value (MeV)
+    halflife   : Float,     // log10(T½ in seconds)
+    doubly_magic: Bool,
+}
+
+fn is_stable_candidate(Z: Int, N: Int) -> Bool {
+    let bpa    = binding_energy_per_nucleon(Z, N)
+    let q_a    = alpha_decay_q(Z, N)
+    let t_half = estimated_halflife_log10(Z, q_a)
+
+    // Oracle conditions:
+    // 1. Binding energy above threshold
+    // 2. Positive half-life (metastable minimum)
+    // 3. Half-life > 1 second (log10 > 0)
+    return bpa > STABILITY_THRESHOLD_MEV
+        && q_a > 0.0
+        && t_half > 0.0
+}
+
+
+// ─────────────────────────────────────────
+//  GROVER SEARCH — QUANTUM SPEEDUP
+// ─────────────────────────────────────────
+
+fn search_island_of_stability() -> Vec<Nucleus> {
+    log::info("Starting Grover Search over (Z,N) space...")
+    log::info("Z range: " + Z_SEARCH_MIN.to_string() + " → " + Z_SEARCH_MAX.to_string())
+    log::info("N range: " + N_SEARCH_MIN.to_string() + " → " + N_SEARCH_MAX.to_string())
+
+    let search_space_size = (Z_SEARCH_MAX - Z_SEARCH_MIN) * (N_SEARCH_MAX - N_SEARCH_MIN)
+    log::info("Search space: " + search_space_size.to_string() + " nuclei")
+    log::info("Classical search: O(N), Grover: O(√N)")
+
+    // Encode (Z, N) pairs as quantum register
+    // Z needs log2(172-114) = 6 qubits, N needs log2(320-170) = 8 qubits → 14 qubits total
+    let z_qubits = 6
+    let n_qubits = 8
+
+    let results = titan::grover::search_with_oracle(
+        search_space:  cartesian_range(Z_SEARCH_MIN, Z_SEARCH_MAX, N_SEARCH_MIN, N_SEARCH_MAX),
+        oracle:        fn(zn: Tuple<Int, Int>) -> Bool {
+                           is_stable_candidate(zn.0, zn.1)
+                       },
+        n_qubits:      z_qubits + n_qubits,
+        max_solutions: 20,
+        backend:       :qasm_simulator    // classical sim for search; use :ibm_brisbane for hardware
+    )
+
+    // Convert raw search hits to Nucleus structs
+    let candidates : Vec<Nucleus> = results.map(|zn| {
+        let Z = zn.0
+        let N = zn.1
+        let q = alpha_decay_q(Z, N)
+        Nucleus {
+            Z:            Z,
+            N:            N,
+            A:            Z + N,
+            binding_pa:   binding_energy_per_nucleon(Z, N),
+            q_alpha:      q,
+            halflife:     estimated_halflife_log10(Z, q),
+            doubly_magic: is_near_magic(Z) && is_near_magic_N(N),
+        }
+    })
+
+    // Sort by half-life (most stable first)
+    candidates.sort_by(|a, b| b.halflife.compare(a.halflife))
+
+    log::info("Found " + candidates.len().to_string() + " stable island candidates")
+    
+    for nuc in candidates.take(10) {
+        log::info(
+            "  Z=" + nuc.Z.to_string() +
+            " N=" + nuc.N.to_string() +
+            " A=" + nuc.A.to_string() +
+            " | B/A=" + nuc.binding_pa.round(3).to_string() + " MeV" +
+            " | T½=10^" + nuc.halflife.round(1).to_string() + "s" +
+            if nuc.doubly_magic { " *** DOUBLY MAGIC ***" } else { "" }
+        )
+    }
+
+    return candidates
+}
+
+
+// ─────────────────────────────────────────
+//  PERIOD 8 NUCLEAR MAP (QFT ANALYSIS)
+// ─────────────────────────────────────────
+//
+//  Uses QFT to find the periodicity in shell corrections
+//  across the Z=114→172 range, revealing the stability landscape
+
+fn qft_stability_landscape(z_range: Range) -> Vec<Float> {
+    log::info("Running QFT on nuclear stability landscape...")
+
+    let shell_corrections : Vec<Float> = z_range.map(|Z| {
+        // Use N = Z × 1.53 (typical neutron excess for heavy nuclei)
+        let N = (Z.to_float() * 1.53).to_int()
+        shell_correction(Z, N)
+    })
+
+    let frequency_domain = titan::qft::transform(shell_corrections)
+    let dominant_freqs   = frequency_domain.dominant_peaks(5)
+
+    log::info("Dominant shell structure periodicities:")
+    for freq in dominant_freqs {
+        log::info("  Δn = " + (1.0/freq).round(1).to_string() + " nucleons (f=" + freq.to_string() + ")")
+    }
+
+    return frequency_domain
+}
+
+
+// ─────────────────────────────────────────
+//  MAIN
+// ─────────────────────────────────────────
+
+fn run_stability_scan() -> Vec<Nucleus> {
+    log::banner("PERIOD 8 NUCLEAR STABILITY SCAN")
+
+    // QFT landscape first to understand structure
+    let landscape = qft_stability_landscape(Z_SEARCH_MIN..Z_SEARCH_MAX)
+
+    // Grover search for actual candidates
+    let candidates = search_island_of_stability()
+
+    // Highlight the Z=164, N=308 doubly-magic prediction
+    let z164_n308 = Nucleus {
+        Z:            164,
+        N:            308,
+        A:            472,
+        binding_pa:   binding_energy_per_nucleon(164, 308),
+        q_alpha:      alpha_decay_q(164, 308),
+        halflife:     estimated_halflife_log10(164, alpha_decay_q(164, 308)),
+        doubly_magic: true,
+    }
+
+    log::info("")
+    log::info("━━ THEORETICAL SECOND ISLAND PEAK (Z=164, N=308) ━━")
+    log::info("B/A = " + z164_n308.binding_pa.round(4).to_string() + " MeV/nucleon")
+    log::info("Q_α = " + z164_n308.q_alpha.round(3).to_string() + " MeV")
+    log::info("T½  = 10^" + z164_n308.halflife.round(2).to_string() + " seconds")
+
+    return candidates
+}

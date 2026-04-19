@@ -1,0 +1,368 @@
+// =============================================================================
+// Aeonmi Lexer — .ai port of src/core/lexer.rs
+// =============================================================================
+// Produces an array of token objects: {kind, value, line, col}
+//
+// Token kinds (string):
+//   Literals:  "Number", "String", "Ident", "True", "False", "Null"
+//   Keywords:  "Let","Const","Function","Return","If","Else","While","For","In"
+//              "Quantum","Import","Export","From","Match","Class","Struct","Enum"
+//              "Impl","Async","Await","Pub","Self","This","New","Constructor"
+//              "Type","Consciousness","Qubit","Superpose","Entangle","Measure","Dod"
+//              "Log","Print"
+//   Operators: "Plus","Minus","Star","Slash","Equals","DoubleEquals","NotEquals"
+//              "LessThan","LessEqual","GreaterThan","GreaterEqual","ColonEquals"
+//              "ColonColon","AndAnd","OrOr","Arrow","FatArrow","Bang","Percent"
+//              "Caret","Ampersand","Pipe","Dot","Colon","Semicolon","Comma"
+//   Delimiters:"OpenParen","CloseParen","OpenBrace","CloseBrace"
+//              "OpenBracket","CloseBracket"
+//   Special:   "EOF", "Unknown"
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Character classification helpers
+// ---------------------------------------------------------------------------
+
+function is_digit(ch) {
+    return ch >= "0" && ch <= "9";
+}
+
+function is_lower(ch) {
+    return ch >= "a" && ch <= "z";
+}
+
+function is_upper(ch) {
+    return ch >= "A" && ch <= "Z";
+}
+
+function is_alpha(ch) {
+    return is_lower(ch) || is_upper(ch) || ch == "_";
+}
+
+function is_alnum(ch) {
+    return is_alpha(ch) || is_digit(ch);
+}
+
+function is_whitespace(ch) {
+    return ch == " " || ch == "\t" || ch == "\r" || ch == "\n";
+}
+
+// ---------------------------------------------------------------------------
+// Token constructor
+// ---------------------------------------------------------------------------
+
+function tok(kind, value, line, col) {
+    let t = object();
+    t = set_key(t, "kind", kind);
+    t = set_key(t, "value", value);
+    t = set_key(t, "line", line);
+    t = set_key(t, "col", col);
+    return t;
+}
+
+// ---------------------------------------------------------------------------
+// Keyword → TokenKind mapping
+// ---------------------------------------------------------------------------
+
+function keyword_kind(word) {
+    if (word == "let")          { return "Let"; }
+    if (word == "const")        { return "Const"; }
+    if (word == "function")     { return "Function"; }
+    if (word == "return")       { return "Return"; }
+    if (word == "if")           { return "If"; }
+    if (word == "else")         { return "Else"; }
+    if (word == "while")        { return "While"; }
+    if (word == "for")          { return "For"; }
+    if (word == "in")           { return "In"; }
+    if (word == "null")         { return "Null"; }
+    if (word == "true")         { return "True"; }
+    if (word == "false")        { return "False"; }
+    if (word == "print")        { return "Log"; }
+    if (word == "log")          { return "Log"; }
+    if (word == "quantum")      { return "Quantum"; }
+    if (word == "import")       { return "Import"; }
+    if (word == "export")       { return "Export"; }
+    if (word == "from")         { return "From"; }
+    if (word == "match")        { return "Match"; }
+    if (word == "class")        { return "Class"; }
+    if (word == "struct")       { return "Struct"; }
+    if (word == "enum")         { return "Enum"; }
+    if (word == "impl")         { return "Impl"; }
+    if (word == "async")        { return "Async"; }
+    if (word == "await")        { return "Await"; }
+    if (word == "pub")          { return "Pub"; }
+    if (word == "self")         { return "Self"; }
+    if (word == "this")         { return "This"; }
+    if (word == "new")          { return "New"; }
+    if (word == "constructor")  { return "Constructor"; }
+    if (word == "type")         { return "Type"; }
+    if (word == "consciousness") { return "Consciousness"; }
+    if (word == "qubit")        { return "Qubit"; }
+    if (word == "superpose")    { return "Superpose"; }
+    if (word == "entangle")     { return "Entangle"; }
+    if (word == "measure")      { return "Measure"; }
+    if (word == "dod")          { return "Dod"; }
+    return "Ident";
+}
+
+// ---------------------------------------------------------------------------
+// Main tokenizer
+// ---------------------------------------------------------------------------
+
+function tokenize(src) {
+    let src_len = str_len(src);
+    let pos = 0;
+    let line = 1;
+    let col = 0;
+    let tokens = [];
+
+    while (pos < src_len) {
+        let ch = char_at(src, pos);
+
+        // ── Whitespace ────────────────────────────────────────────────────────
+        if (is_whitespace(ch)) {
+            if (ch == "\n") {
+                line = line + 1;
+                col = 0;
+            } else {
+                col = col + 1;
+            }
+            pos = pos + 1;
+
+        // ── Line comments: // ─────────────────────────────────────────────────
+        } else if (ch == "/" && pos + 1 < src_len && char_at(src, pos + 1) == "/") {
+            // consume to end of line
+            let scanning = true;
+            while (scanning) {
+                if (pos < src_len) {
+                    let c2 = char_at(src, pos);
+                    if (c2 == "\n") {
+                        scanning = false;
+                    } else {
+                        pos = pos + 1;
+                    }
+                } else {
+                    scanning = false;
+                }
+            }
+
+        // ── Two-char operators ────────────────────────────────────────────────
+        } else if (pos + 1 < src_len && ch == "=" && char_at(src, pos + 1) == "=") {
+            tokens = push(tokens, tok("DoubleEquals", "==", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == "!" && char_at(src, pos + 1) == "=") {
+            tokens = push(tokens, tok("NotEquals", "!=", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == "<" && char_at(src, pos + 1) == "=") {
+            tokens = push(tokens, tok("LessEqual", "<=", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == ">" && char_at(src, pos + 1) == "=") {
+            tokens = push(tokens, tok("GreaterEqual", ">=", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == ":" && char_at(src, pos + 1) == "=") {
+            tokens = push(tokens, tok("ColonEquals", ":=", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == ":" && char_at(src, pos + 1) == ":") {
+            tokens = push(tokens, tok("ColonColon", "::", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == "&" && char_at(src, pos + 1) == "&") {
+            tokens = push(tokens, tok("AndAnd", "&&", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == "|" && char_at(src, pos + 1) == "|") {
+            tokens = push(tokens, tok("OrOr", "||", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == "-" && char_at(src, pos + 1) == ">") {
+            tokens = push(tokens, tok("Arrow", "->", line, col));
+            pos = pos + 2; col = col + 2;
+        } else if (pos + 1 < src_len && ch == "=" && char_at(src, pos + 1) == ">") {
+            tokens = push(tokens, tok("FatArrow", "=>", line, col));
+            pos = pos + 2; col = col + 2;
+
+        // ── Single-char operators and delimiters ──────────────────────────────
+        } else if (ch == "+") { tokens = push(tokens, tok("Plus",         "+", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "-") { tokens = push(tokens, tok("Minus",        "-", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "*") { tokens = push(tokens, tok("Star",         "*", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "/") { tokens = push(tokens, tok("Slash",        "/", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "=") { tokens = push(tokens, tok("Equals",       "=", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "<") { tokens = push(tokens, tok("LessThan",     "<", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == ">") { tokens = push(tokens, tok("GreaterThan",  ">", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "!") { tokens = push(tokens, tok("Bang",         "!", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "%") { tokens = push(tokens, tok("Percent",      "%", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "^") { tokens = push(tokens, tok("Caret",        "^", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "&") { tokens = push(tokens, tok("Ampersand",    "&", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "|") { tokens = push(tokens, tok("Pipe",         "|", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "(") { tokens = push(tokens, tok("OpenParen",    "(", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == ")") { tokens = push(tokens, tok("CloseParen",   ")", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "{") { tokens = push(tokens, tok("OpenBrace",    "{", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "}") { tokens = push(tokens, tok("CloseBrace",   "}", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "[") { tokens = push(tokens, tok("OpenBracket",  "[", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == "]") { tokens = push(tokens, tok("CloseBracket", "]", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == ",") { tokens = push(tokens, tok("Comma",        ",", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == ";") { tokens = push(tokens, tok("Semicolon",    ";", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == ".") { tokens = push(tokens, tok("Dot",          ".", line, col)); pos = pos + 1; col = col + 1;
+        } else if (ch == ":") { tokens = push(tokens, tok("Colon",        ":", line, col)); pos = pos + 1; col = col + 1;
+
+        // ── Number literals ───────────────────────────────────────────────────
+        } else if (is_digit(ch)) {
+            let start_line = line;
+            let start_col = col;
+            let num_str = "";
+            let has_decimal = false;
+            let scanning = true;
+            while (scanning) {
+                if (pos < src_len) {
+                    let c = char_at(src, pos);
+                    if (is_digit(c)) {
+                        num_str = num_str + c;
+                        pos = pos + 1; col = col + 1;
+                    } else if (c == "." && !has_decimal) {
+                        // peek ahead: only decimal if next char is digit
+                        let is_num_dot = false;
+                        if (pos + 1 < src_len) {
+                            let next_c = char_at(src, pos + 1);
+                            if (is_digit(next_c)) {
+                                is_num_dot = true;
+                            }
+                        }
+                        if (is_num_dot) {
+                            has_decimal = true;
+                            num_str = num_str + c;
+                            pos = pos + 1; col = col + 1;
+                        } else {
+                            scanning = false;
+                        }
+                    } else {
+                        scanning = false;
+                    }
+                } else {
+                    scanning = false;
+                }
+            }
+            tokens = push(tokens, tok("Number", num_str, start_line, start_col));
+
+        // ── String literals ───────────────────────────────────────────────────
+        } else if (ch == "\"") {
+            let start_line = line;
+            let start_col = col;
+            pos = pos + 1; col = col + 1;  // consume opening "
+            let content = "";
+            let scanning = true;
+            while (scanning) {
+                if (pos < src_len) {
+                    let c = char_at(src, pos);
+                    if (c == "\\") {
+                        pos = pos + 1; col = col + 1;
+                        if (pos < src_len) {
+                            let esc = char_at(src, pos);
+                            if (esc == "n")  { content = content + "\n"; }
+                            else if (esc == "t")  { content = content + "\t"; }
+                            else if (esc == "r")  { content = content + "\r"; }
+                            else if (esc == "\"") { content = content + "\""; }
+                            else if (esc == "\\") { content = content + "\\"; }
+                            else                  { content = content + esc; }
+                            pos = pos + 1; col = col + 1;
+                        }
+                    } else if (c == "\"") {
+                        pos = pos + 1; col = col + 1;
+                        scanning = false;
+                    } else {
+                        if (c == "\n") { line = line + 1; col = 0; }
+                        else           { col = col + 1; }
+                        content = content + c;
+                        pos = pos + 1;
+                    }
+                } else {
+                    scanning = false;  // unterminated — emit what we have
+                }
+            }
+            tokens = push(tokens, tok("String", content, start_line, start_col));
+
+        // ── Single-quoted char literals (emit as String) ─────────────────────
+        } else if (ch == "'") {
+            let start_line = line;
+            let start_col = col;
+            pos = pos + 1; col = col + 1;
+            let content = "";
+            let scanning = true;
+            while (scanning) {
+                if (pos < src_len) {
+                    let c = char_at(src, pos);
+                    if (c == "'") {
+                        pos = pos + 1; col = col + 1;
+                        scanning = false;
+                    } else {
+                        content = content + c;
+                        pos = pos + 1; col = col + 1;
+                    }
+                } else {
+                    scanning = false;
+                }
+            }
+            tokens = push(tokens, tok("String", content, start_line, start_col));
+
+        // ── Identifiers and keywords ──────────────────────────────────────────
+        } else if (is_alpha(ch)) {
+            let start_line = line;
+            let start_col = col;
+            let ident = "";
+            let scanning = true;
+            while (scanning) {
+                if (pos < src_len) {
+                    let c = char_at(src, pos);
+                    if (is_alnum(c)) {
+                        ident = ident + c;
+                        pos = pos + 1; col = col + 1;
+                    } else {
+                        scanning = false;
+                    }
+                } else {
+                    scanning = false;
+                }
+            }
+            let kind = keyword_kind(ident);
+            tokens = push(tokens, tok(kind, ident, start_line, start_col));
+
+        // ── Unknown — skip ────────────────────────────────────────────────────
+        } else {
+            pos = pos + 1; col = col + 1;
+        }
+    }
+
+    // EOF sentinel
+    tokens = push(tokens, tok("EOF", "", line, col));
+    return tokens;
+}
+
+// ---------------------------------------------------------------------------
+// Pretty-print a token list (for debugging)
+// ---------------------------------------------------------------------------
+
+function dump_tokens(tokens) {
+    let i = 0;
+    while (i < len(tokens)) {
+        let t = tokens[i];
+        let kind = t["kind"];
+        let val  = t["value"];
+        let ln   = t["line"];
+        let col  = t["col"];
+        print("[" + kind + "] '" + val + "' @" + ln + ":" + col);
+        i = i + 1;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CLI entry point: tokenize file passed as arg, dump results
+// Run directly: Aeonmi.exe native lexer.ai <source_file.ai>
+// ---------------------------------------------------------------------------
+
+function main() {
+    if (len(args) > 0) {
+        let src = read_file(args[0]);
+        let tokens = tokenize(src);
+        print("Tokenized " + args[0] + " -> " + len(tokens) + " tokens");
+        dump_tokens(tokens);
+    } else {
+        print("Usage: Aeonmi.exe native lexer.ai <source_file.ai>");
+    }
+}
+// main() intentionally not auto-called — invoke directly or import and call tokenize()

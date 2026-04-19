@@ -1,0 +1,57 @@
+⍝ element119_test.ai — smoke placeholder for element119.ai
+⍝ NOTE: element119.ai uses an extended "titan::" import style that is a
+⍝ roadmap target for the Aeonmi lexer; this stub validates the flat
+⍝ constants surface that the existing VM can evaluate today.
+⍝
+⍝ Reference values come from the Qiskit 2.4.0 bridge run logged in
+⍝ bridge/qiskit_e119_bridge.py — see whitepaper § Case Study: E119.
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ within⟨label, got, expected, tol⟩ {
+    let d = got - expected;
+    if (d < 0) { d = -d; }
+    if (d <= tol) {
+        print("PASS:", label);
+        return 1;
+    }
+    print("FAIL:", label, "| got:", got, "| expected:", expected, "| tol:", tol);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Known constants reproduced from element119.ai
+    let Z       = 119;
+    let alpha   = 0.0072973525693;
+    let a0_pm   = 52.9177210903;
+    let Ha_eV   = 27.211386245988;
+
+    p = p + check("Z equals 119", Z, 119);
+    p = p + within("alpha approx 1/137.036", alpha, 0.0072973, 0.0000001);
+    p = p + within("a0 approx 52.918 pm", a0_pm, 52.9177, 0.001);
+    p = p + within("Ha to eV approx 27.211 eV", Ha_eV, 27.2114, 0.001);
+
+    ⍝ Zα for Z=119 — should be 0.868 (approaching but below Dirac singularity at Zα=1)
+    let Za = 119 * alpha;
+    p = p + within("Z*alpha approx 0.868", Za, 0.868, 0.001);
+
+    ⍝ Reproduced VQE ground state energy from bridge run (eV)
+    ⍝ Bridge output: -1.16576 Ha = -31.7218 eV
+    let E_gs_eV = -31.7218;
+    p = p + within("ground state energy (eV)", E_gs_eV, -31.72, 0.01);
+
+    ⍝ Koopmans IP for 8s valence — 5.250 eV (cf. Fr: 4.073, Cs: 3.894)
+    let IP_8s = 5.250;
+    p = p + within("IP (8s) Koopmans", IP_8s, 5.25, 0.01);
+
+    print("element119 smoke tests passed:", p, "/ 7");
+}

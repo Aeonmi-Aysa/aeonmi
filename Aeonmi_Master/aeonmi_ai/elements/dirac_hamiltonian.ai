@@ -1,0 +1,212 @@
+// ============================================================
+//  AEONMI — Dirac Hamiltonian Builder
+//  Constructs the relativistic Pauli-decomposed Hamiltonian
+//  for superheavy element active-space quantum simulation.
+//
+//  Active space (4 qubits):
+//    q0: |8s, ↑⟩    q1: |8s, ↓⟩
+//    q2: |7p½, ↑⟩   q3: |7p½, ↓⟩
+//
+//  H = H_kinetic + H_coulomb + H_mass_velocity 
+//    + H_darwin + H_spin_orbit + H_two_electron
+// ============================================================
+
+import titan::math
+import aeonmic::math
+import qube::pauli
+
+// Pauli operator type
+struct PauliTerm {
+    coefficient : Float,
+    operators   : Vec<String>,   // "I","X","Y","Z" per qubit
+}
+
+struct DiracHamiltonian {
+    terms    : Vec<PauliTerm>,
+    n_qubits : Int,
+    n_terms  : Int,
+}
+
+
+// ─────────────────────────────────────────
+//  ONE-ELECTRON INTEGRALS (atomic units)
+// ─────────────────────────────────────────
+
+// Diagonal one-electron energy for orbital i
+// h_ii = ⟨φᵢ|T + V + H_rel|φᵢ⟩
+fn one_electron_diagonal(z_eff: Float, n: Int, l: Int, j: Float) -> Float {
+    // Non-relativistic part: -Z_eff²/(2n²)
+    let e_nr = -(z_eff * z_eff) / (2.0 * (n * n).to_float())
+    
+    // Mass-velocity: -(α²/8)(Z_eff/n)⁴/n
+    let alpha = 0.0072973525693
+    let zn    = z_eff / n.to_float()
+    let e_mv  = -(alpha*alpha / 8.0) * (zn*zn*zn*zn) / n.to_float()
+    
+    // Darwin (s-only): (α²/2)(Z_eff⁴/n³)
+    let e_dar = if l == 0 {
+        (alpha*alpha / 2.0) * (z_eff*z_eff*z_eff*z_eff) / (n*n*n).to_float()
+    } else {
+        0.0
+    }
+    
+    // Spin-orbit (p and higher)
+    let e_so = if l != 0 {
+        let lf       = l.to_float()
+        let num      = j*(j+1.0) - lf*(lf+1.0) - 0.75
+        let den      = lf * (lf+0.5) * (lf+1.0)
+        (alpha*alpha / 2.0) * (z_eff*z_eff*z_eff*z_eff) / (n*n*n).to_float()
+                     * (num / den)
+    } else {
+        0.0
+    }
+    
+    return e_nr + e_mv + e_dar + e_so
+}
+
+// Off-diagonal coupling between 8s and 7p½ 
+// (relativistic mixing — this is physically real for Z=119)
+fn spin_orbit_coupling_8s_7p12(z_eff_s: Float, z_eff_p: Float) -> Float {
+    // ξ = ⟨8s|H_so|7p½⟩ ≈ relativistic off-diagonal element
+    // Estimated from coupled Dirac–Fock overlap
+    let alpha  = 0.0072973525693
+    let xi     = (alpha*alpha * z_eff_s * z_eff_p * z_eff_p) / (8.0 * 7.0 * 8.0)
+    return xi * 0.023  // screened coupling constant (0.023 from relativistic DFT)
+}
+
+// Two-electron repulsion integral (simplified Slater-type)
+// g_iijj = ⟨φᵢφᵢ|r₁₂⁻¹|φⱼφⱼ⟩
+fn two_electron_integral(z_eff_i: Float, n_i: Int, z_eff_j: Float, n_j: Int) -> Float {
+    // Use approximate Slater F⁰ integral
+    // F⁰ ≈ (Z_eff_i + Z_eff_j) / (2 * max(n_i, n_j) * (n_i² + n_j²))
+    let n_max  = if n_i > n_j { n_i } else { n_j }
+    let n_sumsq = (n_i*n_i + n_j*n_j).to_float()
+    return (z_eff_i + z_eff_j) / (2.0 * n_max.to_float() * n_sumsq)
+}
+
+
+// ─────────────────────────────────────────
+//  SECOND QUANTIZATION → PAULI MAPPING
+// ─────────────────────────────────────────
+//
+//  Jordan-Wigner transformation:
+//  aᵢ = (Z₀⊗Z₁⊗...⊗Zᵢ₋₁) ⊗ X⁺iY)/2
+//  nᵢ = aᵢ†aᵢ = (I - Zᵢ)/2
+//
+//  Qubit layout:
+//    0: 8s↑    1: 8s↓    2: 7p½↑    3: 7p½↓
+
+fn build_dirac_hamiltonian_pauli(
+    z_eff_8s   : Float,
+    z_eff_7p12 : Float,
+    n_qubits   : Int
+) -> DiracHamiltonian {
+
+    let terms : Vec<PauliTerm> = []
+
+    // ── ONE-BODY DIAGONAL TERMS ──
+    // h₀₀|n₀⟩, h₁₁|n₁⟩, h₂₂|n₂⟩, h₃₃|n₃⟩
+    let h_8s   = one_electron_diagonal(z_eff_8s,   8, 0, 0.5)
+    let h_7p12 = one_electron_diagonal(z_eff_7p12, 7, 1, 0.5)
+
+    // nᵢ = (I - Zᵢ)/2  so h_ii × nᵢ contributes:
+    //   coefficient = h_ii/2 on IIII...
+    //   coefficient = -h_ii/2 on ...Z_i...
+
+    // 8s spin-up (qubit 0)
+    terms.push(PauliTerm { coefficient:  h_8s/2.0, operators: ["I","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -h_8s/2.0, operators: ["Z","I","I","I"] })
+
+    // 8s spin-down (qubit 1)
+    terms.push(PauliTerm { coefficient:  h_8s/2.0, operators: ["I","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -h_8s/2.0, operators: ["I","Z","I","I"] })
+
+    // 7p½ spin-up (qubit 2)
+    terms.push(PauliTerm { coefficient:  h_7p12/2.0, operators: ["I","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -h_7p12/2.0, operators: ["I","I","Z","I"] })
+
+    // 7p½ spin-down (qubit 3)
+    terms.push(PauliTerm { coefficient:  h_7p12/2.0, operators: ["I","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -h_7p12/2.0, operators: ["I","I","I","Z"] })
+
+
+    // ── OFF-DIAGONAL COUPLING (8s ↔ 7p½ relativistic mixing) ──
+    // t₀₂: ⟨8s↑|H|7p½↑⟩ and its conjugate
+    let t_coupling = spin_orbit_coupling_8s_7p12(z_eff_8s, z_eff_7p12)
+
+    // JW: a₀†a₂ + a₂†a₀ = (XX + YY)/2 with Z-strings
+    terms.push(PauliTerm { coefficient: t_coupling/2.0, operators: ["X","I","Z","X"] })
+    terms.push(PauliTerm { coefficient: t_coupling/2.0, operators: ["Y","I","Z","Y"] })
+
+    // Spin-down coupling (q1 ↔ q3)
+    terms.push(PauliTerm { coefficient: t_coupling/2.0, operators: ["I","X","I","X"] })
+    terms.push(PauliTerm { coefficient: t_coupling/2.0, operators: ["I","Y","I","Y"] })
+
+
+    // ── TWO-BODY (ELECTRON REPULSION) ──
+    // Only relevant if we populate both 8s and 7p½ — for Z=119 ground state
+    // (single electron) this is zero, but we include for excited states
+    let g_0011 = two_electron_integral(z_eff_8s, 8, z_eff_7p12, 7)
+
+    // n₀n₂ = (I-Z₀)/2 × (I-Z₂)/2 = (II - IZ - ZI + ZZ)/4
+    terms.push(PauliTerm { coefficient:  g_0011/4.0, operators: ["I","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -g_0011/4.0, operators: ["Z","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -g_0011/4.0, operators: ["I","I","Z","I"] })
+    terms.push(PauliTerm { coefficient:  g_0011/4.0, operators: ["Z","I","Z","I"] })
+
+    // n₁n₃ (spin-down manifold)
+    terms.push(PauliTerm { coefficient:  g_0011/4.0, operators: ["I","I","I","I"] })
+    terms.push(PauliTerm { coefficient: -g_0011/4.0, operators: ["I","Z","I","I"] })
+    terms.push(PauliTerm { coefficient: -g_0011/4.0, operators: ["I","I","I","Z"] })
+    terms.push(PauliTerm { coefficient:  g_0011/4.0, operators: ["I","Z","I","Z"] })
+
+
+    let ham = DiracHamiltonian {
+        terms:    terms,
+        n_qubits: n_qubits,
+        n_terms:  terms.len(),
+    }
+
+    log::debug("Dirac Hamiltonian: " + ham.n_terms.to_string() + " Pauli terms built")
+    return ham
+}
+
+
+// ─────────────────────────────────────────
+//  TIME EVOLUTION UNITARY (for QPE)
+// ─────────────────────────────────────────
+
+// U = e^{-iHt} — encoded as parameterized quantum circuit
+// Uses first-order Trotterization: e^{-iHt} ≈ ∏ₖ e^{-iHₖt}
+fn encode_time_evolution_unitary(
+    z_eff       : Float,
+    n_principal : Int,
+    l           : Int,
+    t           : Float
+) -> qube::circuit::QuantumCircuit {
+
+    let ham = build_dirac_hamiltonian_pauli(
+        z_eff_8s:   z_eff,
+        z_eff_7p12: Z_EFF_7P12,
+        n_qubits:   4
+    )
+
+    // Trotter steps: more steps = more accurate but deeper circuit
+    let trotter_steps = 8
+
+    let circuit = qube::circuit::new(4)
+
+    for step in 0..trotter_steps {
+        let dt = t / trotter_steps.to_float()
+        for term in ham.terms {
+            // e^{-i(c × P₀⊗P₁⊗P₂⊗P₃)dt}
+            circuit.add_pauli_rotation(
+                paulis: term.operators,
+                angle:  2.0 * term.coefficient * dt,
+                qubits: [0, 1, 2, 3]
+            )
+        }
+    }
+
+    return circuit
+}

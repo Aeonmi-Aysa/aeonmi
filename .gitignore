@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# Rust build artifacts
+target/
+**/*.rs.bk
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+nexus_error.log
+
+# Archive
+_archive_*/

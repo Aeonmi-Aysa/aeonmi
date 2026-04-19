@@ -1,0 +1,69 @@
+// README.ai — quantum_coprocessor_suite runner + smoke test
+// Run: aeonmi native README.ai
+
+function fn_extract_count(result_json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(result_json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(result_json) {
+        if char_at(result_json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(result_json) { return 0; }
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+function fn_round3(x) { return floor(x * 1000.0) / 1000.0; }
+
+function fn_smoke_test() {
+    print("=== QUANTUM SMOKE TEST ===");
+    let live = quantum_check();
+    if live == 1 { print("LIVE (Qiskit detected)"); } else { print("DRY-RUN (no Qiskit)"); }
+
+    let bell_desc = "2 2 64 4 0 0 -1 4 1 0 7 0 0 7 1 1";
+    let bell = quantum_run(bell_desc);
+    print("Bell result: " + bell);
+    if live == 1 {
+        let c00 = fn_extract_count(bell, "00");
+        let c11 = fn_extract_count(bell, "11");
+        print("Bell coherence = " + fn_round3((c00 + c11) / 64.0));
+    }
+
+    let qrng_desc = "1 1 1 2 0 0 -1 7 0 0";
+    let qrng = quantum_run(qrng_desc);
+    print("QRNG 1-shot: " + qrng);
+}
+
+function main() {
+    print("=== quantum_coprocessor_suite ===");
+    print("Quantum circuits as a coprocessor bus for Aeonmi Nexus");
+    print("");
+    fn_smoke_test();
+    print("");
+    print("=== RUN ORDER ===");
+    print("1) quantum_bus_probe.ai         — raw Bell/GHZ/QRNG diagnostics");
+    print("2) quantum_signal_fabric.ai     — write qc_signals.json");
+    print("3) self_modifying_weights.ai    — evolve + write qc_weights.json");
+    print("4) quantum_cognitive_processor.ai — consume signals, emit decision");
+    print("5) shor_factor.ai               — Shor factoring demo");
+    print("6) quantum_microcode_processor.ai — 1-shot micro-instruction stream");
+    print("");
+    print("NOTE: These circuits run on your Aeonmi VM + Qiskit Aer backend.");
+    print("They demonstrate quantum-classical hybrid patterns, not CPU acceleration.");
+    return 0;
+}
+
+main();

@@ -1,0 +1,271 @@
+// coherence_sentinel.ai — Aeonmi Quantum Coprocessor Suite
+// Role: Measure whether the quantum backend is actually delivering entanglement.
+//       Bell tomography (ZZ/XX/YY) + GHZ Mermin witness + drift detection.
+// Outputs: HIVE_STATE lines + coherence_state.json + coherence_baseline.txt
+//
+// Descriptor format reminder:
+//   "n_q n_c shots op_count  [type target control] * op_count"
+//   0=H 1=X 2=Y 3=Z 4=CX 5=S 6=T 7=MEASURE
+//   control: -1 for 1q gates; ctrl qubit for CX; classical bit for MEASURE
+//
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+// Shots: 512=fast(hive), 2048=accurate(standalone)
+let SHOTS = 512;
+let BASELINE_FILE = "coherence_baseline.txt";
+let STATE_FILE    = "coherence_state.json";
+// ────────────────────────────────────────────────────────────────────────────
+
+// ── Utility: extract a count value from quantum_run() JSON ──────────────────
+function fn_extract_count(json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(json) {
+        if char_at(json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+// ── Utility: read a float value from "key=value\n" baseline file ────────────
+function fn_read_kv(text, key) {
+    let needle = key + "=";
+    let pos = find(text, needle);
+    if pos < 0 { return -9999.0; }
+    let i = pos + len(needle);
+    let num = "";
+    while i < len(text) {
+        let ch = char_at(text, i);
+        if ch == "\n" { break; }
+        if ch == "\r" { break; }
+        num = num + ch;
+        i = i + 1;
+    }
+    if len(num) == 0 { return -9999.0; }
+    return float(num);
+}
+
+// ── Round to 4 decimal places ───────────────────────────────────────────────
+function fn_r4(x) { return floor(x * 10000.0) / 10000.0; }
+
+// ── 2-qubit parity correlator: E = (c00+c11-c01-c10) / shots ───────────────
+function fn_parity2(json, shots) {
+    let c00 = fn_extract_count(json, "00");
+    let c11 = fn_extract_count(json, "11");
+    let c01 = fn_extract_count(json, "01");
+    let c10 = fn_extract_count(json, "10");
+    return (c00 + c11 - c01 - c10) / shots;
+}
+
+// ── 3-qubit parity correlator ───────────────────────────────────────────────
+// E = Σ_x p(x) * (-1)^popcount(x)
+// signs: 000=+1 001=-1 010=-1 011=+1 100=-1 101=+1 110=+1 111=-1
+function fn_parity3(json, shots) {
+    let c000 = fn_extract_count(json, "000");
+    let c001 = fn_extract_count(json, "001");
+    let c010 = fn_extract_count(json, "010");
+    let c011 = fn_extract_count(json, "011");
+    let c100 = fn_extract_count(json, "100");
+    let c101 = fn_extract_count(json, "101");
+    let c110 = fn_extract_count(json, "110");
+    let c111 = fn_extract_count(json, "111");
+    return (c000 - c001 - c010 + c011 - c100 + c101 + c110 - c111) / shots;
+}
+
+// ── H_min = -log2(p_max), floor approximation via doubling ──────────────────
+function fn_hmin3(json, shots) {
+    let max_c = fn_extract_count(json, "000");
+    let c = fn_extract_count(json, "001"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "010"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "011"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "100"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "101"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "110"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "111"); if c > max_c { max_c = c; }
+    if max_c == 0 { return 0.0; }
+    let p = max_c / shots;
+    let bits = 0.0;
+    while p < 1.0 { p = p * 2.0; bits = bits + 1.0; }
+    return bits;
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+function fn_sentinel_main() {
+    print("==============================================");
+    print("COHERENCE SENTINEL");
+    print("Bell tomography + GHZ Mermin witness");
+    print("==============================================");
+    print("");
+
+    if quantum_check() != 1 {
+        print("ERROR: Qiskit bridge not available.");
+        print("Run quantum_install.bat then restart dashboard.");
+        log("HIVE_STATE:coherence_live:0");
+        log("HIVE_STATE:coherence_f_bell:0");
+        log("HIVE_STATE:coherence_mermin:0");
+        return 0;
+    }
+
+    print("Shots per circuit: " + SHOTS);
+    print("");
+
+    // ── Bell tomography ─────────────────────────────────────────────────────
+    // Bell ZZ: H(0), CX(1←0), M(0,0), M(1,1)
+    let d_zz = "2 2 " + SHOTS + " 4  0 0 -1  4 1 0  7 0 0  7 1 1";
+    // Bell XX: H(0), CX(1←0), H(0), H(1), M(0,0), M(1,1)
+    let d_xx = "2 2 " + SHOTS + " 6  0 0 -1  4 1 0  0 0 -1  0 1 -1  7 0 0  7 1 1";
+    // Bell YY: H(0), CX(1←0), S†(0)=S^3, H(0), S†(1)=S^3, H(1), M, M
+    let d_yy = "2 2 " + SHOTS + " 12  0 0 -1  4 1 0  5 0 -1  5 0 -1  5 0 -1  0 0 -1  5 1 -1  5 1 -1  5 1 -1  0 1 -1  7 0 0  7 1 1";
+
+    print("Running Bell ZZ ...");
+    let r_zz = quantum_run(d_zz);
+    let E_ZZ = fn_parity2(r_zz, SHOTS);
+
+    print("Running Bell XX ...");
+    let r_xx = quantum_run(d_xx);
+    let E_XX = fn_parity2(r_xx, SHOTS);
+
+    print("Running Bell YY ...");
+    let r_yy = quantum_run(d_yy);
+    let E_YY = fn_parity2(r_yy, SHOTS);
+
+    // F(|Φ+⟩) = (1 + ⟨XX⟩ - ⟨YY⟩ + ⟨ZZ⟩) / 4
+    let F_bell = (1.0 + E_XX - E_YY + E_ZZ) / 4.0;
+
+    print("");
+    print("Bell correlators:");
+    print("  <ZZ> = " + fn_r4(E_ZZ));
+    print("  <XX> = " + fn_r4(E_XX));
+    print("  <YY> = " + fn_r4(E_YY));
+    print("  Bell fidelity F(|Phi+>) = " + fn_r4(F_bell));
+    print("");
+
+    // ── GHZ Mermin witness ──────────────────────────────────────────────────
+    // M = E_XXX - E_XYY - E_YXY - E_YYX
+    // Classical bound: |M| <= 2  /  Quantum: |M| <= 4
+    // GHZ prep base: H(0), CX(1←0), CX(2←0)
+    // X basis: H before measure  /  Y basis: S^3 then H before measure
+
+    // XXX: +H on all 3 before measure
+    let d_xxx = "3 3 " + SHOTS + " 9  0 0 -1  4 1 0  4 2 0  0 0 -1  0 1 -1  0 2 -1  7 0 0  7 1 1  7 2 2";
+    // XYY: H on q0; S^3+H on q1, q2
+    let d_xyy = "3 3 " + SHOTS + " 15  0 0 -1  4 1 0  4 2 0  0 0 -1  5 1 -1  5 1 -1  5 1 -1  0 1 -1  5 2 -1  5 2 -1  5 2 -1  0 2 -1  7 0 0  7 1 1  7 2 2";
+    // YXY: S^3+H on q0; H on q1; S^3+H on q2
+    let d_yxy = "3 3 " + SHOTS + " 15  0 0 -1  4 1 0  4 2 0  5 0 -1  5 0 -1  5 0 -1  0 0 -1  0 1 -1  5 2 -1  5 2 -1  5 2 -1  0 2 -1  7 0 0  7 1 1  7 2 2";
+    // YYX: S^3+H on q0, q1; H on q2
+    let d_yyx = "3 3 " + SHOTS + " 15  0 0 -1  4 1 0  4 2 0  5 0 -1  5 0 -1  5 0 -1  0 0 -1  5 1 -1  5 1 -1  5 1 -1  0 1 -1  0 2 -1  7 0 0  7 1 1  7 2 2";
+    // GHZ ZZZ for min-entropy check
+    let d_zzz = "3 3 " + SHOTS + " 6  0 0 -1  4 1 0  4 2 0  7 0 0  7 1 1  7 2 2";
+
+    print("Running GHZ XXX ...");
+    let r_xxx = quantum_run(d_xxx);
+    let E_XXX = fn_parity3(r_xxx, SHOTS);
+
+    print("Running GHZ XYY ...");
+    let r_xyy = quantum_run(d_xyy);
+    let E_XYY = fn_parity3(r_xyy, SHOTS);
+
+    print("Running GHZ YXY ...");
+    let r_yxy = quantum_run(d_yxy);
+    let E_YXY = fn_parity3(r_yxy, SHOTS);
+
+    print("Running GHZ YYX ...");
+    let r_yyx = quantum_run(d_yyx);
+    let E_YYX = fn_parity3(r_yyx, SHOTS);
+
+    print("Running GHZ ZZZ (entropy check) ...");
+    let r_zzz = quantum_run(d_zzz);
+    let Hmin = fn_hmin3(r_zzz, SHOTS);
+
+    let M = E_XXX - E_XYY - E_YXY - E_YYX;
+    let absM = M;
+    if absM < 0 { absM = 0 - absM; }
+
+    print("");
+    print("GHZ Mermin witness:");
+    print("  E_XXX = " + fn_r4(E_XXX));
+    print("  E_XYY = " + fn_r4(E_XYY));
+    print("  E_YXY = " + fn_r4(E_YXY));
+    print("  E_YYX = " + fn_r4(E_YYX));
+    print("  M = E_XXX - E_XYY - E_YXY - E_YYX = " + fn_r4(M));
+    print("  |M| = " + fn_r4(absM) + "  (classical <= 2, quantum <= 4)");
+    print("  GHZ min-entropy H_inf = " + Hmin + " bits");
+    print("");
+
+    // ── Verdict ─────────────────────────────────────────────────────────────
+    let verdict = "UNKNOWN";
+    if F_bell > 0.75 {
+        if absM > 2.0 { verdict = "ENTANGLED"; }
+        else          { verdict = "BELL_OK_MERMIN_WEAK"; }
+    } else {
+        if absM > 2.0 { verdict = "MERMIN_OK_BELL_WEAK"; }
+        else          { verdict = "SEPARABLE_OR_NOISY"; }
+    }
+
+    print("Verdict: " + verdict);
+    print("");
+
+    // ── Drift check vs baseline ──────────────────────────────────────────────
+    if file_exists(BASELINE_FILE) == true {
+        let base = read_file(BASELINE_FILE);
+        let base_F = fn_read_kv(base, "F_bell");
+        let base_M = fn_read_kv(base, "Mermin_abs");
+        let base_H = fn_read_kv(base, "Hmin");
+        if base_F > -9999.0 {
+            print("Drift vs baseline:");
+            print("  dF_bell  = " + fn_r4(F_bell - base_F));
+            print("  d|M|     = " + fn_r4(absM - base_M));
+            print("  dH_inf   = " + fn_r4(Hmin - base_H));
+            print("");
+        }
+    }
+
+    // ── Write baseline ───────────────────────────────────────────────────────
+    let kv = "F_bell=" + fn_r4(F_bell) + "\n";
+    kv = kv + "Mermin_abs=" + fn_r4(absM) + "\n";
+    kv = kv + "Hmin=" + Hmin + "\n";
+    kv = kv + "E_ZZ=" + fn_r4(E_ZZ) + "\n";
+    kv = kv + "E_XX=" + fn_r4(E_XX) + "\n";
+    kv = kv + "E_YY=" + fn_r4(E_YY) + "\n";
+    kv = kv + "shots=" + SHOTS + "\n";
+    write_file(BASELINE_FILE, kv);
+    print("Baseline updated: " + BASELINE_FILE);
+
+    // ── Write JSON state for dashboard Status tab ────────────────────────────
+    let jout = "{";
+    jout = jout + "\"f_bell\":" + fn_r4(F_bell) + ",";
+    jout = jout + "\"mermin_abs\":" + fn_r4(absM) + ",";
+    jout = jout + "\"hmin_ghz\":" + Hmin + ",";
+    jout = jout + "\"e_zz\":" + fn_r4(E_ZZ) + ",";
+    jout = jout + "\"e_xx\":" + fn_r4(E_XX) + ",";
+    jout = jout + "\"e_yy\":" + fn_r4(E_YY) + ",";
+    jout = jout + "\"verdict\":\"" + verdict + "\",";
+    jout = jout + "\"live\":1}";
+    write_file(STATE_FILE, jout);
+    print("State written: " + STATE_FILE);
+    print("");
+
+    // ── HIVE_STATE signals ───────────────────────────────────────────────────
+    log("HIVE_STATE:coherence_live:1");
+    log("HIVE_STATE:coherence_f_bell:" + fn_r4(F_bell));
+    log("HIVE_STATE:coherence_mermin:" + fn_r4(absM));
+    log("HIVE_STATE:coherence_hmin:" + Hmin);
+    log("HIVE_STATE:coherence_verdict:" + verdict);
+
+    return 1;
+}
+
+fn_sentinel_main();

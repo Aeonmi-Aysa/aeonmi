@@ -1,0 +1,112 @@
+// quantum_cognitive_processor.ai
+// Reads qc_signals.json + optional qc_weights.json, emits a coprocessor decision
+// Run: aeonmi native quantum_cognitive_processor.ai
+
+function fn_round3(x) { return floor(x * 1000.0) / 1000.0; }
+
+function fn_extract_number(json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(json, needle);
+    if start < 0 { return 0.0; }
+    let i = start + len(needle);
+    while i < len(json) {
+        if char_at(json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(json) { return 0.0; }
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let num = "";
+    while i < len(json) {
+        let ch = char_at(json, i);
+        let is_digit = (ch >= "0") && (ch <= "9");
+        if is_digit || ch == "." || ch == "-" { num = num + ch; i = i + 1; } else { break; }
+    }
+    if len(num) == 0 { return 0.0; }
+    return float(num);
+}
+
+function fn_extract_string(json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(json, needle);
+    if start < 0 { return ""; }
+    let i = start + len(needle);
+    while i < len(json) {
+        if char_at(json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(json) { return ""; }
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    if i >= len(json) { return ""; }
+    if char_at(json, i) != "\"" { return ""; }
+    i = i + 1;
+    let out = "";
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch == "\"" { break; }
+        out = out + ch;
+        i = i + 1;
+    }
+    return out;
+}
+
+function fn_load_weights() {
+    let w = [0.90, 0.60, 0.80, -0.55, 0.75];
+    if file_exists("qc_weights.json") {
+        let txt = read_file("qc_weights.json");
+        let ws  = fn_extract_number(txt, "w_signal");
+        let wst = fn_extract_number(txt, "w_stability");
+        let wp  = fn_extract_number(txt, "w_periodicity");
+        let wn  = fn_extract_number(txt, "w_noise");
+        let wq  = fn_extract_number(txt, "w_quantum");
+        if ws  != 0 { w[0] = ws; }
+        if wst != 0 { w[1] = wst; }
+        if wp  != 0 { w[2] = wp; }
+        if wn  != 0 { w[3] = wn; }
+        if wq  != 0 { w[4] = wq; }
+    }
+    return w;
+}
+
+function main() {
+    print("=== QUANTUM COGNITIVE PROCESSOR ===");
+    if file_exists("qc_signals.json") == false {
+        print("Missing qc_signals.json — run quantum_signal_fabric.ai first");
+        return 0;
+    }
+    let signals = read_file("qc_signals.json");
+    let bell   = fn_extract_number(signals, "bell_coherence");
+    let ghz    = fn_extract_number(signals, "ghz_coherence");
+    let bias   = fn_extract_number(signals, "qrng_bias");
+    let qscore = fn_extract_number(signals, "fused_quantum_score");
+    print("bell=" + fn_round3(bell) + " ghz=" + fn_round3(ghz) + " bias=" + fn_round3(bias) + " qscore=" + fn_round3(qscore));
+
+    let signal      = 0.85;
+    let stability   = 0.70;
+    let periodicity = 0.60;
+    let noise       = 0.20;
+
+    let w = fn_load_weights();
+    let logit = w[0]*signal + w[1]*stability + w[2]*periodicity + w[3]*noise + w[4]*qscore;
+
+    let action = "DAMP";
+    if logit >= 1.60 { action = "TRANSMIT"; } else {
+        if logit >= 1.10 { action = "LOCK"; } else {
+            if logit >= 0.65 { action = "OBSERVE"; }
+        }
+    }
+
+    print("logit=" + fn_round3(logit) + " => action=" + action);
+
+    let out = "{\"logit\":" + fn_round3(logit) + ",\"action\":\"" + action + "\"}";
+    write_file("qc_decision.json", out);
+    print("Wrote qc_decision.json: " + out);
+    return 0;
+}
+
+main();

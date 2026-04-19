@@ -1,0 +1,148 @@
+// grover_database_search.ai
+// Aeonmi -- Grover Quantum Database Search
+// O(sqrt(N)) quantum speedup over O(N) classical search
+// Run: aeonmi native examples/grover_database_search.ai
+
+function grover_2q(marked) {
+    // Equal superposition: 1/sqrt(4) = 0.5
+    let a0 = 0.5;
+    let a1 = 0.5;
+    let a2 = 0.5;
+    let a3 = 0.5;
+    // Oracle: phase-flip marked state
+    if (marked == 0) { a0 = 0 - a0; }
+    if (marked == 1) { a1 = 0 - a1; }
+    if (marked == 2) { a2 = 0 - a2; }
+    if (marked == 3) { a3 = 0 - a3; }
+    // Grover diffusion: a_i = 2*mean - a_i
+    let mean = (a0 + a1 + a2 + a3) / 4;
+    a0 = 2 * mean - a0;
+    a1 = 2 * mean - a1;
+    a2 = 2 * mean - a2;
+    a3 = 2 * mean - a3;
+    // Probabilities
+    let p0 = a0 * a0;
+    let p1 = a1 * a1;
+    let p2 = a2 * a2;
+    let p3 = a3 * a3;
+    // Measurement
+    let best = 0;
+    let best_p = p0;
+    if (p1 > best_p) { best = 1; best_p = p1; }
+    if (p2 > best_p) { best = 2; best_p = p2; }
+    if (p3 > best_p) { best = 3; best_p = p3; }
+    let result = [];
+    result.push(best);
+    result.push(best_p);
+    result.push(p0);
+    result.push(p1);
+    result.push(p2);
+    result.push(p3);
+    return result;
+}
+
+function grover_8q(marked) {
+    // 3-qubit, 2 iterations
+    let amp = 0.3536;
+    let amps = [];
+    let idx = 0;
+    while (idx < 8) { amps.push(amp); idx = idx + 1; }
+    let iter = 0;
+    while (iter < 2) {
+        let new_amps = [];
+        let i = 0;
+        while (i < 8) {
+            let a = amps.slice(i, i + 1).pop();
+            if (i == marked) { new_amps.push(0 - a); }
+            if (i != marked) { new_amps.push(a); }
+            i = i + 1;
+        }
+        amps = new_amps;
+        let total = 0;
+        let j = 0;
+        while (j < 8) { total = total + amps.slice(j, j + 1).pop(); j = j + 1; }
+        let m = total / 8;
+        let diffused = [];
+        let k = 0;
+        while (k < 8) {
+            diffused.push(2 * m - amps.slice(k, k + 1).pop());
+            k = k + 1;
+        }
+        amps = diffused;
+        iter = iter + 1;
+    }
+    let best = 0;
+    let best_p = 0;
+    let bi = 0;
+    while (bi < 8) {
+        let a = amps.slice(bi, bi + 1).pop();
+        let p = a * a;
+        if (p > best_p) { best = bi; best_p = p; }
+        bi = bi + 1;
+    }
+    let r = [];
+    r.push(best);
+    r.push(best_p);
+    return r;
+}
+
+function main() {
+    print("=== GROVER QUANTUM DATABASE SEARCH ===");
+    print("Aeonmi native VM | O(sqrt(N)) quantum speedup");
+    print("");
+
+    // 2-qubit demo
+    print("[ 2-Qubit / 4-State Database ]");
+    let target = 2;
+    print("  Target: index " + target + " in 4-state database");
+
+    let r4 = grover_2q(target);
+    let found = r4.slice(0, 1).pop();
+    let prob  = r4.slice(1, 2).pop();
+    let p0 = r4.slice(2, 3).pop();
+    let p1 = r4.slice(3, 4).pop();
+    let p2 = r4.slice(4, 5).pop();
+    let p3 = r4.slice(5, 6).pop();
+
+    print("  Post-Grover probabilities:");
+    let pct0 = floor(p0 * 100);
+    let pct1 = floor(p1 * 100);
+    let pct2 = floor(p2 * 100);
+    let pct3 = floor(p3 * 100);
+    print("  |00>  " + pct0 + "%");
+    print("  |01>  " + pct1 + "%");
+    print("  |10>  " + pct2 + "%  <-- marked");
+    print("  |11>  " + pct3 + "%");
+
+    let ok4 = "FAIL";
+    if (found == target) { ok4 = "SUCCESS"; }
+    print("  Measurement: |" + found + ">  prob=" + floor(prob * 1000) / 1000 + "  " + ok4);
+    print("");
+
+    // 3-qubit demo
+    print("[ 3-Qubit / 8-State Database ]");
+    let t8 = 5;
+    print("  Target: index " + t8 + " in 8-state database");
+    let r8 = grover_8q(t8);
+    let found8 = r8.slice(0, 1).pop();
+    let prob8  = r8.slice(1, 2).pop();
+    let ok8 = "FAIL";
+    if (found8 == t8) { ok8 = "SUCCESS"; }
+    print("  Measurement: |" + found8 + ">  prob=" + floor(prob8 * 1000) / 1000 + "  " + ok8);
+    print("");
+
+    // Speedup table
+    print("[ Quantum vs Classical Speedup ]");
+    print("  N         Classical    Quantum(~)   Speedup");
+    print("  4         4            2            2x");
+    print("  64        64           8            8x");
+    print("  1024      1024         32           32x");
+    print("  1000000   1000000      1000         1000x");
+    print("");
+    print("  Provably optimal: BBBV lower bound theorem.");
+    print("  No classical algorithm can beat quantum search.");
+    print("");
+    print("=== Complete. Zero external dependencies. Native Aeonmi VM. ===");
+}
+
+main();

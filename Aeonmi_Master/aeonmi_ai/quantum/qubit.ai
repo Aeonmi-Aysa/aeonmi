@@ -1,0 +1,90 @@
+⍝ qubit.ai — Single-qubit statevector: [re0, im0, re1, im1]
+⍝ |0⟩ = [1,0,0,0]  |1⟩ = [0,0,1,0]  |+⟩ = [0.707,0,0.707,0]
+⍝ Functions: 11 total (standalone, no imports)
+
+◯ q_im0⟨q⟩ {
+    return q.slice(1, 2).pop();
+}
+
+◯ q_im1⟨q⟩ {
+    return q.slice(3, 4).pop();
+}
+
+◯ q_measure⟨q⟩ {
+    ⍝ deterministic: collapse to outcome with higher probability
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    let p0 = re0 * re0 + im0 * im0;
+    let p1 = re1 * re1 + im1 * im1;
+    if (p0 >= p1) { return 0; }
+    return 1;
+}
+
+◯ q_minus⟨⟩ {
+    ⍝ |−⟩ = (|0⟩ − |1⟩)/√2
+    let r = [];
+    r.push(0.70710678);
+    r.push(0.0);
+    r.push(-0.70710678);
+    r.push(0.0);
+    return r;
+}
+
+◯ q_one⟨⟩ {
+    ⍝ |1⟩ computational basis state
+    let r = [];
+    r.push(0.0);
+    r.push(0.0);
+    r.push(1.0);
+    r.push(0.0);
+    return r;
+}
+
+◯ q_plus⟨⟩ {
+    ⍝ |+⟩ = (|0⟩ + |1⟩)/√2 — equal superposition
+    let r = [];
+    r.push(0.70710678);
+    r.push(0.0);
+    r.push(0.70710678);
+    r.push(0.0);
+    return r;
+}
+
+◯ q_prob0⟨q⟩ {
+    ⍝ probability of measuring |0⟩
+    let re0 = q.slice(0, 1).pop();
+    let im0 = q.slice(1, 2).pop();
+    return re0 * re0 + im0 * im0;
+}
+
+◯ q_prob1⟨q⟩ {
+    ⍝ probability of measuring |1⟩
+    let re1 = q.slice(2, 3).pop();
+    let im1 = q.slice(3, 4).pop();
+    return re1 * re1 + im1 * im1;
+}
+
+◯ q_re0⟨q⟩ {
+    return q.slice(0, 1).pop();
+}
+
+◯ q_re1⟨q⟩ {
+    return q.slice(2, 3).pop();
+}
+
+◯ q_zero⟨⟩ {
+    ⍝ |0⟩ computational basis state
+    let r = [];
+    r.push(1.0);
+    r.push(0.0);
+    r.push(0.0);
+    r.push(0.0);
+    return r;
+}
+
+◯ main⟨⟩ {
+    let q = q_zero();
+    print("qubit module loaded — q_zero prob0:", q_prob0(q));
+}

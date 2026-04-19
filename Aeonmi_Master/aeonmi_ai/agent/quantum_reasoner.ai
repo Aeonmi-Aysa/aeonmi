@@ -1,0 +1,99 @@
+// quantum_reasoner.ai — Aeonmi Hive
+// Role: Quantum-assisted reasoning diversity for ARC-AGI and general problem solving
+// Uses Bell/GHZ/QRNG to seed branching strategy — different coherence levels
+// trigger different reasoning modes (systematic vs exploratory vs conservative)
+// Output: HIVE_STATE:reasoner_mode:<mode> HIVE_STATE:reasoner_branch:<0-7>
+
+function fn_extract_count(result_json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(result_json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(result_json) {
+        if char_at(result_json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    if i >= len(result_json) { return 0; }
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(result_json) {
+        let ch = char_at(result_json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+function fn_round3(x) { return floor(x * 1000.0) / 1000.0; }
+
+function fn_quantum_reason() {
+    print("=== QUANTUM REASONER ===");
+    let live = quantum_check();
+    if live == 1 { print("Qiskit Aer: LIVE"); } else { print("Qiskit Aer: DRY-RUN"); }
+    print("");
+
+    // GHZ: global coherence — determines reasoning mode
+    let ghz_desc = "3 3 128 6 0 0 -1 4 1 0 4 2 0 7 0 0 7 1 1 7 2 2";
+    let ghz_result = quantum_run(ghz_desc);
+    let c000 = fn_extract_count(ghz_result, "000");
+    let c111 = fn_extract_count(ghz_result, "111");
+    let ghz_coherence = (c000 + c111) / 128.0;
+
+    // Bell: parity — determines search direction
+    let bell_desc = "2 2 64 4 0 0 -1 4 1 0 7 0 0 7 1 1";
+    let bell_result = quantum_run(bell_desc);
+    let b00 = fn_extract_count(bell_result, "00");
+    let b11 = fn_extract_count(bell_result, "11");
+    let bell_parity = (b11 > b00);
+
+    // QRNG: branch bit — deterministic fork
+    let qrng_desc = "1 1 1 2 0 0 -1 7 0 0";
+    let qrng_result = quantum_run(qrng_desc);
+    let branch_bit = fn_extract_count(qrng_result, "1");
+
+    // Compose 3-bit branch code: (ghz_mode << 2) | (bell_parity << 1) | branch_bit
+    let ghz_mode = 0;
+    if ghz_coherence > 0.7 { ghz_mode = 1; }
+    let branch_code = ghz_mode * 4 + bell_parity * 2 + branch_bit;
+
+    // Reasoning mode selection
+    let mode = "SYSTEMATIC";
+    if ghz_coherence > 0.7 {
+        if branch_bit == 1 { mode = "EXPLORATORY"; } else { mode = "DEEP_SCAN"; }
+    } else if ghz_coherence < 0.4 {
+        mode = "CONSERVATIVE";
+    } else {
+        if bell_parity == 1 { mode = "LATERAL"; } else { mode = "SYSTEMATIC"; }
+    }
+
+    print("GHZ coherence:  " + fn_round3(ghz_coherence));
+    print("Bell parity:    " + bell_parity);
+    print("QRNG branch:    " + branch_bit);
+    print("Branch code:    " + branch_code);
+    print("Reasoning mode: " + mode);
+    print("");
+    print("Mode meanings:");
+    print("  SYSTEMATIC   — step-by-step rule application (low entropy)");
+    print("  DEEP_SCAN    — exhaustive state-space search");
+    print("  EXPLORATORY  — high-variance hypothesis generation");
+    print("  LATERAL      — cross-domain analogy search");
+    print("  CONSERVATIVE — verify known patterns only (low coherence)");
+
+    log("HIVE_STATE:reasoner_mode:" + mode);
+    log("HIVE_STATE:reasoner_branch:" + branch_code);
+    log("HIVE_STATE:reasoner_coherence:" + fn_round3(ghz_coherence));
+
+    return branch_code;
+}
+
+function main() {
+    fn_quantum_reason();
+    return 0;
+}
+
+main();

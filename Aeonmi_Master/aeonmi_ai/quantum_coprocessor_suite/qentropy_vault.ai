@@ -1,0 +1,248 @@
+// qentropy_vault.ai — Aeonmi Quantum Coprocessor Suite
+// Role: Generate a 256-bit hex seed from quantum measurement entropy.
+//       Extracts entropy from shot-count distributions (GHZ or HHH circuits),
+//       applies Von Neumann whitening, emits a 64-char hex string.
+// Output: qseed_latest.hex + HIVE_STATE signals
+//
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+let VAULT_SHOTS         = 2048;   // shots per circuit run
+let VAULT_TARGET_BITS   = 256;    // output seed length in bits
+let VAULT_USE_ENTANGLE  = true;   // true=GHZ, false=HHH (independent)
+let VAULT_OUT_FILE      = "qseed_latest.hex";
+// ────────────────────────────────────────────────────────────────────────────
+
+// ── Extract count from quantum_run() JSON ───────────────────────────────────
+function fn_extract_count(json, key) {
+    let needle = "\"" + key + "\"";
+    let start = find(json, needle);
+    if start < 0 { return 0; }
+    let i = start + len(needle);
+    while i < len(json) {
+        if char_at(json, i) == ":" { i = i + 1; break; }
+        i = i + 1;
+    }
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch == " " { i = i + 1; } else { break; }
+    }
+    let digits = "";
+    while i < len(json) {
+        let ch = char_at(json, i);
+        if ch >= "0" {
+            if ch <= "9" { digits = digits + ch; i = i + 1; } else { break; }
+        } else { break; }
+    }
+    if len(digits) == 0 { return 0; }
+    return int(digits);
+}
+
+// ── Integer → 11-bit array MSB-first (supports counts 0..2047) ─────────────
+function fn_to_bits11(c) {
+    let bits = [];
+    let pow2 = 1024.0;
+    let x = c * 1.0;
+    while pow2 >= 1.0 {
+        if x >= pow2 { bits.push(1); x = x - pow2; }
+        else         { bits.push(0); }
+        pow2 = floor(pow2 / 2.0);
+    }
+    return bits;
+}
+
+// ── Von Neumann extractor: 01→0, 10→1, 00/11→discard ───────────────────────
+function fn_von_neumann(bits, out) {
+    let i = 0;
+    while i + 1 < len(bits) {
+        let a = bits[i];
+        let b = bits[i + 1];
+        if a != b { out.push(a); }
+        i = i + 2;
+    }
+    return out;
+}
+
+// ── Nibble → hex char ────────────────────────────────────────────────────────
+function fn_nibble_hex(n) {
+    if n == 0  { return "0"; }
+    if n == 1  { return "1"; }
+    if n == 2  { return "2"; }
+    if n == 3  { return "3"; }
+    if n == 4  { return "4"; }
+    if n == 5  { return "5"; }
+    if n == 6  { return "6"; }
+    if n == 7  { return "7"; }
+    if n == 8  { return "8"; }
+    if n == 9  { return "9"; }
+    if n == 10 { return "a"; }
+    if n == 11 { return "b"; }
+    if n == 12 { return "c"; }
+    if n == 13 { return "d"; }
+    if n == 14 { return "e"; }
+    return "f";
+}
+
+// ── Bit array → hex string (requires len(bits) divisible by 4) ─────────────
+function fn_bits_to_hex(bits) {
+    let s = "";
+    let i = 0;
+    while i + 3 < len(bits) {
+        let n = bits[i] * 8 + bits[i+1] * 4 + bits[i+2] * 2 + bits[i+3];
+        s = s + fn_nibble_hex(n);
+        i = i + 4;
+    }
+    return s;
+}
+
+// ── H_min = floor(-log2(p_max)) via doubling ─────────────────────────────────
+function fn_hmin3(json, shots) {
+    let max_c = fn_extract_count(json, "000");
+    let c = fn_extract_count(json, "001"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "010"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "011"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "100"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "101"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "110"); if c > max_c { max_c = c; }
+    c = fn_extract_count(json, "111"); if c > max_c { max_c = c; }
+    if max_c == 0 { return 0.0; }
+    let p = max_c / shots;
+    let bits = 0.0;
+    while p < 1.0 { p = p * 2.0; bits = bits + 1.0; }
+    return bits;
+}
+
+// ── Single vault round: run circuit, extract bits ────────────────────────────
+// Returns array of whitened bits from all 8 count values
+function fn_vault_round(shots, use_entangle) {
+    let desc = "";
+    if use_entangle == true {
+        // GHZ: H(0), CX(1←0), CX(2←0), M all
+        desc = "3 3 " + shots + " 6  0 0 -1  4 1 0  4 2 0  7 0 0  7 1 1  7 2 2";
+    } else {
+        // HHH: independent superpositions
+        desc = "3 3 " + shots + " 6  0 0 -1  0 1 -1  0 2 -1  7 0 0  7 1 1  7 2 2";
+    }
+
+    let json = quantum_run(desc);
+    let hmin = fn_hmin3(json, shots);
+
+    // Extract all 8 count values → bits → Von Neumann whiten
+    let raw = [];
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "000")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "001")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "010")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "011")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "100")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "101")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "110")), raw);
+    raw = fn_von_neumann(fn_to_bits11(fn_extract_count(json, "111")), raw);
+
+    print("  Round H_inf=" + hmin + " bits, extracted=" + len(raw) + " whitened bits");
+    return raw;
+}
+
+// ── Monobit ratio health check ───────────────────────────────────────────────
+function fn_monobit(bits) {
+    if len(bits) == 0 { return 0.0; }
+    let ones = 0;
+    let i = 0;
+    while i < len(bits) {
+        if bits[i] == 1 { ones = ones + 1; }
+        i = i + 1;
+    }
+    return floor((ones * 10000.0) / len(bits)) / 10000.0;
+}
+
+// ── Run count check (NIST-lite) ──────────────────────────────────────────────
+function fn_runs(bits) {
+    if len(bits) == 0 { return 0; }
+    let runs = 1;
+    let i = 1;
+    while i < len(bits) {
+        if bits[i] != bits[i-1] { runs = runs + 1; }
+        i = i + 1;
+    }
+    return runs;
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+function fn_vault_main() {
+    print("==============================================");
+    print("QUANTUM ENTROPY VAULT KEYSMITH");
+    print("256-bit hex seed from quantum measurements");
+    print("==============================================");
+    print("");
+
+    if quantum_check() != 1 {
+        print("ERROR: Qiskit bridge not available.");
+        print("Run quantum_install.bat then restart dashboard.");
+        log("HIVE_STATE:vault_live:0");
+        return 0;
+    }
+
+    let mode = "HHH (independent)";
+    if VAULT_USE_ENTANGLE == true { mode = "GHZ (entangled)"; }
+    print("Mode:   " + mode);
+    print("Shots:  " + VAULT_SHOTS);
+    print("Target: " + VAULT_TARGET_BITS + " bits (" + (VAULT_TARGET_BITS / 4) + " hex chars)");
+    print("");
+
+    // Accumulate whitened bits until we have enough
+    let seed_bits = [];
+    let round = 0;
+    while len(seed_bits) < VAULT_TARGET_BITS {
+        round = round + 1;
+        print("Round " + round + " ...");
+        let batch = fn_vault_round(VAULT_SHOTS, VAULT_USE_ENTANGLE);
+        let i = 0;
+        while i < len(batch) {
+            seed_bits.push(batch[i]);
+            i = i + 1;
+        }
+        print("  Accumulated: " + len(seed_bits) + " / " + VAULT_TARGET_BITS);
+    }
+
+    // Trim to exact target
+    let final_bits = [];
+    let i = 0;
+    while i < VAULT_TARGET_BITS {
+        final_bits.push(seed_bits[i]);
+        i = i + 1;
+    }
+
+    // Pad to multiple of 4 if needed (should already be 256)
+    while len(final_bits) < 256 { final_bits.push(0); }
+
+    // Health checks
+    let mono = fn_monobit(final_bits);
+    let runs = fn_runs(final_bits);
+    print("");
+    print("Health checks:");
+    print("  Ones ratio:  " + mono + "  (ideal ~0.500)");
+    print("  Run count:   " + runs + "  (ideal ~128 for 256 bits)");
+    print("");
+
+    // Hex output
+    let hex = fn_bits_to_hex(final_bits);
+    print("SEED_HEX (" + len(hex) + " chars):");
+    print(hex);
+    print("");
+
+    // Write to file
+    write_file(VAULT_OUT_FILE, hex + "\n");
+    print("Seed written: " + VAULT_OUT_FILE);
+
+    // HIVE_STATE signals
+    log("HIVE_STATE:vault_live:1");
+    log("HIVE_STATE:vault_rounds:" + round);
+    log("HIVE_STATE:vault_mono:" + mono);
+    log("HIVE_STATE:vault_hex_preview:" + hex);
+
+    print("");
+    print("NOTE: Real quantum truth requires IBM hardware backend.");
+    print("      On Aer, entropy source is shot-sampling noise (still non-trivial).");
+    print("      Configure IBM_QUANTUM_TOKEN + quantum_backend ibm_brisbane for QPU.");
+
+    return 1;
+}
+
+fn_vault_main();

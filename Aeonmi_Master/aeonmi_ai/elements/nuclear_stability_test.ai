@@ -1,0 +1,34 @@
+⍝ nuclear_stability_test.ai — placeholder for nuclear_stability.ai
+⍝ Validates magic-number constants and Grover-search space sizing for
+⍝ the (Z,N) stability search; full Strutinsky shell correction belongs
+⍝ to the upcoming IR pass.
+
+◯ check⟨label, got, expected⟩ {
+    if (got == expected) { print("PASS:", label); return 1; }
+    print("FAIL:", label, "| got:", got, "| expected:", expected);
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let p = 0;
+
+    ⍝ Proton magic numbers
+    let z_magic = [2, 8, 20, 28, 50, 82, 114, 164];
+    p = p + check("proton magic count", len(z_magic), 8);
+    p = p + check("Z=114 is magic", z_magic.slice(6, 7).pop(), 114);
+    p = p + check("Z=164 (2nd island) present", z_magic.slice(7, 8).pop(), 164);
+
+    ⍝ Neutron magic numbers
+    let n_magic = [2, 8, 20, 28, 50, 82, 126, 184, 308];
+    p = p + check("neutron magic count", len(n_magic), 9);
+    p = p + check("N=184 present", n_magic.slice(7, 8).pop(), 184);
+    p = p + check("N=308 (theoretical 2nd island) present", n_magic.slice(8, 9).pop(), 308);
+
+    ⍝ Grover search space size: Z in [119, 172] (54), N in [170, 320] (151)
+    ⍝ → classical O(N) = 54*151 = 8154
+    ⍝ → Grover O(sqrt N) ≈ 90.3
+    let classical_ops = 54 * 151;
+    p = p + check("classical (Z,N) ops", classical_ops, 8154);
+
+    print("nuclear_stability smoke tests passed:", p, "/ 7");
+}

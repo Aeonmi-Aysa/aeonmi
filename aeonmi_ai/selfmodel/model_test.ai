@@ -1,0 +1,77 @@
+⍝ model_test.ai — Phase 4 self-model tests
+⍝ imports 10 fns from model + check + main = 12 total (budget ≤ 13)
+
+import { a_abs, a_clamp, b_m_recall, b_m_store, c_accuracy, c_calibration, c_observe, d_self_report } from "./model";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) {
+        print("[PASS] " + label);
+    } else {
+        print("[FAIL] " + label + " got=" + got + " want=" + want);
+    }
+}
+
+◯ main⟨⟩ {
+    ⍝ ── a_abs ────────────────────────────────────────────────────────────
+    check("abs pos",  a_abs(5),  5);
+    check("abs neg",  a_abs(-3), 3);
+    check("abs zero", a_abs(0),  0);
+
+    ⍝ ── a_clamp ──────────────────────────────────────────────────────────
+    check("clamp in",  a_clamp(50, 0, 100), 50);
+    check("clamp lo",  a_clamp(-1, 0, 100), 0);
+    check("clamp hi",  a_clamp(101, 0, 100), 100);
+
+    ⍝ ── accuracy on empty ────────────────────────────────────────────────
+    let m = [];
+    check("acc empty", c_accuracy(m), 0);
+    check("cal empty", c_calibration(m), 0);
+
+    ⍝ ── one correct prediction ───────────────────────────────────────────
+    m = c_observe(m, 2, 2, 16);
+    check("preds 1",    b_m_recall(m, "predictions"), 1);
+    check("correct 1",  b_m_recall(m, "correct"),     1);
+    check("conf_sum 1", b_m_recall(m, "conf_sum"),    16);
+    check("drift 1",    b_m_recall(m, "drift"),       0);
+    check("acc 100",    c_accuracy(m),                100);
+    check("cal 16",     c_calibration(m),             16);
+
+    ⍝ ── one wrong prediction ─────────────────────────────────────────────
+    m = c_observe(m, 2, 1, 8);
+    check("preds 2",    b_m_recall(m, "predictions"), 2);
+    check("correct 2",  b_m_recall(m, "correct"),     1);
+    check("drift 2",    b_m_recall(m, "drift"),       1);
+    check("acc 50",     c_accuracy(m),                50);
+    check("last_pred",  b_m_recall(m, "last_pred"),   2);
+    check("last_out",   b_m_recall(m, "last_outcome"),1);
+
+    ⍝ ── full 6-round sequence (matches model.ai main) ────────────────────
+    let m2 = [];
+    m2 = c_observe(m2, 2, 2, 16);
+    m2 = c_observe(m2, 2, 2, 18);
+    m2 = c_observe(m2, 2, 1, 8);
+    m2 = c_observe(m2, 3, 3, 20);
+    m2 = c_observe(m2, 2, 0, 6);
+    m2 = c_observe(m2, 1, 1, 12);
+    check("6r preds",   b_m_recall(m2, "predictions"), 6);
+    check("6r correct", b_m_recall(m2, "correct"),     4);
+    check("6r conf_sum",b_m_recall(m2, "conf_sum"),    66);
+    check("6r drift",   b_m_recall(m2, "drift"),       3);
+    ⍝ accuracy = 4/6 = 66.666... — float, skip exact check
+    ⍝ calibration = 66/4 = 16.5 — float, skip exact check
+    ⍝ verify via integer-friendly sequence instead:
+    let m3 = [];
+    m3 = c_observe(m3, 2, 2, 20);
+    m3 = c_observe(m3, 2, 2, 20);
+    m3 = c_observe(m3, 1, 1, 20);
+    m3 = c_observe(m3, 2, 2, 20);
+    check("4/4 acc",   c_accuracy(m3),     100);
+    check("4/4 cal",   c_calibration(m3),  20);
+    let m4 = [];
+    m4 = c_observe(m4, 2, 2, 20);
+    m4 = c_observe(m4, 2, 1, 10);
+    check("1/2 acc",   c_accuracy(m4),     50);
+    check("1/2 cal",   c_calibration(m4),  20);
+
+    print("=== model tests done ===");
+}

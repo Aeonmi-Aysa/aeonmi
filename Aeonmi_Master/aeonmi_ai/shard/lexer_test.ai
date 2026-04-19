@@ -1,0 +1,54 @@
+⍝ lexer_test.ai — tests for shard/lexer.ai
+⍝ Imports 9 of 12 lexer fns (omit lex_type/lex_start/lex_len helpers).
+⍝ Total in scope: 9 + check + main = 11  ->  2^10 = 1024 clones (fast).
+⍝ Inline array access: tok.slice(i*3, i*3+1).pop() replaces lex_type(tok,i).
+import { a_is_digit, a_is_alpha, a_keyword, a_tok, lex_number, lex_string, lex_ident, lex_scan, lex_tokens } from "./lexer";
+
+◯ check⟨label, got, want⟩ {
+    if (got == want) { print("PASS", label); }
+    if (got != want) { print("FAIL", label, "got", got, "want", want); }
+}
+
+◯ main⟨⟩ {
+    ⍝ 1. character classification
+    check("digit 5",   a_is_digit("5"), true);
+    check("digit a",   a_is_digit("a"), false);
+    check("alpha x",   a_is_alpha("x"), true);
+    check("alpha _",   a_is_alpha("_"), true);
+    check("alpha 3",   a_is_alpha("3"), false);
+
+    ⍝ 2. keyword lookup
+    check("kw let",    a_keyword("let"),    4);
+    check("kw return", a_keyword("return"), 8);
+    check("kw foo",    a_keyword("foo"),    3);
+
+    ⍝ 3. lex "let x = 1;"
+    ⍝ tok = flat [type, start, len, ...] triples; access inline
+    let src = "let x = 1;";
+    let tok = lex_tokens(src);
+
+    check("tok0 type",  tok.slice(0, 1).pop(),   4);
+    check("tok0 start", tok.slice(1, 2).pop(),   0);
+    check("tok0 len",   tok.slice(2, 3).pop(),   3);
+    check("tok1 type",  tok.slice(3, 4).pop(),   3);
+    check("tok1 start", tok.slice(4, 5).pop(),   4);
+    check("tok2 type",  tok.slice(6, 7).pop(),   30);
+    check("tok3 type",  tok.slice(9, 10).pop(),  1);
+    check("tok3 start", tok.slice(10, 11).pop(), 8);
+    check("tok4 type",  tok.slice(12, 13).pop(), 36);
+    check("eof type",   tok.slice(15, 16).pop(), 99);
+
+    ⍝ 4. two-char op "a == b"
+    let src2 = "a == b";
+    let tok2 = lex_tokens(src2);
+    check("eqeq", tok2.slice(3, 4).pop(), 24);
+
+    ⍝ 5. number literal "42"
+    let src3 = "42";
+    let tok3 = lex_tokens(src3);
+    check("num type",  tok3.slice(0, 1).pop(), 1);
+    check("num start", tok3.slice(1, 2).pop(), 0);
+    check("num len",   tok3.slice(2, 3).pop(), 2);
+
+    print("=== PASS ===");
+}

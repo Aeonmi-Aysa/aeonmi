@@ -1,0 +1,142 @@
+# AEONMI VSCODE EXTENSION — COMPLETE SPEC
+# Source: vscode-aeonmi/ folder from aeonmi-copilot-test-bug-for-alias.zip
+# This is authoritative syntax for the textbook
+
+## AEONMI (.ai) SYNTAX
+
+### Keywords
+let, const, fn, if, else, while, for, return, import, true, false, null
+
+### Quantum Keywords  
+qubit, superpose, entangle, measure, circuit
+
+### Glyph Operators
+⧉ — array genesis open/close bracket
+⟨⟩ — angle brackets (matched pair)
+⊗ — tensor product operator
+↦ — symbolic binding operator
+‥ — array separator (inside ⧉...⧉)
+← — assignment glyph
+
+### Array Genesis Syntax
+⧉a‥b‥c⧉  (creates array [a, b, c])
+
+### Builtin Functions
+print, log, len, push, slice, concat, measure, superpose, entangle
+
+### Snippets (confirmed from aeonmi.json)
+fn → fn name(args) { }
+let → let name = ;
+if → if (condition) { } else { }
+while → while (condition) { }
+qubit → qubit name;
+superpose → superpose(qubit);
+entangle → entangle(q1, q2);
+measure → let result = measure(qubit);
+arr → ⧉a‥b‥c⧉
+tensor → a ⊗ b
+bind → name ↦ value
+main → fn main() { }  return main();
+import → import name from "./path";
+
+### Entry Point Pattern
+fn main() {
+    // program body
+}
+return main();
+
+### Bracket Matching (auto-close)
+() [] {} ⟨⟩ "" 
+Note: ⧉ matches itself (open and close same char)
+
+### Comments
+// line comment
+
+---
+
+## QUBE (.qube) SYNTAX — COMPLETE GRAMMAR
+
+### Keywords
+state    — declare a quantum state
+apply    — apply a gate to a qubit  
+collapse — measure/collapse a quantum state
+assert   — assert result membership
+log      — log output to stdout
+print    — print output
+
+### Gate Names (highlighted as support.function)
+H     — Hadamard gate (creates superposition)
+X     — Pauli-X (NOT gate)
+Y     — Pauli-Y
+Z     — Pauli-Z
+S     — S gate (phase π/2)
+T     — T gate (phase π/4)
+CNOT  — Controlled-NOT (two-qubit)
+CZ    — Controlled-Z
+SWAP  — Swap two qubits
+Rx    — Rotation around X-axis
+Ry    — Rotation around Y-axis
+Rz    — Rotation around Z-axis
+
+### Qubit Literals
+|0⟩  |1⟩  |+⟩  |−⟩  |ψ⟩  — any |..⟩ pattern
+
+### Operators
+->   — gate application arrow (apply H -> q)
+∈    — set membership (assert r ∈ {0, 1})
+==   — equality
+!=   — inequality
++    — addition / superposition combination
+-    — subtraction
+
+### Comment Styles
+// comment        — standard line comment
+∴ comment        — "therefore" comment glyph
+∵ comment        — "because" comment glyph
+
+### Identifiers
+Supports Greek letters: α β γ δ ψ φ etc. as valid identifier chars
+Pattern: [a-zA-Z_α-ωΑ-Ω][a-zA-Z0-9_α-ωΑ-Ω]*
+
+### Superposition State Syntax
+state ψ = 0.707|0⟩ + 0.707|1⟩
+
+### QUBE Snippets (confirmed from qube.json)
+state  → state name = |0⟩
+super  → state ψ = 0.707|0⟩ + 0.707|1⟩
+apply  → apply H -> q
+cnot   → apply CNOT(control, target)
+collapse → collapse q -> result
+assert → assert result ∈ {0, 1}
+log    → log(value)
+bell   → FULL BELL STATE CIRCUIT (see below)
+
+### COMPLETE BELL STATE CIRCUIT (from snippet)
+∴ Bell state
+state q0 = |0⟩
+state q1 = |0⟩
+apply H -> q0
+apply CNOT(q0, q1)
+collapse q0 -> r0
+collapse q1 -> r1
+assert r0 ∈ {0, 1}
+assert r1 ∈ {0, 1}
+log(r0)
+log(r1)
+
+---
+
+## INSTALLATION
+Copy vscode-aeonmi/ to %USERPROFILE%\.vscode\extensions\aeonmi-0.1.0\
+Or: code --install-extension aeonmi-0.1.0.vsix
+Build VSIX: npm install -g @vscode/vsce && cd vscode-aeonmi && vsce package
+
+## KEY TEXTBOOK NOTES
+1. .ai and .qube are DIFFERENT formats — separate chapters required
+2. fn is the snippet keyword but function also works in runtime
+3. ∴ and ∵ are QUBE-specific comment glyphs — unique to the language
+4. Greek letters are valid identifiers — enables mathematical notation
+5. ⧉a‥b‥c⧉ is the array genesis syntax (glyph-based array literal)
+6. ⊗ is tensor product — a real math operator, not decoration
+7. ↦ is symbolic binding — different from = assignment
+8. The VSCode extension IS written in Aeonmi (self-hosting tooling)

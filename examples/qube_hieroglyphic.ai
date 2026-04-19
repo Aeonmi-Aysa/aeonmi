@@ -1,0 +1,62 @@
+// QUBE Hieroglyphic Quantum Programming Example
+// Demonstrates the full power of Aeonmi's symbolic quantum language
+
+// ═══ Quantum State Initialization ═══
+𓀀 psi1 = "|0⟩";  // Primary quantum state (classical)
+𓀁 psi2 = "|+⟩";  // Entangled partner (superposition)
+𓀂 psi3 = "|⊗⟩";  // Auxiliary qubit (tensor state)
+
+// ═══ Hieroglyphic Gate Applications ═══
+quantum_gate(psi1, 42);     // Custom parametric gate with value 42
+pauli_x(psi1);             // Pauli-X (NOT gate)
+pauli_y(psi2);             // Pauli-Y gate  
+pauli_z(psi3);             // Pauli-Z (phase flip)
+hadamard(psi1);            // Hadamard (superposition)
+s_gate(psi2);              // S gate (π/2 phase)
+t_gate(psi3);              // T gate (π/4 phase)
+
+// ═══ Multi-Qubit Hieroglyphic Operations ═══
+cz_gate(psi1, psi2);         // Controlled-Z gate
+cy_gate(psi2, psi3);         // Controlled-Y gate
+cnot_gate(psi1, psi3);       // Controlled-X (CNOT) gate
+
+// ═══ Advanced Symbolic Transformations ═══
+toffoli(psi1, psi2, psi3);     // 3-qubit Toffoli gate
+qft_component(psi1, psi2);   // Quantum Fourier Transform component
+rotation(psi1, psi2, 0.785); // Parametric rotation with π/4
+
+// ═══ Measurement in Hieroglyphic Style ═══
+let measurement1 = observe(psi1);  // Symbolic measurement operator
+let measurement2 = observe(psi2);  // Measure second qubit
+let measurement3 = observe(psi3);  // Measure third qubit
+
+// ═══ Quantum State Analysis ═══ 
+function fidelity_check(state_vector) {
+    // Hieroglyphic function for state fidelity
+    let fidelity = calculate_fidelity(state_vector);
+    return fidelity;
+}
+
+function entanglement_measure(states) {
+    // Quantum entanglement measure using AEONMI syntax
+    let entropy = von_neumann_entropy(states);
+    log("Entanglement entropy calculated");
+}
+
+// ═══ Symbolic Quantum Error Correction ═══
+error_syndrome(psi1, psi2, psi3);      // 3-qubit error correction syndrome
+if (error_detected()) {             // Error detection predicate
+    error_correct(psi1);            // Apply error correction
+    log("Quantum error corrected");
+}
+
+// ═══ Advanced Quantum Algorithms ═══
+quantum_search(psi1, psi2, "oracle_bits"); // Quantum database search with oracle
+amplitude_amplify(psi1, psi2, psi3, 8);   // 8-iteration amplitude amplification
+
+// ═══ Final State Logging ═══
+log("QUBE Hieroglyphic Quantum State:");
+log("psi1 measurement complete");
+log("psi2 measurement complete"); 
+log("psi3 measurement complete");
+log("Quantum computation complete");

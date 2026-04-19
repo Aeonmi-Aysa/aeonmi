@@ -1,0 +1,267 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/memory.ai
+// Layer: Memory Tier Management (T1 / T2 / T3 / Archive)
+// Depends on: mgks/types.ai, mgks/glyph.ai
+// ============================================================
+// The three-tier model is the backbone of MGKS performance.
+// Each tier has different latency, capacity, and decay behaviour.
+//
+// T1 Working   — in-process, session-scoped, <1ms, 512 glyph cap
+// T2 Episodic  — persisted, 7-day half-life, <10ms
+// T3 Semantic  — long-term consensus graph, <100ms, permanent when promoted
+// Archive      — decayed glyphs preserved for provenance only
+// ============================================================
+
+⊗ mgks::memory
+↦ mgks::types
+↦ mgks::glyph
+
+// ── T1 Working Memory Store ───────────────────────────────────
+// Bounded in-process store. Cleared at session end.
+// Overflow policy: evict the glyph with lowest effective confidence.
+
+struct T1Store {
+    glyphs:     ⟨map⟨GlyphId, Glyph⟩⟩,
+    agent_id:   ⟨AgentId⟩,
+    session_id: ⟨SessionId⟩,
+    max_glyphs: ⟨u32⟩,
+}
+
+fn t1_new(agent: ⟨AgentId⟩, session: ⟨SessionId⟩) -> ⟨T1Store⟩ {
+    T1Store {
+        glyphs:     ↦map_empty(),
+        agent_id:   agent,
+        session_id: session,
+        max_glyphs: T1_MAX_GLYPHS,
+    }
+}
+
+fn t1_insert(store: ⟨T1Store⟩, g: ⟨Glyph⟩) -> ⟨T1Store⟩ {
+    let count = ↦map_len(store.glyphs)
+    let store = ↦if count >= store.max_glyphs {
+        t1_evict_weakest(store)
+    } else {
+        store
+    }
+    T1Store {
+        ..store,
+        glyphs: ↦map_insert(store.glyphs, g.id, g)
+    }
+}
+
+fn t1_get(store: ⟨T1Store⟩, id: ⟨GlyphId⟩) -> ⟨Option⟨Glyph⟩⟩ {
+    let result = ↦map_get(store.glyphs, id)
+    ↦match result {
+        Some(g) => {
+            let reinforced = glyph_reinforce(g, 0.0)
+            Some(reinforced)
+        },
+        None => None,
+    }
+}
+
+fn t1_evict_weakest(store: ⟨T1Store⟩) -> ⟨T1Store⟩ {
+    let now = ↦timestamp_now()
+    let weakest_id = ↦map_min_by(
+        store.glyphs,
+        fn(id, g) => glyph_effective_confidence(g, now)
+    )
+    T1Store {
+        ..store,
+        glyphs: ↦map_remove(store.glyphs, weakest_id)
+    }
+}
+
+// Drain all T1 glyphs — returns them for T2 promotion check
+fn t1_drain_session(store: ⟨T1Store⟩) -> ⟨vec⟨Glyph⟩⟩ {
+    ↦map_values(store.glyphs)
+}
+
+// ── T2 Episodic Memory Store ──────────────────────────────────
+// Persisted via sled/RocksDB backend.
+// Runs decay sweep on each access cycle.
+// Glyphs accessed >= PROMOTE_ACCESS_COUNT times within
+// PROMOTE_WINDOW_DAYS are candidates for T3 promotion.
+
+struct T2Store {
+    agent_id: ⟨AgentId⟩,
+    path:     ⟨str⟩,     // Storage path on disk
+}
+
+fn t2_new(agent: ⟨AgentId⟩, path: ⟨str⟩) -> ⟨T2Store⟩ {
+    T2Store { agent_id: agent, path: path }
+}
+
+fn t2_write(store: ⟨T2Store⟩, g: ⟨Glyph⟩) -> ⟨unit⟩ {
+    let promoted = glyph_promote(g)   // Ensure tier = T2
+    ↦db_write(store.path, g.id, promoted)
+}
+
+fn t2_read(store: ⟨T2Store⟩, id: ⟨GlyphId⟩) -> ⟨Option⟨Glyph⟩⟩ {
+    let result = ↦db_read(store.path, id)
+    ↦match result {
+        Some(g) => {
+            let reinforced = glyph_reinforce(g, 0.01)
+            ↦db_write(store.path, g.id, reinforced)
+            Some(reinforced)
+        },
+        None => None,
+    }
+}
+
+// Decay sweep — called periodically by the memory manager.
+// Glyphs below ARCHIVE_THRESHOLD get moved to archive.
+// Returns list of glyphs eligible for T3 promotion.
+fn t2_sweep(store: ⟨T2Store⟩) -> ⟨(vec⟨Glyph⟩, vec⟨Glyph⟩)⟩ {
+    let all_glyphs = ↦db_scan_all(store.path)
+    let now        = ↦timestamp_now()
+
+    let archive_candidates = ↦filter(all_glyphs, fn(g) =>
+        glyph_effective_confidence(g, now) < ARCHIVE_THRESHOLD
+    )
+    let promote_candidates = ↦filter(all_glyphs, fn(g) =>
+        g.access_count >= PROMOTE_ACCESS_COUNT
+        ⊗ ↦days_between(g.created_at, now) <= PROMOTE_WINDOW_DAYS
+        ⊗ !(glyph_should_archive(g))
+    )
+
+    (promote_candidates, archive_candidates)
+}
+
+// ── T3 Semantic Memory Store ──────────────────────────────────
+// Long-term consensus knowledge graph.
+// Backed by PostgreSQL + pgvector for hybrid vector+graph queries.
+// Only Mother AI writes to T3. Agents read via consensus scope.
+
+struct T3Store {
+    db_url:    ⟨str⟩,
+    vector_dim: ⟨u32⟩,   // 1536 for OpenAI embeddings
+}
+
+fn t3_new(db_url: ⟨str⟩) -> ⟨T3Store⟩ {
+    T3Store { db_url: db_url, vector_dim: 1536 }
+}
+
+fn t3_write(store: ⟨T3Store⟩, g: ⟨Glyph⟩) -> ⟨unit⟩ {
+    ↦pg_upsert(store.db_url, "glyphs", g)
+    ↦pg_upsert_vector(store.db_url, "glyph_embeddings", g.id, g.embedding)
+}
+
+fn t3_read(store: ⟨T3Store⟩, id: ⟨GlyphId⟩) -> ⟨Option⟨Glyph⟩⟩ {
+    ↦pg_read(store.db_url, "glyphs", id)
+}
+
+// Vector similarity search — returns top_k most semantically similar glyphs
+fn t3_vector_search(
+    store:     ⟨T3Store⟩,
+    query_vec: ⟨vec⟨f32⟩⟩,
+    top_k:     ⟨usize⟩,
+    min_conf:  ⟨f32⟩,
+) -> ⟨vec⟨(Glyph, f32)⟩⟩ {
+    ↦pg_vector_search(
+        store.db_url,
+        query_vec,
+        top_k,
+        ⊗"confidence >= {min_conf}"
+    )
+}
+
+// Graph traversal — BFS from anchor glyph following binding edges
+fn t3_graph_traverse(
+    store:     ⟨T3Store⟩,
+    anchor_id: ⟨GlyphId⟩,
+    max_depth: ⟨u32⟩,
+    binding_types: ⟨vec⟨BindingType⟩⟩,
+) -> ⟨vec⟨(Glyph, f32)⟩⟩ {
+    ↦pg_recursive_cte(
+        store.db_url,
+        anchor_id,
+        max_depth,
+        binding_types
+    )
+}
+
+// ── Archive Store ─────────────────────────────────────────────
+// Decayed glyphs are never deleted — provenance is permanent.
+// Archive is append-only. No retrieval in normal queries.
+
+struct ArchiveStore {
+    path: ⟨str⟩,
+}
+
+fn archive_write(store: ⟨ArchiveStore⟩, g: ⟨Glyph⟩) -> ⟨unit⟩ {
+    let archived = Glyph {
+        ..g,
+        tier: MemoryTier::Archive,
+        updated_at: ↦timestamp_now(),
+        provenance: Provenance {
+            ..g.provenance,
+            transform_log: ↦append(
+                g.provenance.transform_log,
+                ⊗"archived_at:{↦timestamp_now()} confidence_was:{g.confidence}"
+            ),
+        },
+    }
+    ↦db_write(store.path, archived.id, archived)
+}
+
+// ── Memory Manager ────────────────────────────────────────────
+// Orchestrates all tiers. Called by Mother AI's executive loop.
+// Runs promotion, demotion, decay sweep, and health reporting.
+
+struct MemoryManager {
+    t1_stores: ⟨map⟨AgentId, T1Store⟩⟩,
+    t2_stores: ⟨map⟨AgentId, T2Store⟩⟩,
+    t3:        ⟨T3Store⟩,
+    archive:   ⟨ArchiveStore⟩,
+}
+
+fn memory_manager_new(t3_db_url: ⟨str⟩, base_path: ⟨str⟩) -> ⟨MemoryManager⟩ {
+    MemoryManager {
+        t1_stores: ↦map_empty(),
+        t2_stores: ↦map_empty(),
+        t3:        t3_new(t3_db_url),
+        archive:   ArchiveStore { path: ⊗"{base_path}/archive" },
+    }
+}
+
+// Run the full maintenance cycle:
+// 1. T2 decay sweep → archive weak glyphs
+// 2. T2 promotion scan → elevate strong glyphs to T3
+// 3. T3 health snapshot
+fn memory_manager_cycle(mgr: ⟨MemoryManager⟩) -> ⟨MemoryHealthSnapshot⟩ {
+    // Sweep all agent T2 stores
+    ↦map_for_each(mgr.t2_stores, fn(agent_id, t2) => {
+        let (promote_list, archive_list) = t2_sweep(t2)
+
+        // Archive decayed glyphs
+        ↦for_each(archive_list, fn(g) => archive_write(mgr.archive, g))
+
+        // Promote strong glyphs to T3 (Mother AI validates first)
+        ↦for_each(promote_list, fn(g) => {
+            let promoted = glyph_promote(g)
+            t3_write(mgr.t3, promoted)
+        })
+    })
+
+    // Return health snapshot
+    memory_manager_health(mgr)
+}
+
+fn memory_manager_health(mgr: ⟨MemoryManager⟩) -> ⟨MemoryHealthSnapshot⟩ {
+    let t3_count  = ↦pg_count(mgr.t3.db_url, "glyphs")
+    let t3_conf   = ↦pg_avg(mgr.t3.db_url, "glyphs", "confidence")
+    let t3_super  = ↦pg_count_where(mgr.t3.db_url, "glyphs", "qstate_type = 'Superposition'")
+    MemoryHealthSnapshot {
+        tier:               MemoryTier::T3_Semantic,
+        glyph_count:        t3_count,
+        density_ratio:      ↦as_f32(t3_count) / 1_000_000.0,
+        conflict_rate:      ↦as_f32(t3_super) / ↦max(↦as_f32(t3_count), 1.0),
+        avg_confidence:     t3_conf,
+        retrieval_hit_rate: 0.0,    // Updated by retrieval engine
+        promotion_rate_day: 0,      // Updated by sweep cycle counter
+        archive_rate_day:   0,      // Updated by sweep cycle counter
+        snapshot_at:        ↦timestamp_now(),
+    }
+}

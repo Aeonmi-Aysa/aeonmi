@@ -1,0 +1,278 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/glyph.ai
+// Layer: Core Glyph Definition + Operations
+// Depends on: mgks/types.ai
+// ============================================================
+
+⊗ mgks::glyph
+↦ mgks::types
+
+// ── The Core Glyph ────────────────────────────────────────────
+// Every unit of knowledge in MGKS is a Glyph.
+// A glyph is not a record. It is a living knowledge node
+// with quantum state, temporal decay, and relational bindings.
+
+struct Glyph {
+    // Identity
+    id:           ⟨GlyphId⟩,
+    genesis:      ⟨GenesisId⟩,        // Template this glyph instantiates
+    tier:         ⟨MemoryTier⟩,
+
+    // Core Payload
+    payload:      ⟨GlyphPayload⟩,     // The actual knowledge content
+    embedding:    ⟨vec⟨f32⟩⟩,         // 1536-dim semantic vector
+
+    // Quantum State Layer
+    qstate:       ⟨QuantumGlyphState⟩,
+    confidence:   ⟨ConfidenceScore⟩,
+
+    // Relational Graph
+    bindings:     ⟨vec⟨GlyphBinding⟩⟩,
+    domain:       ⟨SemanticDomain⟩,
+
+    // Temporal Axis
+    created_at:   ⟨Timestamp⟩,
+    updated_at:   ⟨Timestamp⟩,
+    last_access:  ⟨Timestamp⟩,
+    half_life:    ⟨f32⟩,              // Decay rate in days
+    access_count: ⟨u32⟩,
+
+    // Provenance + Multimodal
+    provenance:   ⟨Provenance⟩,
+    media:        ⟨vec⟨MediaRef⟩⟩,
+}
+
+// ── Glyph Constructor ─────────────────────────────────────────
+// Create a new T1 working glyph.
+// Starts in Superposition with a single state at full amplitude —
+// meaning "one known thing but not yet verified."
+
+fn glyph_new(
+    genesis:   ⟨GenesisId⟩,
+    payload:   ⟨GlyphPayload⟩,
+    domain:    ⟨SemanticDomain⟩,
+    agent:     ⟨AgentId⟩,
+    session:   ⟨SessionId⟩,
+    confidence: ⟨f32⟩,
+) -> ⟨Glyph⟩ {
+
+    let now = ↦timestamp_now()
+
+    // Start every glyph in Superposition with its initial payload.
+    // Collapse happens when evidence accumulates or Mother AI observes.
+    let qstate = QuantumGlyphState::Superposition {
+        states: [(payload, confidence)]
+    }
+
+    Glyph {
+        id:           ↦uuid_v7(),
+        genesis:      genesis,
+        tier:         MemoryTier::T1_Working,
+        payload:      payload,
+        embedding:    ↦embed_generate(payload),
+        qstate:       qstate,
+        confidence:   confidence,
+        bindings:     [],
+        domain:       domain,
+        created_at:   now,
+        updated_at:   now,
+        last_access:  now,
+        half_life:    T2_DEFAULT_HALF_LIFE_DAYS,
+        access_count: 0,
+        provenance:   Provenance {
+            agent_id:      agent,
+            session_id:    session,
+            source_label:  "agent_observation",
+            transform_log: [],
+            trust_score:   1.0,
+        },
+        media: [],
+    }
+}
+
+// ── Temporal Decay ────────────────────────────────────────────
+// Effective confidence after time-based decay.
+// C_eff(t) = C_base × 2^(-(age / half_life))
+// Glyph becomes less "trusted" the longer it sits without access.
+
+fn glyph_effective_confidence(g: ⟨Glyph⟩, now: ⟨Timestamp⟩) -> ⟨f32⟩ {
+    let age_days = ↦days_between(g.last_access, now)
+    let decay = ↦pow(2.0, -(age_days / g.half_life))
+    ↦clamp(g.confidence ⊗ decay, 0.0, 1.0)
+}
+
+// ── Reinforcement ─────────────────────────────────────────────
+// Accessing a glyph resets its decay clock and optionally boosts confidence.
+// Think of it as the glyph being "remembered" — it grows stronger.
+
+fn glyph_reinforce(g: ⟨Glyph⟩, boost: ⟨f32⟩) -> ⟨Glyph⟩ {
+    let now = ↦timestamp_now()
+    Glyph {
+        ..g,
+        last_access:  now,
+        access_count: g.access_count + 1,
+        confidence:   ↦clamp(g.confidence + boost, 0.0, 1.0),
+        updated_at:   now,
+    }
+}
+
+// ── Quantum Collapse ──────────────────────────────────────────
+// Mother AI or an agent "observes" this glyph — collapsing it
+// from superposition to a single verified truth.
+// Maps directly to quantum measurement: M|ψ⟩ → |observed⟩
+
+fn glyph_collapse(
+    g:          ⟨Glyph⟩,
+    observed:   ⟨GlyphPayload⟩,
+    agent:      ⟨AgentId⟩,
+) -> ⟨Glyph⟩ {
+    let now = ↦timestamp_now()
+    let new_qstate = QuantumGlyphState::Collapsed {
+        observed:     observed,
+        collapsed_by: agent,
+        collapsed_at: now,
+    }
+    Glyph {
+        ..g,
+        qstate:    new_qstate,
+        confidence: 1.0,
+        updated_at: now,
+        provenance: Provenance {
+            ..g.provenance,
+            transform_log: ↦append(
+                g.provenance.transform_log,
+                ⊗"collapsed_by:{agent} at:{now}"
+            ),
+        },
+    }
+}
+
+// ── Quantum Entanglement ──────────────────────────────────────
+// Bind this glyph's truth to a partner glyph via quantum correlation.
+// Maps to Bell state creation in QUBE.
+// correlation: +1.0 = same truth, -1.0 = opposite truth
+
+fn glyph_entangle(
+    g:          ⟨Glyph⟩,
+    partner_id: ⟨GlyphId⟩,
+    correlation: ⟨f32⟩,
+) -> ⟨Glyph⟩ {
+    let now = ↦timestamp_now()
+    let new_qstate = QuantumGlyphState::Entangled {
+        partner_id:  partner_id,
+        correlation: ↦clamp(correlation, -1.0, 1.0),
+    }
+    Glyph {
+        ..g,
+        qstate:     new_qstate,
+        updated_at: now,
+        provenance: Provenance {
+            ..g.provenance,
+            transform_log: ↦append(
+                g.provenance.transform_log,
+                ⊗"entangled:{partner_id} corr:{correlation}"
+            ),
+        },
+    }
+}
+
+// ── Add Binding ───────────────────────────────────────────────
+// Create a typed, weighted edge from this glyph to a target glyph.
+
+fn glyph_bind(
+    g:           ⟨Glyph⟩,
+    target_id:   ⟨GlyphId⟩,
+    btype:       ⟨BindingType⟩,
+    weight:      ⟨f32⟩,
+    agent:       ⟨AgentId⟩,
+) -> ⟨Glyph⟩ {
+    let binding = GlyphBinding {
+        target_id:    target_id,
+        binding_type: btype,
+        weight:       ↦clamp(weight, 0.0, 1.0),
+        confidence:   g.confidence,
+        created_at:   ↦timestamp_now(),
+        created_by:   agent,
+    }
+    Glyph {
+        ..g,
+        bindings:   ↦append(g.bindings, binding),
+        updated_at: ↦timestamp_now(),
+    }
+}
+
+// ── Superposition Merge ───────────────────────────────────────
+// When a second agent observes a different truth for the same concept,
+// merge it into the existing glyph as a new Superposition state.
+// Amplitudes are normalized to sum to 1.0.
+
+fn glyph_add_superposition_state(
+    g:         ⟨Glyph⟩,
+    new_payload: ⟨GlyphPayload⟩,
+    amplitude: ⟨f32⟩,
+) -> ⟨Glyph⟩ {
+    let existing_states = ↦match g.qstate {
+        QuantumGlyphState::Superposition { states } => states,
+        QuantumGlyphState::Collapsed { observed, .. } => [(observed, 1.0)],
+        QuantumGlyphState::Entangled { .. } => [(g.payload, 1.0)],
+    }
+    let merged = ↦append(existing_states, (new_payload, amplitude))
+    let normalized = ↦normalize_amplitudes(merged)
+    Glyph {
+        ..g,
+        qstate:     QuantumGlyphState::Superposition { states: normalized },
+        updated_at: ↦timestamp_now(),
+    }
+}
+
+// ── Should Archive ────────────────────────────────────────────
+// Returns true if this glyph's effective confidence has decayed
+// below the archive threshold. Called by memory manager.
+
+fn glyph_should_archive(g: ⟨Glyph⟩) -> ⟨bool⟩ {
+    let eff = glyph_effective_confidence(g, ↦timestamp_now())
+    eff < ARCHIVE_THRESHOLD
+}
+
+// ── Quantum State Score Modifier ──────────────────────────────
+// Applies a retrieval score multiplier based on quantum state.
+// Collapsed glyphs score full. Superposition glyphs score reduced
+// unless the query explicitly includes unresolved states.
+
+fn glyph_qstate_modifier(g: ⟨Glyph⟩, include_unresolved: ⟨bool⟩) -> ⟨f32⟩ {
+    ↦match g.qstate {
+        QuantumGlyphState::Collapsed { .. }    => 1.0,
+        QuantumGlyphState::Entangled { .. }    => 1.1,   // Bonus: linked context
+        QuantumGlyphState::Superposition { .. } =>
+            ↦if include_unresolved { 0.8 } else { 0.4 },
+    }
+}
+
+// ── Promote to Next Tier ──────────────────────────────────────
+fn glyph_promote(g: ⟨Glyph⟩) -> ⟨Glyph⟩ {
+    let next_tier = ↦match g.tier {
+        MemoryTier::T1_Working  => MemoryTier::T2_Episodic,
+        MemoryTier::T2_Episodic => MemoryTier::T3_Semantic,
+        MemoryTier::T3_Semantic => MemoryTier::T3_Semantic,
+        MemoryTier::Archive     => MemoryTier::Archive,
+    }
+    let next_half_life = ↦match next_tier {
+        MemoryTier::T2_Episodic => T2_DEFAULT_HALF_LIFE_DAYS,
+        MemoryTier::T3_Semantic => T3_DEFAULT_HALF_LIFE_DAYS,
+        _                       => g.half_life,
+    }
+    Glyph {
+        ..g,
+        tier:       next_tier,
+        half_life:  next_half_life,
+        updated_at: ↦timestamp_now(),
+        provenance: Provenance {
+            ..g.provenance,
+            transform_log: ↦append(
+                g.provenance.transform_log,
+                ⊗"promoted_to:{next_tier}"
+            ),
+        },
+    }
+}

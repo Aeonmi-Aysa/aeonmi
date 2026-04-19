@@ -1,0 +1,84 @@
+# AEONMI Quantum Algorithms Demo
+# Showcasing the built-in quantum algorithm library
+
+⟦ Quantum Algorithm Testing ⟧
+
+# 1. Grover's Search Algorithm
+print("=== Grover's Search Algorithm ===")
+𓀀 database_size = 16
+𓀀 target_item = 7
+𓀀 result = grovers_search(database_size, target_item)
+print("Database size:", database_size)
+print("Target item:", target_item)
+print("Found item at index:", result)
+print("")
+
+# 2. Quantum Fourier Transform
+print("=== Quantum Fourier Transform ===")
+𓀁 qubits = ["q1", "q2", "q3"]
+print("Applying QFT to qubits:", qubits)
+quantum_fourier_transform(qubits)
+print("QFT transformation completed")
+print("")
+
+# 3. Shor's Factoring Algorithm
+print("=== Shor's Factoring Algorithm ===")
+𓀀 number_to_factor = 15
+𓀀 factors = shors_factoring(number_to_factor)
+print("Number to factor:", number_to_factor)
+print("Factors found:", factors)
+print("")
+
+# 4. Deutsch-Jozsa Algorithm
+print("=== Deutsch-Jozsa Algorithm ===")
+𓀀 constant_result = deutsch_jozsa("constant0")
+𓀀 balanced_result = deutsch_jozsa("balanced")
+print("Constant oracle result (should be false):", constant_result)
+print("Balanced oracle result (should be true):", balanced_result)
+print("")
+
+# 5. Bernstein-Vazirani Algorithm
+print("=== Bernstein-Vazirani Algorithm ===")
+𓀁 hidden_string = "101"
+𓀀 revealed_string = bernstein_vazirani(hidden_string)
+print("Hidden bit string:", hidden_string)
+print("Revealed string:", revealed_string)
+print("")
+
+# 6. Quantum Teleportation
+print("=== Quantum Teleportation ===")
+𓀁 quantum_state = "⟨ψ⟩"
+𓀀 teleported_state = quantum_teleportation(quantum_state)
+print("Original state:", quantum_state)
+print("Teleported state:", teleported_state)
+print("")
+
+# Advanced Algorithm Combinations
+print("=== Advanced Quantum Computations ===")
+
+⟦ Quantum Array Operations ⟧
+𓀁⟨⟩ quantum_array = ["q1", "q2", "q3", "q4"]
+print("Processing quantum array:", quantum_array)
+
+𓀂(i ∈ quantum_array) ⟦
+    superpose(i)
+    print("Superposed qubit:", i)
+⟧
+
+print("All qubits in superposition state")
+
+⟦ Multi-Algorithm Workflow ⟧
+𓀀 workflow_result = ⟨⟩
+workflow_result ← grovers_search(8, 5)
+print("Search result added to workflow:", workflow_result)
+
+𓀁 factoring_input = 21
+𓀀 factors_result = shors_factoring(factoring_input)
+print("Factoring", factoring_input, "yields:", factors_result)
+
+⟦ Quantum State Analysis ⟧
+𓀁 test_bits = [true, false, true, false]
+𓀀 pattern_match = bernstein_vazirani(test_bits)
+print("Pattern matching result:", pattern_match)
+
+print("=== Quantum Algorithm Demo Complete ===")

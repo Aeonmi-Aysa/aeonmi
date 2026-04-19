@@ -1,0 +1,66 @@
+⍝ hype_agent.ai — Hype Machine: viral signal scorer
+⍝ Input: engagement (0..100), share_vel (0..100), sentiment (0..100)
+⍝ Output: hype_score, tier (0=low 1=mid 2=high 3=breakout), amplify flag
+⍝ Alphabetical env capture: hyp_a* must not call hyp_s* (s > a)
+⍝ Functions: 8 + main = 9, no imports
+
+◯ hyp_amplify⟨engagement, share_vel, sentiment⟩ {
+    ⍝ Amplify if composite score >= 70 and sentiment not negative
+    ⍝ Inlined: score = eng*35/100 + sv*40/100 + sent*25/100
+    let sc = engagement * 35 / 100 + share_vel * 40 / 100 + sentiment * 25 / 100;
+    if (sc >= 70) {
+        if (sentiment >= 40) { return 1; }
+    }
+    return 0;
+}
+
+◯ hyp_go_viral⟨share_vel, engagement⟩ {
+    ⍝ Going viral: share_vel > 75 and engagement > 60
+    if (share_vel > 75) {
+        if (engagement > 60) { return 1; }
+    }
+    return 0;
+}
+
+◯ hyp_momentum⟨share_vel, engagement⟩ {
+    ⍝ Momentum index 0..100
+    return share_vel * 60 / 100 + engagement * 40 / 100;
+}
+
+◯ hyp_peak_score⟨engagement, share_vel, sentiment⟩ {
+    ⍝ Theoretical peak: all factors at max weight
+    return engagement * 35 / 100 + share_vel * 40 / 100 + sentiment * 25 / 100;
+}
+
+◯ hyp_resonance⟨engagement, sentiment⟩ {
+    ⍝ Content resonance: engagement × sentiment signal
+    return engagement * sentiment / 100;
+}
+
+◯ hyp_score⟨engagement, share_vel, sentiment⟩ {
+    ⍝ Composite hype score 0..100
+    return engagement * 35 / 100 + share_vel * 40 / 100 + sentiment * 25 / 100;
+}
+
+◯ hyp_tier⟨score⟩ {
+    ⍝ 0=low(<30)  1=mid(30-59)  2=high(60-79)  3=breakout(>=80)
+    if (score >= 80) { return 3; }
+    if (score >= 60) { return 2; }
+    if (score >= 30) { return 1; }
+    return 0;
+}
+
+◯ hyp_timing⟨share_vel, momentum⟩ {
+    ⍝ Optimal timing window: high momentum + accelerating shares
+    if (share_vel > 60) {
+        if (momentum > 50) { return 1; }
+    }
+    return 0;
+}
+
+◯ main⟨⟩ {
+    let sc = hyp_score(80, 90, 70);
+    let t  = hyp_tier(sc);
+    let am = hyp_amplify(80, 90, 70);
+    print("hype: score=", sc, "tier=", t, "amplify=", am);
+}

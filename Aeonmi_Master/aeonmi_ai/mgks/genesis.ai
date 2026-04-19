@@ -1,0 +1,202 @@
+// ============================================================
+// MGKS — Mother Glyph Knowledge System
+// File: mgks/genesis.ai
+// Layer: Genesis Array — Reusable Glyph Templates
+// Depends on: mgks/types.ai
+// ============================================================
+// A Genesis Array defines the schema for a class of glyphs.
+// Rather than every glyph carrying its full structure definition,
+// glyphs reference a genesis template by ID.
+// This is the primary source of semantic compression in MGKS.
+// ============================================================
+
+⊗ mgks::genesis
+↦ mgks::types
+
+// ── Genesis Array Definition ──────────────────────────────────
+struct FieldDefinition {
+    name:     ⟨str⟩,
+    kind:     ⟨str⟩,     // "str" | "f32" | "i64" | "bool" | "vec" | "map"
+    required: ⟨bool⟩,
+    default:  ⟨Option⟨AeonValue⟩⟩,
+}
+
+struct ValidationRule {
+    field:   ⟨str⟩,
+    rule:    ⟨str⟩,      // e.g. "min:0.0", "max:1.0", "nonempty"
+    message: ⟨str⟩,
+}
+
+struct GenesisArray {
+    id:               ⟨GenesisId⟩,
+    name:             ⟨str⟩,
+    version:          ⟨SemVer⟩,
+    description:      ⟨str⟩,
+    fields:           ⟨vec⟨FieldDefinition⟩⟩,
+    constraints:      ⟨vec⟨ValidationRule⟩⟩,
+    default_tier:     ⟨MemoryTier⟩,
+    default_half_life: ⟨f32⟩,
+    default_domain:   ⟨SemanticDomain⟩,
+}
+
+// ── Genesis Registry ──────────────────────────────────────────
+// All registered genesis templates live here.
+// Agents and Mother AI reference these when creating glyphs.
+
+struct GenesisRegistry {
+    templates: ⟨map⟨str, GenesisArray⟩⟩,
+}
+
+fn genesis_register(
+    registry:  ⟨GenesisRegistry⟩,
+    template:  ⟨GenesisArray⟩,
+) -> ⟨GenesisRegistry⟩ {
+    GenesisRegistry {
+        templates: ↦map_insert(registry.templates, template.name, template)
+    }
+}
+
+fn genesis_get(
+    registry: ⟨GenesisRegistry⟩,
+    name:     ⟨str⟩,
+) -> ⟨Option⟨GenesisArray⟩⟩ {
+    ↦map_get(registry.templates, name)
+}
+
+fn genesis_validate(
+    template: ⟨GenesisArray⟩,
+    payload:  ⟨GlyphPayload⟩,
+) -> ⟨bool⟩ {
+    // Check all required fields exist
+    let required_ok = ↦all(
+        template.fields,
+        fn(f) => ↦if f.required { ↦map_has(payload, f.name) } else { true }
+    )
+    // Check all constraints pass
+    let constraints_ok = ↦all(
+        template.constraints,
+        fn(c) => ↦validate_rule(payload, c)
+    )
+    required_ok ⊗ constraints_ok
+}
+
+// ── Built-in Genesis Templates ────────────────────────────────
+// These are the default templates shipped with MGKS.
+// Agents can define custom genesis arrays at runtime.
+
+// market_signal — Oracle agent's primary knowledge unit
+const GENESIS_MARKET_SIGNAL: GenesisArray = GenesisArray {
+    id:          ↦uuid_v4(),
+    name:        "market_signal",
+    version:     "1.0.0",
+    description: "A market observation or trend signal from Oracle agent",
+    fields: [
+        FieldDefinition { name: "signal_label",  kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "market_domain", kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "direction",     kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "strength",      kind: "f32",  required: true,  default: None },
+        FieldDefinition { name: "source_url",    kind: "str",  required: false, default: None },
+        FieldDefinition { name: "data_points",   kind: "vec",  required: false, default: None },
+    ],
+    constraints: [
+        ValidationRule { field: "strength", rule: "min:0.0",  message: "Strength must be >= 0.0" },
+        ValidationRule { field: "strength", rule: "max:1.0",  message: "Strength must be <= 1.0" },
+        ValidationRule { field: "direction", rule: "oneof:bullish,bearish,neutral", message: "Direction must be bullish|bearish|neutral" },
+    ],
+    default_tier:      MemoryTier::T1_Working,
+    default_half_life: 3.0,    // Market signals decay fast — 3-day half-life
+    default_domain:    SemanticDomain::Market,
+}
+
+// agent_observation — Generic observation from any agent
+const GENESIS_AGENT_OBSERVATION: GenesisArray = GenesisArray {
+    id:          ↦uuid_v4(),
+    name:        "agent_observation",
+    version:     "1.0.0",
+    description: "A general observation or output from any hive agent",
+    fields: [
+        FieldDefinition { name: "content",      kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "intent",       kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "agent_id",     kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "tags",         kind: "vec",  required: false, default: None },
+    ],
+    constraints: [],
+    default_tier:      MemoryTier::T1_Working,
+    default_half_life: T2_DEFAULT_HALF_LIFE_DAYS,
+    default_domain:    SemanticDomain::Unclassified,
+}
+
+// strategic_insight — Conductor or Mother AI strategic reasoning
+const GENESIS_STRATEGIC_INSIGHT: GenesisArray = GenesisArray {
+    id:          ↦uuid_v4(),
+    name:        "strategic_insight",
+    version:     "1.0.0",
+    description: "A strategic decision, recommendation, or conclusion",
+    fields: [
+        FieldDefinition { name: "insight",       kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "rationale",     kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "action",        kind: "str",  required: false, default: None },
+        FieldDefinition { name: "priority",      kind: "str",  required: false, default: Some("medium") },
+        FieldDefinition { name: "evidence_ids",  kind: "vec",  required: false, default: None },
+    ],
+    constraints: [
+        ValidationRule { field: "priority", rule: "oneof:low,medium,high,critical", message: "Invalid priority level" },
+    ],
+    default_tier:      MemoryTier::T2_Episodic,
+    default_half_life: 30.0,    // Strategic insights persist longer
+    default_domain:    SemanticDomain::Strategic,
+}
+
+// conflict_record — When Devil's Advocate raises a contradiction
+const GENESIS_CONFLICT_RECORD: GenesisArray = GenesisArray {
+    id:          ↦uuid_v4(),
+    name:        "conflict_record",
+    version:     "1.0.0",
+    description: "A recorded conflict between agent truths",
+    fields: [
+        FieldDefinition { name: "glyph_a_id",   kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "glyph_b_id",   kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "agent_a",      kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "agent_b",      kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "description",  kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "resolved",     kind: "bool", required: false, default: Some(false) },
+    ],
+    constraints: [],
+    default_tier:      MemoryTier::T2_Episodic,
+    default_half_life: 14.0,
+    default_domain:    SemanticDomain::Relational,
+}
+
+// quantum_state_record — QUBE execution result stored as knowledge
+const GENESIS_QUANTUM_RESULT: GenesisArray = GenesisArray {
+    id:          ↦uuid_v4(),
+    name:        "quantum_result",
+    version:     "1.0.0",
+    description: "Result of a QUBE quantum circuit execution",
+    fields: [
+        FieldDefinition { name: "circuit_id",      kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "entanglement_pct", kind: "f32",  required: true,  default: None },
+        FieldDefinition { name: "accuracy_pct",    kind: "f32",  required: true,  default: None },
+        FieldDefinition { name: "verdict",         kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "session_id",      kind: "str",  required: true,  default: None },
+        FieldDefinition { name: "raw_output",      kind: "str",  required: false, default: None },
+    ],
+    constraints: [
+        ValidationRule { field: "entanglement_pct", rule: "min:0.0",   message: "Entanglement must be >= 0.0" },
+        ValidationRule { field: "entanglement_pct", rule: "max:100.0", message: "Entanglement must be <= 100.0" },
+    ],
+    default_tier:      MemoryTier::T3_Semantic,
+    default_half_life: T3_DEFAULT_HALF_LIFE_DAYS,
+    default_domain:    SemanticDomain::Quantum,
+}
+
+// ── Default Registry ──────────────────────────────────────────
+fn genesis_default_registry() -> ⟨GenesisRegistry⟩ {
+    let r = GenesisRegistry { templates: ↦map_empty() }
+    let r = genesis_register(r, GENESIS_MARKET_SIGNAL)
+    let r = genesis_register(r, GENESIS_AGENT_OBSERVATION)
+    let r = genesis_register(r, GENESIS_STRATEGIC_INSIGHT)
+    let r = genesis_register(r, GENESIS_CONFLICT_RECORD)
+    let r = genesis_register(r, GENESIS_QUANTUM_RESULT)
+    r
+}
