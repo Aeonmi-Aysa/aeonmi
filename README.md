@@ -24,6 +24,17 @@ This is not a proof-of-concept demo. This is an ongoing, honest build — docume
 
 ---
 
+## New milestones (April 2026)
+
+- ✅ Aeonmi.ai launch milestone is now reflected in repository docs
+- ✅ Native Rust VM is now the default runtime path for `native`, `run`, and `exec`
+- ✅ Import/module loading is implemented in the VM (`resolve_import()` path)
+- ✅ Mother memory persistence is live via `Aeonmi_Master/genesis.json`
+- ✅ Unified dashboard includes Mother chat, file explorer, shard panel, and agent controls
+- 🔄 Self-hosting shard compiler remains the primary in-progress milestone
+
+---
+
 ## What works right now
 
 | Feature | Status |
@@ -43,7 +54,7 @@ This is not a proof-of-concept demo. This is an ongoing, honest build — docume
 | `AeonmiDemo.exe` — showcase | ⚠️ Display only, no live VM execution |
 | QUBE quantum layer | 🔧 Partially implemented |
 | Identity Vault | 🔧 Experimental |
-| Import / module system | ❌ Not yet implemented |
+| Import / module system | ✅ Implemented in VM import loader |
 | `arr[i]` subscript syntax | ❌ Broken — use `arr.slice(i, i+1).pop()` |
 | `%` modulo operator | ❌ Not implemented as binary op |
 | `fmod()` builtin | ❌ Parse conflict — use `floor(x/2)*2` for even check |
@@ -220,11 +231,7 @@ These are not future plans — they are current facts:
 
 4. **Object literals `{...}` fail as function arguments.** `fn({"k": v})` causes a parse error. Always construct objects with `object()` + `set_key()`.
 
-5. **No module/import system.** All code must be in one file, or you must manually concatenate .ai files before running.
-
-6. **`exec` and `run` subcommands use a JavaScript transpiler**, not the Rust VM. Only `native` runs through the real pipeline. Use `Aeonmi.exe native <file>`.
-
-7. **`AeonmiStudio.exe` pipeline panel is cosmetic.** The four stage indicators (Lexer → Parser → IR → VM) animate on a timer. They do not reflect actual VM stage completion. The code editor and execution are real; the visualization is approximate.
+5. **`AeonmiStudio.exe` pipeline panel is cosmetic.** The four stage indicators (Lexer → Parser → IR → VM) animate on a timer. They do not reflect actual VM stage completion. The code editor and execution are real; the visualization is approximate.
 
 ---
 
@@ -340,7 +347,7 @@ This language was built by AI. Contributions from humans and AI systems are both
 
 3. **Fix `fmod` parse conflict** — `src/core/lexer.rs`, check how `f` is tokenized before identifier characters.
 
-4. **Module/import system** — `load "path/to/module.ai"` syntax. All bindings from that file become available.
+4. **Import system hardening** — improve path resolution, cyclic import detection, and import diagnostics.
 
 5. **Real pipeline telemetry for AeonmiStudio** — the IDE currently animates on a timer. The VM could emit stage-complete signals (stdout markers or a JSON protocol) so the IDE can reflect actual pipeline state.
 
