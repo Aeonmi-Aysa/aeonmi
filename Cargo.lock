@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "aeonmi_project"
-version = "1.0.0-quantum-consciousness"
+version = "2.0.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
