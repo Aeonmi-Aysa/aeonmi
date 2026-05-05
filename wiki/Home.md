@@ -14,11 +14,10 @@ Aeonmi is an AI-native language/runtime ecosystem implemented in Rust with:
 
 ## Start here
 
-1. [Getting Started](./Getting-Started.md)
-2. [CLI Reference](./CLI-Reference.md)
-3. [Language and VM](./Language-and-VM.md)
-4. [QUBE](./QUBE.md)
-5. [Mother AI and Dashboard](./Mother-AI-and-Dashboard.md)
-6. [Architecture](./Architecture.md)
-7. [Known Limitations and Roadmap](./Known-Limitations-and-Roadmap.md)
-
+1. [[Getting Started]]
+2. [[CLI Reference]]
+3. [[Language and VM]]
+4. [[QUBE]]
+5. [[Mother AI and Dashboard]]
+6. [[Architecture]]
+7. [[Known Limitations and Roadmap]]

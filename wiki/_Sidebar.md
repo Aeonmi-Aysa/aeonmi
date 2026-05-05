@@ -1,8 +1,8 @@
-- [Home](./Home.md)
-- [Getting Started](./Getting-Started.md)
-- [CLI Reference](./CLI-Reference.md)
-- [Language and VM](./Language-and-VM.md)
-- [QUBE](./QUBE.md)
-- [Mother AI and Dashboard](./Mother-AI-and-Dashboard.md)
-- [Architecture](./Architecture.md)
-- [Known Limitations and Roadmap](./Known-Limitations-and-Roadmap.md)
+- [[Home]]
+- [[Getting Started]]
+- [[CLI Reference]]
+- [[Language and VM]]
+- [[QUBE]]
+- [[Mother AI and Dashboard]]
+- [[Architecture]]
+- [[Known Limitations and Roadmap]]
